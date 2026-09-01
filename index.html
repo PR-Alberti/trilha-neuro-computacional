@@ -3,433 +3,517 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Guia de estudos de Machine Learning e IA para estudantes de Ciências Biológicas — do pré-cálculo ao deep learning.">
-<title>Guia de Estudos: Machine Learning para Biológicas</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+<meta name="description" content="Guia de estudos de Machine Learning para neurociência computacional — do pré-cálculo aos modelos que codificam e decodificam o cérebro.">
+<title>Guia de Estudos: ML para Neurociência Computacional</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+/* aplica o tema salvo ANTES do primeiro paint, para não piscar */
+(function(){
+  var t = null;
+  try { t = localStorage.getItem("guia-tema"); } catch(e){}
+  if(!t) t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.dataset.theme = t;
+})();
+</script>
 <style>
-/* ============ tokens ============ */
+/* ============ tokens de cor ============
+   accent (índigo)  → ações, navegação, destaque — o “sinal neural”
+   verde / âmbar    → semântica do guia: essencial / aprofundamento
+   lv0 lv1 lv2      → escala de dificuldade dos temas (azul→violeta→rosa) */
 :root{
-  --bg:#F3F7F4;
-  --surface:#FFFFFF;
-  --ink:#14251C;
-  --muted:#5A6B61;
-  --line:#DBE5DD;
-  --accent:#047857;        /* verde-esmeralda: identidade "bio" */
-  --accent-ink:#065F46;
-  --accent-soft:#DCF2E7;
-  --green-bg:#DCFCE7; --green-ink:#15803D; --green-line:#9BD3A9;   /* essencial */
-  --yellow-bg:#FEF3C7; --yellow-ink:#854D0E; --yellow-line:#E8CE6A; /* aprofundamento */
-  --red-bg:#FEE2E2; --red-ink:#B91C1C;
+  color-scheme:light;
+  --bg:#F5F6F8; --surface:#FFFFFF; --ink:#181A23; --muted:#5E6572; --line:#E2E5EA;
+  --accent:#4F46E5; --accent-ink:#3730A3; --accent-soft:#E9E8FC;
+  --green-bg:#DCFCE7; --green-ink:#15803D; --green-line:#9BD3A9;
+  --amber-bg:#FEF3C7; --amber-ink:#854D0E; --amber-line:#E8CE6A;
+  --lv0:#2563EB; --lv0-bg:#DBEAFE; --lv0-ink:#1D4ED8;
+  --lv1:#7C3AED; --lv1-bg:#EDE9FE; --lv1-ink:#6D28D9;
+  --lv2:#DB2777; --lv2-bg:#FCE7F3; --lv2-ink:#BE185D;
+  --method-bg:#181A23; --method-ink:#E9EDF2; --method-sub:#9AA4B2;
   --radius:14px;
-  --shadow:0 1px 2px rgba(20,37,28,.05),0 10px 28px -18px rgba(20,37,28,.25);
-  --font-display:"Bricolage Grotesque",system-ui,sans-serif;
-  --font-body:"Inter",system-ui,sans-serif;
-  --font-mono:"IBM Plex Mono",ui-monospace,monospace;
+  --shadow:0 1px 2px rgba(24,26,35,.05),0 10px 28px -18px rgba(24,26,35,.25);
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0E1116; --surface:#161B22; --ink:#E7EAF0; --muted:#98A1AE; --line:#262D37;
+  --accent:#818CF8; --accent-ink:#C7CBFF; --accent-soft:#26284A;
+  --green-bg:#12331F; --green-ink:#6EE7A0; --green-line:#1F4D2F;
+  --amber-bg:#382F10; --amber-ink:#F5D061; --amber-line:#57491A;
+  --lv0:#60A5FA; --lv0-bg:#12263F; --lv0-ink:#93C5FD;
+  --lv1:#A78BFA; --lv1-bg:#251A3F; --lv1-ink:#C4B5FD;
+  --lv2:#F472B6; --lv2-bg:#3B1226; --lv2-ink:#F9A8D4;
+  --method-bg:#1B212B; --method-ink:#E9EDF2; --method-sub:#8C97A6;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 10px 28px -18px rgba(0,0,0,.7);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+body{background:var(--bg);color:var(--ink);font-family:"Inter",system-ui,sans-serif;font-size:15.5px;line-height:1.6;-webkit-font-smoothing:antialiased}
 a{color:inherit}
-button{font:inherit;cursor:pointer}
+button{font:inherit;cursor:pointer;color:inherit}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:6px}
-.wrap{max-width:960px;margin:0 auto;padding:0 20px}
+.wrap-wide{max-width:1480px;margin:0 auto;padding:0 24px}
 
-/* ============ header fixo ============ */
-header.site{position:sticky;top:0;z-index:20;background:rgba(243,247,244,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-header.site .bar{display:flex;align-items:center;gap:14px;padding:12px 0}
-.brand{font-family:var(--font-display);font-weight:800;font-size:1.02rem;letter-spacing:-.01em;text-decoration:none;display:flex;align-items:center;gap:10px}
+/* ============ header ============ */
+header.site{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+header.site .bar{display:flex;align-items:center;gap:14px;padding:11px 0}
+.brand{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:1.02rem;letter-spacing:-.01em;text-decoration:none;display:flex;align-items:center;gap:10px}
 .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
 .bar .spacer{flex:1}
-.legend-mini{display:flex;gap:8px;font-family:var(--font-mono);font-size:.68rem}
+.legend-mini{display:flex;gap:8px;font-family:"IBM Plex Mono",monospace;font-size:.66rem}
 .legend-mini span{padding:3px 8px;border-radius:999px;font-weight:600;letter-spacing:.04em}
 .lg-g{background:var(--green-bg);color:var(--green-ink);border:1px solid var(--green-line)}
-.lg-y{background:var(--yellow-bg);color:var(--yellow-ink);border:1px solid var(--yellow-line)}
-@media (max-width:560px){.legend-mini{display:none}}
+.lg-y{background:var(--amber-bg);color:var(--amber-ink);border:1px solid var(--amber-line)}
+@media (max-width:820px){.legend-mini{display:none}}
+#themeBtn{background:var(--surface);border:1px solid var(--line);border-radius:999px;width:38px;height:38px;font-size:1rem;line-height:1}
+#themeBtn:hover{border-color:var(--accent)}
+
+/* ============ layout desktop: sidebar + conteúdo ============ */
+.layout{display:grid;grid-template-columns:252px minmax(0,1fr);gap:36px;max-width:1480px;margin:0 auto;padding:0 24px}
+aside.sidebar{position:sticky;top:61px;align-self:start;max-height:calc(100vh - 61px);overflow-y:auto;padding:26px 12px 26px 0;border-right:1px solid var(--line)}
+.sn-phase{font-family:"IBM Plex Mono",monospace;font-size:.66rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:18px 0 8px}
+.sn-phase:first-child{margin-top:0}
+a.sn-mod{display:flex;align-items:baseline;gap:8px;padding:7px 10px;border-radius:8px;text-decoration:none;font-size:.86rem}
+a.sn-mod:hover{background:var(--accent-soft);color:var(--accent-ink)}
+.sn-num{font-family:"IBM Plex Mono",monospace;font-size:.68rem;color:var(--muted)}
+.sn-name{flex:1;font-weight:500}
+.sn-prog{font-family:"IBM Plex Mono",monospace;font-size:.66rem;color:var(--muted)}
+.sn-prog.full{color:var(--green-ink);font-weight:600}
+.sn-extra{margin-top:16px;border-top:1px solid var(--line);padding-top:14px;color:var(--muted)}
+@media (max-width:1000px){.layout{grid-template-columns:minmax(0,1fr)}aside.sidebar{display:none}}
 
 /* ============ hero ============ */
-.hero{padding:64px 0 40px;position:relative;overflow:hidden}
-.hero .eyebrow{font-family:var(--font-mono);font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600}
-.hero h1{font-family:var(--font-display);font-weight:800;font-size:clamp(2.2rem,6vw,3.4rem);letter-spacing:-.03em;line-height:1.05;margin:10px 0 14px;max-width:18ch}
-.hero p.lead{color:var(--muted);max-width:56ch;font-size:1.02rem}
-/* curva logística animada — crescimento populacional, tema de casa */
-.growth{position:absolute;right:-30px;top:34px;width:min(50%,440px);pointer-events:none}
-.growth path{fill:none;stroke-linecap:round}
-.growth .k{stroke:var(--line);stroke-width:2;stroke-dasharray:6 8}
-.growth .curve{stroke:var(--accent);stroke-width:2.5;stroke-dasharray:900;stroke-dashoffset:900;animation:trace 3s ease forwards}
+.hero{padding:48px 0 30px;position:relative;overflow:hidden}
+.hero .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.hero h1{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:clamp(2rem,4.2vw,3.1rem);letter-spacing:-.03em;line-height:1.05;margin:10px 0 14px;max-width:22ch}
+.hero p.lead{color:var(--muted);max-width:62ch;font-size:1rem}
+.eeg{position:absolute;right:-30px;top:26px;width:min(46%,470px);pointer-events:none;opacity:.9}
+.eeg path{fill:none;stroke-linecap:round}
+.eeg .ghost{stroke:var(--line);stroke-width:2}
+.eeg .trace{stroke:var(--accent);stroke-width:2;stroke-dasharray:1400;stroke-dashoffset:1400;animation:trace 3.2s ease forwards}
 @keyframes trace{to{stroke-dashoffset:0}}
-@media (prefers-reduced-motion:reduce){.growth .curve{animation:none;stroke-dashoffset:0}}
-@media (max-width:760px){.growth{display:none}}
-.stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
-.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;box-shadow:var(--shadow)}
-.stat b{font-family:var(--font-mono);font-size:1rem;display:block}
-.stat span{font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-.legend-block{margin-top:24px;display:grid;gap:8px;max-width:640px}
-.legend-block .row{display:flex;gap:10px;align-items:baseline;font-size:.92rem;color:var(--muted)}
-.toolbar{margin-top:24px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.btn{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:8px 16px;font-weight:600;font-size:.85rem;box-shadow:var(--shadow)}
+@media (prefers-reduced-motion:reduce){.eeg .trace{animation:none;stroke-dashoffset:0}}
+@media (max-width:900px){.eeg{display:none}}
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:10px 16px;box-shadow:var(--shadow)}
+.stat b{font-family:"IBM Plex Mono",monospace;font-size:.98rem;display:block}
+.stat span{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.legend-block{margin-top:22px;display:grid;gap:8px;max-width:720px}
+.legend-block .row{display:flex;gap:10px;align-items:baseline;font-size:.9rem;color:var(--muted);flex-wrap:wrap}
+.tag{font-family:"IBM Plex Mono",monospace;font-size:.62rem;font-weight:600;letter-spacing:.08em;padding:3px 10px;border-radius:999px;text-transform:uppercase;white-space:nowrap}
+.tag-g{background:var(--green-bg);color:var(--green-ink);border:1px solid var(--green-line)}
+.tag-y{background:var(--amber-bg);color:var(--amber-ink);border:1px solid var(--amber-line)}
+.lvchip{font-family:"IBM Plex Mono",monospace;font-size:.62rem;font-weight:600;letter-spacing:.06em;padding:3px 10px;border-radius:999px;text-transform:uppercase;white-space:nowrap}
+.lvchip.lv0{background:var(--lv0-bg);color:var(--lv0-ink)}
+.lvchip.lv1{background:var(--lv1-bg);color:var(--lv1-ink)}
+.lvchip.lv2{background:var(--lv2-bg);color:var(--lv2-ink)}
+.toolbar{margin-top:22px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 15px;font-weight:600;font-size:.82rem;box-shadow:var(--shadow)}
 .btn:hover{border-color:var(--accent);color:var(--accent-ink)}
-.toolbar .hint{font-size:.8rem;color:var(--muted)}
+.f-btn.is-on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink)}
+.toolbar .hint{font-size:.78rem;color:var(--muted);margin-left:4px}
 
-/* ============ fases e módulos (hub) ============ */
-.trilha{padding:12px 0 70px}
-.phase{margin-top:44px;scroll-margin-top:70px}
+/* filtro de temas por nível */
+body[data-filter="0"] a.theme:not(.lv0),
+body[data-filter="1"] a.theme:not(.lv1),
+body[data-filter="2"] a.theme:not(.lv2){display:none}
+
+/* ============ fases e módulos ============ */
+.trilha{padding:8px 0 60px}
+.phase{margin-top:38px;scroll-margin-top:70px}
 .phase-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
-.phase-num{font-family:var(--font-mono);font-weight:600;font-size:.78rem;color:var(--accent);background:var(--accent-soft);padding:4px 10px;border-radius:999px;letter-spacing:.06em}
-.phase-head h2{font-family:var(--font-display);font-weight:800;font-size:clamp(1.4rem,3.4vw,1.9rem);letter-spacing:-.02em}
-.phase-head .hours{font-family:var(--font-mono);font-size:.78rem;color:var(--muted)}
-.phase-sub{color:var(--muted);max-width:70ch;margin:8px 0 20px;font-size:.95rem}
+.phase-num{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:.74rem;color:var(--accent);background:var(--accent-soft);padding:4px 10px;border-radius:999px;letter-spacing:.06em}
+.phase-head h2{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:clamp(1.3rem,2.6vw,1.7rem);letter-spacing:-.02em}
+.phase-head .hours{font-family:"IBM Plex Mono",monospace;font-size:.74rem;color:var(--muted)}
+.phase-sub{color:var(--muted);max-width:80ch;margin:6px 0 18px;font-size:.92rem}
 
-/* cartão de módulo: <details> nativo = recolher/expandir sem JS */
 details.mod{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px;box-shadow:var(--shadow);scroll-margin-top:80px;transition:border-color .15s ease}
 details.mod:hover{border-color:var(--accent)}
-summary.mod-sum{display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer;list-style:none;flex-wrap:wrap}
+summary.mod-sum{display:flex;align-items:center;gap:14px;padding:15px 18px;cursor:pointer;list-style:none;flex-wrap:wrap}
 summary.mod-sum::-webkit-details-marker{display:none}
-.chev{font-family:var(--font-mono);color:var(--accent);font-weight:600;transition:transform .2s ease}
+.chev{font-family:"IBM Plex Mono",monospace;color:var(--accent);font-weight:600;transition:transform .2s ease}
 details[open] .chev{transform:rotate(90deg)}
-.mod-num{font-family:var(--font-mono);font-size:.74rem;color:var(--muted)}
-.mod-title{flex:1;min-width:200px;font-family:var(--font-display);font-weight:600;font-size:1.12rem;letter-spacing:-.01em}
-.mod-title .sub{display:block;color:var(--muted);font-size:.85rem;font-weight:400;font-family:var(--font-body);letter-spacing:0}
-.mod-meta{display:flex;gap:14px;align-items:center;font-family:var(--font-mono);font-size:.74rem;color:var(--muted);flex-wrap:wrap}
+.mod-num{font-family:"IBM Plex Mono",monospace;font-size:.72rem;color:var(--muted)}
+.mod-title{flex:1;min-width:220px;font-family:"Bricolage Grotesque",sans-serif;font-weight:600;font-size:1.1rem;letter-spacing:-.01em}
+.mod-title .sub{display:block;color:var(--muted);font-size:.84rem;font-weight:400;font-family:"Inter",sans-serif;letter-spacing:0}
+.mod-meta{display:flex;gap:14px;align-items:center;font-family:"IBM Plex Mono",monospace;font-size:.72rem;color:var(--muted);flex-wrap:wrap}
 .mod-meta .stars{color:var(--accent);letter-spacing:.1em}
+.prog{color:var(--muted)}
+.prog.full{color:var(--green-ink);font-weight:600}
+
+/* corpo do módulo: 2 colunas no desktop — temas | materiais+teste */
 .mod-body{border-top:1px solid var(--line);padding:18px;display:grid;gap:20px}
+@media (min-width:1120px){
+  .mod-body{grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);grid-template-areas:"bio bio" "themes side"}
+  .bio{grid-area:bio}
+  .blk-themes{grid-area:themes}
+  .side{grid-area:side}
+}
+.side{display:grid;gap:20px;align-self:start}
+.bio{background:var(--accent-soft);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
+.bio h4,.blk h4{font-family:"IBM Plex Mono",monospace;font-size:.68rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:8px}
+.bio p{font-size:.9rem}
 
-.bio{background:var(--accent-soft);border:1px solid #B5E3CD;border-radius:10px;padding:12px 16px}
-.bio h4,.blk h4{font-family:var(--font-mono);font-size:.7rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:8px}
-.bio p{font-size:.92rem}
-
-.themes{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}
-a.theme{display:block;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:10px 14px;text-decoration:none;transition:transform .15s ease,border-color .15s ease}
-a.theme:hover{transform:translateX(4px);border-color:var(--accent)}
-.theme .t-top{display:flex;align-items:baseline;gap:10px}
-.theme b{font-weight:600;flex:1}
-.theme .count{font-family:var(--font-mono);font-size:.68rem;color:var(--accent);white-space:nowrap}
-.theme .desc{color:var(--muted);font-size:.84rem;display:block;margin-top:2px}
-
-.goals{list-style:none;display:grid;gap:8px}
-.goals li{display:flex;gap:10px;align-items:baseline;font-size:.92rem}
-.lvl{font-family:var(--font-mono);font-size:.64rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;min-width:86px;text-align:center;white-space:nowrap}
-.lvl-b{background:var(--green-bg);color:var(--green-ink)}
-.lvl-i{background:var(--yellow-bg);color:var(--yellow-ink)}
-.lvl-a{background:var(--red-bg);color:var(--red-ink)}
+.themes{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+a.theme{display:block;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;padding:10px 13px;text-decoration:none;transition:transform .15s ease,border-color .15s ease}
+a.theme.lv0{border-left-color:var(--lv0)}
+a.theme.lv1{border-left-color:var(--lv1)}
+a.theme.lv2{border-left-color:var(--lv2)}
+a.theme:hover{transform:translateX(3px);border-color:var(--accent)}
+a.theme.done{opacity:.62}
+.theme .t-top{display:flex;align-items:baseline;gap:8px}
+.theme b{font-weight:600;flex:1;font-size:.92rem}
+.theme .donemark{color:var(--green-ink);font-weight:700}
+.theme .desc{color:var(--muted);font-size:.8rem;display:block;margin-top:2px}
+.theme .t-foot{display:flex;gap:8px;align-items:center;margin-top:7px}
+.theme .count{font-family:"IBM Plex Mono",monospace;font-size:.64rem;color:var(--accent);margin-left:auto;white-space:nowrap}
 
 .mats{list-style:none;display:grid;gap:8px}
-.mats li{background:var(--surface);border:1px solid var(--line);border-left-width:5px;border-radius:10px;padding:10px 14px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
-.mats li.m-g{border-left-color:var(--green-ink);background:linear-gradient(90deg,var(--green-bg) 0,var(--surface) 42%)}
-.mats li.m-y{border-left-color:var(--yellow-ink);background:linear-gradient(90deg,var(--yellow-bg) 0,var(--surface) 42%)}
-.mats li b{font-weight:600;flex:1;min-width:200px}
-.mats li a{font-size:.8rem;font-weight:600;color:var(--accent-ink)}
+.mats li{background:var(--surface);border:1px solid var(--line);border-left-width:5px;border-radius:10px;padding:9px 13px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;font-size:.9rem}
+.mats li.m-g{border-left-color:var(--green-ink);background:linear-gradient(90deg,var(--green-bg) 0,var(--surface) 46%)}
+.mats li.m-y{border-left-color:var(--amber-ink);background:linear-gradient(90deg,var(--amber-bg) 0,var(--surface) 46%)}
+.mats li b{font-weight:600;flex:1;min-width:180px}
+.mats li a{font-size:.78rem;font-weight:600;color:var(--accent-ink)}
 
-.drill{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 16px;font-size:.92rem}
-.final{background:var(--accent-soft);border:1px solid #B5E3CD;border-radius:10px;padding:12px 16px;font-size:.92rem}
-.drill b,.final b{font-weight:600}
+.drill{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 15px;font-size:.88rem}
+.test{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:13px 16px}
+.test p{font-size:.88rem;margin-bottom:10px}
+.btn-test{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border-radius:999px;padding:8px 18px;font-weight:600;font-size:.84rem;text-decoration:none}
+.btn-test:hover{filter:brightness(1.1)}
+.test .small{font-size:.74rem;color:var(--muted);margin:8px 0 0}
 
 /* ============ visão isolada de tema ============ */
 .detail{padding:36px 0 90px;display:none}
-.crumb{display:inline-flex;align-items:center;gap:8px;font-size:.86rem;font-weight:600;color:var(--accent-ink);text-decoration:none;background:var(--accent-soft);padding:8px 14px;border-radius:999px}
+.crumb{display:inline-flex;align-items:center;gap:8px;font-size:.84rem;font-weight:600;color:var(--accent-ink);text-decoration:none;background:var(--accent-soft);padding:8px 14px;border-radius:999px}
 .crumb:hover{filter:brightness(.96)}
-.detail-head{margin-top:26px}
-.detail-head .eyebrow{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600}
-.detail-head h1{font-family:var(--font-display);font-weight:800;font-size:clamp(1.7rem,4.6vw,2.4rem);letter-spacing:-.025em;line-height:1.1;margin-top:6px}
+.detail-head{margin-top:24px;display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.detail-head .dh{flex:1;min-width:260px}
+.detail-head .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.detail-head h1{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:clamp(1.6rem,3.6vw,2.3rem);letter-spacing:-.025em;line-height:1.1;margin-top:6px}
+.done-btn{margin-top:10px}
+.done-btn.is-done{background:var(--green-bg);border-color:var(--green-line);color:var(--green-ink)}
 .metabar{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 8px}
-.metabar .chip{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-family:var(--font-mono);font-size:.78rem}
+.metabar .chip{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:7px 13px;font-family:"IBM Plex Mono",monospace;font-size:.76rem}
 .metabar .chip b{color:var(--accent)}
-.section{margin-top:28px}
-.section>h2{font-family:var(--font-mono);font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
-.section p{max-width:72ch}
+.detail-grid{display:grid;gap:26px;margin-top:6px}
+@media (min-width:1120px){.detail-grid{grid-template-columns:minmax(0,1.7fr) minmax(0,1fr)}}
+.d-side{align-self:start;display:grid;gap:26px}
+.section{margin-top:24px}
+.section>h2{font-family:"IBM Plex Mono",monospace;font-size:.7rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+.section p{max-width:75ch}
 .topics{list-style:none;counter-reset:st;display:grid;gap:8px}
 .topics li{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;display:flex;gap:12px;align-items:baseline}
-.topics li::before{counter-increment:st;content:counter(st,decimal-leading-zero);font-family:var(--font-mono);font-size:.72rem;color:var(--accent);font-weight:600}
-.note{color:var(--muted);font-size:.9rem;max-width:70ch}
+.topics li::before{counter-increment:st;content:counter(st,decimal-leading-zero);font-family:"IBM Plex Mono",monospace;font-size:.7rem;color:var(--accent);font-weight:600}
+.note{color:var(--muted);font-size:.88rem;max-width:70ch}
 .prompt{margin-top:12px;background:var(--surface);border:1px dashed var(--accent);border-radius:10px;padding:12px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.prompt p{font-family:var(--font-mono);font-size:.82rem;flex:1;min-width:240px}
-.prompt button{background:var(--accent);color:#fff;border:none;border-radius:999px;padding:8px 16px;font-weight:600;font-size:.82rem}
-.prompt button:hover{background:var(--accent-ink)}
-.pager{display:flex;gap:10px;margin-top:44px;flex-wrap:wrap}
+.prompt p{font-family:"IBM Plex Mono",monospace;font-size:.8rem;flex:1;min-width:240px}
+.prompt button{background:var(--accent);color:#fff;border:none;border-radius:999px;padding:8px 16px;font-weight:600;font-size:.8rem}
+.prompt button:hover{filter:brightness(1.1)}
+.pager{display:flex;gap:10px;margin-top:40px;flex-wrap:wrap}
 .pager a{flex:1;min-width:200px;text-decoration:none;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;box-shadow:var(--shadow)}
 .pager a:hover{border-color:var(--accent)}
-.pager .dir{font-family:var(--font-mono);font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
-.pager .name{font-weight:600;font-size:.92rem}
+.pager .dir{font-family:"IBM Plex Mono",monospace;font-size:.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.pager .name{font-weight:600;font-size:.9rem}
 .pager a.next{text-align:right}
 
 /* ============ método / rodapé ============ */
-.method{margin-top:56px;background:var(--ink);color:#EAF1EC;border-radius:20px;padding:34px 30px}
-.method h2{font-family:var(--font-display);font-weight:800;font-size:1.5rem;letter-spacing:-.02em;margin-bottom:6px}
-.method p.sub{color:#9FB4A8;font-size:.92rem;margin-bottom:18px}
-.method ol{list-style:none;display:grid;gap:12px;counter-reset:tip}
-.method ol li{display:flex;gap:14px;align-items:baseline}
-.method ol li::before{counter-increment:tip;content:counter(tip,decimal-leading-zero);font-family:var(--font-mono);font-size:.74rem;color:#7EE2B0;font-weight:600}
-footer{padding:34px 0 60px;color:var(--muted);font-size:.82rem}
+.method{margin:40px 0 0;background:var(--method-bg);color:var(--method-ink);border-radius:20px;padding:30px 28px;scroll-margin-top:80px}
+.method h2{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:1.4rem;letter-spacing:-.02em;margin-bottom:6px}
+.method p.sub{color:var(--method-sub);font-size:.9rem;margin-bottom:16px}
+.method ol{list-style:none;display:grid;gap:11px;counter-reset:tip}
+.method ol li{display:flex;gap:14px;align-items:baseline;font-size:.92rem}
+.method ol li::before{counter-increment:tip;content:counter(tip,decimal-leading-zero);font-family:"IBM Plex Mono",monospace;font-size:.72rem;color:#8B87E8;font-weight:600}
+footer.site-foot{border-top:1px solid var(--line);margin-top:50px;padding:30px 0 55px;color:var(--muted);font-size:.82rem}
 
-/* alternância hub ⇄ detalhe controlada por classe no body */
 body.viewing-detail #hub{display:none}
 body.viewing-detail #detail{display:block}
 </style>
 </head>
-<body>
+<body data-filter="all">
 
 <header class="site">
-  <div class="wrap bar">
-    <a class="brand" href="#"><span class="dot"></span>Trilha · ML para Biológicas</a>
+  <div class="wrap-wide bar">
+    <a class="brand" href="#"><span class="dot"></span>Trilha · Neurociência Computacional</a>
     <span class="spacer"></span>
     <div class="legend-mini" aria-hidden="true">
       <span class="lg-g">VERDE · ESSENCIAL</span>
-      <span class="lg-y">AMARELO · APROFUNDAMENTO</span>
+      <span class="lg-y">ÂMBAR · APROFUNDAMENTO</span>
     </div>
+    <button id="themeBtn" onclick="toggleTheme()" title="Alternar modo claro/escuro" aria-label="Alternar modo claro/escuro">🌙</button>
   </div>
 </header>
 
-<!-- ============ HUB ============ -->
-<main id="hub">
-  <section class="hero wrap">
-    <svg class="growth" viewBox="0 0 460 180" aria-hidden="true">
-      <path class="k" d="M0 24 H460"/>
-      <path class="curve" d="M0 164 C 90 162 130 156 170 128 C 210 100 230 58 290 38 C 340 24 400 24 460 24"/>
-    </svg>
-    <p class="eyebrow">Guia de estudos · Do zero à IA</p>
-    <h1>Machine Learning para Biológicas</h1>
-    <p class="lead">Uma trilha do absoluto zero para estudantes de <strong>Ciências Biológicas</strong>, conectando o ferramental exato à vida e à natureza. Expanda cada módulo para ver o conteúdo inteiro, ou abra um tema isolado para estudá-lo.</p>
-    <div class="stats">
-      <div class="stat"><b>2 fases</b><span>base + IA</span></div>
-      <div class="stat"><b>9 módulos</b><span id="statTemas">— temas</span></div>
-      <div class="stat"><b>~380 h</b><span>carga total</span></div>
-    </div>
-    <div class="legend-block">
-      <div class="row"><span class="lvl lvl-b">Essencial</span><span>Material nuclear — sem isso, o resto da trilha não se sustenta.</span></div>
-      <div class="row"><span class="lvl lvl-i">Aprofundamento</span><span>Importante, mas de profundidade diferenciada. Pode ficar para uma segunda passada.</span></div>
-    </div>
-    <div class="toolbar">
-      <button class="btn" onclick="setAll(true)">Expandir tudo</button>
-      <button class="btn" onclick="setAll(false)">Recolher tudo</button>
-      <span class="hint">Dica: clique num tema para abri-lo isoladamente.</span>
-    </div>
-  </section>
+<div class="layout">
+  <aside class="sidebar" id="sidenav" aria-label="Navegação dos módulos"></aside>
 
-  <section class="trilha wrap" id="fases"></section>
+  <div class="content">
+    <!-- ============ HUB ============ -->
+    <main id="hub">
+      <section class="hero">
+        <svg class="eeg" viewBox="0 0 460 160" aria-hidden="true">
+          <path class="ghost" d="M0 80 H460"/>
+          <path class="trace" d="M0 80 h40 l8 -10 l8 10 h30 l6 -46 l8 84 l8 -60 l6 22 h44 l8 -12 l8 12 h34 l6 -30 l10 52 l8 -34 l6 12 h46 l8 -8 l8 8 h28 l6 -40 l10 70 l8 -44 l6 14 h60"/>
+        </svg>
+        <p class="eyebrow">Guia de estudos · Da biologia ao sinal</p>
+        <h1>Machine Learning para Neurociência Computacional</h1>
+        <p class="lead">Trilha do absoluto zero para estudantes de <strong>Ciências Biológicas</strong> que querem atuar de forma técnica e consciente em neurociência computacional — do pré-cálculo aos modelos que codificam e decodificam o cérebro.</p>
+        <div class="stats">
+          <div class="stat"><b>2 fases</b><span>base + IA</span></div>
+          <div class="stat"><b>9 módulos</b><span id="statTemas">— temas</span></div>
+          <div class="stat"><b>~380 h</b><span>carga total</span></div>
+        </div>
+        <div class="legend-block">
+          <div class="row"><span class="tag tag-g">Essencial</span><span>Material nuclear — sem isso, o resto da trilha não se sustenta.</span></div>
+          <div class="row"><span class="tag tag-y">Aprofundamento</span><span>Importante, mas de profundidade diferenciada. Pode ficar para uma segunda passada.</span></div>
+          <div class="row"><span class="lvchip lv0">Básico</span><span class="lvchip lv1">Intermediário</span><span class="lvchip lv2">Avançado</span><span>nível de cada tema dentro do módulo.</span></div>
+        </div>
+        <div class="toolbar">
+          <button class="btn" onclick="setAll(true)">Expandir tudo</button>
+          <button class="btn" onclick="setAll(false)">Recolher tudo</button>
+          <span class="hint">Temas:</span>
+          <button class="btn f-btn is-on" onclick="setFilter('all',this)">Todos</button>
+          <button class="btn f-btn" onclick="setFilter('0',this)">Básico</button>
+          <button class="btn f-btn" onclick="setFilter('1',this)">Intermediário</button>
+          <button class="btn f-btn" onclick="setFilter('2',this)">Avançado</button>
+        </div>
+      </section>
 
-  <section class="wrap">
-    <div class="method">
-      <h2>Como usar o guia</h2>
-      <p class="sub">Recomendações de método para não se perder em ~380 horas de estudo.</p>
-      <ol>
-        <li>Uma seção por vez — no máximo duas em paralelo (ex.: matemática + programação).</li>
-        <li>Regra dos 50%: metade do tempo de cada módulo deve ser prática. Assistir vídeo não é estudar.</li>
-        <li>Após cada subseção, gere exercícios com uma IA — cada tema desta página traz o prompt pronto para copiar.</li>
-        <li>O teste final fecha a seção: sem ele, o módulo não acabou.</li>
-        <li>Verde primeiro; os itens amarelos entram na segunda passada ou quando um projeto real exigir.</li>
-      </ol>
-    </div>
-  </section>
+      <section class="trilha" id="fases"></section>
 
-  <footer class="wrap">Trilha da Natureza para o Computador — projeto focado no crescimento de estudantes de base biológica no mercado e na academia tecnológica, desmistificando as barreiras da matemática avançada.</footer>
-</main>
+      <div class="method" id="como-usar">
+        <h2>Como usar o guia</h2>
+        <p class="sub">Recomendações de método para não se perder em ~380 horas de estudo.</p>
+        <ol>
+          <li>Uma seção por vez — no máximo duas em paralelo (ex.: matemática + programação).</li>
+          <li>Regra dos 50%: metade do tempo de cada módulo deve ser prática. Assistir vídeo não é estudar.</li>
+          <li>Após cada subseção, gere exercícios com uma IA — cada tema desta página traz o prompt pronto para copiar.</li>
+          <li>O teste da seção fecha o módulo: sem ele, o módulo não acabou.</li>
+          <li>Verde primeiro; os itens âmbar entram na segunda passada ou quando um projeto real exigir.</li>
+          <li>Antecipe o contato com a área: leia resumos de artigos de encoding/decoding e acompanhe comunidades como o Neuromatch para criar vocabulário e manter a motivação.</li>
+        </ol>
+      </div>
+    </main>
 
-<!-- ============ TEMA ISOLADO ============ -->
-<main id="detail" class="detail">
-  <div class="wrap" id="detailContent"></div>
-</main>
+    <!-- ============ TEMA ISOLADO ============ -->
+    <main id="detail" class="detail">
+      <div id="detailContent"></div>
+    </main>
+  </div>
+</div>
+
+<footer class="site-foot">
+  <div class="wrap-wide">Do neurônio ao modelo — trilha para estudantes de base biológica rumo à neurociência computacional. Sua vantagem comparativa é o conhecimento biológico; o gargalo está em matemática, programação e estatística, e é nele que este guia investe.</div>
+</footer>
 
 <script>
 /* ============================================================
    Dados do guia (fonte: Guia.pdf)
-   Cada módulo tem temas; cada tema pode ter subtemas (t) e
-   uma descrição curta (d). kind "g" = essencial, "y" = aprofundamento.
+   themes[i].lv: 0 = Básico · 1 = Intermediário · 2 = Avançado
+   mats[i].k:   "g" = essencial · "y" = aprofundamento
    ============================================================ */
 const PHASES = [
-  {num:"Fase 1", name:"Base Matemática e Computacional", hours:"~240 h",
+  {num:"Fase 1", name:"Base Matemática e Computacional", short:"Base", hours:"~240 h",
    sub:"Construir o ferramental matemático, computacional e estatístico que sustenta tudo o que vem depois."},
-  {num:"Fase 2", name:"“IA”", hours:"~140 h+",
+  {num:"Fase 2", name:"“IA”", short:"“IA”", hours:"~140 h+",
    sub:"Transformar a base em tecnologia: dos métodos clássicos de Machine Learning ao estado da arte em Deep Learning."},
 ];
 
 const MODS = [
 {id:1, ph:0, title:"Pré-Cálculo", sub:"O Alicerce Matemático", h:"~20 h", d:1, dl:"Baixa",
- bio:"Entender como uma população de bactérias cresce (exponencial), como calcular dosagens medicamentosas ou ler escalas logarítmicas como o pH depende inteiramente desta base matemática. Sem isso, os modelos da natureza parecem mágica.",
+ bio:"Curvas de resposta neuronal, escalas logarítmicas de frequência (bandas de EEG) e funções que descrevem a relação estímulo→resposta: sem fluência em funções e gráficos, os modelos do cérebro parecem mágica.",
  themes:[
-  {n:"Álgebra", d:"Manipular expressões com segurança é o que impede o cálculo de virar um pesadelo de contas.",
+  {n:"Álgebra", lv:0, d:"Manipular expressões com segurança é o que impede o cálculo de virar um pesadelo de contas.",
    t:["Potenciação","Equação","Desigualdade"]},
-  {n:"Geometria", d:"Áreas, ângulos e relações básicas — a intuição espacial que sustenta a geometria analítica.",
+  {n:"Geometria", lv:0, d:"Áreas, ângulos e relações básicas — a intuição espacial que sustenta a geometria analítica.",
    t:["Introdução","Áreas e ângulos de figuras planas clássicas","Relações básicas de ângulos"]},
-  {n:"Funções", d:"O conceito mais importante do módulo: encarar f(x) como um objeto, não como uma conta.",
+  {n:"Funções", lv:1, d:"O conceito mais importante do módulo: encarar f(x) como um objeto — como uma tuning curve: estímulo entra, resposta sai.",
    t:["Introdução","Composição de função","Inversa","Gráfico"]},
-  {n:"Trigonometria", d:"Seno e cosseno voltam com força em oscilações e sinais (ex.: ritmos circadianos).",
+  {n:"Trigonometria", lv:1, d:"Senos e cossenos são a base de Fourier — e de tudo que envolve oscilações neurais.",
    t:["Introdução de seno, cosseno e tangente","Círculo trigonométrico","Funções trigonométricas inversas","Relações e identidades fundamentais"]},
-  {n:"Geometria Analítica", d:"Traduzir geometria em equações — o primeiro passo para pensar em “espaços”.",
+  {n:"Geometria Analítica", lv:1, d:"Traduzir geometria em equações — o primeiro passo para pensar em “espaços”.",
    t:["Introdução","Equação da reta","Equação do círculo"]},
  ],
- goals:["Entender e resolver equações e geometria simples.",
-        "Compreender funções e interpretar seus gráficos com fluência.",
-        "Sair com ferramental sólido para absorver o Cálculo Real sem travar na álgebra básica."],
  mats:[{k:"g",t:"Khan Academy — Pré-Cálculo",u:"https://pt.khanacademy.org/math/precalculus"},
        {k:"y",t:"Playlist YouTube — Base Matemática",u:"https://www.youtube.com/playlist?list=PL83s8LGM84J62ahewE-sVGbnJdOqGp8lJ"}],
- drill:"Após cada aula (subseção), peça a uma IA para criar 3 questões do tema aplicadas à biologia ou química para você resolver.",
- final:"Criar e desenhar o gráfico analítico de uma função que modela o crescimento de uma colônia sob restrição de nutrientes."},
+ drill:"Após cada aula (subseção), peça a uma IA para criar 3 questões do tema aplicadas à neurociência para você resolver.",
+ final:"Criar e desenhar o gráfico analítico de uma função que modela a taxa de disparo de um neurônio em função da intensidade do estímulo."},
 
 {id:2, ph:0, title:"Cálculo Real", sub:"Taxas de Variação e Acúmulo", h:"~40 h", d:2, dl:"Média",
- bio:"Derivadas explicam velocidades e taxas: taxas de mutação, cinética enzimática e a propagação de epidemias. Integrais permitem calcular o acúmulo: por exemplo, entender áreas sob a curva de concentração de um medicamento no sangue.",
+ bio:"A dinâmica do potencial de membrana é descrita por derivadas (Hodgkin-Huxley é um sistema de equações diferenciais). Integrais somam correntes sinápticas e áreas sob a resposta hemodinâmica que o fMRI mede.",
  themes:[
-  {n:"Limite", d:"Formaliza a ideia de “chegar perto”: é a fundação sobre a qual derivadas e integrais são definidas.",
+  {n:"Limite", lv:0, d:"Formaliza a ideia de “chegar perto”: é a fundação sobre a qual derivadas e integrais são definidas.",
    t:["Introdução","Definição formal","Propriedades","Limites laterais","Limites de funções compostas","Teorema do sanduíche/confronto"]},
-  {n:"Derivada", d:"Taxas de variação instantâneas: crescimento, cinética enzimática, disseminação de doenças.",
+  {n:"Derivada", lv:1, d:"Taxas de variação instantâneas: a linguagem da dinâmica neural.",
    t:["Introdução","Condições de derivabilidade","Propriedades","Regra da cadeia","Derivação implícita","Derivadas de ordem superior"]},
-  {n:"Integral de Riemann", d:"O acúmulo: áreas sob curvas, como a concentração de um fármaco ao longo do tempo.",
+  {n:"Integral de Riemann", lv:2, d:"O acúmulo: somar correntes, áreas sob curvas de resposta, energia de um sinal.",
    t:["Introdução","Propriedades","Primitiva","Teorema Fundamental do Cálculo","Cálculo de áreas","Mudança de variável"]},
  ],
- goals:["Capacidade operacional de obter derivadas e integrais.",
-        "Usar regra da cadeia e compreender perfeitamente a relação do acúmulo de áreas.",
-        "Terminar com entendimento profundo e concreto do comportamento de funções (ex.: suavidade)."],
  mats:[{k:"g",t:"Livro base: Guidorizzi — Um Curso de Cálculo, vol. 1"},
        {k:"y",t:"Livro complementar: Anton, Bivens e Davis — Cálculo"},
        {k:"y",t:"Livro complementar: James Stewart — Cálculo"}],
  drill:"Em cada subseção, selecionar exercícios de modelagem do Stewart focados em Biologia (geralmente ao final dos capítulos).",
- final:"Deduzir analiticamente a taxa instantânea de disseminação de um vírus usando derivadas, dada uma função polinomial do tempo."},
+ final:"Deduzir analiticamente a taxa instantânea de variação do potencial de membrana, dada uma função polinomial do tempo."},
 
 {id:3, ph:0, title:"Cálculo Multivariável", sub:"A Complexidade do Mundo Real", h:"~25 h", d:3, dl:"Alta",
- bio:"Quase nada biológico tem uma única causa: luz, água e minerais influenciam juntos o crescimento de uma planta. O espaço multivariável é a linguagem matemática para modelar fenômenos com muitas variáveis simultâneas — exatamente o formato dos dados biológicos reais.",
+ bio:"A atividade cerebral é intrinsecamente multivariável: milhares de neurônios ou voxels variando juntos. O gradiente e a regra da cadeia multivariável são o coração matemático do backpropagation — e de todo modelo de encoding.",
  themes:[
-  {n:"Funções vetoriais", d:"Funções que devolvem vetores: trajetórias e campos, a ponte para várias variáveis.",
+  {n:"Funções vetoriais", lv:0, d:"Funções que devolvem vetores: trajetórias e campos, a ponte para várias variáveis.",
    t:["Introdução e visualização"]},
-  {n:"Diferencial em várias variáveis", d:"Gradiente e regra da cadeia multivariável — o coração matemático do backpropagation.",
+  {n:"Diferencial em várias variáveis", lv:1, d:"Gradiente e regra da cadeia multivariável — o coração matemático do backpropagation.",
    t:["Introdução","Diferenciabilidade e continuidade","Gradiente","Derivadas parciais","Derivada direcional","Regra da cadeia"]},
-  {n:"Integrais múltiplas", d:"Somar sobre áreas e volumes: distribuições em duas e três dimensões.",
+  {n:"Integrais múltiplas", lv:2, d:"Somar sobre áreas e volumes: distribuições de probabilidade em várias dimensões.",
    t:["Introdução","Integral dupla e tripla (retângulo e paralelepípedo)","Propriedades de integrais múltiplas","Mudança de variáveis"]},
  ],
- goals:["Calcular derivadas parciais e ter a ideia clara do que é um “espaço de variáveis”.",
-        "Calcular gradientes e usar a regra da cadeia multivariável com fluência.",
-        "Fazer a generalização do Cálculo 1 sem prender-se aos menores pormenores."],
  mats:[{k:"g",t:"Livro (fortemente recomendado): Diomara Pinto — Cálculo Diferencial e Integral de Funções de Várias Variáveis"},
        {k:"y",t:"YouTube para dúvidas visuais e geométricas pontuais"}],
  drill:"Em cada subseção, praticar a obtenção mecânica de gradientes em 2 e 3 dimensões.",
- final:"Avaliar uma superfície térmica simplificada de um recife de corais Z=f(x,y) e encontrar a coordenada exata da temperatura máxima local."},
+ final:"Avaliar um mapa simplificado de ativação cortical Z=f(x,y) e encontrar a coordenada exata do pico de ativação local."},
 
 {id:4, ph:0, title:"Otimização", sub:"A Busca pelo Ótimo", h:"~15 h", d:2, dl:"Média",
- bio:"A Otimização estuda como achar vales de energia mínima, essencial para entender o enovelamento de proteínas (Protein Folding), resolvido computacionalmente na biofísica estrutural. É também o coração do treinamento de qualquer modelo de Machine Learning.",
+ bio:"Treinar qualquer modelo de encoding/decoding é otimizar uma função de custo. Paisagens de energia também aparecem em redes atratoras (Hopfield) e no enovelamento de proteínas — otimização é vocabulário obrigatório.",
  themes:[
-  {n:"Espaço de variáveis", d:"Enxergar cada configuração possível como um ponto num espaço — e o custo como uma paisagem sobre ele.", t:[]},
-  {n:"Minimização e maximização", d:"Encontrar picos e vales: pontos críticos e o que eles significam.", t:[]},
-  {n:"Métodos computacionais", d:"Gradiente descendente e suas armadilhas: mínimos locais vs. o mínimo global.", t:[]},
+  {n:"Espaço de variáveis", lv:0, d:"Enxergar cada configuração possível como um ponto num espaço — e o custo como uma paisagem sobre ele.", t:[]},
+  {n:"Minimização e maximização", lv:1, d:"Encontrar picos e vales: pontos críticos e o que eles significam.", t:[]},
+  {n:"Métodos computacionais", lv:2, d:"Gradiente descendente e suas armadilhas: mínimos locais vs. o mínimo global.", t:[]},
  ],
- goals:["Ter clara a ideia de espaço de variáveis.",
-        "Entender abstratamente o que é buscar uma otimização.",
-        "Conhecer os métodos computacionais e as limitações matemáticas de buscar um mínimo global."],
  mats:[{k:"g",t:"Vídeo: 3Blue1Brown — Gradient Descent (série de Redes Neurais)",u:"https://www.youtube.com/watch?v=IHZwWFHWa-w"},
        {k:"y",t:"YouTube para visualizações de superfícies e paisagens de custo"}],
  drill:"Em cada subseção, encontrar máximos e mínimos de funções de duas variáveis à mão, identificando pontos críticos.",
- final:"Explicar, usando uma paisagem de energia de enovelamento de proteína como exemplo, por que um método de descida de gradiente pode ficar preso em um mínimo local."},
+ final:"Explicar, usando uma paisagem de energia como exemplo, por que um método de descida de gradiente pode ficar preso em um mínimo local."},
 
 {id:5, ph:0, title:"Álgebra Linear", sub:"A Linguagem dos Dados na Computação", h:"~40 h", d:3, dl:"Alta",
- bio:"Biólogos processam milhares de amostras genéticas ou milhares de imagens microscópicas. Tudo isso vira matrizes. Dominar autovalores, autovetores e decomposição é essencial para entender como o computador simplifica o caos (PCA) de forma estatística.",
+ bio:"Dados neurais são matrizes: neurônios × tempo, voxels × estímulos, canais × frequências. PCA e SVD reduzem populações de milhares de neurônios a poucas dimensões interpretáveis — análise padrão em neurociência de sistemas.",
  themes:[
-  {n:"Vetores, matrizes e operações", d:"A aritmética dos dados: toda tabela de amostras é uma matriz.", t:[]},
-  {n:"Sistemas lineares e transformações", d:"Resolver sistemas e enxergar matrizes como transformações do espaço.", t:[]},
-  {n:"Bases e espaços vetoriais", d:"Trocar de “ponto de vista” escolhendo os eixos certos para descrever os dados.", t:[]},
-  {n:"Ortogonalidade", d:"Direções independentes e projeções — a geometria por trás dos mínimos quadrados.", t:[]},
-  {n:"Autovalores e autovetores", d:"As direções que uma transformação preserva; essenciais do PCA à dinâmica populacional.", t:[]},
-  {n:"Decomposições", d:"Quebrar matrizes em partes simples (ex.: SVD) — como o computador simplifica o caos.", t:[]},
+  {n:"Vetores, matrizes e operações", lv:0, d:"A aritmética dos dados: toda gravação neural é uma matriz.", t:[]},
+  {n:"Sistemas lineares e transformações", lv:1, d:"Resolver sistemas e enxergar matrizes como transformações do espaço.", t:[]},
+  {n:"Bases e espaços vetoriais", lv:1, d:"Trocar de “ponto de vista” escolhendo os eixos certos para descrever os dados.", t:[]},
+  {n:"Ortogonalidade", lv:1, d:"Direções independentes e projeções — a geometria por trás dos mínimos quadrados.", t:[]},
+  {n:"Autovalores e autovetores", lv:2, d:"As direções que uma transformação preserva; essenciais do PCA à estabilidade de redes recorrentes.", t:[]},
+  {n:"Decomposições", lv:2, d:"Quebrar matrizes em partes simples (ex.: SVD) — como o computador simplifica o caos.", t:[]},
  ],
- goals:["Conseguir operar matricialmente e ter um entendimento concreto.",
-        "Resolver sistemas pesados sem se perder nas contas.",
-        "Entender superficialmente as decomposições pesadas e as operações mais complexas, mantendo o foco geométrico."],
  mats:[{k:"g",t:"Vídeo: 3Blue1Brown — Essência da Álgebra Linear",u:"https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab"},
        {k:"y",t:"Estudo pelo livro: Linear Algebra and Its Applications — Strang"}],
  drill:"Aviso didático: vários conteúdos aqui são abstratos demais. Sem os vídeos de visualização, fica muito difícil de entender — assista ao 3Blue1Brown primeiro.",
- final:"Explicar geometricamente qual o sentido do autovetor de uma matriz de transição de Markov em dinâmica populacional."},
+ final:"Explicar geometricamente qual o sentido do autovetor de uma matriz de transição de estados (cadeia de Markov) numa rede neural simplificada."},
 
 {id:6, ph:0, title:"Programação (Python)", sub:"Saindo da Teoria para a Prática Ferramental", h:"~50 h", d:2, dl:"Média",
- bio:"Analisar 10 amostras dá para fazer na planilha; analisar 10.000 sequências genômicas ou imagens de microscopia, não. Python automatiza pipelines de análise, gera gráficos de qualidade de publicação e garante reprodutibilidade — hoje uma exigência de revistas e laboratórios.",
+ bio:"Da análise de spikes ao pré-processamento de EEG e fMRI (MNE, nilearn), a neurociência computacional vive em Python. Reprodutibilidade e versionamento são exigências de laboratórios e revistas — não detalhes.",
  themes:[
-  {n:"Ambientes", d:"IDEs, notebooks e terminais: montar sua bancada de trabalho digital.", t:[]},
-  {n:"Comandos iniciais e lógica básica", d:"Variáveis, condicionais e laços — o controle de fluxo de qualquer script.", t:[]},
-  {n:"Complexidade", d:"Noção de custo computacional: por que alguns códigos travam com dados grandes.", t:[]},
-  {n:"Informática básica", d:"Arquivos, pastas, formatos e terminal: o que todo mundo assume que você já sabe.", t:[]},
-  {n:"Estruturas de dados básicas", d:"Listas, dicionários e arrays: escolher o “recipiente” certo para cada dado.", t:[]},
-  {n:"Códigos funcionais", d:"Organizar o código em funções reutilizáveis e legíveis.", t:[]},
-  {n:"Orientação a objetos", d:"Ler e usar classes — o formato da maioria das bibliotecas científicas.", t:[]},
-  {n:"Bibliotecas", d:"NumPy, pandas, Matplotlib: não reinvente a roda.", t:[]},
-  {n:"Visualizações", d:"Transformar tabelas em gráficos que contam uma história.", t:[]},
-  {n:"Prática", d:"Projetos de verdade: pipelines completas e versionamento.", t:["Pipelines extensas","Git e GitHub"]},
+  {n:"Ambientes", lv:0, d:"IDEs, notebooks e terminais: montar sua bancada de trabalho digital.", t:[]},
+  {n:"Comandos iniciais e lógica básica", lv:0, d:"Variáveis, condicionais e laços — o controle de fluxo de qualquer script.", t:[]},
+  {n:"Informática básica", lv:0, d:"Arquivos, pastas, formatos e terminal: o que todo mundo assume que você já sabe.", t:[]},
+  {n:"Estruturas de dados básicas", lv:1, d:"Listas, dicionários e arrays: escolher o “recipiente” certo para cada dado.", t:[]},
+  {n:"Códigos funcionais", lv:1, d:"Organizar o código em funções reutilizáveis e legíveis.", t:[]},
+  {n:"Bibliotecas", lv:1, d:"NumPy, pandas, Matplotlib — e adiante MNE e nilearn: não reinvente a roda.", t:[]},
+  {n:"Visualizações", lv:1, d:"Transformar matrizes de dados em figuras que contam uma história.", t:[]},
+  {n:"Orientação a objetos", lv:2, d:"Ler e usar classes — o formato da maioria das bibliotecas científicas.", t:[]},
+  {n:"Complexidade", lv:2, d:"Noção de custo computacional: por que alguns códigos travam com dados grandes.", t:[]},
+  {n:"Prática", lv:2, d:"Projetos de verdade: pipelines completas e versionamento.", t:["Pipelines extensas","Git e GitHub"]},
  ],
- goals:["Conseguir interpretar scripts simples.",
-        "Modificar e utilizar códigos funcionais já existentes a seu favor.",
-        "Estruturar um projeto do zero com ideia de custo computacional e dominar versionamento."],
  mats:[{k:"g",t:"Curso IMPATech — repositório no GitHub",u:"https://github.com/ry4n-felinto/impytech_2026"}],
  drill:"Dica de sobrevivência: programação se aprende programando. Escreva código até a mão cansar.",
- final:"Escrever um pequeno script em Python que puxe dados genômicos via API, passe por um pipeline de limpeza leve, mostre 2 gráficos e suba tudo no GitHub de forma padronizada e limpa."},
+ final:"Escrever um script em Python que baixe dados neurais públicos (ex.: OpenNeuro) via API, passe por um pipeline de limpeza leve, mostre 2 gráficos e suba tudo no GitHub de forma padronizada e limpa."},
 
 {id:7, ph:0, title:"Estatística e Probabilidade", sub:"Encontrando Certezas no Caos Experimental", h:"~50 h", d:4, dl:"Muito Alta",
- bio:"Nenhum experimento biológico é levado a sério sem validação estatística. Saber diferenciar “flutuação normal” de “resultado significativo” (p-valor) define o sucesso na ciência. A inferência, especialmente Bayesiana, domina a ecologia quantitativa e os processos modernos de epidemiologia.",
+ bio:"A neuroimagem vive — bem ou mal — de estatística: p-valores, comparações múltiplas em fMRI, incerteza de medidas ruidosas. Modelos Bayesianos dominam as teorias modernas de percepção e decisão.",
  themes:[
-  {n:"Combinatória", d:"Contar sem enumerar: a base do cálculo de probabilidades.", t:[]},
-  {n:"Variável aleatória", d:"Modelar o acaso: distribuições que descrevem experimentos e medidas.", t:[]},
-  {n:"Convergências", d:"O que acontece quando n cresce: lei dos grandes números e teorema central do limite.", t:[]},
-  {n:"Introdução à inferência", d:"Do dado à conclusão: estimar propriedades da população a partir da amostra.", t:[]},
-  {n:"Testes de hipóteses", d:"O p-valor: diferenciar flutuação normal de efeito real.", t:[]},
-  {n:"Inferência Bayesiana", d:"Atualizar crenças com evidência — dominante na ecologia quantitativa.", t:[]},
-  {n:"Inferência não-Bayesiana (Frequentista)", d:"Máxima verossimilhança e a interpretação clássica que domina os papers.", t:[]},
+  {n:"Combinatória", lv:0, d:"Contar sem enumerar: a base do cálculo de probabilidades.", t:[]},
+  {n:"Variável aleatória", lv:0, d:"Modelar o acaso: distribuições que descrevem experimentos e medidas ruidosas.", t:[]},
+  {n:"Introdução à inferência", lv:1, d:"Do dado à conclusão: estimar propriedades da população a partir da amostra.", t:[]},
+  {n:"Testes de hipóteses", lv:1, d:"O p-valor e as comparações múltiplas — críticos em neuroimagem.", t:[]},
+  {n:"Convergências", lv:2, d:"O que acontece quando n cresce: lei dos grandes números e teorema central do limite.", t:[]},
+  {n:"Inferência Bayesiana", lv:2, d:"Atualizar crenças com evidência — a matemática dos modelos de percepção e decisão.", t:[]},
+  {n:"Inferência não-Bayesiana (Frequentista)", lv:2, d:"Máxima verossimilhança e a interpretação clássica que domina os papers.", t:[]},
  ],
- goals:["Capacidade de ler papers e entender a validação das análises.",
-        "Entendimento razoável de provas matemáticas de propriedades estatísticas.",
-        "Domínio profundo das interpretações Bayesiana vs. Frequentista na análise avançada de bio-dados."],
  mats:[{k:"g",t:"Livro: Tertuliano — Princípios de Probabilidade"},
        {k:"y",t:"Aulas pontuais no YouTube para desmistificar os temas espinhosos à primeira vista (ex.: StatQuest)"}],
  drill:"Acompanhar os exercícios do livro. O tema é muito complexo à primeira vista, mas se desmistifica com o tempo e a repetição.",
- final:"Montar o design estatístico completo de um ensaio clínico, especificando testes de hipóteses de eficácia e rodando-os numa simulação no Python."},
+ final:"Montar o design estatístico completo de um experimento de neuroimagem, especificando testes de hipóteses com correção para comparações múltiplas e rodando-os numa simulação no Python."},
 
 {id:8, ph:1, title:"Machine Learning", sub:"Criando a Inteligência Clássica", h:"~60 h", d:3, dl:"Alta",
- bio:"É aqui onde toda a matemática e estatística anterior vira tecnologia de fato. Identificar fenótipos, classificar tecidos cancerosos ou correlacionar o peso do gado a dezenas de fatores genéticos. ML é o que permite fazer previsões.",
+ bio:"Encoding e decoding neural são, no fundo, problemas de regressão e classificação: regressão ridge é O método dos encoding models, e classificadores multivariados (MVPA) leem estados mentais a partir de padrões de atividade.",
  themes:[
-  {n:"Introdução", d:"O vocabulário de ML: treino, teste, viés e variância.", t:[]},
-  {n:"Regressão (polinomial)", d:"Prever valores contínuos — ex.: peso do gado a partir de fatores genéticos.", t:[]},
-  {n:"Classificação", d:"Prever categorias — ex.: tecido saudável vs. canceroso.", t:[]},
-  {n:"Métricas estatísticas", d:"Acurácia engana: precisão, recall e AUC para avaliar de verdade.", t:[]},
-  {n:"Reamostragem", d:"Validação cruzada e bootstrap: medir desempenho sem se enganar.", t:[]},
-  {n:"Regularização", d:"Frear o overfitting: ridge e lasso.", t:[]},
-  {n:"Estudo de variáveis", d:"Quais variáveis importam e como selecioná-las.", t:[]},
-  {n:"GAMs", d:"Modelos aditivos: flexibilidade sem abrir mão da interpretação.", t:[]},
-  {n:"Árvores", d:"Decisões encadeadas e florestas aleatórias.", t:[]},
-  {n:"SVM", d:"Separar classes com margens máximas e kernels.", t:[]},
-  {n:"Métodos adicionais", d:"Ensembles, boosting e o restante da caixa de ferramentas.", t:[]},
-  {n:"Aprendizado não supervisionado", d:"Clustering: achar grupos sem rótulos — ex.: subtipos celulares.", t:[]},
+  {n:"Introdução", lv:0, d:"O vocabulário de ML: treino, teste, viés e variância.", t:[]},
+  {n:"Regressão (polinomial)", lv:0, d:"Prever valores contínuos — ex.: a atividade de um voxel a partir de features do estímulo (encoding).", t:[]},
+  {n:"Classificação", lv:1, d:"Prever categorias — ex.: decodificar qual estímulo foi visto a partir do padrão de atividade (MVPA).", t:[]},
+  {n:"Métricas estatísticas", lv:1, d:"Acurácia engana: precisão, recall e AUC para avaliar de verdade.", t:[]},
+  {n:"Reamostragem", lv:1, d:"Validação cruzada e bootstrap: em neuro os dados são poucos e ruidosos — é aqui que a maioria erra.", t:[]},
+  {n:"Regularização", lv:1, d:"Frear o overfitting: ridge é o método central dos encoding models.", t:[]},
+  {n:"Estudo de variáveis", lv:1, d:"Quais variáveis importam e como selecioná-las.", t:[]},
+  {n:"Árvores", lv:1, d:"Decisões encadeadas e florestas aleatórias.", t:[]},
+  {n:"Aprendizado não supervisionado", lv:1, d:"Clustering: achar tipos celulares e estados de rede sem rótulos.", t:[]},
+  {n:"GAMs", lv:2, d:"Modelos aditivos: flexibilidade sem abrir mão da interpretação.", t:[]},
+  {n:"SVM", lv:2, d:"Separar classes com margens máximas e kernels.", t:[]},
+  {n:"Métodos adicionais", lv:2, d:"Ensembles, boosting e o restante da caixa de ferramentas.", t:[]},
  ],
- goals:["Diferenciar problemas de ML e se ambientar com o Scikit-Learn.",
-        "Evitar viés de treino, avaliando e selecionando os métodos corretamente.",
-        "Estar apto nos conceitos base para explodir rumo ao Aprendizado Profundo."],
  mats:[{k:"g",t:"ISLR — Introduction to Statistical Learning (em Python ou R, a critério do aluno)",u:"https://www.statlearning.com/"},
        {k:"g",t:"Notas de aula da matéria do IMPATech"},
        {k:"y",t:"Elements of Statistical Learning (versão avançada do ISLR)"}],
- drill:"A cada seção nova (Regressão, Classificação etc.), teste em um dataset médico do repositório UC Irvine.",
- final:"Pegar um banco de dados gigantesco do portal Kaggle e fazer um pipeline robusto de tratamento, treinamento e reporte."},
+ drill:"A cada seção nova (Regressão, Classificação etc.), teste em um dataset médico do repositório UC Irvine ou em datasets neurais abertos.",
+ final:"Pegar um banco de dados gigantesco (Kaggle ou OpenNeuro) e fazer um pipeline robusto de tratamento, treinamento e reporte."},
 
 {id:9, ph:1, title:"Deep Learning", sub:"O Estado da Arte da Neurociência Computacional", h:"~80 h+", d:5, dl:"Máxima",
- bio:"Este é o cume acadêmico e de inovação. CNNs classificam lâminas de biópsias, Transformers preveem interações de RNA e GNNs revolucionaram o descobrimento de fármacos e a forma espacial das moléculas. Dominar Deep Learning permite criar coisas na biologia computacional que não existiam ontem.",
+ bio:"CNNs são hoje os principais modelos computacionais do sistema visual (V1→IT); Transformers decodificam linguagem contínua a partir de fMRI; RNNs modelam dinâmica cortical. Dominar Deep Learning é dominar a fronteira do encoding/decoding.",
  themes:[
-  {n:"Fundamentos", d:"Neurônios artificiais, camadas e backpropagation.", t:[]},
-  {n:"CNN", d:"Convoluções para imagens: de lâminas de biópsia a raios-X.", t:[]},
-  {n:"RNN", d:"Redes recorrentes para sequências temporais.", t:[]},
-  {n:"Transformers (Attention)", d:"A arquitetura dos LLMs — e do AlphaFold.", t:[]},
-  {n:"GNN", d:"Grafos: moléculas e interações como redes.", t:[]},
-  {n:"Representações", d:"Embeddings: como os modelos “resumem” dados complexos.", t:[]},
-  {n:"Generativos", d:"Modelos que criam: das imagens às estruturas moleculares.", t:["VAE","GAN","Diffusion"]},
-  {n:"LLM", d:"Grandes modelos de linguagem e seu uso científico.", t:[]},
-  {n:"Reinforcement Learning", d:"Aprender por tentativa e recompensa.", t:[]},
+  {n:"Fundamentos", lv:0, d:"Neurônios artificiais, camadas e backpropagation.", t:[]},
+  {n:"CNN", lv:1, d:"Convoluções para imagens — e os principais modelos do córtex visual.", t:[]},
+  {n:"RNN", lv:1, d:"Sequências e dinâmica temporal — parentes próximos dos circuitos corticais.", t:[]},
+  {n:"Representações", lv:1, d:"Embeddings: como os modelos “resumem” dados complexos — e como compará-los com o cérebro (RSA).", t:[]},
+  {n:"Transformers (Attention)", lv:2, d:"A arquitetura dos LLMs, do AlphaFold e da decodificação de linguagem contínua.", t:[]},
+  {n:"GNN", lv:2, d:"Grafos: conectomas, moléculas e interações como redes.", t:[]},
+  {n:"Generativos", lv:2, d:"Modelos que criam: reconstrução de estímulos visuais a partir de atividade cerebral usa exatamente estes.", t:["VAE","GAN","Diffusion"]},
+  {n:"LLM", lv:2, d:"Grandes modelos de linguagem e embeddings semânticos que preveem atividade cortical.", t:[]},
+  {n:"Reinforcement Learning", lv:2, d:"Aprender por tentativa e recompensa — a ponte com dopamina e aprendizado no cérebro.", t:[]},
  ],
- goals:["Dominar arquiteturas base e implementar via frameworks (PyTorch).",
-        "Saber adaptar arquiteturas pesadas para tarefas visuais ou em cadeia (DNA).",
-        "Estar completamente a par dos modelos mais recentes do estado da arte, faltando apenas ganhar tempo de tela na área."],
  mats:[{k:"g",t:"Deep Learning Book — Ian Goodfellow (base teórica muito sólida)"},
        {k:"g",t:"Andrej Karpathy — aulas de LLM e backprop no YouTube"}],
  drill:"Dica operacional: utilize instâncias de Cloud ou o Google Colab; seu computador vai ferver caso não possua placa de vídeo compatível.",
- final:"Fazer um projeto de ponta a ponta usando redes convolucionais para classificar raios-X pneumônicos, ou um Transformer modificado para ler cadeias polipeptídicas — documentando tudo rigorosamente num repositório público."},
+ final:"Fazer um projeto de ponta a ponta: uma CNN para classificar imagens de ressonância, ou um Transformer para decodificar estímulos a partir de fMRI público — documentando tudo rigorosamente num repositório."},
 ];
+
+/* ============ estado persistente (localStorage) ============ */
+const PROG_KEY = "guia-neuro-progresso";
+let done = new Set();
+try { done = new Set(JSON.parse(localStorage.getItem(PROG_KEY) || "[]")); } catch(e){}
+function saveProg(){ try { localStorage.setItem(PROG_KEY, JSON.stringify([...done])); } catch(e){} }
+const doneCount = m => m.themes.reduce((a,_,i)=> a + done.has(m.id+"-"+(i+1)), 0);
 
 /* ============ utilidades ============ */
 const stars = n => "★".repeat(n) + "☆".repeat(5-n);
 const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;");
-const LVL = [["lvl-b","Básico"],["lvl-i","Intermed"],["lvl-a","Avançado"]];
+const LV = ["Básico","Intermediário","Avançado"];
+const pad2 = n => String(n).padStart(2,"0");
 
-/* ============ hub: fases + módulos recolhíveis ============ */
+/* ============ modo escuro ============ */
+function applyThemeBtn(){
+  document.getElementById("themeBtn").textContent =
+    document.documentElement.dataset.theme === "dark" ? "☀️" : "🌙";
+}
+function toggleTheme(){
+  const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem("guia-tema", t); } catch(e){}
+  applyThemeBtn();
+}
+
+/* ============ sidebar ============ */
+function renderNav(){
+  const el = document.getElementById("sidenav");
+  el.innerHTML = PHASES.map((ph,i)=>`
+    <p class="sn-phase">${ph.num} · ${esc(ph.short)}</p>
+    ${MODS.filter(m=>m.ph===i).map(m=>{
+      const dn = doneCount(m), N = m.themes.length;
+      return `<a class="sn-mod" href="#modulo-${m.id}">
+        <span class="sn-num">${pad2(m.id)}</span>
+        <span class="sn-name">${esc(m.title)}</span>
+        <span class="sn-prog${dn===N?" full":""}">${dn}/${N}</span>
+      </a>`;}).join("")}
+  `).join("") + `<a class="sn-mod sn-extra" href="#como-usar">Como usar o guia</a>`;
+}
+
+/* ============ hub ============ */
 function renderHub(){
   const root = document.getElementById("fases");
   root.innerHTML = PHASES.map((ph,i)=>`
@@ -440,59 +524,75 @@ function renderHub(){
         <span class="hours">${ph.hours}</span>
       </div>
       <p class="phase-sub">${esc(ph.sub)}</p>
-      ${MODS.filter(m=>m.ph===i).map(m=>`
+      ${MODS.filter(m=>m.ph===i).map(m=>{
+        const dn = doneCount(m), N = m.themes.length;
+        return `
       <details class="mod" id="modulo-${m.id}">
         <summary class="mod-sum">
           <span class="chev">›</span>
-          <span class="mod-num">${String(m.id).padStart(2,"0")}</span>
+          <span class="mod-num">${pad2(m.id)}</span>
           <h3 class="mod-title">${esc(m.title)}<span class="sub">${esc(m.sub)}</span></h3>
           <span class="mod-meta">
             <span>⏱ ${m.h}</span>
             <span class="stars" title="Dificuldade: ${m.dl}">${stars(m.d)}</span>
-            <span>${m.themes.length} temas</span>
+            <span class="prog${dn===N?" full":""}">${dn}/${N} ✓</span>
           </span>
         </summary>
         <div class="mod-body">
           <div class="bio">
-            <h4>Por que isso importa na Biologia?</h4>
+            <h4>Por que isso importa na Neurociência?</h4>
             <p>${esc(m.bio)}</p>
           </div>
-          <div class="blk">
+          <div class="blk blk-themes">
             <h4>Conteúdo programático — clique num tema para abri-lo</h4>
             <div class="themes">
-              ${m.themes.map((t,ti)=>`
-              <a class="theme" href="#tema-${m.id}-${ti+1}">
-                <span class="t-top">
-                  <b>${esc(t.n)}</b>
+              ${m.themes.map((t,ti)=>{
+                const key = m.id+"-"+(ti+1), isDone = done.has(key);
+                return `
+              <a class="theme lv${t.lv}${isDone?" done":""}" href="#tema-${m.id}-${ti+1}">
+                <span class="t-top">${isDone?'<span class="donemark">✓</span>':""}<b>${esc(t.n)}</b></span>
+                <span class="desc">${esc(t.d)}</span>
+                <span class="t-foot">
+                  <span class="lvchip lv${t.lv}">${LV[t.lv]}</span>
                   <span class="count">${t.t.length ? t.t.length+" subtemas →" : "abrir →"}</span>
                 </span>
-                <span class="desc">${esc(t.d)}</span>
-              </a>`).join("")}
+              </a>`;}).join("")}
             </div>
           </div>
-          <div class="blk">
-            <h4>Objetivos por complexidade</h4>
-            <ul class="goals">
-              ${m.goals.map((g,gi)=>`<li><span class="lvl ${LVL[gi][0]}">${LVL[gi][1]}</span>${esc(g)}</li>`).join("")}
-            </ul>
+          <div class="side">
+            <div class="blk">
+              <h4>Materiais recomendados</h4>
+              <ul class="mats">
+                ${m.mats.map(x=>`<li class="m-${x.k}"><b>${esc(x.t)}</b>${x.u?`<a href="${x.u}" target="_blank" rel="noopener noreferrer">Acessar ↗</a>`:""}</li>`).join("")}
+              </ul>
+            </div>
+            <div class="drill"><b>Exercícios em cada subseção:</b> ${esc(m.drill)}</div>
+            <div class="blk test">
+              <h4>Teste da seção</h4>
+              <p>${esc(m.final)}</p>
+              <a class="btn-test" href="testes/modulo-${pad2(m.id)}.pdf" target="_blank" rel="noopener">Abrir teste (PDF)</a>
+              <p class="small">PDF genérico por enquanto — substitua pelo teste autêntico mantendo o nome do arquivo.</p>
+            </div>
           </div>
-          <div class="blk">
-            <h4>Materiais recomendados</h4>
-            <ul class="mats">
-              ${m.mats.map(x=>`<li class="m-${x.k}"><b>${esc(x.t)}</b>${x.u?`<a href="${x.u}" target="_blank" rel="noopener noreferrer">Acessar ↗</a>`:""}</li>`).join("")}
-            </ul>
-          </div>
-          <div class="drill"><b>Exercícios em cada subseção:</b> ${esc(m.drill)}</div>
-          <div class="final"><b>Teste final da seção:</b> ${esc(m.final)}</div>
         </div>
-      </details>`).join("")}
+      </details>`;}).join("")}
     </div>`).join("");
-  const nTemas = MODS.reduce((a,m)=>a+m.themes.length,0);
-  document.getElementById("statTemas").textContent = nTemas + " temas";
+  document.getElementById("statTemas").textContent =
+    MODS.reduce((a,m)=>a+m.themes.length,0) + " temas";
 }
 
-function setAll(open){
-  document.querySelectorAll("details.mod").forEach(d=>d.open=open);
+function setAll(open){ document.querySelectorAll("details.mod").forEach(d=>d.open=open); }
+function setFilter(v,btn){
+  document.body.dataset.filter = v;
+  document.querySelectorAll(".f-btn").forEach(b=>b.classList.toggle("is-on", b===btn));
+}
+
+/* ============ progresso ============ */
+function toggleDone(key){
+  done.has(key) ? done.delete(key) : done.add(key);
+  saveProg(); renderHub(); renderNav();
+  const x = location.hash.match(/^#tema-(\d+)-(\d+)$/);
+  if(x) renderDetail(+x[1], +x[2]);
 }
 
 /* ============ visão isolada de um tema ============ */
@@ -501,36 +601,53 @@ function renderDetail(modId, themeIdx){
   const t = m && m.themes[themeIdx-1];
   if(!t) return false;
   const ph = PHASES[m.ph];
+  const key = m.id+"-"+themeIdx, isDone = done.has(key);
   const prev = m.themes[themeIdx-2], next = m.themes[themeIdx];
-  const prompt = `Crie 3 questões sobre ${t.n} (módulo de ${m.title}) aplicadas à biologia ou química, em níveis básico, intermediário e avançado, para eu resolver uma de cada vez.`;
+  const prompt = `Crie 3 questões sobre ${t.n} (módulo de ${m.title}) aplicadas à neurociência, em níveis básico, intermediário e avançado, para eu resolver uma de cada vez.`;
   document.getElementById("detailContent").innerHTML = `
-    <a class="crumb" href="#modulo-${m.id}">← ${String(m.id).padStart(2,"0")} · ${esc(m.title)}</a>
+    <a class="crumb" href="#modulo-${m.id}">← ${pad2(m.id)} · ${esc(m.title)}</a>
     <div class="detail-head">
-      <p class="eyebrow">Tema ${themeIdx} de ${m.themes.length}</p>
-      <h1>${esc(t.n)}</h1>
+      <div class="dh">
+        <p class="eyebrow">Tema ${themeIdx} de ${m.themes.length}</p>
+        <h1>${esc(t.n)}</h1>
+      </div>
+      <button class="btn done-btn${isDone?" is-done":""}" onclick="toggleDone('${key}')">${isDone?"Estudado ✓":"Marcar como estudado"}</button>
     </div>
     <div class="metabar">
       <span class="chip">${ph.num} — ${esc(ph.name)}</span>
       <span class="chip">Módulo: <b>${esc(m.title)}</b></span>
+      <span class="chip"><span class="lvchip lv${t.lv}">${LV[t.lv]}</span></span>
       <span class="chip">Dificuldade do módulo: <b>${stars(m.d)}</b></span>
     </div>
-    <div class="section"><p>${esc(t.d)}</p></div>
-    <div class="section"><h2>Subtemas</h2>
-      ${t.t.length
-        ? `<ul class="topics">${t.t.map(s=>`<li>${esc(s)}</li>`).join("")}</ul>`
-        : `<p class="note">Este tema não tem subdivisões no guia — trate-o como um bloco único de estudo.</p>`}
-    </div>
-    <div class="section"><h2>Como estudar este tema</h2>
-      <p class="note">${esc(m.drill)}</p>
-      <div class="prompt">
-        <p id="aiPrompt">${esc(prompt)}</p>
-        <button onclick="copyPrompt(this)">Copiar</button>
+    <div class="detail-grid">
+      <div class="d-main">
+        <div class="section"><p>${esc(t.d)}</p></div>
+        <div class="section"><h2>Subtemas</h2>
+          ${t.t.length
+            ? `<ul class="topics">${t.t.map(s=>`<li>${esc(s)}</li>`).join("")}</ul>`
+            : `<p class="note">Este tema não tem subdivisões no guia — trate-o como um bloco único de estudo.</p>`}
+        </div>
+        <div class="section"><h2>Como estudar este tema</h2>
+          <p class="note">${esc(m.drill)}</p>
+          <div class="prompt">
+            <p id="aiPrompt">${esc(prompt)}</p>
+            <button onclick="copyPrompt(this)">Copiar</button>
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="section"><h2>Materiais do módulo</h2>
-      <ul class="mats">
-        ${m.mats.map(x=>`<li class="m-${x.k}"><b>${esc(x.t)}</b>${x.u?`<a href="${x.u}" target="_blank" rel="noopener noreferrer">Acessar ↗</a>`:""}</li>`).join("")}
-      </ul>
+      <aside class="d-side">
+        <div class="section"><h2>Materiais do módulo</h2>
+          <ul class="mats">
+            ${m.mats.map(x=>`<li class="m-${x.k}"><b>${esc(x.t)}</b>${x.u?`<a href="${x.u}" target="_blank" rel="noopener noreferrer">Acessar ↗</a>`:""}</li>`).join("")}
+          </ul>
+        </div>
+        <div class="section"><h2>Teste da seção</h2>
+          <div class="test">
+            <p>${esc(m.final)}</p>
+            <a class="btn-test" href="testes/modulo-${pad2(m.id)}.pdf" target="_blank" rel="noopener">Abrir teste (PDF)</a>
+          </div>
+        </div>
+      </aside>
     </div>
     <nav class="pager">
       ${prev?`<a href="#tema-${m.id}-${themeIdx-1}"><span class="dir">← Tema anterior</span><br><span class="name">${esc(prev.n)}</span></a>`:""}
@@ -541,13 +658,15 @@ function renderDetail(modId, themeIdx){
 
 function copyPrompt(btn){
   const txt = document.getElementById("aiPrompt").textContent.trim();
-  const ok = () => { btn.textContent = "Copiado ✓"; setTimeout(()=>btn.textContent="Copiar",1600); };
-  if(navigator.clipboard) navigator.clipboard.writeText(txt).then(ok);
+  if(navigator.clipboard) navigator.clipboard.writeText(txt).then(()=>{
+    btn.textContent = "Copiado ✓";
+    setTimeout(()=>btn.textContent="Copiar", 1600);
+  });
 }
 
 /* ============ roteamento por hash ============
    #tema-M-T  → abre o tema T do módulo M isoladamente
-   #modulo-M  → volta ao hub com o módulo M expandido      */
+   #modulo-M  → hub com o módulo M expandido               */
 function route(){
   const h = location.hash;
   let x;
@@ -565,7 +684,9 @@ function route(){
   }
 }
 window.addEventListener("hashchange", route);
+applyThemeBtn();
 renderHub();
+renderNav();
 route();
 </script>
 </body>
