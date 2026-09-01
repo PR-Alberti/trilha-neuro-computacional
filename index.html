@@ -33,6 +33,7 @@
   --lv1:#7C3AED; --lv1-bg:#EDE9FE; --lv1-ink:#6D28D9;
   --lv2:#DB2777; --lv2-bg:#FCE7F3; --lv2-ink:#BE185D;
   --method-bg:#181A23; --method-ink:#E9EDF2; --method-sub:#9AA4B2;
+  --edge:#AFB7C4;
   --radius:14px;
   --shadow:0 1px 2px rgba(24,26,35,.05),0 10px 28px -18px rgba(24,26,35,.25);
 }
@@ -46,6 +47,7 @@
   --lv1:#A78BFA; --lv1-bg:#251A3F; --lv1-ink:#C4B5FD;
   --lv2:#F472B6; --lv2-bg:#3B1226; --lv2-ink:#F9A8D4;
   --method-bg:#1B212B; --method-ink:#E9EDF2; --method-sub:#8C97A6;
+  --edge:#4E5866;
   --shadow:0 1px 2px rgba(0,0,0,.5),0 10px 28px -18px rgba(0,0,0,.7);
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -54,7 +56,7 @@ body{background:var(--bg);color:var(--ink);font-family:"Inter",system-ui,sans-se
 a{color:inherit}
 button{font:inherit;cursor:pointer;color:inherit}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:6px}
-.wrap-wide{max-width:1480px;margin:0 auto;padding:0 24px}
+.wrap-wide{padding:0 28px}
 
 /* ============ header ============ */
 header.site{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
@@ -70,9 +72,10 @@ header.site .bar{display:flex;align-items:center;gap:14px;padding:11px 0}
 #themeBtn{background:var(--surface);border:1px solid var(--line);border-radius:999px;width:38px;height:38px;font-size:1rem;line-height:1}
 #themeBtn:hover{border-color:var(--accent)}
 
-/* ============ layout desktop: sidebar + conteúdo ============ */
-.layout{display:grid;grid-template-columns:252px minmax(0,1fr);gap:36px;max-width:1480px;margin:0 auto;padding:0 24px}
-aside.sidebar{position:sticky;top:61px;align-self:start;max-height:calc(100vh - 61px);overflow-y:auto;padding:26px 12px 26px 0;border-right:1px solid var(--line)}
+/* ============ layout desktop: sidebar encostada à esquerda ============ */
+.layout{display:grid;grid-template-columns:248px minmax(0,1fr);gap:40px;padding:0 28px 0 0}
+.content{max-width:1240px}
+aside.sidebar{position:sticky;top:61px;align-self:start;max-height:calc(100vh - 61px);overflow-y:auto;padding:26px 14px 26px 22px;border-right:1px solid var(--line)}
 .sn-phase{font-family:"IBM Plex Mono",monospace;font-size:.66rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:18px 0 8px}
 .sn-phase:first-child{margin-top:0}
 a.sn-mod{display:flex;align-items:baseline;gap:8px;padding:7px 10px;border-radius:8px;text-decoration:none;font-size:.86rem}
@@ -82,7 +85,7 @@ a.sn-mod:hover{background:var(--accent-soft);color:var(--accent-ink)}
 .sn-prog{font-family:"IBM Plex Mono",monospace;font-size:.66rem;color:var(--muted)}
 .sn-prog.full{color:var(--green-ink);font-weight:600}
 .sn-extra{margin-top:16px;border-top:1px solid var(--line);padding-top:14px;color:var(--muted)}
-@media (max-width:1000px){.layout{grid-template-columns:minmax(0,1fr)}aside.sidebar{display:none}}
+@media (max-width:1000px){.layout{grid-template-columns:minmax(0,1fr);padding:0 20px}aside.sidebar{display:none}}
 
 /* ============ hero ============ */
 .hero{padding:48px 0 30px;position:relative;overflow:hidden}
@@ -115,10 +118,24 @@ a.sn-mod:hover{background:var(--accent-soft);color:var(--accent-ink)}
 .f-btn.is-on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink)}
 .toolbar .hint{font-size:.78rem;color:var(--muted);margin-left:4px}
 
-/* filtro de temas por nível */
-body[data-filter="0"] a.theme:not(.lv0),
-body[data-filter="1"] a.theme:not(.lv1),
-body[data-filter="2"] a.theme:not(.lv2){display:none}
+/* filtro de temas por nível — cumulativo: mostra o nível escolhido e os mais fáceis */
+body[data-filter="0"] a.theme.lv1,
+body[data-filter="0"] a.theme.lv2,
+body[data-filter="1"] a.theme.lv2{display:none}
+
+/* ============ mapa da trilha (capa) ============ */
+.mapwrap{margin-top:28px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 16px 10px;overflow-x:auto}
+.map-cap{font-family:"IBM Plex Mono",monospace;font-size:.66rem;letter-spacing:.12em;color:var(--muted);margin:0 0 6px 4px}
+svg.map{display:block;width:100%;min-width:900px;height:auto}
+.map .edge{fill:none;stroke:var(--edge);stroke-width:1.8}
+.map .arrhead{fill:var(--edge)}
+.map .node{fill:var(--surface);stroke:var(--line);stroke-width:1.5;transition:stroke .15s ease}
+.map a:hover .node{stroke:var(--accent);stroke-width:2.2}
+.map .node.ia{fill:var(--accent-soft);stroke:var(--accent)}
+.map text{text-anchor:middle}
+.map .n-num{font-family:"IBM Plex Mono",monospace;font-size:8.5px;fill:var(--muted);letter-spacing:.1em}
+.map .n-t{font-family:"Inter",sans-serif;font-size:12.5px;font-weight:600;fill:var(--ink)}
+.map .lane{font-family:"IBM Plex Mono",monospace;font-size:9.5px;fill:var(--muted);letter-spacing:.14em;text-anchor:start}
 
 /* ============ fases e módulos ============ */
 .trilha{padding:8px 0 60px}
@@ -259,6 +276,46 @@ body.viewing-detail #detail{display:block}
         <p class="eyebrow">Guia de estudos · Da biologia ao sinal</p>
         <h1>Machine Learning para Neurociência Computacional</h1>
         <p class="lead">Trilha do absoluto zero para estudantes de <strong>Ciências Biológicas</strong> que querem atuar de forma técnica e consciente em neurociência computacional — do pré-cálculo aos modelos que codificam e decodificam o cérebro.</p>
+
+        <!-- mapa visual da trilha: 3 caminhos pela matemática aplicada -->
+        <div class="mapwrap">
+          <p class="map-cap">MAPA DA TRILHA · TRÊS CAMINHOS PELA MATEMÁTICA APLICADA CONVERGEM NA IA — CLIQUE NUM MÓDULO</p>
+          <svg class="map" viewBox="0 0 1060 262" role="img" aria-label="Mapa da trilha: a partir do Pré-Cálculo, três caminhos — cálculo, álgebra e computação/dados — convergem em Machine Learning e depois Deep Learning">
+            <defs>
+              <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 L10 5 L0 10 z" class="arrhead"/>
+              </marker>
+            </defs>
+            <!-- rótulos -->
+            <text class="lane" x="10" y="106">INÍCIO</text>
+            <text class="lane" x="190" y="18">TRILHA DO CÁLCULO</text>
+            <text class="lane" x="370" y="106">TRILHA DA ÁLGEBRA</text>
+            <text class="lane" x="190" y="196">COMPUTAÇÃO E DADOS</text>
+            <text class="lane" x="740" y="106">FASE 2 · “IA”</text>
+            <!-- conexões -->
+            <path class="edge" d="M140 128 C 162 128, 166 51, 186 51" marker-end="url(#arr)"/>
+            <path class="edge" d="M140 140 H 366" marker-end="url(#arr)"/>
+            <path class="edge" d="M140 152 C 162 152, 166 229, 186 229" marker-end="url(#arr)"/>
+            <path class="edge" d="M320 51 H 366" marker-end="url(#arr)"/>
+            <path class="edge" d="M500 51 H 546" marker-end="url(#arr)"/>
+            <path class="edge" d="M680 51 C 708 51, 708 128, 736 128" marker-end="url(#arr)"/>
+            <path class="edge" d="M500 140 H 736" marker-end="url(#arr)"/>
+            <path class="edge" d="M320 229 H 366" marker-end="url(#arr)"/>
+            <path class="edge" d="M500 229 C 660 229, 700 152, 736 152" marker-end="url(#arr)"/>
+            <path class="edge" d="M870 140 H 916" marker-end="url(#arr)"/>
+            <!-- módulos -->
+            <a href="#modulo-1"><rect class="node" x="10" y="119" width="130" height="42" rx="10"/><text class="n-num" x="75" y="135">01</text><text class="n-t" x="75" y="150">Pré-Cálculo</text></a>
+            <a href="#modulo-2"><rect class="node" x="190" y="30" width="130" height="42" rx="10"/><text class="n-num" x="255" y="46">02</text><text class="n-t" x="255" y="61">Cálculo Real</text></a>
+            <a href="#modulo-3"><rect class="node" x="370" y="30" width="130" height="42" rx="10"/><text class="n-num" x="435" y="46">03</text><text class="n-t" x="435" y="61">Multivariável</text></a>
+            <a href="#modulo-4"><rect class="node" x="550" y="30" width="130" height="42" rx="10"/><text class="n-num" x="615" y="46">04</text><text class="n-t" x="615" y="61">Otimização</text></a>
+            <a href="#modulo-5"><rect class="node" x="370" y="119" width="130" height="42" rx="10"/><text class="n-num" x="435" y="135">05</text><text class="n-t" x="435" y="150">Álgebra Linear</text></a>
+            <a href="#modulo-6"><rect class="node" x="190" y="208" width="130" height="42" rx="10"/><text class="n-num" x="255" y="224">06</text><text class="n-t" x="255" y="239">Programação</text></a>
+            <a href="#modulo-7"><rect class="node" x="370" y="208" width="130" height="42" rx="10"/><text class="n-num" x="435" y="224">07</text><text class="n-t" x="435" y="239">Estatística</text></a>
+            <a href="#modulo-8"><rect class="node ia" x="740" y="119" width="130" height="42" rx="10"/><text class="n-num" x="805" y="135">08</text><text class="n-t" x="805" y="150">Machine Learning</text></a>
+            <a href="#modulo-9"><rect class="node ia" x="920" y="119" width="130" height="42" rx="10"/><text class="n-num" x="985" y="135">09</text><text class="n-t" x="985" y="150">Deep Learning</text></a>
+          </svg>
+        </div>
+
         <div class="stats">
           <div class="stat"><b>2 fases</b><span>base + IA</span></div>
           <div class="stat"><b>9 módulos</b><span id="statTemas">— temas</span></div>
@@ -272,7 +329,7 @@ body.viewing-detail #detail{display:block}
         <div class="toolbar">
           <button class="btn" onclick="setAll(true)">Expandir tudo</button>
           <button class="btn" onclick="setAll(false)">Recolher tudo</button>
-          <span class="hint">Temas:</span>
+          <span class="hint">Mostrar temas até o nível:</span>
           <button class="btn f-btn is-on" onclick="setFilter('all',this)">Todos</button>
           <button class="btn f-btn" onclick="setFilter('0',this)">Básico</button>
           <button class="btn f-btn" onclick="setFilter('1',this)">Intermediário</button>
