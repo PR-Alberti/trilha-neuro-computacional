@@ -12,6 +12,20 @@ Ciências Biológicas — do pré-cálculo ao deep learning.
 | `modelos/index_modelo.html` | Modelo de estilo original (Tailwind), base visual da página |
 | `modelos/guia_brain_encode_decode.html` | Segundo modelo, com outra abordagem (CSS próprio + JS) |
 
+## Como a página funciona
+
+A página é orientada a dados: o conteúdo do guia vive em dois arrays JavaScript
+(`PHASES` e `MODS`) e o HTML dos módulos é gerado a partir deles. Para editar o
+conteúdo, edite os arrays — não o HTML.
+
+- Cada módulo é um `<details>` nativo: dá para **minimizar ou expandir** (botões
+  "Expandir/Recolher tudo" no topo).
+- Cada tema do conteúdo programático abre **isoladamente** numa visão própria,
+  com subtemas, prompt de exercícios para IA e materiais do módulo.
+- A navegação usa **roteamento por hash**: `#modulo-3` expande e rola até o
+  módulo 3; `#tema-3-2` abre o 2º tema do módulo 3. Links são compartilháveis e
+  o botão "voltar" do navegador funciona.
+
 ## Como visualizar
 
 Basta abrir o `index.html` no navegador. Para um servidor local (evita problemas de

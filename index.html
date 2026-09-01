@@ -1,561 +1,572 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Guia de estudos de Machine Learning e IA para estudantes de Ciências Biológicas — do pré-cálculo ao deep learning.">
-    <title>Guia de Estudos: Machine Learning para Biológicas</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
-        .module-card { border-left: 4px solid #10b981; transition: transform 0.2s; }
-        .module-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-        .essential { background-color: #dcfce7; color: #15803d; border-left: 3px solid #16a34a; }
-        .important { background-color: #fef08a; color: #854d0e; border-left: 3px solid #ca8a04; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Guia de estudos de Machine Learning e IA para estudantes de Ciências Biológicas — do pré-cálculo ao deep learning.">
+<title>Guia de Estudos: Machine Learning para Biológicas</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============ tokens ============ */
+:root{
+  --bg:#F3F7F4;
+  --surface:#FFFFFF;
+  --ink:#14251C;
+  --muted:#5A6B61;
+  --line:#DBE5DD;
+  --accent:#047857;        /* verde-esmeralda: identidade "bio" */
+  --accent-ink:#065F46;
+  --accent-soft:#DCF2E7;
+  --green-bg:#DCFCE7; --green-ink:#15803D; --green-line:#9BD3A9;   /* essencial */
+  --yellow-bg:#FEF3C7; --yellow-ink:#854D0E; --yellow-line:#E8CE6A; /* aprofundamento */
+  --red-bg:#FEE2E2; --red-ink:#B91C1C;
+  --radius:14px;
+  --shadow:0 1px 2px rgba(20,37,28,.05),0 10px 28px -18px rgba(20,37,28,.25);
+  --font-display:"Bricolage Grotesque",system-ui,sans-serif;
+  --font-body:"Inter",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:6px}
+.wrap{max-width:960px;margin:0 auto;padding:0 20px}
+
+/* ============ header fixo ============ */
+header.site{position:sticky;top:0;z-index:20;background:rgba(243,247,244,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+header.site .bar{display:flex;align-items:center;gap:14px;padding:12px 0}
+.brand{font-family:var(--font-display);font-weight:800;font-size:1.02rem;letter-spacing:-.01em;text-decoration:none;display:flex;align-items:center;gap:10px}
+.brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.bar .spacer{flex:1}
+.legend-mini{display:flex;gap:8px;font-family:var(--font-mono);font-size:.68rem}
+.legend-mini span{padding:3px 8px;border-radius:999px;font-weight:600;letter-spacing:.04em}
+.lg-g{background:var(--green-bg);color:var(--green-ink);border:1px solid var(--green-line)}
+.lg-y{background:var(--yellow-bg);color:var(--yellow-ink);border:1px solid var(--yellow-line)}
+@media (max-width:560px){.legend-mini{display:none}}
+
+/* ============ hero ============ */
+.hero{padding:64px 0 40px;position:relative;overflow:hidden}
+.hero .eyebrow{font-family:var(--font-mono);font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.hero h1{font-family:var(--font-display);font-weight:800;font-size:clamp(2.2rem,6vw,3.4rem);letter-spacing:-.03em;line-height:1.05;margin:10px 0 14px;max-width:18ch}
+.hero p.lead{color:var(--muted);max-width:56ch;font-size:1.02rem}
+/* curva logística animada — crescimento populacional, tema de casa */
+.growth{position:absolute;right:-30px;top:34px;width:min(50%,440px);pointer-events:none}
+.growth path{fill:none;stroke-linecap:round}
+.growth .k{stroke:var(--line);stroke-width:2;stroke-dasharray:6 8}
+.growth .curve{stroke:var(--accent);stroke-width:2.5;stroke-dasharray:900;stroke-dashoffset:900;animation:trace 3s ease forwards}
+@keyframes trace{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion:reduce){.growth .curve{animation:none;stroke-dashoffset:0}}
+@media (max-width:760px){.growth{display:none}}
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;box-shadow:var(--shadow)}
+.stat b{font-family:var(--font-mono);font-size:1rem;display:block}
+.stat span{font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.legend-block{margin-top:24px;display:grid;gap:8px;max-width:640px}
+.legend-block .row{display:flex;gap:10px;align-items:baseline;font-size:.92rem;color:var(--muted)}
+.toolbar{margin-top:24px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:8px 16px;font-weight:600;font-size:.85rem;box-shadow:var(--shadow)}
+.btn:hover{border-color:var(--accent);color:var(--accent-ink)}
+.toolbar .hint{font-size:.8rem;color:var(--muted)}
+
+/* ============ fases e módulos (hub) ============ */
+.trilha{padding:12px 0 70px}
+.phase{margin-top:44px;scroll-margin-top:70px}
+.phase-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.phase-num{font-family:var(--font-mono);font-weight:600;font-size:.78rem;color:var(--accent);background:var(--accent-soft);padding:4px 10px;border-radius:999px;letter-spacing:.06em}
+.phase-head h2{font-family:var(--font-display);font-weight:800;font-size:clamp(1.4rem,3.4vw,1.9rem);letter-spacing:-.02em}
+.phase-head .hours{font-family:var(--font-mono);font-size:.78rem;color:var(--muted)}
+.phase-sub{color:var(--muted);max-width:70ch;margin:8px 0 20px;font-size:.95rem}
+
+/* cartão de módulo: <details> nativo = recolher/expandir sem JS */
+details.mod{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px;box-shadow:var(--shadow);scroll-margin-top:80px;transition:border-color .15s ease}
+details.mod:hover{border-color:var(--accent)}
+summary.mod-sum{display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer;list-style:none;flex-wrap:wrap}
+summary.mod-sum::-webkit-details-marker{display:none}
+.chev{font-family:var(--font-mono);color:var(--accent);font-weight:600;transition:transform .2s ease}
+details[open] .chev{transform:rotate(90deg)}
+.mod-num{font-family:var(--font-mono);font-size:.74rem;color:var(--muted)}
+.mod-title{flex:1;min-width:200px;font-family:var(--font-display);font-weight:600;font-size:1.12rem;letter-spacing:-.01em}
+.mod-title .sub{display:block;color:var(--muted);font-size:.85rem;font-weight:400;font-family:var(--font-body);letter-spacing:0}
+.mod-meta{display:flex;gap:14px;align-items:center;font-family:var(--font-mono);font-size:.74rem;color:var(--muted);flex-wrap:wrap}
+.mod-meta .stars{color:var(--accent);letter-spacing:.1em}
+.mod-body{border-top:1px solid var(--line);padding:18px;display:grid;gap:20px}
+
+.bio{background:var(--accent-soft);border:1px solid #B5E3CD;border-radius:10px;padding:12px 16px}
+.bio h4,.blk h4{font-family:var(--font-mono);font-size:.7rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:8px}
+.bio p{font-size:.92rem}
+
+.themes{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}
+a.theme{display:block;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:10px 14px;text-decoration:none;transition:transform .15s ease,border-color .15s ease}
+a.theme:hover{transform:translateX(4px);border-color:var(--accent)}
+.theme .t-top{display:flex;align-items:baseline;gap:10px}
+.theme b{font-weight:600;flex:1}
+.theme .count{font-family:var(--font-mono);font-size:.68rem;color:var(--accent);white-space:nowrap}
+.theme .desc{color:var(--muted);font-size:.84rem;display:block;margin-top:2px}
+
+.goals{list-style:none;display:grid;gap:8px}
+.goals li{display:flex;gap:10px;align-items:baseline;font-size:.92rem}
+.lvl{font-family:var(--font-mono);font-size:.64rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;min-width:86px;text-align:center;white-space:nowrap}
+.lvl-b{background:var(--green-bg);color:var(--green-ink)}
+.lvl-i{background:var(--yellow-bg);color:var(--yellow-ink)}
+.lvl-a{background:var(--red-bg);color:var(--red-ink)}
+
+.mats{list-style:none;display:grid;gap:8px}
+.mats li{background:var(--surface);border:1px solid var(--line);border-left-width:5px;border-radius:10px;padding:10px 14px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.mats li.m-g{border-left-color:var(--green-ink);background:linear-gradient(90deg,var(--green-bg) 0,var(--surface) 42%)}
+.mats li.m-y{border-left-color:var(--yellow-ink);background:linear-gradient(90deg,var(--yellow-bg) 0,var(--surface) 42%)}
+.mats li b{font-weight:600;flex:1;min-width:200px}
+.mats li a{font-size:.8rem;font-weight:600;color:var(--accent-ink)}
+
+.drill{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 16px;font-size:.92rem}
+.final{background:var(--accent-soft);border:1px solid #B5E3CD;border-radius:10px;padding:12px 16px;font-size:.92rem}
+.drill b,.final b{font-weight:600}
+
+/* ============ visão isolada de tema ============ */
+.detail{padding:36px 0 90px;display:none}
+.crumb{display:inline-flex;align-items:center;gap:8px;font-size:.86rem;font-weight:600;color:var(--accent-ink);text-decoration:none;background:var(--accent-soft);padding:8px 14px;border-radius:999px}
+.crumb:hover{filter:brightness(.96)}
+.detail-head{margin-top:26px}
+.detail-head .eyebrow{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.detail-head h1{font-family:var(--font-display);font-weight:800;font-size:clamp(1.7rem,4.6vw,2.4rem);letter-spacing:-.025em;line-height:1.1;margin-top:6px}
+.metabar{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 8px}
+.metabar .chip{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-family:var(--font-mono);font-size:.78rem}
+.metabar .chip b{color:var(--accent)}
+.section{margin-top:28px}
+.section>h2{font-family:var(--font-mono);font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+.section p{max-width:72ch}
+.topics{list-style:none;counter-reset:st;display:grid;gap:8px}
+.topics li{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;display:flex;gap:12px;align-items:baseline}
+.topics li::before{counter-increment:st;content:counter(st,decimal-leading-zero);font-family:var(--font-mono);font-size:.72rem;color:var(--accent);font-weight:600}
+.note{color:var(--muted);font-size:.9rem;max-width:70ch}
+.prompt{margin-top:12px;background:var(--surface);border:1px dashed var(--accent);border-radius:10px;padding:12px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.prompt p{font-family:var(--font-mono);font-size:.82rem;flex:1;min-width:240px}
+.prompt button{background:var(--accent);color:#fff;border:none;border-radius:999px;padding:8px 16px;font-weight:600;font-size:.82rem}
+.prompt button:hover{background:var(--accent-ink)}
+.pager{display:flex;gap:10px;margin-top:44px;flex-wrap:wrap}
+.pager a{flex:1;min-width:200px;text-decoration:none;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;box-shadow:var(--shadow)}
+.pager a:hover{border-color:var(--accent)}
+.pager .dir{font-family:var(--font-mono);font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.pager .name{font-weight:600;font-size:.92rem}
+.pager a.next{text-align:right}
+
+/* ============ método / rodapé ============ */
+.method{margin-top:56px;background:var(--ink);color:#EAF1EC;border-radius:20px;padding:34px 30px}
+.method h2{font-family:var(--font-display);font-weight:800;font-size:1.5rem;letter-spacing:-.02em;margin-bottom:6px}
+.method p.sub{color:#9FB4A8;font-size:.92rem;margin-bottom:18px}
+.method ol{list-style:none;display:grid;gap:12px;counter-reset:tip}
+.method ol li{display:flex;gap:14px;align-items:baseline}
+.method ol li::before{counter-increment:tip;content:counter(tip,decimal-leading-zero);font-family:var(--font-mono);font-size:.74rem;color:#7EE2B0;font-weight:600}
+footer{padding:34px 0 60px;color:var(--muted);font-size:.82rem}
+
+/* alternância hub ⇄ detalhe controlada por classe no body */
+body.viewing-detail #hub{display:none}
+body.viewing-detail #detail{display:block}
+</style>
 </head>
-<body class="text-gray-800">
-    <!-- Header -->
-    <header class="bg-gradient-to-r from-emerald-700 to-emerald-900 text-white py-12 px-4 shadow-lg mb-10">
-        <div class="max-w-5xl mx-auto">
-            <h1 class="text-4xl md:text-5xl font-bold mb-4">Guia de Estudos: Machine Learning &amp; IA</h1>
-            <p class="text-xl opacity-90 mb-6">Uma trilha do absoluto zero para estudantes de <strong>Ciências Biológicas</strong>, conectando o ferramental exato à vida e à natureza.</p>
-            <div class="flex flex-wrap gap-4 text-sm font-semibold">
-                <span class="bg-white/20 px-4 py-2 rounded-full"><i class="fas fa-layer-group mr-2" aria-hidden="true"></i>2 Fases · 9 Módulos</span>
-                <span class="bg-white/20 px-4 py-2 rounded-full"><i class="fas fa-stopwatch mr-2" aria-hidden="true"></i>Estimativa Total: ~380h</span>
-                <span class="bg-white/20 px-4 py-2 rounded-full"><i class="fas fa-brain mr-2" aria-hidden="true"></i>Foco em Neuro e Bioinformática</span>
-            </div>
+<body>
 
-            <div class="mt-6 bg-white/10 p-4 rounded-lg text-sm">
-                <p><strong>Legenda de Materiais:</strong></p>
-                <div class="flex flex-wrap gap-4 mt-2">
-                    <span class="essential px-3 py-1 rounded shadow">Material Essencial</span>
-                    <span class="important px-3 py-1 rounded shadow">Aprofundamento Diferenciado</span>
-                </div>
+<header class="site">
+  <div class="wrap bar">
+    <a class="brand" href="#"><span class="dot"></span>Trilha · ML para Biológicas</a>
+    <span class="spacer"></span>
+    <div class="legend-mini" aria-hidden="true">
+      <span class="lg-g">VERDE · ESSENCIAL</span>
+      <span class="lg-y">AMARELO · APROFUNDAMENTO</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============ HUB ============ -->
+<main id="hub">
+  <section class="hero wrap">
+    <svg class="growth" viewBox="0 0 460 180" aria-hidden="true">
+      <path class="k" d="M0 24 H460"/>
+      <path class="curve" d="M0 164 C 90 162 130 156 170 128 C 210 100 230 58 290 38 C 340 24 400 24 460 24"/>
+    </svg>
+    <p class="eyebrow">Guia de estudos · Do zero à IA</p>
+    <h1>Machine Learning para Biológicas</h1>
+    <p class="lead">Uma trilha do absoluto zero para estudantes de <strong>Ciências Biológicas</strong>, conectando o ferramental exato à vida e à natureza. Expanda cada módulo para ver o conteúdo inteiro, ou abra um tema isolado para estudá-lo.</p>
+    <div class="stats">
+      <div class="stat"><b>2 fases</b><span>base + IA</span></div>
+      <div class="stat"><b>9 módulos</b><span id="statTemas">— temas</span></div>
+      <div class="stat"><b>~380 h</b><span>carga total</span></div>
+    </div>
+    <div class="legend-block">
+      <div class="row"><span class="lvl lvl-b">Essencial</span><span>Material nuclear — sem isso, o resto da trilha não se sustenta.</span></div>
+      <div class="row"><span class="lvl lvl-i">Aprofundamento</span><span>Importante, mas de profundidade diferenciada. Pode ficar para uma segunda passada.</span></div>
+    </div>
+    <div class="toolbar">
+      <button class="btn" onclick="setAll(true)">Expandir tudo</button>
+      <button class="btn" onclick="setAll(false)">Recolher tudo</button>
+      <span class="hint">Dica: clique num tema para abri-lo isoladamente.</span>
+    </div>
+  </section>
+
+  <section class="trilha wrap" id="fases"></section>
+
+  <section class="wrap">
+    <div class="method">
+      <h2>Como usar o guia</h2>
+      <p class="sub">Recomendações de método para não se perder em ~380 horas de estudo.</p>
+      <ol>
+        <li>Uma seção por vez — no máximo duas em paralelo (ex.: matemática + programação).</li>
+        <li>Regra dos 50%: metade do tempo de cada módulo deve ser prática. Assistir vídeo não é estudar.</li>
+        <li>Após cada subseção, gere exercícios com uma IA — cada tema desta página traz o prompt pronto para copiar.</li>
+        <li>O teste final fecha a seção: sem ele, o módulo não acabou.</li>
+        <li>Verde primeiro; os itens amarelos entram na segunda passada ou quando um projeto real exigir.</li>
+      </ol>
+    </div>
+  </section>
+
+  <footer class="wrap">Trilha da Natureza para o Computador — projeto focado no crescimento de estudantes de base biológica no mercado e na academia tecnológica, desmistificando as barreiras da matemática avançada.</footer>
+</main>
+
+<!-- ============ TEMA ISOLADO ============ -->
+<main id="detail" class="detail">
+  <div class="wrap" id="detailContent"></div>
+</main>
+
+<script>
+/* ============================================================
+   Dados do guia (fonte: Guia.pdf)
+   Cada módulo tem temas; cada tema pode ter subtemas (t) e
+   uma descrição curta (d). kind "g" = essencial, "y" = aprofundamento.
+   ============================================================ */
+const PHASES = [
+  {num:"Fase 1", name:"Base Matemática e Computacional", hours:"~240 h",
+   sub:"Construir o ferramental matemático, computacional e estatístico que sustenta tudo o que vem depois."},
+  {num:"Fase 2", name:"“IA”", hours:"~140 h+",
+   sub:"Transformar a base em tecnologia: dos métodos clássicos de Machine Learning ao estado da arte em Deep Learning."},
+];
+
+const MODS = [
+{id:1, ph:0, title:"Pré-Cálculo", sub:"O Alicerce Matemático", h:"~20 h", d:1, dl:"Baixa",
+ bio:"Entender como uma população de bactérias cresce (exponencial), como calcular dosagens medicamentosas ou ler escalas logarítmicas como o pH depende inteiramente desta base matemática. Sem isso, os modelos da natureza parecem mágica.",
+ themes:[
+  {n:"Álgebra", d:"Manipular expressões com segurança é o que impede o cálculo de virar um pesadelo de contas.",
+   t:["Potenciação","Equação","Desigualdade"]},
+  {n:"Geometria", d:"Áreas, ângulos e relações básicas — a intuição espacial que sustenta a geometria analítica.",
+   t:["Introdução","Áreas e ângulos de figuras planas clássicas","Relações básicas de ângulos"]},
+  {n:"Funções", d:"O conceito mais importante do módulo: encarar f(x) como um objeto, não como uma conta.",
+   t:["Introdução","Composição de função","Inversa","Gráfico"]},
+  {n:"Trigonometria", d:"Seno e cosseno voltam com força em oscilações e sinais (ex.: ritmos circadianos).",
+   t:["Introdução de seno, cosseno e tangente","Círculo trigonométrico","Funções trigonométricas inversas","Relações e identidades fundamentais"]},
+  {n:"Geometria Analítica", d:"Traduzir geometria em equações — o primeiro passo para pensar em “espaços”.",
+   t:["Introdução","Equação da reta","Equação do círculo"]},
+ ],
+ goals:["Entender e resolver equações e geometria simples.",
+        "Compreender funções e interpretar seus gráficos com fluência.",
+        "Sair com ferramental sólido para absorver o Cálculo Real sem travar na álgebra básica."],
+ mats:[{k:"g",t:"Khan Academy — Pré-Cálculo",u:"https://pt.khanacademy.org/math/precalculus"},
+       {k:"y",t:"Playlist YouTube — Base Matemática",u:"https://www.youtube.com/playlist?list=PL83s8LGM84J62ahewE-sVGbnJdOqGp8lJ"}],
+ drill:"Após cada aula (subseção), peça a uma IA para criar 3 questões do tema aplicadas à biologia ou química para você resolver.",
+ final:"Criar e desenhar o gráfico analítico de uma função que modela o crescimento de uma colônia sob restrição de nutrientes."},
+
+{id:2, ph:0, title:"Cálculo Real", sub:"Taxas de Variação e Acúmulo", h:"~40 h", d:2, dl:"Média",
+ bio:"Derivadas explicam velocidades e taxas: taxas de mutação, cinética enzimática e a propagação de epidemias. Integrais permitem calcular o acúmulo: por exemplo, entender áreas sob a curva de concentração de um medicamento no sangue.",
+ themes:[
+  {n:"Limite", d:"Formaliza a ideia de “chegar perto”: é a fundação sobre a qual derivadas e integrais são definidas.",
+   t:["Introdução","Definição formal","Propriedades","Limites laterais","Limites de funções compostas","Teorema do sanduíche/confronto"]},
+  {n:"Derivada", d:"Taxas de variação instantâneas: crescimento, cinética enzimática, disseminação de doenças.",
+   t:["Introdução","Condições de derivabilidade","Propriedades","Regra da cadeia","Derivação implícita","Derivadas de ordem superior"]},
+  {n:"Integral de Riemann", d:"O acúmulo: áreas sob curvas, como a concentração de um fármaco ao longo do tempo.",
+   t:["Introdução","Propriedades","Primitiva","Teorema Fundamental do Cálculo","Cálculo de áreas","Mudança de variável"]},
+ ],
+ goals:["Capacidade operacional de obter derivadas e integrais.",
+        "Usar regra da cadeia e compreender perfeitamente a relação do acúmulo de áreas.",
+        "Terminar com entendimento profundo e concreto do comportamento de funções (ex.: suavidade)."],
+ mats:[{k:"g",t:"Livro base: Guidorizzi — Um Curso de Cálculo, vol. 1"},
+       {k:"y",t:"Livro complementar: Anton, Bivens e Davis — Cálculo"},
+       {k:"y",t:"Livro complementar: James Stewart — Cálculo"}],
+ drill:"Em cada subseção, selecionar exercícios de modelagem do Stewart focados em Biologia (geralmente ao final dos capítulos).",
+ final:"Deduzir analiticamente a taxa instantânea de disseminação de um vírus usando derivadas, dada uma função polinomial do tempo."},
+
+{id:3, ph:0, title:"Cálculo Multivariável", sub:"A Complexidade do Mundo Real", h:"~25 h", d:3, dl:"Alta",
+ bio:"Quase nada biológico tem uma única causa: luz, água e minerais influenciam juntos o crescimento de uma planta. O espaço multivariável é a linguagem matemática para modelar fenômenos com muitas variáveis simultâneas — exatamente o formato dos dados biológicos reais.",
+ themes:[
+  {n:"Funções vetoriais", d:"Funções que devolvem vetores: trajetórias e campos, a ponte para várias variáveis.",
+   t:["Introdução e visualização"]},
+  {n:"Diferencial em várias variáveis", d:"Gradiente e regra da cadeia multivariável — o coração matemático do backpropagation.",
+   t:["Introdução","Diferenciabilidade e continuidade","Gradiente","Derivadas parciais","Derivada direcional","Regra da cadeia"]},
+  {n:"Integrais múltiplas", d:"Somar sobre áreas e volumes: distribuições em duas e três dimensões.",
+   t:["Introdução","Integral dupla e tripla (retângulo e paralelepípedo)","Propriedades de integrais múltiplas","Mudança de variáveis"]},
+ ],
+ goals:["Calcular derivadas parciais e ter a ideia clara do que é um “espaço de variáveis”.",
+        "Calcular gradientes e usar a regra da cadeia multivariável com fluência.",
+        "Fazer a generalização do Cálculo 1 sem prender-se aos menores pormenores."],
+ mats:[{k:"g",t:"Livro (fortemente recomendado): Diomara Pinto — Cálculo Diferencial e Integral de Funções de Várias Variáveis"},
+       {k:"y",t:"YouTube para dúvidas visuais e geométricas pontuais"}],
+ drill:"Em cada subseção, praticar a obtenção mecânica de gradientes em 2 e 3 dimensões.",
+ final:"Avaliar uma superfície térmica simplificada de um recife de corais Z=f(x,y) e encontrar a coordenada exata da temperatura máxima local."},
+
+{id:4, ph:0, title:"Otimização", sub:"A Busca pelo Ótimo", h:"~15 h", d:2, dl:"Média",
+ bio:"A Otimização estuda como achar vales de energia mínima, essencial para entender o enovelamento de proteínas (Protein Folding), resolvido computacionalmente na biofísica estrutural. É também o coração do treinamento de qualquer modelo de Machine Learning.",
+ themes:[
+  {n:"Espaço de variáveis", d:"Enxergar cada configuração possível como um ponto num espaço — e o custo como uma paisagem sobre ele.", t:[]},
+  {n:"Minimização e maximização", d:"Encontrar picos e vales: pontos críticos e o que eles significam.", t:[]},
+  {n:"Métodos computacionais", d:"Gradiente descendente e suas armadilhas: mínimos locais vs. o mínimo global.", t:[]},
+ ],
+ goals:["Ter clara a ideia de espaço de variáveis.",
+        "Entender abstratamente o que é buscar uma otimização.",
+        "Conhecer os métodos computacionais e as limitações matemáticas de buscar um mínimo global."],
+ mats:[{k:"g",t:"Vídeo: 3Blue1Brown — Gradient Descent (série de Redes Neurais)",u:"https://www.youtube.com/watch?v=IHZwWFHWa-w"},
+       {k:"y",t:"YouTube para visualizações de superfícies e paisagens de custo"}],
+ drill:"Em cada subseção, encontrar máximos e mínimos de funções de duas variáveis à mão, identificando pontos críticos.",
+ final:"Explicar, usando uma paisagem de energia de enovelamento de proteína como exemplo, por que um método de descida de gradiente pode ficar preso em um mínimo local."},
+
+{id:5, ph:0, title:"Álgebra Linear", sub:"A Linguagem dos Dados na Computação", h:"~40 h", d:3, dl:"Alta",
+ bio:"Biólogos processam milhares de amostras genéticas ou milhares de imagens microscópicas. Tudo isso vira matrizes. Dominar autovalores, autovetores e decomposição é essencial para entender como o computador simplifica o caos (PCA) de forma estatística.",
+ themes:[
+  {n:"Vetores, matrizes e operações", d:"A aritmética dos dados: toda tabela de amostras é uma matriz.", t:[]},
+  {n:"Sistemas lineares e transformações", d:"Resolver sistemas e enxergar matrizes como transformações do espaço.", t:[]},
+  {n:"Bases e espaços vetoriais", d:"Trocar de “ponto de vista” escolhendo os eixos certos para descrever os dados.", t:[]},
+  {n:"Ortogonalidade", d:"Direções independentes e projeções — a geometria por trás dos mínimos quadrados.", t:[]},
+  {n:"Autovalores e autovetores", d:"As direções que uma transformação preserva; essenciais do PCA à dinâmica populacional.", t:[]},
+  {n:"Decomposições", d:"Quebrar matrizes em partes simples (ex.: SVD) — como o computador simplifica o caos.", t:[]},
+ ],
+ goals:["Conseguir operar matricialmente e ter um entendimento concreto.",
+        "Resolver sistemas pesados sem se perder nas contas.",
+        "Entender superficialmente as decomposições pesadas e as operações mais complexas, mantendo o foco geométrico."],
+ mats:[{k:"g",t:"Vídeo: 3Blue1Brown — Essência da Álgebra Linear",u:"https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab"},
+       {k:"y",t:"Estudo pelo livro: Linear Algebra and Its Applications — Strang"}],
+ drill:"Aviso didático: vários conteúdos aqui são abstratos demais. Sem os vídeos de visualização, fica muito difícil de entender — assista ao 3Blue1Brown primeiro.",
+ final:"Explicar geometricamente qual o sentido do autovetor de uma matriz de transição de Markov em dinâmica populacional."},
+
+{id:6, ph:0, title:"Programação (Python)", sub:"Saindo da Teoria para a Prática Ferramental", h:"~50 h", d:2, dl:"Média",
+ bio:"Analisar 10 amostras dá para fazer na planilha; analisar 10.000 sequências genômicas ou imagens de microscopia, não. Python automatiza pipelines de análise, gera gráficos de qualidade de publicação e garante reprodutibilidade — hoje uma exigência de revistas e laboratórios.",
+ themes:[
+  {n:"Ambientes", d:"IDEs, notebooks e terminais: montar sua bancada de trabalho digital.", t:[]},
+  {n:"Comandos iniciais e lógica básica", d:"Variáveis, condicionais e laços — o controle de fluxo de qualquer script.", t:[]},
+  {n:"Complexidade", d:"Noção de custo computacional: por que alguns códigos travam com dados grandes.", t:[]},
+  {n:"Informática básica", d:"Arquivos, pastas, formatos e terminal: o que todo mundo assume que você já sabe.", t:[]},
+  {n:"Estruturas de dados básicas", d:"Listas, dicionários e arrays: escolher o “recipiente” certo para cada dado.", t:[]},
+  {n:"Códigos funcionais", d:"Organizar o código em funções reutilizáveis e legíveis.", t:[]},
+  {n:"Orientação a objetos", d:"Ler e usar classes — o formato da maioria das bibliotecas científicas.", t:[]},
+  {n:"Bibliotecas", d:"NumPy, pandas, Matplotlib: não reinvente a roda.", t:[]},
+  {n:"Visualizações", d:"Transformar tabelas em gráficos que contam uma história.", t:[]},
+  {n:"Prática", d:"Projetos de verdade: pipelines completas e versionamento.", t:["Pipelines extensas","Git e GitHub"]},
+ ],
+ goals:["Conseguir interpretar scripts simples.",
+        "Modificar e utilizar códigos funcionais já existentes a seu favor.",
+        "Estruturar um projeto do zero com ideia de custo computacional e dominar versionamento."],
+ mats:[{k:"g",t:"Curso IMPATech — repositório no GitHub",u:"https://github.com/ry4n-felinto/impytech_2026"}],
+ drill:"Dica de sobrevivência: programação se aprende programando. Escreva código até a mão cansar.",
+ final:"Escrever um pequeno script em Python que puxe dados genômicos via API, passe por um pipeline de limpeza leve, mostre 2 gráficos e suba tudo no GitHub de forma padronizada e limpa."},
+
+{id:7, ph:0, title:"Estatística e Probabilidade", sub:"Encontrando Certezas no Caos Experimental", h:"~50 h", d:4, dl:"Muito Alta",
+ bio:"Nenhum experimento biológico é levado a sério sem validação estatística. Saber diferenciar “flutuação normal” de “resultado significativo” (p-valor) define o sucesso na ciência. A inferência, especialmente Bayesiana, domina a ecologia quantitativa e os processos modernos de epidemiologia.",
+ themes:[
+  {n:"Combinatória", d:"Contar sem enumerar: a base do cálculo de probabilidades.", t:[]},
+  {n:"Variável aleatória", d:"Modelar o acaso: distribuições que descrevem experimentos e medidas.", t:[]},
+  {n:"Convergências", d:"O que acontece quando n cresce: lei dos grandes números e teorema central do limite.", t:[]},
+  {n:"Introdução à inferência", d:"Do dado à conclusão: estimar propriedades da população a partir da amostra.", t:[]},
+  {n:"Testes de hipóteses", d:"O p-valor: diferenciar flutuação normal de efeito real.", t:[]},
+  {n:"Inferência Bayesiana", d:"Atualizar crenças com evidência — dominante na ecologia quantitativa.", t:[]},
+  {n:"Inferência não-Bayesiana (Frequentista)", d:"Máxima verossimilhança e a interpretação clássica que domina os papers.", t:[]},
+ ],
+ goals:["Capacidade de ler papers e entender a validação das análises.",
+        "Entendimento razoável de provas matemáticas de propriedades estatísticas.",
+        "Domínio profundo das interpretações Bayesiana vs. Frequentista na análise avançada de bio-dados."],
+ mats:[{k:"g",t:"Livro: Tertuliano — Princípios de Probabilidade"},
+       {k:"y",t:"Aulas pontuais no YouTube para desmistificar os temas espinhosos à primeira vista (ex.: StatQuest)"}],
+ drill:"Acompanhar os exercícios do livro. O tema é muito complexo à primeira vista, mas se desmistifica com o tempo e a repetição.",
+ final:"Montar o design estatístico completo de um ensaio clínico, especificando testes de hipóteses de eficácia e rodando-os numa simulação no Python."},
+
+{id:8, ph:1, title:"Machine Learning", sub:"Criando a Inteligência Clássica", h:"~60 h", d:3, dl:"Alta",
+ bio:"É aqui onde toda a matemática e estatística anterior vira tecnologia de fato. Identificar fenótipos, classificar tecidos cancerosos ou correlacionar o peso do gado a dezenas de fatores genéticos. ML é o que permite fazer previsões.",
+ themes:[
+  {n:"Introdução", d:"O vocabulário de ML: treino, teste, viés e variância.", t:[]},
+  {n:"Regressão (polinomial)", d:"Prever valores contínuos — ex.: peso do gado a partir de fatores genéticos.", t:[]},
+  {n:"Classificação", d:"Prever categorias — ex.: tecido saudável vs. canceroso.", t:[]},
+  {n:"Métricas estatísticas", d:"Acurácia engana: precisão, recall e AUC para avaliar de verdade.", t:[]},
+  {n:"Reamostragem", d:"Validação cruzada e bootstrap: medir desempenho sem se enganar.", t:[]},
+  {n:"Regularização", d:"Frear o overfitting: ridge e lasso.", t:[]},
+  {n:"Estudo de variáveis", d:"Quais variáveis importam e como selecioná-las.", t:[]},
+  {n:"GAMs", d:"Modelos aditivos: flexibilidade sem abrir mão da interpretação.", t:[]},
+  {n:"Árvores", d:"Decisões encadeadas e florestas aleatórias.", t:[]},
+  {n:"SVM", d:"Separar classes com margens máximas e kernels.", t:[]},
+  {n:"Métodos adicionais", d:"Ensembles, boosting e o restante da caixa de ferramentas.", t:[]},
+  {n:"Aprendizado não supervisionado", d:"Clustering: achar grupos sem rótulos — ex.: subtipos celulares.", t:[]},
+ ],
+ goals:["Diferenciar problemas de ML e se ambientar com o Scikit-Learn.",
+        "Evitar viés de treino, avaliando e selecionando os métodos corretamente.",
+        "Estar apto nos conceitos base para explodir rumo ao Aprendizado Profundo."],
+ mats:[{k:"g",t:"ISLR — Introduction to Statistical Learning (em Python ou R, a critério do aluno)",u:"https://www.statlearning.com/"},
+       {k:"g",t:"Notas de aula da matéria do IMPATech"},
+       {k:"y",t:"Elements of Statistical Learning (versão avançada do ISLR)"}],
+ drill:"A cada seção nova (Regressão, Classificação etc.), teste em um dataset médico do repositório UC Irvine.",
+ final:"Pegar um banco de dados gigantesco do portal Kaggle e fazer um pipeline robusto de tratamento, treinamento e reporte."},
+
+{id:9, ph:1, title:"Deep Learning", sub:"O Estado da Arte da Neurociência Computacional", h:"~80 h+", d:5, dl:"Máxima",
+ bio:"Este é o cume acadêmico e de inovação. CNNs classificam lâminas de biópsias, Transformers preveem interações de RNA e GNNs revolucionaram o descobrimento de fármacos e a forma espacial das moléculas. Dominar Deep Learning permite criar coisas na biologia computacional que não existiam ontem.",
+ themes:[
+  {n:"Fundamentos", d:"Neurônios artificiais, camadas e backpropagation.", t:[]},
+  {n:"CNN", d:"Convoluções para imagens: de lâminas de biópsia a raios-X.", t:[]},
+  {n:"RNN", d:"Redes recorrentes para sequências temporais.", t:[]},
+  {n:"Transformers (Attention)", d:"A arquitetura dos LLMs — e do AlphaFold.", t:[]},
+  {n:"GNN", d:"Grafos: moléculas e interações como redes.", t:[]},
+  {n:"Representações", d:"Embeddings: como os modelos “resumem” dados complexos.", t:[]},
+  {n:"Generativos", d:"Modelos que criam: das imagens às estruturas moleculares.", t:["VAE","GAN","Diffusion"]},
+  {n:"LLM", d:"Grandes modelos de linguagem e seu uso científico.", t:[]},
+  {n:"Reinforcement Learning", d:"Aprender por tentativa e recompensa.", t:[]},
+ ],
+ goals:["Dominar arquiteturas base e implementar via frameworks (PyTorch).",
+        "Saber adaptar arquiteturas pesadas para tarefas visuais ou em cadeia (DNA).",
+        "Estar completamente a par dos modelos mais recentes do estado da arte, faltando apenas ganhar tempo de tela na área."],
+ mats:[{k:"g",t:"Deep Learning Book — Ian Goodfellow (base teórica muito sólida)"},
+       {k:"g",t:"Andrej Karpathy — aulas de LLM e backprop no YouTube"}],
+ drill:"Dica operacional: utilize instâncias de Cloud ou o Google Colab; seu computador vai ferver caso não possua placa de vídeo compatível.",
+ final:"Fazer um projeto de ponta a ponta usando redes convolucionais para classificar raios-X pneumônicos, ou um Transformer modificado para ler cadeias polipeptídicas — documentando tudo rigorosamente num repositório público."},
+];
+
+/* ============ utilidades ============ */
+const stars = n => "★".repeat(n) + "☆".repeat(5-n);
+const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+const LVL = [["lvl-b","Básico"],["lvl-i","Intermed"],["lvl-a","Avançado"]];
+
+/* ============ hub: fases + módulos recolhíveis ============ */
+function renderHub(){
+  const root = document.getElementById("fases");
+  root.innerHTML = PHASES.map((ph,i)=>`
+    <div class="phase">
+      <div class="phase-head">
+        <span class="phase-num">${ph.num}</span>
+        <h2>${esc(ph.name)}</h2>
+        <span class="hours">${ph.hours}</span>
+      </div>
+      <p class="phase-sub">${esc(ph.sub)}</p>
+      ${MODS.filter(m=>m.ph===i).map(m=>`
+      <details class="mod" id="modulo-${m.id}">
+        <summary class="mod-sum">
+          <span class="chev">›</span>
+          <span class="mod-num">${String(m.id).padStart(2,"0")}</span>
+          <h3 class="mod-title">${esc(m.title)}<span class="sub">${esc(m.sub)}</span></h3>
+          <span class="mod-meta">
+            <span>⏱ ${m.h}</span>
+            <span class="stars" title="Dificuldade: ${m.dl}">${stars(m.d)}</span>
+            <span>${m.themes.length} temas</span>
+          </span>
+        </summary>
+        <div class="mod-body">
+          <div class="bio">
+            <h4>Por que isso importa na Biologia?</h4>
+            <p>${esc(m.bio)}</p>
+          </div>
+          <div class="blk">
+            <h4>Conteúdo programático — clique num tema para abri-lo</h4>
+            <div class="themes">
+              ${m.themes.map((t,ti)=>`
+              <a class="theme" href="#tema-${m.id}-${ti+1}">
+                <span class="t-top">
+                  <b>${esc(t.n)}</b>
+                  <span class="count">${t.t.length ? t.t.length+" subtemas →" : "abrir →"}</span>
+                </span>
+                <span class="desc">${esc(t.d)}</span>
+              </a>`).join("")}
             </div>
+          </div>
+          <div class="blk">
+            <h4>Objetivos por complexidade</h4>
+            <ul class="goals">
+              ${m.goals.map((g,gi)=>`<li><span class="lvl ${LVL[gi][0]}">${LVL[gi][1]}</span>${esc(g)}</li>`).join("")}
+            </ul>
+          </div>
+          <div class="blk">
+            <h4>Materiais recomendados</h4>
+            <ul class="mats">
+              ${m.mats.map(x=>`<li class="m-${x.k}"><b>${esc(x.t)}</b>${x.u?`<a href="${x.u}" target="_blank" rel="noopener noreferrer">Acessar ↗</a>`:""}</li>`).join("")}
+            </ul>
+          </div>
+          <div class="drill"><b>Exercícios em cada subseção:</b> ${esc(m.drill)}</div>
+          <div class="final"><b>Teste final da seção:</b> ${esc(m.final)}</div>
         </div>
-    </header>
+      </details>`).join("")}
+    </div>`).join("");
+  const nTemas = MODS.reduce((a,m)=>a+m.themes.length,0);
+  document.getElementById("statTemas").textContent = nTemas + " temas";
+}
 
-    <main class="max-w-5xl mx-auto px-4 pb-20">
+function setAll(open){
+  document.querySelectorAll("details.mod").forEach(d=>d.open=open);
+}
 
-        <!-- FASE 1 -->
-        <h2 class="text-3xl font-bold text-emerald-800 border-b-2 border-emerald-500 pb-2 mb-8"><i class="fas fa-square-root-variable mr-3" aria-hidden="true"></i>FASE 1: Base Matemática e Computacional</h2>
+/* ============ visão isolada de um tema ============ */
+function renderDetail(modId, themeIdx){
+  const m = MODS.find(x=>x.id===modId);
+  const t = m && m.themes[themeIdx-1];
+  if(!t) return false;
+  const ph = PHASES[m.ph];
+  const prev = m.themes[themeIdx-2], next = m.themes[themeIdx];
+  const prompt = `Crie 3 questões sobre ${t.n} (módulo de ${m.title}) aplicadas à biologia ou química, em níveis básico, intermediário e avançado, para eu resolver uma de cada vez.`;
+  document.getElementById("detailContent").innerHTML = `
+    <a class="crumb" href="#modulo-${m.id}">← ${String(m.id).padStart(2,"0")} · ${esc(m.title)}</a>
+    <div class="detail-head">
+      <p class="eyebrow">Tema ${themeIdx} de ${m.themes.length}</p>
+      <h1>${esc(t.n)}</h1>
+    </div>
+    <div class="metabar">
+      <span class="chip">${ph.num} — ${esc(ph.name)}</span>
+      <span class="chip">Módulo: <b>${esc(m.title)}</b></span>
+      <span class="chip">Dificuldade do módulo: <b>${stars(m.d)}</b></span>
+    </div>
+    <div class="section"><p>${esc(t.d)}</p></div>
+    <div class="section"><h2>Subtemas</h2>
+      ${t.t.length
+        ? `<ul class="topics">${t.t.map(s=>`<li>${esc(s)}</li>`).join("")}</ul>`
+        : `<p class="note">Este tema não tem subdivisões no guia — trate-o como um bloco único de estudo.</p>`}
+    </div>
+    <div class="section"><h2>Como estudar este tema</h2>
+      <p class="note">${esc(m.drill)}</p>
+      <div class="prompt">
+        <p id="aiPrompt">${esc(prompt)}</p>
+        <button onclick="copyPrompt(this)">Copiar</button>
+      </div>
+    </div>
+    <div class="section"><h2>Materiais do módulo</h2>
+      <ul class="mats">
+        ${m.mats.map(x=>`<li class="m-${x.k}"><b>${esc(x.t)}</b>${x.u?`<a href="${x.u}" target="_blank" rel="noopener noreferrer">Acessar ↗</a>`:""}</li>`).join("")}
+      </ul>
+    </div>
+    <nav class="pager">
+      ${prev?`<a href="#tema-${m.id}-${themeIdx-1}"><span class="dir">← Tema anterior</span><br><span class="name">${esc(prev.n)}</span></a>`:""}
+      ${next?`<a class="next" href="#tema-${m.id}-${themeIdx+1}"><span class="dir">Próximo tema →</span><br><span class="name">${esc(next.n)}</span></a>`:""}
+    </nav>`;
+  return true;
+}
 
-        <!-- Módulo 1: Pré-Cálculo -->
-        <section class="bg-white rounded-xl shadow-sm p-6 module-card mb-8">
-            <div class="flex flex-col md:flex-row justify-between md:items-start border-b pb-4 mb-4 gap-4">
-                <div>
-                    <h3 class="text-2xl font-bold text-gray-800">1. Pré-Cálculo</h3>
-                    <p class="text-emerald-600 font-medium mt-1">O Alicerce Matemático</p>
-                </div>
-                <div class="text-left md:text-right flex flex-row md:flex-col gap-4 md:gap-1">
-                    <span class="block text-sm font-semibold text-gray-600 bg-gray-100 px-3 py-1 rounded-full"><i class="fas fa-clock mr-1" aria-hidden="true"></i>~20h</span>
-                    <span class="block text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full"><i class="fas fa-signal mr-1" aria-hidden="true"></i>Dificuldade: Baixa</span>
-                </div>
-            </div>
+function copyPrompt(btn){
+  const txt = document.getElementById("aiPrompt").textContent.trim();
+  const ok = () => { btn.textContent = "Copiado ✓"; setTimeout(()=>btn.textContent="Copiar",1600); };
+  if(navigator.clipboard) navigator.clipboard.writeText(txt).then(ok);
+}
 
-            <div class="mb-6 bg-emerald-50 p-4 rounded-lg border border-emerald-100">
-                <h4 class="text-md font-bold text-emerald-800 mb-2"><i class="fas fa-leaf mr-2" aria-hidden="true"></i>Por que isso importa na Biologia?</h4>
-                <p class="text-gray-700 text-sm">Entender como uma população de bactérias cresce (exponencial), como calcular dosagens medicamentosas ou ler escalas logarítmicas como o pH depende inteiramente desta base matemática. Sem isso, os modelos da natureza parecem mágica.</p>
-            </div>
-
-            <div class="grid md:grid-cols-2 gap-8 mb-6">
-                <div>
-                    <h4 class="text-md font-bold text-gray-800 mb-3 border-b pb-1">Conteúdo Programático</h4>
-                    <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
-                        <li><strong>Álgebra:</strong> Potenciação, Equação, Desigualdade</li>
-                        <li><strong>Geometria:</strong> Introdução, áreas e ângulos de figuras planas, relações básicas</li>
-                        <li><strong>Funções:</strong> Introdução, composição, inversa, gráficos</li>
-                        <li><strong>Trigonometria:</strong> Introdução, círculo, inversas, identidades</li>
-                        <li><strong>Geo. Analítica:</strong> Equação da reta, equação do círculo</li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="text-md font-bold text-gray-800 mb-3 border-b pb-1">Objetivos por Complexidade</h4>
-                    <ul class="space-y-3 text-sm text-gray-700">
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-green-100 text-green-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Básico</span> Entender e resolver equações e geometria simples.</li>
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Intermed</span> Compreender funções e interpretar seus gráficos com fluência.</li>
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-red-100 text-red-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Avançado</span> Sair com ferramental sólido para absorver o Cálculo Real sem travar na álgebra básica.</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="mb-6">
-                <h4 class="text-md font-bold text-gray-800 mb-2">Materiais Recomendados</h4>
-                <ul class="text-sm space-y-2">
-                    <li class="essential px-3 py-2 rounded flex items-center justify-between">
-                        <span><i class="fas fa-video mr-2" aria-hidden="true"></i>Khan Academy - Pré-Cálculo</span>
-                        <a href="https://pt.khanacademy.org/math/precalculus" class="text-green-800 hover:underline text-xs" target="_blank" rel="noopener noreferrer">Acessar</a>
-                    </li>
-                    <li class="important px-3 py-2 rounded flex items-center justify-between">
-                        <span><i class="fas fa-list mr-2" aria-hidden="true"></i>Playlist YouTube - Base Matemática</span>
-                        <a href="https://www.youtube.com/playlist?list=PL83s8LGM84J62ahewE-sVGbnJdOqGp8lJ" class="text-yellow-800 hover:underline text-xs" target="_blank" rel="noopener noreferrer">Acessar</a>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="border-t pt-4 bg-gray-50 p-4 rounded-lg">
-                <h4 class="text-md font-bold text-gray-800 mb-2"><i class="fas fa-tasks text-emerald-600 mr-2" aria-hidden="true"></i>Exercícios &amp; Certificação</h4>
-                <p class="text-sm text-gray-700 mb-2"><strong>Após cada aula (subseção):</strong> Peça a uma IA (ChatGPT/Claude): <em>"Crie 3 questões de [tema] aplicadas à biologia ou química para eu resolver"</em>.</p>
-                <p class="text-sm text-gray-700"><strong>Teste Final da Seção:</strong> Criar e desenhar o gráfico analítico de uma função que modela o crescimento de uma colônia sob restrição de nutrientes.</p>
-            </div>
-        </section>
-
-        <!-- Módulo 2: Cálculo Real -->
-        <section class="bg-white rounded-xl shadow-sm p-6 module-card mb-8">
-            <div class="flex flex-col md:flex-row justify-between md:items-start border-b pb-4 mb-4 gap-4">
-                <div>
-                    <h3 class="text-2xl font-bold text-gray-800">2. Cálculo Real</h3>
-                    <p class="text-emerald-600 font-medium mt-1">Taxas de Variação e Acúmulo</p>
-                </div>
-                <div class="text-left md:text-right flex flex-row md:flex-col gap-4 md:gap-1">
-                    <span class="block text-sm font-semibold text-gray-600 bg-gray-100 px-3 py-1 rounded-full"><i class="fas fa-clock mr-1" aria-hidden="true"></i>~40h</span>
-                    <span class="block text-sm font-semibold text-orange-600 bg-orange-50 px-3 py-1 rounded-full"><i class="fas fa-signal mr-1" aria-hidden="true"></i>Dificuldade: Média</span>
-                </div>
-            </div>
-
-            <div class="mb-6 bg-emerald-50 p-4 rounded-lg border border-emerald-100">
-                <h4 class="text-md font-bold text-emerald-800 mb-2"><i class="fas fa-leaf mr-2" aria-hidden="true"></i>Por que isso importa na Biologia?</h4>
-                <p class="text-gray-700 text-sm">Derivadas explicam velocidades e taxas: taxas de mutação, cinética enzimática e a propagação de epidemias. Integrais permitem calcular o acúmulo: por exemplo, entender áreas sob a curva de concentração de um medicamento no sangue.</p>
-            </div>
-
-            <div class="grid md:grid-cols-2 gap-8 mb-6">
-                <div>
-                    <h4 class="text-md font-bold text-gray-800 mb-3 border-b pb-1">Conteúdo Programático</h4>
-                    <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
-                        <li><strong>Limite:</strong> Introdução, formalização, propriedades, laterais, compostas, sanduíche</li>
-                        <li><strong>Derivada:</strong> Introdução, derivabilidade, propriedades, cadeia, implícita, ordem superior</li>
-                        <li><strong>Integral (Riemann):</strong> Introdução, propriedades, primitiva, Teorema Fundamental do Cálculo, áreas, mudança de variável</li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="text-md font-bold text-gray-800 mb-3 border-b pb-1">Objetivos por Complexidade</h4>
-                    <ul class="space-y-3 text-sm text-gray-700">
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-green-100 text-green-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Básico</span> Capacidade operacional de obter derivadas e integrais.</li>
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Intermed</span> Usar regra da cadeia e compreender perfeitamente a relação do acúmulo de áreas.</li>
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-red-100 text-red-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Avançado</span> Terminar com entendimento profundo e concreto do comportamento de funções (ex: suavidade).</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="mb-6">
-                <h4 class="text-md font-bold text-gray-800 mb-2">Materiais Recomendados</h4>
-                <ul class="text-sm space-y-2">
-                    <li class="essential px-3 py-2 rounded"><i class="fas fa-book mr-2" aria-hidden="true"></i>Livro Base: Guidorizzi - Um Curso de Cálculo Vol. 1</li>
-                    <li class="important px-3 py-2 rounded"><i class="fas fa-book-open mr-2" aria-hidden="true"></i>Livro Complementar: Anton, Bivens e Davis - Cálculo</li>
-                    <li class="important px-3 py-2 rounded"><i class="fas fa-book-open mr-2" aria-hidden="true"></i>Livro Complementar: James Stewart - Cálculo</li>
-                </ul>
-            </div>
-
-            <div class="border-t pt-4 bg-gray-50 p-4 rounded-lg">
-                <h4 class="text-md font-bold text-gray-800 mb-2"><i class="fas fa-tasks text-emerald-600 mr-2" aria-hidden="true"></i>Exercícios &amp; Certificação</h4>
-                <p class="text-sm text-gray-700 mb-2"><strong>Em cada subseção:</strong> Selecionar exercícios de modelagem do Stewart focados em Biologia (geralmente presentes ao final dos capítulos).</p>
-                <p class="text-sm text-gray-700"><strong>Teste Final:</strong> Deduzir analiticamente a taxa instantânea de disseminação de um vírus usando derivadas, dada uma função polinomial do tempo.</p>
-            </div>
-        </section>
-
-        <!-- Módulo 3: Cálculo Multivariável -->
-        <section class="bg-white rounded-xl shadow-sm p-6 module-card mb-8">
-            <div class="flex flex-col md:flex-row justify-between md:items-start border-b pb-4 mb-4 gap-4">
-                <div>
-                    <h3 class="text-2xl font-bold text-gray-800">3. Cálculo Multivariável</h3>
-                    <p class="text-emerald-600 font-medium mt-1">A Complexidade do Mundo Real</p>
-                </div>
-                <div class="text-left md:text-right flex flex-row md:flex-col gap-4 md:gap-1">
-                    <span class="block text-sm font-semibold text-gray-600 bg-gray-100 px-3 py-1 rounded-full"><i class="fas fa-clock mr-1" aria-hidden="true"></i>~25h</span>
-                    <span class="block text-sm font-semibold text-red-600 bg-red-50 px-3 py-1 rounded-full"><i class="fas fa-signal mr-1" aria-hidden="true"></i>Dificuldade: Alta</span>
-                </div>
-            </div>
-
-            <div class="mb-6 bg-emerald-50 p-4 rounded-lg border border-emerald-100">
-                <h4 class="text-md font-bold text-emerald-800 mb-2"><i class="fas fa-leaf mr-2" aria-hidden="true"></i>Por que isso importa na Biologia?</h4>
-                <p class="text-gray-700 text-sm">Quase nada biológico tem uma única causa: luz, água e minerais influenciam juntos o crescimento de uma planta. O espaço multivariável é a linguagem matemática para modelar fenômenos com muitas variáveis simultâneas — exatamente o formato dos dados biológicos reais.</p>
-            </div>
-
-            <div class="grid md:grid-cols-2 gap-8 mb-6">
-                <div>
-                    <h4 class="text-md font-bold text-gray-800 mb-3 border-b pb-1">Conteúdo Programático</h4>
-                    <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
-                        <li><strong>Funções vetoriais:</strong> Introdução e visualização</li>
-                        <li><strong>Diferencial:</strong> Diferenciabilidade e continuidade, gradiente, derivadas parciais, derivada direcional, regra da cadeia multivariável</li>
-                        <li><strong>Integrais múltiplas:</strong> Dupla e tripla (retângulo e paralelepípedo), propriedades, mudança de variáveis</li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="text-md font-bold text-gray-800 mb-3 border-b pb-1">Objetivos por Complexidade</h4>
-                    <ul class="space-y-3 text-sm text-gray-700">
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-green-100 text-green-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Básico</span> Calcular derivadas parciais e ter a ideia clara do que é um "espaço de variáveis".</li>
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Intermed</span> Calcular gradientes e usar a regra da cadeia multivariável com fluência.</li>
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-red-100 text-red-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Avançado</span> Fazer a generalização do Cálculo 1 sem prender-se aos menores pormenores.</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="mb-6">
-                <h4 class="text-md font-bold text-gray-800 mb-2">Materiais Recomendados</h4>
-                <ul class="text-sm space-y-2">
-                    <li class="essential px-3 py-2 rounded"><i class="fas fa-book mr-2" aria-hidden="true"></i>Livro (fortemente recomendado): Diomara Pinto - Cálculo Diferencial e Integral de Funções de Várias Variáveis</li>
-                    <li class="important px-3 py-2 rounded"><i class="fab fa-youtube mr-2" aria-hidden="true"></i>YouTube para dúvidas visuais e geométricas pontuais</li>
-                </ul>
-            </div>
-
-            <div class="border-t pt-4 bg-gray-50 p-4 rounded-lg">
-                <h4 class="text-md font-bold text-gray-800 mb-2"><i class="fas fa-tasks text-emerald-600 mr-2" aria-hidden="true"></i>Exercícios &amp; Certificação</h4>
-                <p class="text-sm text-gray-700 mb-2"><strong>Em cada subseção:</strong> Praticar a obtenção mecânica de gradientes em 2 e 3 dimensões.</p>
-                <p class="text-sm text-gray-700"><strong>Teste Final:</strong> Avaliar uma superfície térmica simplificada de um recife de corais Z=f(x,y) e encontrar a coordenada exata da temperatura máxima local.</p>
-            </div>
-        </section>
-
-        <!-- Módulo 4: Otimização -->
-        <section class="bg-white rounded-xl shadow-sm p-6 module-card mb-8">
-            <div class="flex flex-col md:flex-row justify-between md:items-start border-b pb-4 mb-4 gap-4">
-                <div>
-                    <h3 class="text-2xl font-bold text-gray-800">4. Otimização</h3>
-                    <p class="text-emerald-600 font-medium mt-1">A Busca pelo Ótimo</p>
-                </div>
-                <div class="text-left md:text-right flex flex-row md:flex-col gap-4 md:gap-1">
-                    <span class="block text-sm font-semibold text-gray-600 bg-gray-100 px-3 py-1 rounded-full"><i class="fas fa-clock mr-1" aria-hidden="true"></i>~15h</span>
-                    <span class="block text-sm font-semibold text-orange-600 bg-orange-50 px-3 py-1 rounded-full"><i class="fas fa-signal mr-1" aria-hidden="true"></i>Dificuldade: Média</span>
-                </div>
-            </div>
-
-            <div class="mb-6 bg-emerald-50 p-4 rounded-lg border border-emerald-100">
-                <h4 class="text-md font-bold text-emerald-800 mb-2"><i class="fas fa-leaf mr-2" aria-hidden="true"></i>Por que isso importa na Biologia?</h4>
-                <p class="text-gray-700 text-sm">A <strong>Otimização</strong> estuda como achar vales de energia mínima, essencial para entender o enovelamento de proteínas (Protein Folding), resolvido computacionalmente no campo da biofísica estrutural. É também o coração do treinamento de qualquer modelo de Machine Learning.</p>
-            </div>
-
-            <div class="grid md:grid-cols-2 gap-8 mb-6">
-                <div>
-                    <h4 class="text-md font-bold text-gray-800 mb-3 border-b pb-1">Conteúdo Programático</h4>
-                    <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
-                        <li>Espaço de variáveis e superfícies de custo</li>
-                        <li>Minimização e maximização</li>
-                        <li>Métodos computacionais e suas limitações (mínimos locais vs. globais)</li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="text-md font-bold text-gray-800 mb-3 border-b pb-1">Objetivos por Complexidade</h4>
-                    <ul class="space-y-3 text-sm text-gray-700">
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-green-100 text-green-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Básico</span> Ter clara a ideia de espaço de variáveis.</li>
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Intermed</span> Entender abstratamente o que é buscar uma otimização.</li>
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-red-100 text-red-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Avançado</span> Conhecer os métodos computacionais e as limitações matemáticas de buscar um mínimo global.</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="mb-6">
-                <h4 class="text-md font-bold text-gray-800 mb-2">Materiais Recomendados</h4>
-                <ul class="text-sm space-y-2">
-                    <li class="essential px-3 py-2 rounded flex items-center justify-between">
-                        <span><i class="fas fa-play-circle mr-2" aria-hidden="true"></i>Vídeo: 3Blue1Brown - Gradient Descent (série de Redes Neurais)</span>
-                        <a href="https://www.youtube.com/watch?v=IHZwWFHWa-w" class="text-green-800 hover:underline text-xs" target="_blank" rel="noopener noreferrer">Acessar</a>
-                    </li>
-                    <li class="important px-3 py-2 rounded"><i class="fab fa-youtube mr-2" aria-hidden="true"></i>YouTube para visualizações de superfícies e paisagens de custo</li>
-                </ul>
-            </div>
-
-            <div class="border-t pt-4 bg-gray-50 p-4 rounded-lg">
-                <h4 class="text-md font-bold text-gray-800 mb-2"><i class="fas fa-tasks text-emerald-600 mr-2" aria-hidden="true"></i>Exercícios &amp; Certificação</h4>
-                <p class="text-sm text-gray-700 mb-2"><strong>Em cada subseção:</strong> Encontrar máximos e mínimos de funções de duas variáveis à mão, identificando pontos críticos.</p>
-                <p class="text-sm text-gray-700"><strong>Teste Final:</strong> Explicar, usando uma paisagem de energia de enovelamento de proteína como exemplo, por que um método de descida de gradiente pode ficar preso em um mínimo local.</p>
-            </div>
-        </section>
-
-        <!-- Módulo 5: Álgebra Linear -->
-        <section class="bg-white rounded-xl shadow-sm p-6 module-card mb-8">
-            <div class="flex flex-col md:flex-row justify-between md:items-start border-b pb-4 mb-4 gap-4">
-                <div>
-                    <h3 class="text-2xl font-bold text-gray-800">5. Álgebra Linear</h3>
-                    <p class="text-emerald-600 font-medium mt-1">A Linguagem dos Dados na Computação</p>
-                </div>
-                <div class="text-left md:text-right flex flex-row md:flex-col gap-4 md:gap-1">
-                    <span class="block text-sm font-semibold text-gray-600 bg-gray-100 px-3 py-1 rounded-full"><i class="fas fa-clock mr-1" aria-hidden="true"></i>~40h</span>
-                    <span class="block text-sm font-semibold text-red-600 bg-red-50 px-3 py-1 rounded-full"><i class="fas fa-signal mr-1" aria-hidden="true"></i>Dificuldade: Alta</span>
-                </div>
-            </div>
-
-            <div class="mb-6 bg-emerald-50 p-4 rounded-lg border border-emerald-100">
-                <h4 class="text-md font-bold text-emerald-800 mb-2"><i class="fas fa-leaf mr-2" aria-hidden="true"></i>Por que isso importa na Biologia?</h4>
-                <p class="text-gray-700 text-sm">Biólogos processam milhares de amostras genéticas ou milhares de imagens microscópicas. Tudo isso vira matrizes. Dominar autovalores, autovetores e decomposição é essencial para entender como o computador simplifica o caos (PCA) de forma estatística.</p>
-            </div>
-
-            <div class="grid md:grid-cols-2 gap-8 mb-6">
-                <div>
-                    <h4 class="text-md font-bold text-gray-800 mb-3 border-b pb-1">Conteúdo Programático</h4>
-                    <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
-                        <li>Vetores, matrizes e operações base</li>
-                        <li>Sistemas lineares e transformações espaciais</li>
-                        <li>Bases e espaços vetoriais</li>
-                        <li>Ortogonalidade</li>
-                        <li>Autovalores e autovetores</li>
-                        <li>Decomposições complexas</li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="text-md font-bold text-gray-800 mb-3 border-b pb-1">Objetivos por Complexidade</h4>
-                    <ul class="space-y-3 text-sm text-gray-700">
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-green-100 text-green-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Básico</span> Conseguir operar matricialmente e ter um entendimento concreto.</li>
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Intermed</span> Resolver sistemas pesados sem se perder nas contas.</li>
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-red-100 text-red-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Avançado</span> Entender superficialmente as decomposições pesadas e as operações mais complexas, mantendo o foco geométrico.</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="mb-6">
-                <h4 class="text-md font-bold text-gray-800 mb-2">Materiais Recomendados</h4>
-                <ul class="text-sm space-y-2">
-                    <li class="essential px-3 py-2 rounded flex items-center justify-between">
-                        <span><i class="fas fa-play-circle mr-2" aria-hidden="true"></i>Vídeo: 3Blue1Brown - Essência da Álgebra Linear</span>
-                        <a href="https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab" class="text-green-800 hover:underline text-xs" target="_blank" rel="noopener noreferrer">Acessar</a>
-                    </li>
-                    <li class="important px-3 py-2 rounded"><i class="fas fa-book mr-2" aria-hidden="true"></i>Estudo pelo Livro: Linear Algebra and Its Applications - Strang</li>
-                </ul>
-            </div>
-
-            <div class="border-t pt-4 bg-gray-50 p-4 rounded-lg">
-                <h4 class="text-md font-bold text-gray-800 mb-2"><i class="fas fa-tasks text-emerald-600 mr-2" aria-hidden="true"></i>Exercícios &amp; Certificação</h4>
-                <p class="text-sm text-gray-700 mb-2"><strong>Aviso didático:</strong> Vários conteúdos aqui são abstratos demais. Sem os vídeos de visualização, fica muito difícil de entender. Assista ao 3Blue1Brown primeiro.</p>
-                <p class="text-sm text-gray-700"><strong>Teste Final:</strong> Explicar geometricamente qual o sentido do autovetor de uma matriz de transição de Markov em dinâmica populacional.</p>
-            </div>
-        </section>
-
-        <!-- Módulo 6: Programação -->
-        <section class="bg-white rounded-xl shadow-sm p-6 module-card mb-8">
-            <div class="flex flex-col md:flex-row justify-between md:items-start border-b pb-4 mb-4 gap-4">
-                <div>
-                    <h3 class="text-2xl font-bold text-gray-800">6. Programação (Python)</h3>
-                    <p class="text-emerald-600 font-medium mt-1">Saindo da Teoria para a Prática Ferramental</p>
-                </div>
-                <div class="text-left md:text-right flex flex-row md:flex-col gap-4 md:gap-1">
-                    <span class="block text-sm font-semibold text-gray-600 bg-gray-100 px-3 py-1 rounded-full"><i class="fas fa-clock mr-1" aria-hidden="true"></i>~50h</span>
-                    <span class="block text-sm font-semibold text-orange-600 bg-orange-50 px-3 py-1 rounded-full"><i class="fas fa-signal mr-1" aria-hidden="true"></i>Dificuldade: Média</span>
-                </div>
-            </div>
-
-            <div class="mb-6 bg-emerald-50 p-4 rounded-lg border border-emerald-100">
-                <h4 class="text-md font-bold text-emerald-800 mb-2"><i class="fas fa-leaf mr-2" aria-hidden="true"></i>Por que isso importa na Biologia?</h4>
-                <p class="text-gray-700 text-sm">Analisar 10 amostras dá para fazer na planilha; analisar 10.000 sequências genômicas ou imagens de microscopia, não. Python automatiza pipelines de análise, gera gráficos de qualidade de publicação e garante reprodutibilidade — hoje uma exigência de revistas e laboratórios.</p>
-            </div>
-
-            <div class="grid md:grid-cols-2 gap-8 mb-6">
-                <div>
-                    <h4 class="text-md font-bold text-gray-800 mb-3 border-b pb-1">Conteúdo Programático</h4>
-                    <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
-                        <li>Ambientes (IDEs, Notebooks) e informática básica</li>
-                        <li>Comandos iniciais e lógica básica (controle de fluxo)</li>
-                        <li>Estruturas de dados básicas e bibliotecas</li>
-                        <li>Códigos funcionais e orientação a objetos</li>
-                        <li>Complexidade e visualizações</li>
-                        <li>Prática avançada: Git, GitHub e pipelines extensas</li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="text-md font-bold text-gray-800 mb-3 border-b pb-1">Objetivos por Complexidade</h4>
-                    <ul class="space-y-3 text-sm text-gray-700">
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-green-100 text-green-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Básico</span> Conseguir interpretar scripts simples.</li>
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Intermed</span> Modificar e utilizar códigos funcionais já existentes a seu favor.</li>
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-red-100 text-red-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Avançado</span> Estruturar um projeto do zero com ideia de custo computacional e dominar versionamento.</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="mb-6">
-                <h4 class="text-md font-bold text-gray-800 mb-2">Materiais Recomendados</h4>
-                <ul class="text-sm space-y-2">
-                    <li class="essential px-3 py-2 rounded flex items-center justify-between">
-                        <span><i class="fab fa-github mr-2" aria-hidden="true"></i>Curso IMPATech - Repositório</span>
-                        <a href="https://github.com/ry4n-felinto/impytech_2026" class="text-green-800 hover:underline text-xs" target="_blank" rel="noopener noreferrer">Acessar GitHub</a>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="border-t pt-4 bg-gray-50 p-4 rounded-lg">
-                <h4 class="text-md font-bold text-gray-800 mb-2"><i class="fas fa-tasks text-emerald-600 mr-2" aria-hidden="true"></i>Exercícios &amp; Certificação</h4>
-                <p class="text-sm text-gray-700 mb-2"><strong>Dica de Sobrevivência:</strong> Programação se aprende programando. Escreva código até a mão cansar.</p>
-                <p class="text-sm text-gray-700"><strong>Teste Final:</strong> Escrever um pequeno script em Python que puxe dados genômicos via API, passe por um pipeline de limpeza leve, mostre 2 gráficos e suba tudo no GitHub de forma padronizada e limpa.</p>
-            </div>
-        </section>
-
-        <!-- Módulo 7: Estatística -->
-        <section class="bg-white rounded-xl shadow-sm p-6 module-card mb-8">
-            <div class="flex flex-col md:flex-row justify-between md:items-start border-b pb-4 mb-4 gap-4">
-                <div>
-                    <h3 class="text-2xl font-bold text-gray-800">7. Estatística e Probabilidade</h3>
-                    <p class="text-emerald-600 font-medium mt-1">Encontrando Certezas no Caos Experimental</p>
-                </div>
-                <div class="text-left md:text-right flex flex-row md:flex-col gap-4 md:gap-1">
-                    <span class="block text-sm font-semibold text-gray-600 bg-gray-100 px-3 py-1 rounded-full"><i class="fas fa-clock mr-1" aria-hidden="true"></i>~50h</span>
-                    <span class="block text-sm font-semibold text-purple-600 bg-purple-50 px-3 py-1 rounded-full"><i class="fas fa-signal mr-1" aria-hidden="true"></i>Dificuldade: Muito Alta</span>
-                </div>
-            </div>
-
-            <div class="mb-6 bg-emerald-50 p-4 rounded-lg border border-emerald-100">
-                <h4 class="text-md font-bold text-emerald-800 mb-2"><i class="fas fa-leaf mr-2" aria-hidden="true"></i>Por que isso importa na Biologia?</h4>
-                <p class="text-gray-700 text-sm">Nenhum experimento biológico é levado a sério sem validação estatística. Saber diferenciar "flutuação normal" de "resultado significativo" (p-valor) define o sucesso na ciência. A inferência, especialmente Bayesiana, domina a ecologia quantitativa e os processos modernos de epidemiologia.</p>
-            </div>
-
-            <div class="grid md:grid-cols-2 gap-8 mb-6">
-                <div>
-                    <h4 class="text-md font-bold text-gray-800 mb-3 border-b pb-1">Conteúdo Programático</h4>
-                    <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
-                        <li>Combinatória e variável aleatória</li>
-                        <li>Convergências</li>
-                        <li>Introdução à inferência</li>
-                        <li>Testes de hipóteses</li>
-                        <li>Inferência Bayesiana</li>
-                        <li>Inferência não-Bayesiana (Frequentista)</li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="text-md font-bold text-gray-800 mb-3 border-b pb-1">Objetivos por Complexidade</h4>
-                    <ul class="space-y-3 text-sm text-gray-700">
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-green-100 text-green-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Básico</span> Capacidade de ler papers e entender a validação das análises.</li>
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Intermed</span> Entendimento razoável de provas matemáticas de propriedades estatísticas.</li>
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-red-100 text-red-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Avançado</span> Domínio profundo das interpretações Bayesiana vs. Frequentista na análise avançada de bio-dados.</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="mb-6">
-                <h4 class="text-md font-bold text-gray-800 mb-2">Materiais Recomendados</h4>
-                <ul class="text-sm space-y-2">
-                    <li class="essential px-3 py-2 rounded"><i class="fas fa-book mr-2" aria-hidden="true"></i>Livro: Tertuliano - Princípios de Probabilidade</li>
-                    <li class="important px-3 py-2 rounded"><i class="fab fa-youtube mr-2" aria-hidden="true"></i>Aulas pontuais no YouTube para desmistificar os temas espinhosos à primeira vista (ex: StatQuest)</li>
-                </ul>
-            </div>
-
-            <div class="border-t pt-4 bg-gray-50 p-4 rounded-lg">
-                <h4 class="text-md font-bold text-gray-800 mb-2"><i class="fas fa-tasks text-emerald-600 mr-2" aria-hidden="true"></i>Exercícios &amp; Certificação</h4>
-                <p class="text-sm text-gray-700 mb-2"><strong>Onde praticar:</strong> Acompanhar os exercícios do livro. O tema é muito complexo à primeira vista, mas se desmistifica com o tempo e a repetição.</p>
-                <p class="text-sm text-gray-700"><strong>Teste Final:</strong> Montar o design estatístico completo de um ensaio clínico, especificando testes de hipóteses de eficácia e rodando-os numa simulação no Python.</p>
-            </div>
-        </section>
-
-        <!-- FASE 2 -->
-        <h2 class="text-3xl font-bold text-emerald-800 border-b-2 border-emerald-500 pb-2 mb-8 mt-16"><i class="fas fa-robot mr-3" aria-hidden="true"></i>FASE 2: "IA"</h2>
-
-        <!-- Módulo 8: Machine Learning -->
-        <section class="bg-white rounded-xl shadow-sm p-6 module-card mb-8">
-            <div class="flex flex-col md:flex-row justify-between md:items-start border-b pb-4 mb-4 gap-4">
-                <div>
-                    <h3 class="text-2xl font-bold text-gray-800">8. Machine Learning (Aprendizado de Máquina)</h3>
-                    <p class="text-emerald-600 font-medium mt-1">Criando a Inteligência Clássica</p>
-                </div>
-                <div class="text-left md:text-right flex flex-row md:flex-col gap-4 md:gap-1">
-                    <span class="block text-sm font-semibold text-gray-600 bg-gray-100 px-3 py-1 rounded-full"><i class="fas fa-clock mr-1" aria-hidden="true"></i>~60h</span>
-                    <span class="block text-sm font-semibold text-red-600 bg-red-50 px-3 py-1 rounded-full"><i class="fas fa-signal mr-1" aria-hidden="true"></i>Dificuldade: Alta</span>
-                </div>
-            </div>
-
-            <div class="mb-6 bg-emerald-50 p-4 rounded-lg border border-emerald-100">
-                <h4 class="text-md font-bold text-emerald-800 mb-2"><i class="fas fa-leaf mr-2" aria-hidden="true"></i>Por que isso importa na Biologia?</h4>
-                <p class="text-gray-700 text-sm">É aqui onde toda a matemática e estatística anterior vira tecnologia de fato. Identificar fenótipos, classificar tecidos cancerosos ou correlacionar o peso do gado a dezenas de fatores genéticos. ML é o que permite fazer previsões.</p>
-            </div>
-
-            <div class="grid md:grid-cols-2 gap-8 mb-6">
-                <div>
-                    <h4 class="text-md font-bold text-gray-800 mb-3 border-b pb-1">Conteúdo Programático</h4>
-                    <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
-                        <li>Introdução, Regressão e Classificação</li>
-                        <li>Métricas estatísticas e estudo de variáveis</li>
-                        <li>Reamostragem e Regularização</li>
-                        <li>Árvores, SVM, GAMs e métodos adicionais</li>
-                        <li>Aprendizado não supervisionado (Clustering)</li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="text-md font-bold text-gray-800 mb-3 border-b pb-1">Objetivos por Complexidade</h4>
-                    <ul class="space-y-3 text-sm text-gray-700">
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-green-100 text-green-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Básico</span> Diferenciar problemas de ML e se ambientar com o Scikit-Learn.</li>
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Intermed</span> Evitar viés de treino, avaliando e selecionando os métodos corretamente.</li>
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-red-100 text-red-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Avançado</span> Estar apto nos conceitos base para explodir rumo ao Aprendizado Profundo.</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="mb-6">
-                <h4 class="text-md font-bold text-gray-800 mb-2">Materiais Recomendados</h4>
-                <ul class="text-sm space-y-2">
-                    <li class="essential px-3 py-2 rounded flex items-center justify-between">
-                        <span><i class="fas fa-book mr-2" aria-hidden="true"></i>ISLR - Introduction to Statistical Learning (em Python ou R, a critério do aluno)</span>
-                        <a href="https://www.statlearning.com/" class="text-green-800 hover:underline text-xs" target="_blank" rel="noopener noreferrer">Acessar</a>
-                    </li>
-                    <li class="essential px-3 py-2 rounded"><i class="fas fa-file-alt mr-2" aria-hidden="true"></i>Notas de aula da matéria do IMPATech</li>
-                    <li class="important px-3 py-2 rounded"><i class="fas fa-book-open mr-2" aria-hidden="true"></i>Elements of Statistical Learning (versão avançada do ISLR)</li>
-                </ul>
-            </div>
-
-            <div class="border-t pt-4 bg-gray-50 p-4 rounded-lg">
-                <h4 class="text-md font-bold text-gray-800 mb-2"><i class="fas fa-tasks text-emerald-600 mr-2" aria-hidden="true"></i>Exercícios &amp; Certificação</h4>
-                <p class="text-sm text-gray-700 mb-2"><strong>A cada seção nova (Regressão, Classificação, etc.):</strong> Teste em um dataset médico do repositório UC Irvine.</p>
-                <p class="text-sm text-gray-700"><strong>Certificação:</strong> Pegar um banco de dados gigantesco do portal Kaggle e fazer um pipeline robusto de tratamento, treinamento e reporte.</p>
-            </div>
-        </section>
-
-        <!-- Módulo 9: Deep Learning -->
-        <section class="bg-white rounded-xl shadow-sm p-6 module-card mb-8">
-            <div class="flex flex-col md:flex-row justify-between md:items-start border-b pb-4 mb-4 gap-4">
-                <div>
-                    <h3 class="text-2xl font-bold text-gray-800">9. Deep Learning (Aprendizado Profundo)</h3>
-                    <p class="text-emerald-600 font-medium mt-1">O Estado da Arte da Neurociência Computacional</p>
-                </div>
-                <div class="text-left md:text-right flex flex-row md:flex-col gap-4 md:gap-1">
-                    <span class="block text-sm font-semibold text-gray-600 bg-gray-100 px-3 py-1 rounded-full"><i class="fas fa-clock mr-1" aria-hidden="true"></i>~80h+</span>
-                    <span class="block text-sm font-semibold text-purple-600 bg-purple-50 px-3 py-1 rounded-full"><i class="fas fa-signal mr-1" aria-hidden="true"></i>Dificuldade: Máxima</span>
-                </div>
-            </div>
-
-            <div class="mb-6 bg-emerald-50 p-4 rounded-lg border border-emerald-100">
-                <h4 class="text-md font-bold text-emerald-800 mb-2"><i class="fas fa-brain mr-2" aria-hidden="true"></i>Por que isso importa na Biologia?</h4>
-                <p class="text-gray-700 text-sm">Este é o cume acadêmico e de inovação. CNNs classificam lâminas de biópsias, Transformers preveem interações de RNA e GNNs revolucionaram o descobrimento de fármacos e a forma espacial das moléculas. O próprio conceito se espelha na Neurociência Cognitiva Computacional. Dominar Deep Learning permite criar coisas na biologia computacional que não existiam ontem.</p>
-            </div>
-
-            <div class="grid md:grid-cols-2 gap-8 mb-6">
-                <div>
-                    <h4 class="text-md font-bold text-gray-800 mb-3 border-b pb-1">Conteúdo Programático</h4>
-                    <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
-                        <li>Fundamentos de Redes Neurais</li>
-                        <li>CNN (Convolutional) e RNN (Recurrent)</li>
-                        <li>Transformers (mecanismos de Attention)</li>
-                        <li>GNN (Graph Neural Networks) e Representações</li>
-                        <li>Generativos: VAE, GAN, Diffusion</li>
-                        <li>LLMs e Reinforcement Learning</li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="text-md font-bold text-gray-800 mb-3 border-b pb-1">Objetivos por Complexidade</h4>
-                    <ul class="space-y-3 text-sm text-gray-700">
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-green-100 text-green-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Básico</span> Dominar arquiteturas base e implementar via frameworks (PyTorch).</li>
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Intermed</span> Saber adaptar arquiteturas pesadas para tarefas visuais ou em cadeia (DNA).</li>
-                        <li class="flex items-start"><span class="px-2 py-0.5 bg-red-100 text-red-800 rounded mr-2 font-bold text-xs mt-0.5 min-w-[70px] text-center">Avançado</span> Estar completamente a par dos modelos mais recentes do estado da arte. Faltará apenas ganhar tempo de tela se ambientando na área.</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="mb-6">
-                <h4 class="text-md font-bold text-gray-800 mb-2">Materiais Recomendados</h4>
-                <ul class="text-sm space-y-2">
-                    <li class="essential px-3 py-2 rounded"><i class="fas fa-book mr-2" aria-hidden="true"></i>Deep Learning Book - Ian Goodfellow (para base teórica muito sólida)</li>
-                    <li class="essential px-3 py-2 rounded"><i class="fab fa-youtube mr-2" aria-hidden="true"></i>Andrej Karpathy (aulas de LLM e Backprop no YouTube)</li>
-                </ul>
-            </div>
-
-            <div class="border-t pt-4 bg-gray-50 p-4 rounded-lg">
-                <h4 class="text-md font-bold text-gray-800 mb-2"><i class="fas fa-tasks text-emerald-600 mr-2" aria-hidden="true"></i>Exercícios &amp; Certificação Absoluta</h4>
-                <p class="text-sm text-gray-700 mb-2"><strong>Dica Operacional:</strong> Utilize instâncias de Cloud ou Google Colab; seu computador vai ferver caso não possua placa de vídeo compatível.</p>
-                <p class="text-sm text-gray-700"><strong>Certificado do Guia:</strong> Fazer um projeto "de ponta a ponta" usando redes convolucionais para classificar raios-X pneumônicos, ou um modelo Transformer modificado para ler cadeias polipeptídicas. Documentar rigorosamente num repositório público.</p>
-            </div>
-        </section>
-
-    </main>
-
-    <footer class="bg-gray-800 text-white py-12 text-center mt-12">
-        <h4 class="text-xl font-bold mb-2">Trilha da Natureza para o Computador</h4>
-        <p class="opacity-70 text-sm max-w-2xl mx-auto px-4">Projeto focado no crescimento de estudantes de base biológica no mercado e na academia tecnológica, desmistificando as barreiras da matemática avançada.</p>
-    </footer>
-
+/* ============ roteamento por hash ============
+   #tema-M-T  → abre o tema T do módulo M isoladamente
+   #modulo-M  → volta ao hub com o módulo M expandido      */
+function route(){
+  const h = location.hash;
+  let x;
+  if((x = h.match(/^#tema-(\d+)-(\d+)$/)) && renderDetail(+x[1], +x[2])){
+    document.body.classList.add("viewing-detail");
+    window.scrollTo({top:0, behavior:"instant"});
+    return;
+  }
+  document.body.classList.remove("viewing-detail");
+  if((x = h.match(/^#modulo-(\d+)$/))){
+    const d = document.getElementById("modulo-" + x[1]);
+    if(d){ d.open = true; d.scrollIntoView({block:"start"}); }
+  } else if(h === "" || h === "#"){
+    window.scrollTo({top:0, behavior:"instant"});
+  }
+}
+window.addEventListener("hashchange", route);
+renderHub();
+route();
+</script>
 </body>
 </html>
