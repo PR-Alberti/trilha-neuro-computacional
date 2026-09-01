@@ -244,6 +244,22 @@ a.theme.done{opacity:.62}
 .method ol li::before{counter-increment:tip;content:counter(tip,decimal-leading-zero);font-family:"IBM Plex Mono",monospace;font-size:.72rem;color:#8B87E8;font-weight:600}
 footer.site-foot{border-top:1px solid var(--line);margin-top:50px;padding:30px 0 55px;color:var(--muted);font-size:.82rem}
 
+/* ============ conta (login) ============ */
+.auth-area{display:flex;align-items:center;gap:8px}
+.auth-mail{font-family:"IBM Plex Mono",monospace;font-size:.7rem;color:var(--muted);max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#fff;border:none;border-radius:999px;padding:8px 18px;font-weight:600;font-size:.84rem}
+.btn-primary:hover{filter:brightness(1.1)}
+dialog#authDlg{border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--ink);padding:26px;width:min(92vw,380px);box-shadow:var(--shadow)}
+dialog#authDlg::backdrop{background:rgba(8,10,16,.5)}
+.authform{display:grid;gap:12px}
+.authform h3{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:1.25rem;letter-spacing:-.02em}
+.authform label{display:grid;gap:5px;font-size:.8rem;font-weight:600}
+.authform input{padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+.authform input:focus{border-color:var(--accent);outline:none}
+.auth-err{color:var(--lv2-ink);font-size:.8rem;min-height:1.1em}
+.auth-alt{font-size:.78rem;color:var(--muted)}
+.linkbtn{background:none;border:none;padding:0;color:var(--accent-ink);font-weight:600;text-decoration:underline;font-size:inherit}
+
 body.viewing-detail #hub{display:none}
 body.viewing-detail #detail{display:block}
 </style>
@@ -258,6 +274,7 @@ body.viewing-detail #detail{display:block}
       <span class="lg-g">VERDE · ESSENCIAL</span>
       <span class="lg-y">ÂMBAR · APROFUNDAMENTO</span>
     </div>
+    <span id="authArea" class="auth-area"></span>
     <button id="themeBtn" onclick="toggleTheme()" title="Alternar modo claro/escuro" aria-label="Alternar modo claro/escuro">🌙</button>
   </div>
 </header>
@@ -363,6 +380,19 @@ body.viewing-detail #detail{display:block}
 <footer class="site-foot">
   <div class="wrap-wide">Do neurônio ao modelo — trilha para estudantes de base biológica rumo à neurociência computacional. Sua vantagem comparativa é o conhecimento biológico; o gargalo está em matemática, programação e estatística, e é nele que este guia investe.</div>
 </footer>
+
+<!-- diálogo de login / criar conta (só aparece quando o backend está rodando) -->
+<dialog id="authDlg">
+  <form class="authform" id="authForm">
+    <h3 id="authTitle">Entrar</h3>
+    <label>E-mail<input id="authEmail" type="email" required autocomplete="email"></label>
+    <label>Senha<input id="authSenha" type="password" required minlength="8" autocomplete="current-password"></label>
+    <p class="auth-err" id="authErr"></p>
+    <button type="submit" class="btn-primary" id="authSubmit">Entrar</button>
+    <p class="auth-alt" id="authAlt">Não tem conta? <button type="button" class="linkbtn" onclick="alternarModoAuth()">Criar conta</button></p>
+    <p class="auth-alt"><button type="button" class="linkbtn" onclick="fecharAuth()">Cancelar</button></p>
+  </form>
+</dialog>
 
 <script>
 /* ============================================================
@@ -648,8 +678,86 @@ function setFilter(v,btn){
 function toggleDone(key){
   done.has(key) ? done.delete(key) : done.add(key);
   saveProg(); renderHub(); renderNav();
+  if(usuario){ // logado: replica a mudança na conta (sem travar a interface)
+    api("progresso/"+key, {method: done.has(key) ? "PUT" : "DELETE"}).catch(console.error);
+  }
   const x = location.hash.match(/^#tema-(\d+)-(\d+)$/);
   if(x) renderDetail(+x[1], +x[2]);
+}
+
+/* ============ conta e sincronização com o backend ============
+   A página funciona em dois modos:
+   - estático (GitHub Pages, file://): progresso só no localStorage
+   - com o servidor (pasta servidor/): login + progresso na conta      */
+let usuario = null;      // e-mail logado, ou null
+let temBackend = false;  // detectado em iniciarConta()
+let modoRegistro = false;
+
+async function api(caminho, opcoes = {}){
+  const r = await fetch("/api/"+caminho, {headers:{"Content-Type":"application/json"}, ...opcoes});
+  if(!r.ok){
+    const corpo = await r.json().catch(()=>({}));
+    throw Object.assign(new Error(corpo.detail || "Erro de comunicação."), {status:r.status});
+  }
+  return r.status === 204 ? null : r.json();
+}
+
+async function iniciarConta(){
+  try { usuario = (await api("eu")).email; temBackend = true; }
+  catch(e){ usuario = null; temBackend = e.status === 401; }
+  if(usuario) await sincronizar().catch(console.error);
+  renderAuth();
+}
+
+async function sincronizar(){
+  // união: o que estava neste navegador + o que já estava na conta
+  const resp = await api("progresso/sincronizar",
+                         {method:"POST", body:JSON.stringify({temas:[...done]})});
+  done = new Set(resp.temas);
+  saveProg(); renderHub(); renderNav();
+}
+
+function renderAuth(){
+  const el = document.getElementById("authArea");
+  if(!temBackend){ el.innerHTML = ""; return; }
+  el.innerHTML = usuario
+    ? `<span class="auth-mail" title="${esc(usuario)}">${esc(usuario)}</span><button class="btn" onclick="sair()">Sair</button>`
+    : `<button class="btn-primary" onclick="abrirAuth()">Entrar</button>`;
+}
+
+function abrirAuth(){
+  document.getElementById("authErr").textContent = "";
+  document.getElementById("authDlg").showModal();
+}
+function fecharAuth(){ document.getElementById("authDlg").close(); }
+
+function alternarModoAuth(){
+  modoRegistro = !modoRegistro;
+  document.getElementById("authTitle").textContent  = modoRegistro ? "Criar conta" : "Entrar";
+  document.getElementById("authSubmit").textContent = modoRegistro ? "Criar conta" : "Entrar";
+  document.getElementById("authAlt").firstChild.textContent = modoRegistro ? "Já tem conta? " : "Não tem conta? ";
+  document.getElementById("authSenha").autocomplete = modoRegistro ? "new-password" : "current-password";
+  document.getElementById("authErr").textContent = "";
+}
+
+document.getElementById("authForm").addEventListener("submit", async ev=>{
+  ev.preventDefault();
+  const email = document.getElementById("authEmail").value;
+  const senha = document.getElementById("authSenha").value;
+  try{
+    const resp = await api(modoRegistro ? "registrar" : "entrar",
+                           {method:"POST", body:JSON.stringify({email, senha})});
+    usuario = resp.email;
+    fecharAuth(); renderAuth();
+    await sincronizar();
+  }catch(e){
+    document.getElementById("authErr").textContent = e.message;
+  }
+});
+
+async function sair(){
+  try { await api("sair", {method:"POST"}); } catch(e){}
+  usuario = null; renderAuth(); // o progresso local continua no navegador
 }
 
 /* ============ visão isolada de um tema ============ */
@@ -745,6 +853,7 @@ applyThemeBtn();
 renderHub();
 renderNav();
 route();
+iniciarConta();
 </script>
 </body>
 </html>

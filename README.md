@@ -36,6 +36,38 @@ conteúdo, edite os arrays — não o HTML.
   (`guia-neuro-progresso`) e refletido nos cartões, módulos e sidebar.
 - **Teste da seção**: cada módulo aponta para `testes/modulo-NN.pdf`.
 
+## Backend (branch `backend-login`)
+
+A branch `backend-login` adiciona uma API própria em `servidor/` — o caminho de
+aprendizado de backend:
+
+- **FastAPI + SQLite sem ORM**: o SQL aparece de verdade ([servidor/db.py](servidor/db.py)).
+- **Contas com e-mail/senha**: hash `scrypt` (biblioteca padrão) + sal por usuário;
+  sessões server-side em cookie `HttpOnly`/`SameSite=Lax`
+  ([servidor/seguranca.py](servidor/seguranca.py)).
+- **Progresso por usuário** na tabela `progresso`; ao logar, o progresso local do
+  navegador é **mesclado** com o da conta (`POST /api/progresso/sincronizar`).
+- O mesmo servidor entrega a página estática — um processo só, sem CORS — e a
+  documentação interativa da API fica em `/api/docs`.
+- A página continua funcionando **sem** o servidor (modo estático/localStorage):
+  ela detecta o backend em tempo de execução e só então mostra o botão "Entrar".
+
+### Rodar o servidor
+
+```bash
+cd servidor
+python3 -m venv .venv            # ambiente isolado (uma vez)
+source .venv/bin/activate
+pip install -r requirements.txt  # uma vez
+uvicorn app:app --reload         # http://localhost:8000
+```
+
+### Pendências antes de expor na internet
+
+- Servir atrás de HTTPS e marcar o cookie de sessão como `Secure`
+- Limite de tentativas de login (rate limiting)
+- Backup periódico do `servidor/guia.db`
+
 ## Como visualizar
 
 Basta abrir o `index.html` no navegador. Para um servidor local (evita problemas de
