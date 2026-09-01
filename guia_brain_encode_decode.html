@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guia de Estudos — Brain Encoding / Decoding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F6F5;
+  --surface:#FFFFFF;
+  --ink:#14262E;
+  --muted:#5B6B71;
+  --line:#DDE6E4;
+  --sinal:#4740C9;
+  --sinal-soft:#E8E7FB;
+  --green-bg:#DCF2E0; --green-ink:#1B6B36; --green-line:#9BD3A9;
+  --yellow-bg:#FFEFB8; --yellow-ink:#7A5D00; --yellow-line:#E8CE6A;
+  --radius:14px;
+  --shadow:0 1px 2px rgba(20,38,46,.05),0 10px 28px -18px rgba(20,38,46,.25);
+  --font-display:"Bricolage Grotesque",system-ui,sans-serif;
+  --font-body:"Inter",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--sinal);outline-offset:2px;border-radius:6px}
+
+.wrap{max-width:960px;margin:0 auto;padding:0 20px}
+
+/* ---------- header ---------- */
+header.site{position:sticky;top:0;z-index:20;background:rgba(243,246,245,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+header.site .bar{display:flex;align-items:center;gap:14px;padding:12px 0}
+.brand{font-family:var(--font-display);font-weight:800;font-size:1.02rem;letter-spacing:-.01em;text-decoration:none;display:flex;align-items:center;gap:10px}
+.brand .dot{width:10px;height:10px;border-radius:50%;background:var(--sinal);box-shadow:0 0 0 4px var(--sinal-soft)}
+.bar .spacer{flex:1}
+.legend-mini{display:flex;gap:8px;font-family:var(--font-mono);font-size:.68rem}
+.legend-mini span{padding:3px 8px;border-radius:999px;font-weight:600;letter-spacing:.04em}
+.lg-g{background:var(--green-bg);color:var(--green-ink);border:1px solid var(--green-line)}
+.lg-y{background:var(--yellow-bg);color:var(--yellow-ink);border:1px solid var(--yellow-line)}
+
+/* ---------- hero ---------- */
+.hero{padding:64px 0 44px;position:relative;overflow:hidden}
+.hero .eyebrow{font-family:var(--font-mono);font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--sinal);font-weight:600}
+.hero h1{font-family:var(--font-display);font-weight:800;font-size:clamp(2.2rem,6vw,3.6rem);letter-spacing:-.03em;line-height:1.04;margin:10px 0 14px;max-width:16ch}
+.hero p.lead{color:var(--muted);max-width:56ch;font-size:1.02rem}
+.eeg{position:absolute;right:-40px;top:30px;width:min(52%,460px);opacity:.9;pointer-events:none}
+.eeg path{fill:none;stroke:var(--sinal);stroke-width:2;stroke-linecap:round;stroke-dasharray:1400;stroke-dashoffset:1400;animation:trace 3.2s ease forwards}
+.eeg path.ghost{stroke:var(--line);stroke-dasharray:none;stroke-dashoffset:0;animation:none}
+@keyframes trace{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion:reduce){.eeg path{animation:none;stroke-dashoffset:0}}
+@media (max-width:760px){.eeg{display:none}}
+
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;box-shadow:var(--shadow)}
+.stat b{font-family:var(--font-mono);font-size:1rem;display:block}
+.stat span{font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+
+.legend-block{margin-top:26px;display:grid;gap:8px;max-width:640px}
+.legend-block .row{display:flex;gap:10px;align-items:baseline;font-size:.92rem;color:var(--muted)}
+.legend-block .row strong{white-space:nowrap}
+
+/* ---------- trilha (hub) ---------- */
+.trilha{padding:20px 0 80px}
+.level{margin-top:44px}
+.level-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.level-num{font-family:var(--font-mono);font-weight:600;font-size:.78rem;color:var(--sinal);background:var(--sinal-soft);padding:4px 10px;border-radius:999px;letter-spacing:.06em}
+.level-head h2{font-family:var(--font-display);font-weight:800;font-size:clamp(1.4rem,3.4vw,1.9rem);letter-spacing:-.02em}
+.level-head .hours{font-family:var(--font-mono);font-size:.78rem;color:var(--muted)}
+.level-sub{color:var(--muted);max-width:70ch;margin:8px 0 20px;font-size:.95rem}
+
+.spine{position:relative;padding-left:26px}
+.spine::before{content:"";position:absolute;left:8px;top:8px;bottom:8px;width:2px;background:linear-gradient(var(--sinal-soft),var(--line))}
+.mod{position:relative;display:block;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin-bottom:12px;box-shadow:var(--shadow);text-decoration:none;transition:transform .15s ease,border-color .15s ease}
+.mod:hover{transform:translateX(4px);border-color:var(--sinal)}
+.mod::before{content:"";position:absolute;left:-24px;top:26px;width:12px;height:12px;border-radius:50%;background:var(--surface);border:3px solid var(--sinal)}
+.mod.kind-y::before{border-color:var(--yellow-ink)}
+.mod-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mod-num{font-family:var(--font-mono);font-size:.74rem;color:var(--muted)}
+.mod h3{font-family:var(--font-display);font-weight:600;font-size:1.08rem;letter-spacing:-.01em;flex:1;min-width:180px}
+.tag{font-family:var(--font-mono);font-size:.62rem;font-weight:600;letter-spacing:.08em;padding:3px 8px;border-radius:999px;text-transform:uppercase}
+.tag-g{background:var(--green-bg);color:var(--green-ink);border:1px solid var(--green-line)}
+.tag-y{background:var(--yellow-bg);color:var(--yellow-ink);border:1px solid var(--yellow-line)}
+.mod-meta{display:flex;gap:16px;margin-top:8px;font-family:var(--font-mono);font-size:.74rem;color:var(--muted);flex-wrap:wrap}
+.mod-meta .stars{color:var(--sinal);letter-spacing:.1em}
+.mod-open{margin-left:auto;color:var(--sinal);font-weight:600;font-size:.78rem;font-family:var(--font-body)}
+
+/* ---------- detail view ---------- */
+.detail{padding:36px 0 90px;display:none}
+.crumb{display:inline-flex;align-items:center;gap:8px;font-size:.86rem;font-weight:600;color:var(--sinal);text-decoration:none;background:var(--sinal-soft);border:none;padding:8px 14px;border-radius:999px}
+.crumb:hover{filter:brightness(.96)}
+.detail-head{margin-top:26px;display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap}
+.detail-head h1{font-family:var(--font-display);font-weight:800;font-size:clamp(1.7rem,4.6vw,2.5rem);letter-spacing:-.025em;line-height:1.1;flex:1;min-width:240px}
+.detail-head .tag{margin-top:12px}
+.metabar{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 8px}
+.metabar .chip{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-family:var(--font-mono);font-size:.78rem}
+.metabar .chip b{color:var(--sinal)}
+.section{margin-top:28px}
+.section h2{font-family:var(--font-mono);font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--sinal);margin-bottom:12px}
+.section p{max-width:72ch}
+.topics{list-style:none;display:grid;gap:8px}
+.topics li{background:var(--surface);border:1px solid var(--line);border-left-width:5px;border-radius:10px;padding:10px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:baseline}
+.topics li.t-g{border-left-color:var(--green-ink);background:linear-gradient(90deg,var(--green-bg) 0,var(--surface) 42%)}
+.topics li.t-y{border-left-color:var(--yellow-ink);background:linear-gradient(90deg,var(--yellow-bg) 0,var(--surface) 42%)}
+.topics li b{font-weight:600}
+.topics li span{color:var(--muted);font-size:.88rem}
+.mats{list-style:none;display:grid;gap:8px}
+.mats li{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.mats li b{font-weight:600}
+.mats li span{color:var(--muted);font-size:.88rem;display:block}
+.certbox{background:var(--sinal-soft);border:1px solid #CFCBF2;border-radius:var(--radius);padding:14px 18px;max-width:72ch}
+.pager{display:flex;gap:10px;margin-top:44px;flex-wrap:wrap}
+.pager a{flex:1;min-width:200px;text-decoration:none;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;box-shadow:var(--shadow)}
+.pager a:hover{border-color:var(--sinal)}
+.pager .dir{font-family:var(--font-mono);font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.pager .name{font-weight:600;font-size:.92rem}
+.pager a.next{text-align:right}
+
+/* ---------- method / footer ---------- */
+.method{margin-top:56px;background:var(--ink);color:#EAF1EF;border-radius:20px;padding:34px 30px}
+.method h2{font-family:var(--font-display);font-weight:800;font-size:1.5rem;letter-spacing:-.02em;margin-bottom:6px}
+.method p.sub{color:#9FB4B0;font-size:.92rem;margin-bottom:18px}
+.method ol{list-style:none;display:grid;gap:12px;counter-reset:tip}
+.method ol li{display:flex;gap:14px;align-items:baseline}
+.method ol li::before{counter-increment:tip;content:counter(tip,decimal-leading-zero);font-family:var(--font-mono);font-size:.74rem;color:#8B87E8;font-weight:600}
+footer{padding:34px 0 60px;color:var(--muted);font-size:.82rem}
+
+body.viewing-detail #hub{display:none}
+body.viewing-detail #detail{display:block}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap bar">
+    <a class="brand" href="#" id="brandLink"><span class="dot"></span>Trilha · Brain Encode/Decode</a>
+    <span class="spacer"></span>
+    <div class="legend-mini" aria-hidden="true">
+      <span class="lg-g">VERDE · ESSENCIAL</span>
+      <span class="lg-y">AMARELO · APROFUNDAMENTO</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============ HUB ============ -->
+<main id="hub">
+  <section class="hero wrap">
+    <svg class="eeg" viewBox="0 0 460 160" aria-hidden="true">
+      <path class="ghost" d="M0 80 H460"/>
+      <path d="M0 80 h40 l8 -10 l8 10 h30 l6 -46 l8 84 l8 -60 l6 22 h44 l8 -12 l8 12 h34 l6 -30 l10 52 l8 -34 l6 12 h46 l8 -8 l8 8 h28 l6 -40 l10 70 l8 -44 l6 14 h60"/>
+    </svg>
+    <p class="eyebrow">Guia de estudos · Da biologia ao sinal</p>
+    <h1>Brain Encoding&nbsp;/ Decoding</h1>
+    <p class="lead">Trilha para estudantes de Ciências Biológicas que querem atuar de forma consciente e técnica em codificação e decodificação neural. Escolha um módulo para abrir objetivo, conteúdos, materiais e certificação.</p>
+    <div class="stats">
+      <div class="stat"><b>4 níveis</b><span>16 módulos</span></div>
+      <div class="stat"><b>1.040–1.620 h</b><span>carga total</span></div>
+      <div class="stat"><b>18–30 meses</b><span>a ~15 h/semana</span></div>
+    </div>
+    <div class="legend-block">
+      <div class="row"><span class="tag tag-g">Essencial</span><strong></strong><span>Núcleo mínimo — sem isso, não há atuação técnica consciente na área.</span></div>
+      <div class="row"><span class="tag tag-y">Aprofundamento</span><span>Importante, mas de profundidade diferenciada. Pode ficar para uma segunda passada.</span></div>
+    </div>
+  </section>
+
+  <section class="trilha wrap" id="levels"></section>
+
+  <section class="wrap">
+    <div class="method">
+      <h2>Como percorrer a trilha</h2>
+      <p class="sub">Recomendações de método para não se perder em ~1.000 horas de estudo.</p>
+      <ol>
+        <li>Estude em paralelo controlado: matemática + programação podem andar juntas no Nível 1; nunca mais de dois módulos simultâneos.</li>
+        <li>Regra dos 50%: metade do tempo de cada módulo deve ser prática (exercícios, notebooks, projetos) — assistir vídeo não é estudar.</li>
+        <li>Todo módulo termina com um artefato: um notebook, um repositório ou um resumo escrito. Sem artefato, o módulo não acabou.</li>
+        <li>Antecipe contato com a área: já no Nível 2, leia resumos de artigos de encoding/decoding para criar vocabulário e manter a motivação.</li>
+        <li>Comunidade: participe do Neuromatch, siga laboratórios (Gallant, Huth, Kriegeskorte) e procure iniciação científica em neurociência computacional.</li>
+        <li>Itens amarelos: primeira passada opcional. Volte a eles quando um projeto real exigir — aprendizado sob demanda fixa melhor.</li>
+      </ol>
+    </div>
+  </section>
+
+  <footer class="wrap">Sua vantagem comparativa é o conhecimento biológico — o gargalo está em matemática, programação e sinais. A trilha investe pesado nesses pontos e trata a neurobiologia como revisão dirigida, não como partida do zero.</footer>
+</main>
+
+<!-- ============ DETALHE ============ -->
+<main id="detail" class="detail">
+  <div class="wrap" id="detailContent"></div>
+</main>
+
+<script>
+const LEVELS = [
+  {num:"Nível 1", name:"Base", hours:"450–670 h",
+   sub:"Construir o ferramental matemático, computacional e estatístico que sustenta tudo o que vem depois."},
+  {num:"Nível 2", name:"IA", hours:"180–270 h",
+   sub:"Dominar o repertório de machine learning e redes neurais — a caixa de ferramentas dos modelos de encoding/decoding."},
+  {num:"Nível 3", name:"Neurociência computacional e sinais", hours:"210–330 h",
+   sub:"Traduzir sua base biológica para a linguagem quantitativa — sinais, aquisição e modelos — que a área fala."},
+  {num:"Nível 4", name:"Brain Encoding / Decoding", hours:"200–350 h",
+   sub:"A especialização em si: construir, avaliar e criticar modelos que preveem atividade neural (encoding) e reconstroem estímulos ou estados mentais (decoding)."},
+];
+
+const MODS = [
+{id:1,lvl:0,kind:"g",title:"Pré-Cálculo",hours:"40–60 h",diff:2,
+ obj:"Sair deste primeiro passo com o ferramental matemático básico para os assuntos seguintes (em especial, cálculo): manipular expressões com segurança e ler funções como objetos.",
+ top:[["g","Álgebra básica"],["g","Geometria básica"],["g","Funções","domínio, imagem, composição, exponencial e logaritmo"],["g","Trigonometria","essencial para Fourier mais adiante"],["g","Geometria analítica"]],
+ mat:[["Khan Academy — Pré-cálculo (PT-BR)","trilha completa com exercícios e sistema de domínio"],["Professor Ferretto / Equaciona (YouTube)","reforço em português para pontos específicos"]],
+ cert:"Selo de domínio (mastery) dos cursos da Khan Academy — informal, mas suficiente como marco pessoal."},
+
+{id:2,lvl:0,kind:"g",title:"Cálculo Real",hours:"80–120 h",diff:3,
+ obj:"Terminar com entendimento profundo e concreto do comportamento de funções (continuidade, suavidade) e capacidade operacional de obter derivadas e integrais.",
+ top:[["g","Limites e continuidade"],["g","Derivadas","regras, regra da cadeia, interpretação geométrica"],["g","Integrais","definida, indefinida, teorema fundamental"],["y","Formalismo épsilon-delta e demonstrações","rigor de análise real não é pré-requisito para atuar"]],
+ mat:[["3Blue1Brown — Essence of Calculus (YouTube)","intuição visual; assistir antes de operar"],["Khan Academy — Cálculo diferencial e integral","prática operacional"],["MIT OCW 18.01 — Single Variable Calculus","aulas completas e listas com solução"],["Stewart — Cálculo, vol. 1","referência para consulta"]],
+ cert:"Coursera: Calculus — Single Variable (UPenn) ou mastery da Khan Academy."},
+
+{id:3,lvl:0,kind:"g",title:"Cálculo Multivariável",hours:"60–90 h",diff:3,
+ obj:"Generalizar o cálculo de uma variável sem necessariamente dominar os pormenores: o alvo é o gradiente e a regra da cadeia multivariável (base do backpropagation).",
+ top:[["g","Derivadas parciais e gradiente"],["g","Regra da cadeia multivariável","coração das redes neurais"],["y","Funções vetoriais e curvas","útil, não bloqueante"],["y","Integrais múltiplas","aparecem pouco no dia a dia de ML"]],
+ mat:[["Khan Academy — Multivariable Calculus","trilha narrada por Grant Sanderson (3Blue1Brown)"],["MIT OCW 18.02","para quem quiser a versão completa"]],
+ cert:"Mastery da Khan Academy; alternativamente Coursera: Mathematics for ML — Multivariate Calculus (Imperial College)."},
+
+{id:4,lvl:0,kind:"g",title:"Otimização",hours:"30–50 h",diff:3,
+ obj:"Ter clara a ideia de espaço de variáveis, entender abstratamente o que é buscar um ótimo e conhecer os métodos computacionais (gradiente descendente) e suas limitações (mínimos locais, taxa de aprendizado).",
+ top:[["g","Espaço de variáveis e superfícies de custo"],["g","Minimização e maximização"],["g","Gradiente descendente e variantes","SGD, momentum — visão introdutória"],["y","Convexidade"],["y","Métodos de segunda ordem e otimização convexa formal"]],
+ mat:[["3Blue1Brown — Gradient descent (série de redes neurais)","intuição"],["Deep Learning Book (Goodfellow), cap. 4","Numerical Computation — gratuito online"],["Boyd & Vandenberghe — Convex Optimization","somente para o aprofundamento amarelo"]],
+ cert:"Sem certificação específica; o domínio é comprovado nos cursos de ML do Nível 2."},
+
+{id:5,lvl:0,kind:"g",title:"Álgebra Linear",hours:"60–90 h",diff:3,
+ obj:"Operar com segurança matrizes e vetores, ter entendimento concreto das operações e compreensão funcional de decomposições — em neurociência, dados são matrizes (neurônios × tempo, voxels × estímulos).",
+ top:[["g","Vetores, matrizes e operações"],["g","Sistemas lineares e transformações"],["g","Autovalores e autovetores"],["g","PCA e SVD (visão funcional)","onipresentes em análise neural"],["y","Decomposições avançadas e teoria espectral"]],
+ mat:[["3Blue1Brown — Essence of Linear Algebra","obrigatório: constrói a intuição geométrica"],["Gilbert Strang — MIT 18.06 (OCW)","o curso clássico da área"],["Mathematics for Machine Learning (Deisenroth et al., livro gratuito)","capítulos 2–4 e 10 (PCA)"]],
+ cert:"Coursera: Mathematics for ML — Linear Algebra (Imperial College)."},
+
+{id:6,lvl:0,kind:"g",title:"Programação (Python)",hours:"100–150 h",diff:3,
+ obj:"Estruturar um projeto completo com noção de custo computacional, sendo capaz de interpretar e modificar código alheio — a habilidade mais usada no dia a dia de pesquisa.",
+ top:[["g","Ambientes","conda/venv, Jupyter, VS Code"],["g","Comandos iniciais e lógica básica (controle de fluxo)"],["g","Estruturas de dados básicas","listas, dicionários, arrays"],["g","Código funcional e orientação a objetos","nível leitura/modificação"],["g","Bibliotecas científicas","NumPy, pandas, Matplotlib, SciPy"],["g","Prática: pipelines extensas + git/GitHub"],["y","Complexidade e computação","noção de Big-O basta; teoria formal é amarela"]],
+ mat:[["CS50P — Introduction to Programming with Python (Harvard)","gratuito, excelente e com certificado"],["Python for Everybody (Coursera, Univ. Michigan)","alternativa mais suave"],["Software Carpentry — shell, git e Python","feito para cientistas"],["Pro Git (livro gratuito) + prática real no GitHub","versione todos os seus projetos desde já"]],
+ cert:"Certificado do CS50P ou da especialização Python for Everybody; repositório GitHub ativo vale mais que ambos."},
+
+{id:7,lvl:0,kind:"g",title:"Estatística e Probabilidade",hours:"80–120 h",diff:4,
+ obj:"Entendimento profundo das interpretações estatísticas (o que um p-valor diz e não diz, o que é incerteza) e entendimento operacional razoável de inferência — a neuroimagem vive de estatística bem ou mal aplicada.",
+ top:[["g","Combinatória e probabilidade básica"],["g","Variáveis aleatórias e distribuições"],["g","Introdução à inferência e testes de hipóteses","incluindo comparações múltiplas — crítico em fMRI"],["g","Regressão linear como modelo estatístico","ponte direta para encoding models"],["y","Convergências e teoremas-limite (formalismo)"],["y","Inferência bayesiana","muito usada em neurociência computacional — amarelo forte"],["y","Inferência não-bayesiana avançada","máxima verossimilhança em profundidade"]],
+ mat:[["StatQuest (Josh Starmer, YouTube)","melhor intuição estatística disponível, do básico ao ML"],["Khan Academy — Estatística e probabilidade","prática"],["Think Stats e Think Bayes (Allen Downey)","gratuitos, com Python"],["Statistical Rethinking (McElreath) + aulas no YouTube","para o aprofundamento bayesiano"]],
+ cert:"Coursera: Statistics with Python (Univ. Michigan)."},
+
+{id:8,lvl:1,kind:"g",title:"Machine Learning",hours:"80–120 h",diff:4,
+ obj:"Compreender o ciclo completo de um modelo (dados → treino → validação → interpretação), com atenção especial a overfitting e validação cruzada — em neuro os dados são poucos e ruidosos, e é aqui que a maioria erra.",
+ top:[["g","Regressão linear e logística"],["g","Overfitting, regularização (ridge/lasso) e validação cruzada","ridge é O método dos encoding models"],["g","Redução de dimensionalidade (PCA) e clustering"],["g","Árvores, florestas aleatórias e ensembles"],["g","scikit-learn na prática"],["y","SVMs e kernels em profundidade"],["y","Teoria do aprendizado estatístico"]],
+ mat:[["Machine Learning Specialization (Andrew Ng, Coursera)","porta de entrada padrão da área"],["Hands-On Machine Learning (Géron, O'Reilly)","parte 1 — prática com scikit-learn"],["StatQuest — playlists de ML","reforço conceitual"],["Documentação e tutoriais do scikit-learn","referência de trabalho"]],
+ cert:"Certificado da Machine Learning Specialization (Coursera)."},
+
+{id:9,lvl:1,kind:"g",title:"Redes Neurais e Deep Learning",hours:"100–150 h",diff:4,
+ obj:"Entender e treinar redes neurais em PyTorch, com ênfase em CNNs — que, além de ferramenta, são hoje os principais modelos computacionais do sistema visual usados em encoding.",
+ top:[["g","Perceptron, MLP e backpropagation"],["g","CNNs (redes convolucionais)","conexão direta com a hierarquia visual V1→IT"],["g","Treinamento na prática","regularização, batch norm, curvas de aprendizado"],["g","PyTorch"],["y","RNNs e modelos de sequência"],["y","Transformers e modelos de linguagem","relevante para decodificação semântica/linguagem"],["y","Deep Learning Book (teoria completa)"]],
+ mat:[["3Blue1Brown — Neural Networks (série)","assistir antes de tudo"],["Deep Learning Specialization (Andrew Ng, Coursera)","cursos 1, 2 e 4 são o núcleo"],["fast.ai — Practical Deep Learning for Coders","gratuito, abordagem mão na massa"],["Tutoriais oficiais do PyTorch","referência de trabalho"]],
+ cert:"Certificado da Deep Learning Specialization (Coursera)."},
+
+{id:10,lvl:2,kind:"g",title:"Neurociência de Sistemas e Codificação Neural",hours:"40–60 h",diff:2,
+ obj:"Reorganizar seu conhecimento biológico sob a ótica da informação: não “como o neurônio funciona”, mas “o que a atividade neural representa e como quantificar isso”. É o módulo em que sua formação vira vantagem.",
+ top:[["g","Revisão dirigida: potencial de ação, sinapses, circuitos"],["g","Código neural","taxa de disparo vs. timing, tuning curves"],["g","Campos receptivos e mapas corticais","conceito central de encoding"],["g","Códigos populacionais"],["y","Modelos biofísicos de neurônio","LIF, Hodgkin-Huxley em detalhe"]],
+ mat:[["Fundamentals of Neuroscience (HarvardX, edX)","revisão estruturada — pule o que já domina"],["Neuronal Dynamics (Gerstner et al.)","livro gratuito online, caps. 1 e 7+"],["Principles of Neural Science (Kandel)","referência de consulta, caps. de sistemas sensoriais"]],
+ cert:"HarvardX Fundamentals of Neuroscience (edX, certificado opcional pago)."},
+
+{id:11,lvl:2,kind:"g",title:"Processamento de Sinais",hours:"60–90 h",diff:4,
+ obj:"Ganhar fluência em séries temporais neurais: entender o que uma transformada de Fourier ou um filtro fazem com o sinal e por quê — pré-requisito absoluto para trabalhar com EEG/MEG/eletrofisiologia.",
+ top:[["g","Séries temporais, amostragem e aliasing"],["g","Transformada de Fourier e espectro de potência"],["g","Filtragem","passa-banda, artefatos, cuidados"],["g","Análise tempo-frequência","wavelets, espectrogramas — padrão em EEG"],["y","Conectividade, coerência e sincronização de fase"],["y","Filtros espaciais avançados","ICA em profundidade, CSP"]],
+ mat:[["3Blue1Brown — But what is the Fourier Transform?","a melhor intuição em vídeo"],["Mike X Cohen — Analyzing Neural Time Series Data (MIT Press)","A referência da área"],["Cursos do Mike X Cohen (Udemy)","signal processing e neural signal analysis em Python"],["scipy.signal + notebooks próprios","reproduza cada técnica em código"]],
+ cert:"Certificados dos cursos do Mike X Cohen (Udemy); notebooks públicos no GitHub."},
+
+{id:12,lvl:2,kind:"g",title:"Métodos de Aquisição e Neuroimagem",hours:"50–80 h",diff:3,
+ obj:"Entender o que cada técnica mede de fato (e suas limitações espaço-temporais) e dominar o pré-processamento — a etapa que consome 70% do tempo real de pesquisa.",
+ top:[["g","EEG/MEG","origem do sinal, montagens, artefatos"],["g","fMRI e o sinal BOLD","resposta hemodinâmica, resolução, GLM"],["g","Pré-processamento","filtragem, correção de movimento, normalização"],["g","Ferramentas: MNE-Python (EEG/MEG) e nilearn/fMRIPrep (fMRI)"],["y","Eletrofisiologia invasiva","ECoG, spikes, Neuropixels"],["y","Física da ressonância em profundidade"]],
+ mat:[["Principles of fMRI 1 e 2 (Coursera, Johns Hopkins)","curso clássico, direto ao ponto"],["Tutoriais oficiais do MNE-Python","trilha completa de EEG/MEG com dados reais"],["Andy's Brain Book (gratuito)","passo a passo prático de neuroimagem"],["Documentação do nilearn","fMRI em Python com scikit-learn"]],
+ cert:"Certificados de Principles of fMRI 1 e 2 (Coursera)."},
+
+{id:13,lvl:2,kind:"g",title:"Neurociência Computacional",hours:"60–100 h",diff:4,
+ obj:"Integrar tudo: modelar dados neurais de ponta a ponta em um ambiente de curso intensivo com projetos — este módulo é a espinha dorsal da transição para a área.",
+ top:[["g","Neuromatch Academy — Computational Neuroscience","ajuste de modelos, GLMs, redução de dimensionalidade, decodificação básica"],["g","Projeto próprio com dados reais durante o curso"],["y","Teoria aprofundada","Dayan & Abbott, caps. 1–3 (encoding/decoding teórico)"]],
+ mat:[["Neuromatch Academy — Computational Neuroscience","gratuito, materiais abertos o ano todo, edição com turmas em julho"],["Computational Neuroscience (Coursera, Univ. Washington)","alternativa/complemento em ritmo próprio"],["Dayan & Abbott — Theoretical Neuroscience","referência teórica (amarelo)"]],
+ cert:"Certificado do Neuromatch Academy — o mais reconhecido da área para quem está migrando."},
+
+{id:14,lvl:3,kind:"g",title:"Modelos de Encoding",hours:"60–100 h",diff:5,
+ obj:"Ser capaz de montar um pipeline de encoding voxelwise completo: extrair features do estímulo, ajustar regressão ridge por voxel/canal, validar e interpretar os mapas resultantes.",
+ top:[["g","GLM e campos receptivos estimados por regressão"],["g","Encoding models baseados em features","Gabor/motion-energy, features semânticas"],["g","Regressão ridge e validação em dados neurais","banded ridge, cuidados com autocorrelação temporal"],["g","Voxelwise modeling e mapas corticais"],["y","DNNs como modelos de encoding","features de CNNs prevendo córtex visual"],["y","Modelos de encoding de linguagem","embeddings prevendo atividade durante narrativas"]],
+ mat:[["Naselaris et al. (2011) — Encoding and decoding in fMRI (NeuroImage)","o artigo-fundação: ler, reler e fichar"],["Tutoriais do Gallant Lab — himalaya, pycortex, voxelwise tutorials","código aberto do laboratório de referência"],["Kay et al. (2008) — Identifying natural images from human brain activity","clássico de identificação"],["Huth et al. (2016) — mapa semântico do córtex","encoding semântico em escala"]],
+ cert:"Não há certificação formal: a comprovação é um repositório com um pipeline de encoding reproduzido em dataset público."},
+
+{id:15,lvl:3,kind:"g",title:"Decoding e MVPA",hours:"60–100 h",diff:5,
+ obj:"Dominar a análise multivariada de padrões: classificar estados mentais a partir de padrões de atividade, entender searchlight e RSA, e conhecer os limites interpretativos (decodificar ≠ explicar).",
+ top:[["g","Classificação multivariada (MVPA)","pipeline completo com validação correta"],["g","Searchlight"],["g","RSA — Representational Similarity Analysis","ponte entre modelos, cérebros e espécies"],["g","Armadilhas metodológicas","vazamento de dados, circularidade, dupla imersão"],["y","Reconstrução de estímulos","imagens e vídeo a partir de fMRI, incl. modelos generativos/difusão"],["y","Decodificação de linguagem contínua","Tang et al. 2023 e questões éticas de privacidade mental"]],
+ mat:[["Tutoriais de decoding do nilearn","prática guiada com datasets clássicos (incl. Haxby)"],["Haxby et al. (2001)","o artigo que fundou a MVPA"],["Kriegeskorte et al. (2008) — RSA","artigo original + rsatoolbox em Python"],["Norman et al. (2006) — Beyond mind-reading","revisão conceitual essencial"]],
+ cert:"Portfólio: reprodução do experimento de Haxby com nilearn, documentada no GitHub."},
+
+{id:16,lvl:3,kind:"y",title:"Prática de Pesquisa e Tópicos Avançados",hours:"80–150 h (contínuo)",diff:5,
+ obj:"Consolidar a atuação técnica consciente: trabalhar com datasets reais de grande escala, reproduzir artigos e se conectar à comunidade — é aqui que você deixa de estudar a área e passa a atuar nela.",
+ top:[["g","Datasets abertos","Natural Scenes Dataset, THINGS, OpenNeuro — prática obrigatória"],["g","Reprodução de um artigo de encoding/decoding de ponta a ponta"],["y","Neuromatch Academy — Deep Learning","segunda escola do Neuromatch, voltada a DL para neuro"],["y","Desafios Algonauts","competição anual de previsão de respostas cerebrais"],["y","Interfaces cérebro-máquina (BCI)","decodificação em tempo real, motor imagery"],["y","Fronteira: DNNs como modelos do cérebro","Yamins & DiCarlo (2016); Brain-Score"]],
+ mat:[["Natural Scenes Dataset + Algonauts Project","os dados que a fronteira da área usa hoje"],["OpenNeuro + fMRIPrep","ecossistema de dados abertos padronizados (BIDS)"],["Neuromatch Academy — Deep Learning","gratuito, com certificado"],["Yamins & DiCarlo (2016) e Tang et al. (2023)","leituras de fronteira em encoding visual e decoding de linguagem"]],
+ cert:"Certificado do Neuromatch DL; participação registrada no Algonauts; portfólio público de projetos — na prática, o “diploma” da área."},
+];
+
+const stars = n => "★".repeat(n) + "☆".repeat(5-n);
+const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+
+/* ---------- render hub ---------- */
+function renderHub(){
+  const root = document.getElementById("levels");
+  root.innerHTML = LEVELS.map((lv,i)=>`
+    <div class="level">
+      <div class="level-head">
+        <span class="level-num">${lv.num}</span>
+        <h2>${esc(lv.name)}</h2>
+        <span class="hours">${lv.hours}</span>
+      </div>
+      <p class="level-sub">${esc(lv.sub)}</p>
+      <div class="spine">
+        ${MODS.filter(m=>m.lvl===i).map(m=>`
+          <a class="mod kind-${m.kind}" href="#modulo-${m.id}">
+            <div class="mod-top">
+              <span class="mod-num">${String(m.id).padStart(2,"0")}</span>
+              <h3>${esc(m.title)}</h3>
+              <span class="tag tag-${m.kind}">${m.kind==="g"?"Essencial":"Aprofundamento"}</span>
+            </div>
+            <div class="mod-meta">
+              <span>⏱ ${m.hours}</span>
+              <span class="stars" title="Dificuldade">${stars(m.diff)}</span>
+              <span class="mod-open">Abrir módulo →</span>
+            </div>
+          </a>`).join("")}
+      </div>
+    </div>`).join("");
+}
+
+/* ---------- render detail ---------- */
+function renderDetail(id){
+  const m = MODS.find(x=>x.id===id);
+  if(!m) return false;
+  const lv = LEVELS[m.lvl];
+  const idx = MODS.indexOf(m);
+  const prev = MODS[idx-1], next = MODS[idx+1];
+  document.getElementById("detailContent").innerHTML = `
+    <a class="crumb" href="#">← Voltar à trilha</a>
+    <div class="detail-head">
+      <h1>${String(m.id).padStart(2,"0")} · ${esc(m.title)}</h1>
+      <span class="tag tag-${m.kind}">${m.kind==="g"?"Essencial":"Aprofundamento"}</span>
+    </div>
+    <div class="metabar">
+      <span class="chip">${lv.num} — ${esc(lv.name)}</span>
+      <span class="chip">Carga: <b>${m.hours}</b></span>
+      <span class="chip">Dificuldade: <b>${stars(m.diff)}</b></span>
+    </div>
+    <div class="section"><h2>Objetivo</h2><p>${esc(m.obj)}</p></div>
+    <div class="section"><h2>Conteúdos</h2>
+      <ul class="topics">
+        ${m.top.map(t=>`<li class="t-${t[0]}"><b>${esc(t[1])}</b>${t[2]?`<span>— ${esc(t[2])}</span>`:""}</li>`).join("")}
+      </ul>
+    </div>
+    <div class="section"><h2>Material recomendado</h2>
+      <ul class="mats">
+        ${m.mat.map(x=>`<li><b>${esc(x[0])}</b>${x[1]?`<span>${esc(x[1])}</span>`:""}</li>`).join("")}
+      </ul>
+    </div>
+    <div class="section"><h2>Certificação / comprovação</h2>
+      <div class="certbox">${esc(m.cert)}</div>
+    </div>
+    <nav class="pager">
+      ${prev?`<a href="#modulo-${prev.id}"><span class="dir">← Anterior</span><br><span class="name">${String(prev.id).padStart(2,"0")} · ${esc(prev.title)}</span></a>`:""}
+      ${next?`<a class="next" href="#modulo-${next.id}"><span class="dir">Próximo →</span><br><span class="name">${String(next.id).padStart(2,"0")} · ${esc(next.title)}</span></a>`:""}
+    </nav>`;
+  return true;
+}
+
+/* ---------- routing por hash ---------- */
+function route(){
+  const h = location.hash;
+  const match = h.match(/^#modulo-(\d+)$/);
+  if(match && renderDetail(parseInt(match[1],10))){
+    document.body.classList.add("viewing-detail");
+    window.scrollTo({top:0,behavior:"instant"});
+  } else {
+    document.body.classList.remove("viewing-detail");
+    if(h==="" || h==="#") window.scrollTo({top:0,behavior:"instant"});
+  }
+}
+window.addEventListener("hashchange", route);
+renderHub();
+route();
+</script>
+</body>
+</html>
