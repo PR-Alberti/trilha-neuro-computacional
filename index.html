@@ -100,12 +100,17 @@ a.sn-name:hover{color:var(--accent-ink);text-decoration:underline}
 .sn-prog.full{color:var(--green-ink);font-weight:600}
 /* lista de temas dentro de cada seção da sidebar */
 .sn-themes{display:grid;gap:1px;margin:2px 0 8px 27px}
-a.sn-theme{display:block;padding:5px 9px;border-radius:6px;font-size:.77rem;line-height:1.35;color:var(--muted);text-decoration:none;border-left:2px solid var(--line)}
-a.sn-theme.lv0{border-left-color:var(--lv0)}
-a.sn-theme.lv1{border-left-color:var(--lv1)}
-a.sn-theme.lv2{border-left-color:var(--lv2)}
-a.sn-theme:hover{background:var(--accent-soft);color:var(--accent-ink)}
-a.sn-theme.done{color:var(--green-ink)}
+.sn-theme{display:flex;gap:8px;align-items:flex-start;padding:4px 8px;border-radius:6px;border-left:2px solid var(--line)}
+.sn-theme.lv0{border-left-color:var(--lv0)}
+.sn-theme.lv1{border-left-color:var(--lv1)}
+.sn-theme.lv2{border-left-color:var(--lv2)}
+.sn-theme:hover{background:var(--accent-soft)}
+a.sn-tn{flex:1;min-width:0;font-size:.77rem;line-height:1.35;color:var(--muted);text-decoration:none}
+a.sn-tn:hover{color:var(--accent-ink)}
+.sn-theme.done a.sn-tn{color:var(--green-ink);text-decoration:line-through;opacity:.75}
+/* caixinha compacta da sidebar */
+input.chk-sn{width:15px;height:15px;border-width:2px;border-radius:4px;margin-top:2px}
+input.chk-sn:checked::after{font-size:10px}
 a.sn-theme.done::before{content:"✓ ";font-weight:700}
 a.sn-theme.atual{background:var(--accent-soft);color:var(--accent-ink);font-weight:600}
 .sn-extra{margin-top:16px;border-top:1px solid var(--line);padding-top:14px;color:var(--muted)}
@@ -657,8 +662,12 @@ function renderNav(){
         <div class="sn-themes">
           ${m.themes.map((t,ti)=>{
             const key = m.id+"-"+(ti+1);
-            return `<a class="sn-theme lv${t.lv}${done.has(key)?" done":""}" id="sn-t-${key}"
-                       href="#tema-${key}" title="${esc(LV[t.lv])}">${esc(t.n)}</a>`;
+            return `<div class="sn-theme lv${t.lv}${done.has(key)?" done":""}" id="sn-t-${key}">
+              <input type="checkbox" class="chk chk-sn" onchange="toggleDone('${key}')"
+                     ${done.has(key)?"checked":""} title="Marcar como estudado"
+                     aria-label="Concluir tema ${esc(t.n)}">
+              <a class="sn-tn" href="#tema-${key}" title="${esc(LV[t.lv])}">${esc(t.n)}</a>
+            </div>`;
           }).join("")}
         </div>
       </details>`;}).join("")}
@@ -777,7 +786,10 @@ function atualizarMarcacoes(){
         card.querySelector("input.chk").checked = marcado;
       }
       const naNav = document.getElementById("sn-t-"+key);
-      if(naNav) naNav.classList.toggle("done", marcado);
+      if(naNav){
+        naNav.classList.toggle("done", marcado);
+        naNav.querySelector("input.chk-sn").checked = marcado;
+      }
     });
 
     const cx = document.getElementById("chk-mod-"+m.id);
