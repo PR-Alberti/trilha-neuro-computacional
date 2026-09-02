@@ -88,12 +88,26 @@ body.nav-recolhida aside.sidebar{opacity:0;visibility:hidden;padding-left:0;padd
 aside.sidebar{position:sticky;top:61px;align-self:start;max-height:calc(100vh - 61px);overflow-y:auto;padding:26px 14px 26px 22px;border-right:1px solid var(--line);overflow-x:hidden;transition:opacity .15s ease}
 .sn-phase{font-family:"IBM Plex Mono",monospace;font-size:.66rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:18px 0 8px}
 .sn-phase:first-child{margin-top:0}
-a.sn-mod{display:flex;align-items:baseline;gap:8px;padding:7px 10px;border-radius:8px;text-decoration:none;font-size:.86rem}
-a.sn-mod:hover{background:var(--accent-soft);color:var(--accent-ink)}
-.sn-num{font-family:"IBM Plex Mono",monospace;font-size:.68rem;color:var(--muted)}
-.sn-name{flex:1;font-weight:500}
-.sn-prog{font-family:"IBM Plex Mono",monospace;font-size:.66rem;color:var(--muted)}
+summary.sn-mod,a.sn-mod{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:8px;text-decoration:none;font-size:.85rem;cursor:pointer;list-style:none}
+summary.sn-mod::-webkit-details-marker{display:none}
+.sn-mod:hover{background:var(--accent-soft)}
+.sn-chev{font-family:"IBM Plex Mono",monospace;color:var(--accent);font-size:.8rem;width:9px;flex-shrink:0;transition:transform .18s ease}
+details.sn-group[open]>.sn-mod .sn-chev{transform:rotate(90deg)}
+.sn-num{font-family:"IBM Plex Mono",monospace;font-size:.68rem;color:var(--muted);flex-shrink:0}
+a.sn-name{flex:1;min-width:0;font-weight:500;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+a.sn-name:hover{color:var(--accent-ink);text-decoration:underline}
+.sn-prog{font-family:"IBM Plex Mono",monospace;font-size:.66rem;color:var(--muted);flex-shrink:0}
 .sn-prog.full{color:var(--green-ink);font-weight:600}
+/* lista de temas dentro de cada seção da sidebar */
+.sn-themes{display:grid;gap:1px;margin:2px 0 8px 27px}
+a.sn-theme{display:block;padding:5px 9px;border-radius:6px;font-size:.77rem;line-height:1.35;color:var(--muted);text-decoration:none;border-left:2px solid var(--line)}
+a.sn-theme.lv0{border-left-color:var(--lv0)}
+a.sn-theme.lv1{border-left-color:var(--lv1)}
+a.sn-theme.lv2{border-left-color:var(--lv2)}
+a.sn-theme:hover{background:var(--accent-soft);color:var(--accent-ink)}
+a.sn-theme.done{color:var(--green-ink)}
+a.sn-theme.done::before{content:"✓ ";font-weight:700}
+a.sn-theme.atual{background:var(--accent-soft);color:var(--accent-ink);font-weight:600}
 .sn-extra{margin-top:16px;border-top:1px solid var(--line);padding-top:14px;color:var(--muted)}
 /* no celular a sidebar não existe, então o botão de recolher também não */
 @media (max-width:1000px){.layout{grid-template-columns:minmax(0,1fr)}aside.sidebar{display:none}.content{padding:0 20px}#navBtn{display:none}}
@@ -132,7 +146,10 @@ a.sn-mod:hover{background:var(--accent-soft);color:var(--accent-ink)}
 /* filtro de temas por nível — cumulativo: mostra o nível escolhido e os mais fáceis */
 body[data-filter="0"] .theme.lv1,
 body[data-filter="0"] .theme.lv2,
-body[data-filter="1"] .theme.lv2{display:none}
+body[data-filter="1"] .theme.lv2,
+body[data-filter="0"] .sn-theme.lv1,
+body[data-filter="0"] .sn-theme.lv2,
+body[data-filter="1"] .sn-theme.lv2{display:none}
 
 /* ============ mapa da trilha (capa) ============ */
 .mapwrap{margin-top:28px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 16px 10px;overflow-x:auto}
@@ -629,12 +646,34 @@ function renderNav(){
     <p class="sn-phase">${ph.num} · ${esc(ph.short)}</p>
     ${MODS.filter(m=>m.ph===i).map(m=>{
       const dn = doneCount(m), N = m.themes.length;
-      return `<a class="sn-mod" href="#modulo-${m.id}">
-        <span class="sn-num">${pad2(m.id)}</span>
-        <span class="sn-name">${esc(m.title)}</span>
-        <span class="sn-prog${dn===N?" full":""}" id="sn-prog-${m.id}">${dn}/${N}</span>
-      </a>`;}).join("")}
+      return `<details class="sn-group" id="sn-mod-${m.id}">
+        <summary class="sn-mod">
+          <span class="sn-chev">›</span>
+          <span class="sn-num">${pad2(m.id)}</span>
+          <a class="sn-name" href="#modulo-${m.id}" onclick="event.stopPropagation()"
+             title="Ir para o módulo na página">${esc(m.title)}</a>
+          <span class="sn-prog${dn===N?" full":""}" id="sn-prog-${m.id}">${dn}/${N}</span>
+        </summary>
+        <div class="sn-themes">
+          ${m.themes.map((t,ti)=>{
+            const key = m.id+"-"+(ti+1);
+            return `<a class="sn-theme lv${t.lv}${done.has(key)?" done":""}" id="sn-t-${key}"
+                       href="#tema-${key}" title="${esc(LV[t.lv])}">${esc(t.n)}</a>`;
+          }).join("")}
+        </div>
+      </details>`;}).join("")}
   `).join("") + `<a class="sn-mod sn-extra" href="#como-usar">Como usar o guia</a>`;
+}
+
+/* destaca na sidebar o tema aberto e abre a seção dele */
+function marcarAtualNaNav(key){
+  document.querySelectorAll("a.sn-theme.atual").forEach(a=>a.classList.remove("atual"));
+  if(!key) return;
+  const a = document.getElementById("sn-t-"+key);
+  if(!a) return;
+  a.classList.add("atual");
+  const grupo = a.closest("details.sn-group");
+  if(grupo) grupo.open = true;
 }
 
 /* ============ hub ============ */
@@ -737,6 +776,8 @@ function atualizarMarcacoes(){
         card.classList.toggle("done", marcado);
         card.querySelector("input.chk").checked = marcado;
       }
+      const naNav = document.getElementById("sn-t-"+key);
+      if(naNav) naNav.classList.toggle("done", marcado);
     });
 
     const cx = document.getElementById("chk-mod-"+m.id);
@@ -932,13 +973,17 @@ function route(){
   let x;
   if((x = h.match(/^#tema-(\d+)-(\d+)$/)) && renderDetail(+x[1], +x[2])){
     document.body.classList.add("viewing-detail");
+    marcarAtualNaNav(x[1]+"-"+x[2]);
     window.scrollTo({top:0, behavior:"instant"});
     return;
   }
   document.body.classList.remove("viewing-detail");
+  marcarAtualNaNav(null);
   if((x = h.match(/^#modulo-(\d+)$/))){
     const d = document.getElementById("modulo-" + x[1]);
     if(d){ d.open = true; d.scrollIntoView({block:"start"}); }
+    const g = document.getElementById("sn-mod-" + x[1]);
+    if(g) g.open = true;
   } else if(h === "" || h === "#"){
     window.scrollTo({top:0, behavior:"instant"});
   }
