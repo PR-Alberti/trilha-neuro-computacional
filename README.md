@@ -10,8 +10,6 @@ Ciências Biológicas rumo à neurociência computacional — do pré-cálculo a
 | `index.html` | A página do guia (versão em construção) |
 | `Guia.pdf` | O roteiro de conteúdo original que a página segue |
 | `testes/modulo-NN.pdf` | Teste de cada módulo — PDFs genéricos; substitua pelo teste autêntico mantendo o nome |
-| `modelos/index_modelo.html` | Modelo de estilo original (Tailwind), base visual da página |
-| `modelos/guia_brain_encode_decode.html` | Segundo modelo, com outra abordagem (CSS próprio + JS) |
 
 ## Como a página funciona
 
