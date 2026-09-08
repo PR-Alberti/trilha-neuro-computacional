@@ -8,6 +8,7 @@ Ciências Biológicas rumo à neurociência computacional — do pré-cálculo a
 | Arquivo | O que é |
 |---|---|
 | `index.html` | A página do guia (versão em construção) |
+| `servidor/` | API opcional: identificação por e-mail e progresso sincronizado |
 | `Guia.pdf` | O roteiro de conteúdo original que a página segue |
 | `testes/modulo-NN.pdf` | Teste de cada módulo — PDFs genéricos; substitua pelo teste autêntico mantendo o nome |
 
@@ -34,21 +35,31 @@ conteúdo, edite os arrays — não o HTML.
   (`guia-neuro-progresso`) e refletido nos cartões, módulos e sidebar.
 - **Teste da seção**: cada módulo aponta para `testes/modulo-NN.pdf`.
 
-## Backend (branch `backend-login`)
+## Backend
 
-A branch `backend-login` adiciona uma API própria em `servidor/` — o caminho de
-aprendizado de backend:
+A pasta `servidor/` traz uma API própria — o caminho de aprendizado de backend:
 
 - **FastAPI + SQLite sem ORM**: o SQL aparece de verdade ([servidor/db.py](servidor/db.py)).
-- **Contas com e-mail/senha**: hash `scrypt` (biblioteca padrão) + sal por usuário;
-  sessões server-side em cookie `HttpOnly`/`SameSite=Lax`
+- **Identificação só por e-mail, sem senha** — decisão de piloto. Não existe
+  "criar conta": o primeiro `POST /api/entrar` com um e-mail já cria o registro.
+  A sessão é server-side, em cookie `HttpOnly`/`SameSite=Lax`
   ([servidor/seguranca.py](servidor/seguranca.py)).
-- **Progresso por usuário** na tabela `progresso`; ao logar, o progresso local do
-  navegador é **mesclado** com o da conta (`POST /api/progresso/sincronizar`).
+- **Progresso por usuário** na tabela `progresso`; ao se identificar, o progresso
+  local do navegador é **mesclado** com o da conta (`POST /api/progresso/sincronizar`).
 - O mesmo servidor entrega a página estática — um processo só, sem CORS — e a
   documentação interativa da API fica em `/api/docs`.
+- O servidor publica **só** `index.html`, `Guia.pdf` e `testes/` (lista explícita
+  no fim de [servidor/app.py](servidor/app.py)). O banco vive em `servidor/dados/`,
+  fora do que é publicado — se você adicionar um arquivo novo à página, lembre de
+  incluí-lo nessa lista.
 - A página continua funcionando **sem** o servidor (modo estático/localStorage):
-  ela detecta o backend em tempo de execução e só então mostra o botão "Entrar".
+  ela detecta o backend em tempo de execução e só então mostra o botão
+  "Salvar progresso".
+
+> **Aviso do piloto:** sem senha, quem digitar o e-mail de outra pessoa vê o
+> progresso dela. Isso é aceitável enquanto o dado guardado é só "quais temas
+> foram marcados" e o uso é restrito. Antes de abrir para desconhecidos, troque
+> por autenticação de verdade (link mágico por e-mail é o passo natural).
 
 ### Rodar o servidor
 
@@ -62,9 +73,10 @@ uvicorn app:app --reload         # http://localhost:8000
 
 ### Pendências antes de expor na internet
 
+- Autenticação de verdade no lugar da identificação só por e-mail
 - Servir atrás de HTTPS e marcar o cookie de sessão como `Secure`
-- Limite de tentativas de login (rate limiting)
-- Backup periódico do `servidor/guia.db`
+- Limite de requisições por IP (rate limiting)
+- Backup periódico do `servidor/dados/guia.db`
 
 ## Como visualizar
 
@@ -78,11 +90,9 @@ python3 -m http.server 8000
 
 ## Fluxo de trabalho (git)
 
-- `main` — versão estável.
-- `pagina-base` — branch de desenvolvimento da primeira versão da página.
-
-Quando a página estiver pronta, a branch é mesclada na `main` (via Pull Request no
-GitHub ou `git merge`).
+- `main` — versão estável, com a página e o servidor.
+- branches de tema (`pagina-base`, `backend-login`, ...) — desenvolvimento, mescladas
+  na `main` via Pull Request no GitHub ou `git merge` quando prontas.
 
 ## Publicação futura
 

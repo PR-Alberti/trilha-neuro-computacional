@@ -2,8 +2,10 @@
 
 Arquitetura (um processo só, sem CORS):
 
-    navegador ──── fetch /api/... ────> esta API ────> SQLite (guia.db)
+    navegador ──── fetch /api/... ────> esta API ────> SQLite (dados/guia.db)
         └───── GET /, /testes/... ────> arquivos estáticos do repositório
+
+PILOTO: a identificação é só por e-mail, sem senha (ver seguranca.py).
 
 Para rodar (a partir da pasta servidor/):
 
@@ -14,10 +16,10 @@ para a documentação interativa da API (gerada automaticamente).
 """
 import pathlib
 import re
-import sqlite3
 import time
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -36,9 +38,8 @@ db.criar_tabelas()
 
 # ---------- modelos de entrada (validados pelo FastAPI/Pydantic) ----------
 
-class Credenciais(BaseModel):
+class Identificacao(BaseModel):
     email: str
-    senha: str
 
 
 class PedidoSincronizacao(BaseModel):
@@ -46,15 +47,6 @@ class PedidoSincronizacao(BaseModel):
 
 
 # ---------- infraestrutura ----------
-
-@app.middleware("http")
-async def bloquear_arquivos_ocultos(request: Request, chamar_proximo):
-    # o servidor estático serve a raiz do repositório; nunca exponha
-    # pastas "escondidas" como .git/ ou .venv/
-    if any(parte.startswith(".") for parte in request.url.path.split("/") if parte):
-        return Response(status_code=404)
-    return await chamar_proximo(request)
-
 
 def usuario_atual(request: Request):
     """Lê o cookie de sessão e devolve o usuário logado, ou None."""
@@ -68,7 +60,7 @@ def usuario_atual(request: Request):
 def exigir_usuario(request: Request):
     usuario = usuario_atual(request)
     if usuario is None:
-        raise HTTPException(401, "Faça login para continuar.")
+        raise HTTPException(401, "Identifique-se com seu e-mail para continuar.")
     return usuario
 
 
@@ -81,39 +73,27 @@ def abrir_sessao(resposta: Response, usuario_id: int):
                         max_age=seguranca.DURACAO_SESSAO, path="/")
 
 
-# ---------- conta ----------
-
-@app.post("/api/registrar", status_code=201)
-def registrar(cred: Credenciais, resposta: Response):
-    email = cred.email.strip().lower()
-    if not RE_EMAIL.match(email):
-        raise HTTPException(400, "E-mail inválido.")
-    if len(cred.senha) < 8:
-        raise HTTPException(400, "A senha precisa de pelo menos 8 caracteres.")
-    with db.conectar() as con:
-        try:
-            cursor = con.execute(
-                "INSERT INTO usuarios (email, senha_hash, criado_em) VALUES (?, ?, ?)",
-                (email, seguranca.gerar_hash_senha(cred.senha), int(time.time())),
-            )
-        except sqlite3.IntegrityError:
-            raise HTTPException(409, "Já existe uma conta com esse e-mail.")
-        usuario_id = cursor.lastrowid
-    abrir_sessao(resposta, usuario_id)
-    return {"email": email}
-
+# ---------- identificação ----------
 
 @app.post("/api/entrar")
-def entrar(cred: Credenciais, resposta: Response):
-    email = cred.email.strip().lower()
+def entrar(ident: Identificacao, resposta: Response):
+    """Identifica pelo e-mail — cria o registro na primeira vez.
+
+    Sem senha: não há "entrar" e "registrar" separados, e nunca há erro de
+    credencial. Ver a nota do piloto em seguranca.py.
+    """
+    email = ident.email.strip().lower()
+    if not RE_EMAIL.match(email):
+        raise HTTPException(400, "E-mail inválido.")
     with db.conectar() as con:
-        linha = con.execute("SELECT * FROM usuarios WHERE email = ?", (email,)).fetchone()
+        con.execute(
+            "INSERT OR IGNORE INTO usuarios (email, criado_em) VALUES (?, ?)",
+            (email, int(time.time())),
+        )
+        linha = con.execute("SELECT id FROM usuarios WHERE email = ?", (email,)).fetchone()
         seguranca.limpar_sessoes_vencidas(con)  # faxina oportunista
-    # mensagem única de propósito: não revele se o e-mail existe ou não
-    if linha is None or not seguranca.verificar_senha(cred.senha, linha["senha_hash"]):
-        raise HTTPException(401, "E-mail ou senha incorretos.")
     abrir_sessao(resposta, linha["id"])
-    return {"email": linha["email"]}
+    return {"email": email}
 
 
 @app.post("/api/sair", status_code=204)
@@ -184,6 +164,20 @@ def sincronizar(pedido: PedidoSincronizacao, usuario=Depends(exigir_usuario)):
     return {"temas": sorted(linha["tema"] for linha in linhas)}
 
 
-# ---------- site estático (montado por último: /api/* tem prioridade) ----------
+# ---------- site estático ----------
+# Lista do que pode ser baixado, em vez de publicar a raiz do repositório
+# inteira: assim servidor/ (que guarda o banco), .git/ e qualquer arquivo
+# novo na raiz ficam de fora por padrão, sem depender de a gente lembrar
+# de bloqueá-los. Para publicar um arquivo novo, acrescente-o aqui.
 
-app.mount("/", StaticFiles(directory=RAIZ_SITE, html=True), name="site")
+@app.get("/", include_in_schema=False)
+def pagina():
+    return FileResponse(RAIZ_SITE / "index.html")
+
+
+@app.get("/Guia.pdf", include_in_schema=False)
+def guia_pdf():
+    return FileResponse(RAIZ_SITE / "Guia.pdf")
+
+
+app.mount("/testes", StaticFiles(directory=RAIZ_SITE / "testes"), name="testes")

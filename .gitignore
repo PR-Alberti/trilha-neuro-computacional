@@ -4,4 +4,4 @@ __pycache__/
 
 # ambiente virtual e banco locais do servidor — nunca versionar
 servidor/.venv/
-servidor/guia.db
+servidor/dados/

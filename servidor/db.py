@@ -1,14 +1,17 @@
 """Camada de acesso ao banco de dados (SQLite).
 
 SQLite guarda tudo num único arquivo (guia.db) — perfeito para pequena
-escala e para aprender: dá para abrir o banco com `sqlite3 guia.db` no
+escala e para aprender: dá para abrir o banco com `sqlite3 dados/guia.db` no
 terminal e inspecionar as tabelas com SQL puro.
 """
 import pathlib
 import sqlite3
 from contextlib import contextmanager
 
-CAMINHO_BANCO = pathlib.Path(__file__).resolve().parent / "guia.db"
+# fora da árvore publicada pelo servidor (ver RAIZ_SITE em app.py): um
+# arquivo com e-mails e tokens de sessão não pode ser baixável pela web
+CAMINHO_BANCO = pathlib.Path(__file__).resolve().parent / "dados" / "guia.db"
+CAMINHO_BANCO.parent.mkdir(exist_ok=True)
 
 
 @contextmanager
@@ -35,7 +38,6 @@ def criar_tabelas():
         CREATE TABLE IF NOT EXISTS usuarios (
             id         INTEGER PRIMARY KEY,
             email      TEXT    NOT NULL UNIQUE,
-            senha_hash TEXT    NOT NULL,
             criado_em  INTEGER NOT NULL
         );
 
@@ -52,3 +54,8 @@ def criar_tabelas():
             PRIMARY KEY (usuario_id, tema)
         );
         """)
+        # bancos criados na versão com senha ainda têm a coluna senha_hash
+        # (NOT NULL), que quebraria os INSERTs de agora — some com ela.
+        colunas = {linha["name"] for linha in con.execute("PRAGMA table_info(usuarios)")}
+        if "senha_hash" in colunas:
+            con.execute("ALTER TABLE usuarios DROP COLUMN senha_hash")

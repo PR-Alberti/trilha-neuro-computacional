@@ -500,15 +500,14 @@ body.viewing-detail #detail{display:block}
   <div class="wrap-wide">Do neurônio ao modelo — trilha para estudantes de base biológica rumo à neurociência computacional. Sua vantagem comparativa é o conhecimento biológico; o gargalo está em matemática, programação e estatística, e é nele que este guia investe.</div>
 </footer>
 
-<!-- diálogo de login / criar conta (só aparece quando o backend está rodando) -->
+<!-- diálogo de identificação (só aparece quando o backend está rodando) -->
 <dialog id="authDlg">
   <form class="authform" id="authForm">
-    <h3 id="authTitle">Entrar</h3>
+    <h3>Salvar meu progresso</h3>
+    <p class="auth-alt">Só o e-mail — não há senha. Serve para o progresso te acompanhar entre navegadores; qualquer pessoa que digite este e-mail vê o mesmo progresso, então não guarde nada sensível aqui.</p>
     <label>E-mail<input id="authEmail" type="email" required autocomplete="email"></label>
-    <label>Senha<input id="authSenha" type="password" required minlength="8" autocomplete="current-password"></label>
     <p class="auth-err" id="authErr"></p>
-    <button type="submit" class="btn-primary" id="authSubmit">Entrar</button>
-    <p class="auth-alt" id="authAlt">Não tem conta? <button type="button" class="linkbtn" onclick="alternarModoAuth()">Criar conta</button></p>
+    <button type="submit" class="btn-primary" id="authSubmit">Continuar</button>
     <p class="auth-alt"><button type="button" class="linkbtn" onclick="fecharAuth()">Cancelar</button></p>
   </form>
 </dialog>
@@ -910,10 +909,13 @@ function marcarModulo(id, marcar){
 /* ============ conta e sincronização com o backend ============
    A página funciona em dois modos:
    - estático (GitHub Pages, file://): progresso só no localStorage
-   - com o servidor (pasta servidor/): login + progresso na conta      */
-let usuario = null;      // e-mail logado, ou null
+   - com o servidor (pasta servidor/): progresso guardado por e-mail
+
+   PILOTO: identificação só por e-mail, sem senha. É deliberado — o dado
+   guardado é apenas "quais temas você marcou". Não vale para nada além
+   disso enquanto não houver autenticação de verdade.                   */
+let usuario = null;      // e-mail identificado, ou null
 let temBackend = false;  // detectado em iniciarConta()
-let modoRegistro = false;
 
 async function api(caminho, opcoes = {}){
   const r = await fetch("/api/"+caminho, {headers:{"Content-Type":"application/json"}, ...opcoes});
@@ -944,7 +946,7 @@ function renderAuth(){
   if(!temBackend){ el.innerHTML = ""; return; }
   el.innerHTML = usuario
     ? `<span class="auth-mail" title="${esc(usuario)}">${esc(usuario)}</span><button class="btn" onclick="sair()">Sair</button>`
-    : `<button class="btn-primary" onclick="abrirAuth()">Entrar</button>`;
+    : `<button class="btn-primary" onclick="abrirAuth()">Salvar progresso</button>`;
 }
 
 function abrirAuth(){
@@ -953,22 +955,11 @@ function abrirAuth(){
 }
 function fecharAuth(){ document.getElementById("authDlg").close(); }
 
-function alternarModoAuth(){
-  modoRegistro = !modoRegistro;
-  document.getElementById("authTitle").textContent  = modoRegistro ? "Criar conta" : "Entrar";
-  document.getElementById("authSubmit").textContent = modoRegistro ? "Criar conta" : "Entrar";
-  document.getElementById("authAlt").firstChild.textContent = modoRegistro ? "Já tem conta? " : "Não tem conta? ";
-  document.getElementById("authSenha").autocomplete = modoRegistro ? "new-password" : "current-password";
-  document.getElementById("authErr").textContent = "";
-}
-
 document.getElementById("authForm").addEventListener("submit", async ev=>{
   ev.preventDefault();
   const email = document.getElementById("authEmail").value;
-  const senha = document.getElementById("authSenha").value;
   try{
-    const resp = await api(modoRegistro ? "registrar" : "entrar",
-                           {method:"POST", body:JSON.stringify({email, senha})});
+    const resp = await api("entrar", {method:"POST", body:JSON.stringify({email})});
     usuario = resp.email;
     fecharAuth(); renderAuth();
     await sincronizar();
