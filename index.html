@@ -93,7 +93,7 @@ body.nav-recolhida #navBtn{background:var(--accent-soft);border-color:var(--acce
 
 /* ============ layout: sidebar + conteúdo ============ */
 .layout{display:grid;grid-template-columns:260px minmax(0,1fr);transition:grid-template-columns .2s ease}
-.content{width:100%;max-width:1180px;margin:0 auto;padding:0 40px;min-width:0}
+.content{width:100%;max-width:1320px;margin:0 auto;padding:0 40px;min-width:0}
 body.nav-recolhida .layout{grid-template-columns:0 minmax(0,1fr)}
 body.nav-recolhida aside.sidebar{opacity:0;visibility:hidden;padding-left:0;padding-right:0;border-right:none}
 aside.sidebar{position:sticky;top:61px;align-self:start;max-height:calc(100vh - 61px);overflow-y:auto;overflow-x:hidden;padding:22px 12px 30px 18px;border-right:1px solid var(--line);transition:opacity .15s ease}
@@ -130,10 +130,22 @@ a.sn-extra:hover{color:var(--accent-ink)}
 @media (max-width:1000px){.layout{grid-template-columns:minmax(0,1fr)}aside.sidebar{display:none}.content{padding:0 16px}#navBtn{display:none}}
 
 /* ============ capa do curso (hero) ============ */
-.hero{margin-top:24px;position:relative;overflow:hidden;border-radius:24px;padding:42px 44px 36px;color:var(--hero-ink);border:1px solid var(--hero-line);
+/* a capa ocupa a primeira tela: altura da janela menos o header e uma folga,
+   para que o que vem depois comece logo abaixo da dobra */
+.hero{margin-top:20px;position:relative;overflow:hidden;border-radius:24px;padding:42px 44px 36px;color:var(--hero-ink);border:1px solid var(--hero-line);
   background:radial-gradient(900px 420px at 88% -10%,var(--hero-bg-2),transparent 62%),var(--hero-bg);
-  display:grid;gap:30px;box-shadow:var(--shadow)}
-@media (min-width:1000px){.hero{grid-template-columns:minmax(0,1.5fr) minmax(280px,.9fr);align-items:center}}
+  display:grid;gap:30px;box-shadow:var(--shadow);
+  min-height:calc(100vh - 112px);min-height:calc(100svh - 112px);align-content:center}
+@media (min-width:1000px){.hero{grid-template-columns:minmax(0,1.5fr) minmax(280px,.9fr);align-items:center;padding-bottom:60px}}
+/* telas baixas (notebooks 768px): a capa encolhe em vez de estourar a dobra */
+@media (min-width:1000px) and (max-height:820px){
+  .hero{padding:26px 36px 52px;gap:22px}
+  .hero h1{font-size:clamp(1.7rem,3.2vw,2.5rem);margin:8px 0 12px}
+  .hero .lead{font-size:.92rem}
+  .hero .cta{margin-top:16px}.hero .facts{margin-top:16px}
+  .pcard{padding:16px 18px}.ring{width:70px;height:70px}
+  .pc-phases{margin-top:12px;gap:8px}.pc-next{margin-top:12px;padding-top:11px}
+}
 .hero>*{min-width:0;position:relative;z-index:1}
 .hero .eeg{position:absolute;right:-40px;top:-14px;width:min(64%,700px);opacity:.5;pointer-events:none;z-index:0}
 .eeg path{fill:none}
@@ -176,10 +188,17 @@ a.sn-extra:hover{color:var(--accent-ink)}
 .pc-next a{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--hero-ink);text-decoration:none;font-weight:600;margin-top:5px;font-size:.92rem}
 .pc-next a:hover{color:var(--hero-accent)}
 .pc-next a .arr{font-family:"IBM Plex Mono",monospace;color:var(--hero-accent)}
-@media (max-width:1000px){.hero{padding:30px 22px 26px}.hero .eeg{width:110%;right:-20%;top:-30px;opacity:.28}}
+.scroll-cue{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:2;display:inline-flex;align-items:center;gap:9px;
+  font-family:"IBM Plex Mono",monospace;font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--hero-sub);
+  text-decoration:none;padding:6px 15px;border-radius:999px;border:1px solid var(--hero-line)}
+.scroll-cue:hover{color:var(--hero-ink);background:rgba(255,255,255,.07)}
+.scroll-cue i{font-style:normal;animation:bob 1.9s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(3px)}}
+@media (prefers-reduced-motion:reduce){.scroll-cue i{animation:none}}
+@media (max-width:1000px){.hero{padding:30px 22px 26px;min-height:0}.hero .eeg{width:110%;right:-20%;top:-30px;opacity:.28}.scroll-cue{display:none}}
 
 /* ============ seções da capa ============ */
-.sec{margin-top:46px;scroll-margin-top:76px}
+.sec{margin-top:40px;scroll-margin-top:76px}
 .sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px 16px;flex-wrap:wrap;margin-bottom:14px}
 .sec-head h2{font-family:"Fraunces",Georgia,serif;font-weight:600;font-variation-settings:"opsz" 144;font-size:1.6rem;letter-spacing:-.015em}
 .sec-head p{color:var(--muted);font-size:.9rem;max-width:60ch}
@@ -489,6 +508,7 @@ body.viewing-detail #detail{display:block}
             <a id="heroNext" href="#tema-1-1"><span>—</span><span class="arr">→</span></a>
           </div>
         </div>
+        <a class="scroll-cue" href="#mapa">Mapa da trilha <i>↓</i></a>
       </section>
 
       <!-- mapa da trilha -->
