@@ -205,29 +205,48 @@ a.sn-extra:hover{color:var(--accent-ink)}
 .mapwrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:14px 16px 8px;overflow-x:auto}
 .map-cap{font-family:"IBM Plex Mono",monospace;font-size:.64rem;letter-spacing:.12em;color:var(--muted);margin:0 0 6px 4px;text-transform:uppercase}
 svg.map{display:block;width:100%;min-width:1000px;height:auto}
-.map .lane-bg{fill:color-mix(in srgb,var(--accent) 4%,transparent);stroke:var(--line);stroke-width:1}
-.map .ia-bg{fill:color-mix(in srgb,var(--accent) 9%,transparent);stroke:var(--accent);stroke-opacity:.45;stroke-dasharray:5 4}
-.map .edge{fill:none;stroke:var(--edge);stroke-width:1.6;stroke-linecap:round}
-.map .arrhead{fill:var(--edge)}
-.map .node{fill:var(--surface);stroke:var(--line);stroke-width:1.4;transition:stroke .15s ease}
-.map .node.ia{fill:color-mix(in srgb,var(--accent-soft) 70%,var(--surface));stroke:var(--accent);stroke-opacity:.6}
-.map .badge{fill:var(--accent-soft);stroke:none}
-.map .badge.ia{fill:var(--accent)}
-.map .nodeg{cursor:pointer}
-.map .nodeg:hover .node{stroke:var(--accent);stroke-width:2.2}
-.map .nodeg:hover .badge{fill:var(--accent)}
-.map .nodeg:hover .n-num{fill:#fff}
-.map .n-num{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;fill:var(--accent-ink);text-anchor:middle;letter-spacing:.02em}
-.map .badge.ia+.n-num{fill:#fff}
-.map .n-t{font-family:"Inter",sans-serif;font-size:12.5px;font-weight:600;fill:var(--ink);text-anchor:start}
-.map .lane{font-family:"IBM Plex Mono",monospace;font-size:9px;fill:var(--muted);letter-spacing:.16em;text-anchor:start}
-.map .lane.ia{fill:var(--accent);font-weight:600}
-/* estado de progresso pintado no mapa */
-.map .nodeg.partial .badge{fill:var(--accent)}
-.map .nodeg.partial .n-num{fill:#fff}
-.map .nodeg.done .node{stroke:var(--green);stroke-width:2}
-.map .nodeg.done .badge{fill:var(--green)}
-.map .nodeg.done .n-num{fill:#fff}
+/* fundo pontilhado e zona da fase 2 */
+.map .pd{fill:var(--line)}
+.map .grid{fill:url(#dots)}
+.map .zone{fill:color-mix(in srgb,var(--accent) 7%,transparent);stroke:var(--accent);stroke-opacity:.45;stroke-dasharray:6 5;stroke-width:1.2}
+.map .zone-t{font-family:"IBM Plex Mono",monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;fill:var(--accent)}
+/* trilhos: halo na cor do fundo abre "vãos" onde as linhas se cruzam, como num mapa de metrô */
+.map .rail-halo{fill:none;stroke:var(--surface);stroke-width:16;stroke-linecap:round;stroke-linejoin:round}
+.map .rail{fill:none;stroke-width:9;stroke-linecap:round;stroke-linejoin:round}
+.map .rail.la{stroke:var(--lv0)}.map .rail.lb{stroke:var(--lv1)}.map .rail.lc{stroke:var(--lv2)}.map .rail.lia{stroke:var(--accent)}
+.map .rail.draw{stroke-dasharray:1;stroke-dashoffset:1;animation:rail 1.5s cubic-bezier(.4,0,.2,1) forwards}
+.map .rail.lia.draw{animation-delay:.9s}
+@keyframes rail{to{stroke-dashoffset:0}}
+/* nome de cada linha, na cor dela, com contorno na cor do fundo para ler sobre o pontilhado */
+.map .tag{font-family:"IBM Plex Mono",monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-anchor:middle;paint-order:stroke;stroke:var(--surface);stroke-width:6px;stroke-linejoin:round}
+.map .tag.start{fill:var(--muted)}.map .tag.la{fill:var(--lv0)}.map .tag.lb{fill:var(--lv1)}.map .tag.lc{fill:var(--lv2)}
+/* estações */
+.map .st{cursor:pointer}
+.map .st text{stroke:none}
+.map .st .dot{fill:var(--surface);stroke-width:4.5;transition:transform .15s ease,fill .15s ease;transform-box:fill-box;transform-origin:center}
+.map .st.la .dot{stroke:var(--lv0)}.map .st.lb .dot{stroke:var(--lv1)}.map .st.lc .dot{stroke:var(--lv2)}.map .st.lia .dot{stroke:var(--accent)}
+.map .st.start .dot{stroke:var(--ink);stroke-width:5}
+.map .st.hub .dot{stroke-width:5.5}
+.map .st .halo{fill:var(--accent);opacity:0;transition:opacity .15s ease}
+.map .st:hover .halo{opacity:.16}
+.map .st:hover .dot{transform:scale(1.14)}
+.map .st .num{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:700;text-anchor:middle;fill:var(--ink)}
+.map .st.hub .num{font-size:12px}
+.map .st .ok{display:none;font-family:"Inter",sans-serif;font-size:14px;font-weight:700;text-anchor:middle;fill:#fff}
+.map .st .name{font-family:"Inter",sans-serif;font-size:13px;font-weight:600;text-anchor:middle;fill:var(--ink)}
+.map .st.hub .name,.map .st.end .name{font-size:13.5px}
+.map .st .hrs{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.05em;text-anchor:middle;fill:var(--muted)}
+.map .st:hover .name{fill:var(--accent-ink)}
+/* progresso pintado nas estações */
+.map .st.partial .dot{fill:color-mix(in srgb,var(--accent) 22%,var(--surface))}
+.map .st.done .dot{fill:var(--green);stroke:var(--green)}
+.map .st.done .num{display:none}
+.map .st.done .ok{display:block}
+.map .st.done .name{fill:var(--muted)}
+/* "você está aqui": a próxima estação pulsa */
+.map .st .pulse{fill:none;stroke:var(--accent);stroke-width:3;display:none}
+.map .st.here .pulse{display:block}
+@media (prefers-reduced-motion:reduce){.map .rail.draw{animation:none;stroke-dashoffset:0}.map .st.here .pulse{display:none}}
 .legend{display:flex;flex-wrap:wrap;gap:10px 24px;margin-top:14px;font-size:.84rem;color:var(--muted);align-items:center}
 .legend .it{display:inline-flex;align-items:center;gap:8px}
 .tag{font-family:"IBM Plex Mono",monospace;font-size:.6rem;font-weight:600;letter-spacing:.08em;padding:3px 9px;border-radius:999px;text-transform:uppercase;white-space:nowrap}
@@ -503,96 +522,93 @@ body.viewing-detail #detail{display:block}
       <section class="sec" id="mapa">
         <div class="sec-head">
           <h2>Mapa da trilha</h2>
-          <p>Três caminhos pela matemática aplicada convergem na IA. Clique num módulo para ir até ele.</p>
+          <p>Como num mapa de metrô: três linhas saem do Pré-Cálculo e se encontram em Machine Learning. Clique numa estação para ir ao módulo.</p>
         </div>
         <div class="mapwrap">
-          <svg class="map" viewBox="0 0 1200 320" role="img" aria-label="Mapa da trilha: do Pré-Cálculo partem três caminhos — cálculo, álgebra e computação e dados — que convergem em Machine Learning e depois Deep Learning">
+          <svg class="map" viewBox="0 0 1200 400" role="img" aria-label="Mapa da trilha no estilo de um mapa de metrô: do Pré-Cálculo partem três linhas — cálculo, álgebra e computação e dados — que se encontram em Machine Learning e seguem até Deep Learning">
             <defs>
-              <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-                <path d="M0 1.2 L9 5 L0 8.8 z" class="arrhead"/>
-              </marker>
+              <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle class="pd" cx="2" cy="2" r="1.3"/></pattern>
+              <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="6"/></filter>
             </defs>
+            <rect class="grid" x="0" y="0" width="1200" height="400" rx="14"/>
 
-            <!-- faixas de fundo -->
-            <rect class="lane-bg" x="188" y="14" width="563" height="90" rx="14"/>
-            <rect class="lane-bg" x="188" y="116" width="193" height="90" rx="14"/>
-            <rect class="lane-bg" x="188" y="218" width="378" height="90" rx="14"/>
-            <rect class="lane-bg ia-bg" x="800" y="60" width="388" height="202" rx="16"/>
+            <!-- zona da fase 2 -->
+            <rect class="zone" x="928" y="118" width="258" height="164" rx="20"/>
+            <text class="zone-t" x="948" y="140">FASE 2 · “IA”</text>
 
-            <!-- rótulos das faixas -->
-            <text class="lane" x="204" y="31">TRILHA DO CÁLCULO</text>
-            <text class="lane" x="204" y="133">TRILHA DA ÁLGEBRA</text>
-            <text class="lane" x="204" y="235">COMPUTAÇÃO E DADOS</text>
-            <text class="lane ia" x="818" y="86">FASE 2 · “IA”</text>
-            <text class="lane start" x="12" y="130">INÍCIO</text>
+            <!-- trilhos: primeiro o halo claro, depois a cor de cada linha -->
+            <g class="halos">
+              <path class="rail-halo" d="M110 200 C200 200 200 95 290 95 H830 C910 95 910 200 990 200"/>
+              <path class="rail-halo" d="M110 200 H990"/>
+              <path class="rail-halo" d="M110 200 C200 200 200 305 290 305 H700 C800 305 880 200 990 200"/>
+              <path class="rail-halo" d="M990 200 H1140"/>
+            </g>
+            <path class="rail lc draw" pathLength="1" d="M110 200 C200 200 200 305 290 305 H700 C800 305 880 200 990 200"/>
+            <path class="rail lb draw" pathLength="1" d="M110 200 H990"/>
+            <path class="rail la draw" pathLength="1" d="M110 200 C200 200 200 95 290 95 H830 C910 95 910 200 990 200"/>
+            <path class="rail lia draw" pathLength="1" d="M990 200 H1140"/>
 
-            <!-- conexões -->
-            <path class="edge" d="M173 183 C 188 183, 190 64, 202 64" marker-end="url(#arr)"/>
-            <path class="edge" d="M173 183 C 188 183, 190 166, 202 166" marker-end="url(#arr)"/>
-            <path class="edge" d="M173 183 C 188 183, 190 268, 202 268" marker-end="url(#arr)"/>
-            <path class="edge" d="M373 64 H 387" marker-end="url(#arr)"/>
-            <path class="edge" d="M558 64 H 572" marker-end="url(#arr)"/>
-            <path class="edge" d="M743 64 C 790 64, 760 148, 816 148" marker-end="url(#arr)"/>
-            <path class="edge" d="M373 166 C 600 166, 700 166, 816 166" marker-end="url(#arr)"/>
-            <path class="edge" d="M373 268 H 387" marker-end="url(#arr)"/>
-            <path class="edge" d="M558 268 C 700 268, 740 184, 816 184" marker-end="url(#arr)"/>
-            <path class="edge" d="M987 166 H 1001" marker-end="url(#arr)"/>
+            <!-- nomes das linhas, como placas de metrô -->
+            <text class="tag start" x="110" y="160">INÍCIO</text>
+            <text class="tag la" x="915" y="72">TRILHA DO CÁLCULO</text>
+            <text class="tag lb" x="775" y="186">TRILHA DA ÁLGEBRA</text>
+            <text class="tag lc" x="700" y="290">COMPUTAÇÃO E DADOS</text>
 
-            <!-- módulos -->
-            <a href="#modulo-1" class="nodeg" id="map-mod-1">
-              <rect class="node" x="8" y="139" width="165" height="44" rx="11"/>
-              <circle class="badge" cx="31" cy="161" r="13"/>
-              <text class="n-num" x="31" y="164">01</text>
-              <text class="n-t" x="53" y="166">Pré-Cálculo</text>
-            </a>
-            <a href="#modulo-2" class="nodeg" id="map-mod-2">
-              <rect class="node" x="208" y="42" width="165" height="44" rx="11"/>
-              <circle class="badge" cx="231" cy="64" r="13"/>
-              <text class="n-num" x="231" y="68">02</text>
-              <text class="n-t" x="253" y="68">Cálculo Real</text>
-            </a>
-            <a href="#modulo-3" class="nodeg" id="map-mod-3">
-              <rect class="node" x="393" y="42" width="165" height="44" rx="11"/>
-              <circle class="badge" cx="416" cy="64" r="13"/>
-              <text class="n-num" x="416" y="68">03</text>
-              <text class="n-t" x="438" y="68">Multivariável</text>
-            </a>
-            <a href="#modulo-4" class="nodeg" id="map-mod-4">
-              <rect class="node" x="578" y="42" width="165" height="44" rx="11"/>
-              <circle class="badge" cx="601" cy="64" r="13"/>
-              <text class="n-num" x="601" y="68">04</text>
-              <text class="n-t" x="623" y="68">Otimização</text>
-            </a>
-            <a href="#modulo-5" class="nodeg" id="map-mod-5">
-              <rect class="node" x="208" y="144" width="165" height="44" rx="11"/>
-              <circle class="badge" cx="231" cy="166" r="13"/>
-              <text class="n-num" x="231" y="170">05</text>
-              <text class="n-t" x="253" y="170">Álgebra Linear</text>
-            </a>
-            <a href="#modulo-6" class="nodeg" id="map-mod-6">
-              <rect class="node" x="208" y="246" width="165" height="44" rx="11"/>
-              <circle class="badge" cx="231" cy="268" r="13"/>
-              <text class="n-num" x="231" y="272">06</text>
-              <text class="n-t" x="253" y="272">Programação</text>
-            </a>
-            <a href="#modulo-7" class="nodeg" id="map-mod-7">
-              <rect class="node" x="393" y="246" width="165" height="44" rx="11"/>
-              <circle class="badge" cx="416" cy="268" r="13"/>
-              <text class="n-num" x="416" y="272">07</text>
-              <text class="n-t" x="438" y="272">Estatística</text>
-            </a>
-            <a href="#modulo-8" class="nodeg" id="map-mod-8">
-              <rect class="node ia" x="822" y="144" width="165" height="44" rx="11"/>
-              <circle class="badge ia" cx="845" cy="166" r="13"/>
-              <text class="n-num" x="845" y="170">08</text>
-              <text class="n-t" x="867" y="170">Machine Learning</text>
-            </a>
-            <a href="#modulo-9" class="nodeg" id="map-mod-9">
-              <rect class="node ia" x="1007" y="144" width="165" height="44" rx="11"/>
-              <circle class="badge ia" cx="1030" cy="166" r="13"/>
-              <text class="n-num" x="1030" y="170">09</text>
-              <text class="n-t" x="1052" y="170">Deep Learning</text>
-            </a>
+            <!-- estações: cada uma é um módulo clicável -->
+            <a href="#modulo-1" class="st hub start" id="map-mod-1"><g transform="translate(110 200)">
+              <circle class="pulse" r="18"><animate attributeName="r" values="18;36" dur="1.8s" repeatCount="indefinite"/><animate attributeName="opacity" values=".7;0" dur="1.8s" repeatCount="indefinite"/></circle>
+              <circle class="halo" r="27"/><circle class="dot" r="18"/>
+              <text class="num" y="4">01</text><text class="ok" y="5">✓</text>
+              <text class="name" y="40">Pré-Cálculo</text><text class="hrs" y="54">~20 h</text>
+            </g></a>
+            <a href="#modulo-2" class="st la" id="map-mod-2"><g transform="translate(330 95)">
+              <circle class="pulse" r="15"><animate attributeName="r" values="15;32" dur="1.8s" repeatCount="indefinite"/><animate attributeName="opacity" values=".7;0" dur="1.8s" repeatCount="indefinite"/></circle>
+              <circle class="halo" r="24"/><circle class="dot" r="15"/>
+              <text class="num" y="4">02</text><text class="ok" y="5">✓</text>
+              <text class="name" y="-32">Cálculo Real</text><text class="hrs" y="-19">~40 h</text>
+            </g></a>
+            <a href="#modulo-3" class="st la" id="map-mod-3"><g transform="translate(560 95)">
+              <circle class="pulse" r="15"><animate attributeName="r" values="15;32" dur="1.8s" repeatCount="indefinite"/><animate attributeName="opacity" values=".7;0" dur="1.8s" repeatCount="indefinite"/></circle>
+              <circle class="halo" r="24"/><circle class="dot" r="15"/>
+              <text class="num" y="4">03</text><text class="ok" y="5">✓</text>
+              <text class="name" y="-32">Cálculo Multivariável</text><text class="hrs" y="-19">~25 h</text>
+            </g></a>
+            <a href="#modulo-4" class="st la" id="map-mod-4"><g transform="translate(790 95)">
+              <circle class="pulse" r="15"><animate attributeName="r" values="15;32" dur="1.8s" repeatCount="indefinite"/><animate attributeName="opacity" values=".7;0" dur="1.8s" repeatCount="indefinite"/></circle>
+              <circle class="halo" r="24"/><circle class="dot" r="15"/>
+              <text class="num" y="4">04</text><text class="ok" y="5">✓</text>
+              <text class="name" y="-32">Otimização</text><text class="hrs" y="-19">~15 h</text>
+            </g></a>
+            <a href="#modulo-5" class="st lb" id="map-mod-5"><g transform="translate(560 200)">
+              <circle class="pulse" r="15"><animate attributeName="r" values="15;32" dur="1.8s" repeatCount="indefinite"/><animate attributeName="opacity" values=".7;0" dur="1.8s" repeatCount="indefinite"/></circle>
+              <circle class="halo" r="24"/><circle class="dot" r="15"/>
+              <text class="num" y="4">05</text><text class="ok" y="5">✓</text>
+              <text class="name" y="37">Álgebra Linear</text><text class="hrs" y="51">~40 h</text>
+            </g></a>
+            <a href="#modulo-6" class="st lc" id="map-mod-6"><g transform="translate(330 305)">
+              <circle class="pulse" r="15"><animate attributeName="r" values="15;32" dur="1.8s" repeatCount="indefinite"/><animate attributeName="opacity" values=".7;0" dur="1.8s" repeatCount="indefinite"/></circle>
+              <circle class="halo" r="24"/><circle class="dot" r="15"/>
+              <text class="num" y="4">06</text><text class="ok" y="5">✓</text>
+              <text class="name" y="37">Programação</text><text class="hrs" y="51">~50 h</text>
+            </g></a>
+            <a href="#modulo-7" class="st lc" id="map-mod-7"><g transform="translate(560 305)">
+              <circle class="pulse" r="15"><animate attributeName="r" values="15;32" dur="1.8s" repeatCount="indefinite"/><animate attributeName="opacity" values=".7;0" dur="1.8s" repeatCount="indefinite"/></circle>
+              <circle class="halo" r="24"/><circle class="dot" r="15"/>
+              <text class="num" y="4">07</text><text class="ok" y="5">✓</text>
+              <text class="name" y="37">Estatística</text><text class="hrs" y="51">~50 h</text>
+            </g></a>
+            <a href="#modulo-8" class="st hub lia" id="map-mod-8"><g transform="translate(990 200)">
+              <circle class="pulse" r="18"><animate attributeName="r" values="18;36" dur="1.8s" repeatCount="indefinite"/><animate attributeName="opacity" values=".7;0" dur="1.8s" repeatCount="indefinite"/></circle>
+              <circle class="halo" r="27"/><circle class="dot" r="18"/>
+              <text class="num" y="4">08</text><text class="ok" y="5">✓</text>
+              <text class="name" y="40">Machine Learning</text><text class="hrs" y="54">~60 h</text>
+            </g></a>
+            <a href="#modulo-9" class="st end lia" id="map-mod-9"><g transform="translate(1140 200)">
+              <circle class="pulse" r="16"><animate attributeName="r" values="16;33" dur="1.8s" repeatCount="indefinite"/><animate attributeName="opacity" values=".7;0" dur="1.8s" repeatCount="indefinite"/></circle>
+              <circle class="halo" r="25"/><circle class="dot" r="16"/>
+              <text class="num" y="4">09</text><text class="ok" y="5">✓</text>
+              <text class="name" y="38">Deep Learning</text><text class="hrs" y="52">~80 h+</text>
+            </g></a>
           </svg>
         </div>
         <div class="legend">
@@ -1072,7 +1088,10 @@ function atualizarMarcacoes(){
 
   const nx = proximoTema();
   const cta = $("heroCta"), top = $("btnContinuar"), next = $("heroNext");
+  document.querySelectorAll(".map .st.here").forEach(e=>e.classList.remove("here"));
   if(nx){
+    const estacao = $("map-mod-"+nx.m.id);
+    if(estacao) estacao.classList.add("here");
     const href = "#tema-"+nx.key;
     cta.href = top.href = next.href = href;
     cta.textContent = feitos ? "Continuar de onde parei →" : "Começar pelo primeiro tema →";
