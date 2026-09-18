@@ -59,6 +59,10 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 html,body{overflow-x:clip}
+/* rolagem sem a barra visível: roda do mouse, teclado, toque e arrastar continuam
+   funcionando; só o widget da barra some (página, guia lateral e mapa) */
+html,body,aside.sidebar,.mapwrap{scrollbar-width:none;-ms-overflow-style:none}
+html::-webkit-scrollbar,body::-webkit-scrollbar,aside.sidebar::-webkit-scrollbar,.mapwrap::-webkit-scrollbar{display:none;width:0;height:0}
 body{background:var(--bg);color:var(--ink);font-family:"Inter",system-ui,sans-serif;font-size:15.5px;line-height:1.6;-webkit-font-smoothing:antialiased}
 a{color:inherit}
 button{font:inherit;cursor:pointer;color:inherit}
