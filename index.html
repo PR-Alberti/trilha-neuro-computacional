@@ -93,7 +93,7 @@ body.nav-recolhida #navBtn{background:var(--accent-soft);border-color:var(--acce
 
 /* ============ layout: sidebar + conteúdo ============ */
 .layout{display:grid;grid-template-columns:260px minmax(0,1fr);transition:grid-template-columns .2s ease}
-.content{width:100%;max-width:1320px;margin:0 auto;padding:0 40px;min-width:0}
+.content{width:100%;max-width:1180px;margin:0 auto;padding:0 40px;min-width:0}
 body.nav-recolhida .layout{grid-template-columns:0 minmax(0,1fr)}
 body.nav-recolhida aside.sidebar{opacity:0;visibility:hidden;padding-left:0;padding-right:0;border-right:none}
 aside.sidebar{position:sticky;top:61px;align-self:start;max-height:calc(100vh - 61px);overflow-y:auto;overflow-x:hidden;padding:22px 12px 30px 18px;border-right:1px solid var(--line);transition:opacity .15s ease}
@@ -130,12 +130,13 @@ a.sn-extra:hover{color:var(--accent-ink)}
 @media (max-width:1000px){.layout{grid-template-columns:minmax(0,1fr)}aside.sidebar{display:none}.content{padding:0 16px}#navBtn{display:none}}
 
 /* ============ capa do curso (hero) ============ */
-/* a capa ocupa a primeira tela: altura da janela menos o header e uma folga,
-   para que o que vem depois comece logo abaixo da dobra */
+/* a capa ocupa a primeira tela inteira: altura da janela menos o header (61px),
+   a margem de cima (20px) e uma margem igual embaixo — nada do que vem depois
+   aparece antes de rolar, em qualquer largura de janela */
 .hero{margin-top:20px;position:relative;overflow:hidden;border-radius:24px;padding:42px 44px 36px;color:var(--hero-ink);border:1px solid var(--hero-line);
   background:radial-gradient(900px 420px at 88% -10%,var(--hero-bg-2),transparent 62%),var(--hero-bg);
   display:grid;gap:30px;box-shadow:var(--shadow);
-  min-height:calc(100vh - 112px);min-height:calc(100svh - 112px);align-content:center}
+  min-height:calc(100vh - 101px);min-height:calc(100svh - 101px);align-content:center}
 @media (min-width:1000px){.hero{grid-template-columns:minmax(0,1.5fr) minmax(280px,.9fr);align-items:center;padding-bottom:60px}}
 /* telas baixas (notebooks 768px): a capa encolhe em vez de estourar a dobra */
 @media (min-width:1000px) and (max-height:820px){
@@ -195,7 +196,7 @@ a.sn-extra:hover{color:var(--accent-ink)}
 .scroll-cue i{font-style:normal;animation:bob 1.9s ease-in-out infinite}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(3px)}}
 @media (prefers-reduced-motion:reduce){.scroll-cue i{animation:none}}
-@media (max-width:1000px){.hero{padding:30px 22px 26px;min-height:0}.hero .eeg{width:110%;right:-20%;top:-30px;opacity:.28}.scroll-cue{display:none}}
+@media (max-width:1000px){.hero{padding:30px 22px 26px}.hero .eeg{width:110%;right:-20%;top:-30px;opacity:.28}.scroll-cue{display:none}}
 
 /* ============ seções da capa ============ */
 .sec{margin-top:40px;scroll-margin-top:76px}
