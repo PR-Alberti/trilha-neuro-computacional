@@ -17,6 +17,13 @@
 const SUPABASE_URL = "https://aqhrxxjuvdwghctamtfl.supabase.co";
 const SUPABASE_CHAVE = "sb_publishable_oKs7aMt62GnAqhINZk1EKQ_KAn2htuJ";
 
+// Quando o link do e-mail não vale mais (expirou, ou já foi usado), o Supabase
+// devolve a pessoa para cá com o erro na URL. Guardamos o motivo e limpamos a
+// URL, para o erro não ficar no endereço nem confundir a navegação por hash.
+const erroDoLink = new URLSearchParams(location.hash.slice(1)).get("error_code")
+  || new URLSearchParams(location.search).get("error_code");
+if(erroDoLink) history.replaceState(null, "", location.pathname);
+
 // se a biblioteca não carregar (sem internet, CDN fora do ar), a página
 // continua funcionando só com o localStorage
 const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_CHAVE) : null;
@@ -40,6 +47,12 @@ function gravarLocal(chave, valor){
 function iniciarConta(){
   renderAuth();
   if(!sb) return;
+  if(erroDoLink){
+    abrirAuth();
+    avisoAuth(erroDoLink === "otp_expired"
+      ? "Esse link expirou ou já foi usado. Peça um novo abaixo."
+      : "Não foi possível entrar com esse link. Peça um novo abaixo.", true);
+  }
   sb.auth.onAuthStateChange((_evento, sessao)=>{
     const antes = usuarioId;
     usuario = sessao ? sessao.user.email : null;
