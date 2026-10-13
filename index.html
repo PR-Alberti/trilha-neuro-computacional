@@ -451,6 +451,9 @@ dialog#authDlg::backdrop{background:rgba(8,10,16,.5)}
 .auth-err{color:var(--lv2-ink);font-size:.8rem;min-height:1.1em}
 .auth-alt{font-size:.78rem;color:var(--muted)}
 .linkbtn{background:none;border:none;padding:0;color:var(--accent-ink);font-weight:600;text-decoration:underline;font-size:inherit}
+.auth-google{display:grid;gap:12px}
+.auth-google .btn{justify-content:center;padding:9px 15px}
+.authform [hidden]{display:none}
 
 body.viewing-detail #hub{display:none}
 body.viewing-detail #detail{display:block}
@@ -666,11 +669,16 @@ body.viewing-detail #detail{display:block}
   <div class="wrap-wide">Do neurônio ao modelo — trilha para estudantes de base biológica rumo à neurociência computacional. Sua vantagem comparativa é o conhecimento biológico; o gargalo está em matemática, programação e estatística, e é nele que este guia investe.</div>
 </footer>
 
-<!-- diálogo de login por link mágico (ver conta.js) -->
+<!-- diálogo de login: Google ou link mágico por e-mail (ver conta.js) -->
 <dialog id="authDlg">
   <form class="authform" id="authForm">
     <h3>Salvar meu progresso</h3>
     <p class="auth-alt">Digite seu e-mail e enviaremos um link de acesso — não precisa de senha. Suas marcações ficam salvas na sua conta e aparecem em qualquer dispositivo.</p>
+    <!-- só aparece se o login com Google estiver ligado no Supabase -->
+    <div class="auth-google" id="authGoogle" hidden>
+      <button type="button" class="btn" onclick="entrarComGoogle()">Entrar com Google</button>
+      <p class="auth-alt">ou receba um link de acesso por e-mail:</p>
+    </div>
     <label>E-mail<input id="authEmail" type="email" required autocomplete="email"></label>
     <p class="auth-err" id="authErr"></p>
     <button type="submit" class="btn-primary" id="authSubmit">Enviar link</button>

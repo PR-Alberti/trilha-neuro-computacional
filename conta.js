@@ -4,8 +4,10 @@
    - sem conta: progresso só no localStorage deste navegador
    - com conta: progresso guardado na tabela `progresso` do Supabase
 
-   Login por link mágico: a pessoa digita o e-mail, recebe um link e, ao
-   clicar, volta para a página já identificada. Não existe senha.
+   Dois jeitos de entrar, nenhum com senha guardada por nós:
+   - link mágico: a pessoa digita o e-mail, recebe um link e, ao clicar,
+     volta para a página já identificada
+   - conta Google: aparece só se o provedor estiver ligado no Supabase
 
    A chave abaixo é a "publishable": foi feita para ficar no navegador.
    Quem protege os dados é o Row Level Security do banco (supabase/esquema.sql),
@@ -27,6 +29,8 @@ if(erroDoLink) history.replaceState(null, "", location.pathname);
 // se a biblioteca não carregar (sem internet, CDN fora do ar), a página
 // continua funcionando só com o localStorage
 const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_CHAVE) : null;
+// para onde o link do e-mail e o Google trazem a pessoa de volta: esta página
+const VOLTA = location.origin + location.pathname;
 let usuario = null;      // e-mail identificado, ou null
 let usuarioId = null;    // id dessa pessoa no Supabase
 
@@ -53,6 +57,7 @@ function iniciarConta(){
       ? "Esse link expirou ou já foi usado. Peça um novo abaixo."
       : "Não foi possível entrar com esse link. Peça um novo abaixo.", true);
   }
+  mostrarGoogleSeAtivo();
   sb.auth.onAuthStateChange((_evento, sessao)=>{
     const antes = usuarioId;
     usuario = sessao ? sessao.user.email : null;
@@ -145,10 +150,9 @@ document.getElementById("authForm").addEventListener("submit", async ev=>{
   const botao = document.getElementById("authSubmit");
   botao.disabled = true;
   avisoAuth("Enviando…", false);
-  // o link do e-mail traz a pessoa de volta para esta mesma página
   const {error} = await sb.auth.signInWithOtp({
     email,
-    options:{emailRedirectTo: location.origin + location.pathname},
+    options:{emailRedirectTo: VOLTA},
   });
   botao.disabled = false;
   if(error){
@@ -160,6 +164,26 @@ document.getElementById("authForm").addEventListener("submit", async ev=>{
   }
   avisoAuth(`Enviamos um link para ${email}. Abra o e-mail e clique nele para entrar (confira também o spam).`, false);
 });
+
+/* Pergunta ao Supabase quais formas de login estão ligadas no painel
+   (Authentication → Sign In / Providers) e só então mostra o botão do Google.
+   Assim o botão nunca aparece sem funcionar. */
+async function mostrarGoogleSeAtivo(){
+  try {
+    const r = await fetch(SUPABASE_URL + "/auth/v1/settings", {headers:{apikey: SUPABASE_CHAVE}});
+    const cfg = await r.json();
+    document.getElementById("authGoogle").hidden = !(cfg.external && cfg.external.google);
+  } catch(e){}
+}
+
+async function entrarComGoogle(){
+  // leva a pessoa à tela do Google; na volta, o supabase-js completa o login
+  const {error} = await sb.auth.signInWithOAuth({provider:"google", options:{redirectTo: VOLTA}});
+  if(error){
+    avisoAuth("Não foi possível abrir o login do Google. Tente de novo.", true);
+    console.error(error);
+  }
+}
 
 async function sair(){
   await enviarPendentes().catch(console.error);
