@@ -131,7 +131,7 @@ function renderAuth(){
   const el = document.getElementById("authArea");
   if(!sb){ el.innerHTML = ""; return; }
   el.innerHTML = usuario
-    ? `<span class="auth-mail" title="${esc(usuario)}">${esc(usuario)}</span><button class="btn" onclick="sair()">Sair</button>`
+    ? `<button class="linkbtn auth-mail" title="Minha conta: ${esc(usuario)}" onclick="abrirConta()">${esc(usuario)}</button><button class="btn" onclick="sair()">Sair</button>`
     : `<button class="btn" onclick="abrirAuth()">Salvar progresso</button>`;
 }
 
@@ -141,7 +141,19 @@ function avisoAuth(texto, erro){
   el.style.color = erro ? "" : "inherit";
 }
 
-function abrirAuth(){ avisoAuth("", true); document.getElementById("authDlg").showModal(); }
+/* O mesmo diálogo tem duas caras: o formulário de entrar e "Minha conta". */
+function abrirDialogo(conta){
+  document.getElementById("authForm").hidden = conta;
+  document.getElementById("contaBox").hidden = !conta;
+  const dlg = document.getElementById("authDlg");
+  if(!dlg.open) dlg.showModal();
+}
+function abrirAuth(){ avisoAuth("", true); abrirDialogo(false); }
+function abrirConta(){
+  document.getElementById("contaEmail").textContent = usuario;
+  document.getElementById("contaErr").textContent = "";
+  abrirDialogo(true);
+}
 function fecharAuth(){ document.getElementById("authDlg").close(); }
 
 document.getElementById("authForm").addEventListener("submit", async ev=>{
@@ -190,6 +202,24 @@ async function sair(){
   // scope "local": sai só deste navegador, sem derrubar os outros aparelhos
   await sb.auth.signOut({scope:"local"}).catch(console.error);
   esquecerProgressoLocal();
+}
+
+/* Apaga a conta de vez: a função do banco (supabase/esquema.sql) remove o
+   usuário, e as linhas de progresso dele vão junto (on delete cascade). */
+async function apagarConta(){
+  if(!confirm("Apagar a sua conta e todo o progresso salvo nela? Isso não pode ser desfeito.")) return;
+  const botao = document.getElementById("contaApagar");
+  botao.disabled = true;
+  const {error} = await sb.rpc("apagar_minha_conta");
+  botao.disabled = false;
+  if(error){
+    document.getElementById("contaErr").textContent = "Não foi possível apagar a conta agora. Tente de novo mais tarde.";
+    console.error(error);
+    return;
+  }
+  await sb.auth.signOut({scope:"local"}).catch(console.error);
+  esquecerProgressoLocal();
+  fecharAuth();
 }
 
 /* Ao sair, o progresso some deste navegador (ele continua guardado na conta).

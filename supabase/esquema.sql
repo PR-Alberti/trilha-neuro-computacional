@@ -34,6 +34,23 @@ create policy "desmarcar o proprio progresso" on public.progresso
   for delete to authenticated
   using ((select auth.uid()) = user_id);
 
+-- Apagar a própria conta (botão "Apagar minha conta" da página).
+-- A tabela de usuários (auth.users) não é acessível pela página, então isto
+-- é uma função que roda com o poder de quem a criou ("security definer").
+-- Ela é segura porque não recebe nenhum parâmetro: só consegue apagar o
+-- usuário que a chamou. O progresso dele vai junto (on delete cascade).
+create or replace function public.apagar_minha_conta()
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  delete from auth.users where id = (select auth.uid());
+$$;
+
+revoke all on function public.apagar_minha_conta() from public, anon;
+grant execute on function public.apagar_minha_conta() to authenticated;
+
 -- Permissões da API: só quem está logado ("authenticated") e só o
 -- necessário. Visitante sem login ("anon") não recebe nada.
 revoke all on public.progresso from anon, authenticated;

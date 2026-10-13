@@ -441,7 +441,7 @@ footer.site-foot{border-top:1px solid var(--line);margin-top:50px;padding:30px 0
 /* ============ conta (login) ============ */
 .auth-area{display:flex;align-items:center;gap:8px}
 .auth-mail{font-family:"IBM Plex Mono",monospace;font-size:.7rem;color:var(--muted);max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-dialog#authDlg{border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--ink);padding:26px;width:min(92vw,380px);box-shadow:var(--shadow)}
+dialog#authDlg{margin:auto;border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--ink);padding:26px;width:min(92vw,380px);box-shadow:var(--shadow)}
 dialog#authDlg::backdrop{background:rgba(8,10,16,.5)}
 .authform{display:grid;gap:12px}
 .authform h3{font-family:"Fraunces",Georgia,serif;font-weight:600;font-size:1.3rem;letter-spacing:-.015em}
@@ -452,8 +452,10 @@ dialog#authDlg::backdrop{background:rgba(8,10,16,.5)}
 .auth-alt{font-size:.78rem;color:var(--muted)}
 .linkbtn{background:none;border:none;padding:0;color:var(--accent-ink);font-weight:600;text-decoration:underline;font-size:inherit}
 .auth-google{display:grid;gap:12px}
-.auth-google .btn{justify-content:center;padding:9px 15px}
-.authform [hidden]{display:none}
+.auth-google .btn{padding:9px 15px}
+.authform .btn,.authform .btn-primary{justify-content:center}
+.linkbtn.auth-mail{font-size:.7rem;font-weight:500;color:var(--muted)}
+.authform[hidden],.authform [hidden]{display:none}
 
 body.viewing-detail #hub{display:none}
 body.viewing-detail #detail{display:block}
@@ -682,8 +684,18 @@ body.viewing-detail #detail{display:block}
     <label>E-mail<input id="authEmail" type="email" required autocomplete="email"></label>
     <p class="auth-err" id="authErr"></p>
     <button type="submit" class="btn-primary" id="authSubmit">Enviar link</button>
+    <p class="auth-alt">Guardamos só o seu e-mail e os temas que você marcou. Você pode apagar tudo quando quiser.</p>
     <p class="auth-alt"><button type="button" class="linkbtn" onclick="fecharAuth()">Cancelar</button></p>
   </form>
+  <!-- quem já entrou vê isto no lugar do formulário (clicando no próprio e-mail) -->
+  <div class="authform" id="contaBox" hidden>
+    <h3>Minha conta</h3>
+    <p class="auth-alt">Você entrou como <strong id="contaEmail"></strong>.</p>
+    <p class="auth-alt">Guardamos apenas o seu e-mail e a lista de temas que você marcou como estudados. Esses dados servem só para o seu progresso te acompanhar entre aparelhos e não são compartilhados com ninguém.</p>
+    <p class="auth-err" id="contaErr"></p>
+    <button type="button" class="btn-primary" onclick="fecharAuth()">Fechar</button>
+    <p class="auth-alt"><button type="button" class="linkbtn" id="contaApagar" onclick="apagarConta()">Apagar minha conta e meu progresso</button></p>
+  </div>
 </dialog>
 
 <!-- conta e sincronização de progresso (Supabase) — ver conta.js -->
