@@ -666,18 +666,21 @@ body.viewing-detail #detail{display:block}
   <div class="wrap-wide">Do neurônio ao modelo — trilha para estudantes de base biológica rumo à neurociência computacional. Sua vantagem comparativa é o conhecimento biológico; o gargalo está em matemática, programação e estatística, e é nele que este guia investe.</div>
 </footer>
 
-<!-- diálogo de identificação (só aparece quando o backend está rodando) -->
+<!-- diálogo de login por link mágico (ver conta.js) -->
 <dialog id="authDlg">
   <form class="authform" id="authForm">
     <h3>Salvar meu progresso</h3>
-    <p class="auth-alt">Só o e-mail — não há senha. Serve para o progresso te acompanhar entre navegadores; qualquer pessoa que digite este e-mail vê o mesmo progresso, então não guarde nada sensível aqui.</p>
+    <p class="auth-alt">Digite seu e-mail e enviaremos um link de acesso — não precisa de senha. Suas marcações ficam salvas na sua conta e aparecem em qualquer dispositivo.</p>
     <label>E-mail<input id="authEmail" type="email" required autocomplete="email"></label>
     <p class="auth-err" id="authErr"></p>
-    <button type="submit" class="btn-primary" id="authSubmit">Continuar</button>
+    <button type="submit" class="btn-primary" id="authSubmit">Enviar link</button>
     <p class="auth-alt"><button type="button" class="linkbtn" onclick="fecharAuth()">Cancelar</button></p>
   </form>
 </dialog>
 
+<!-- conta e sincronização de progresso (Supabase) — ver conta.js -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js"></script>
+<script src="conta.js"></script>
 <script>
 /* ============================================================
    Dados do guia (fonte: Guia.pdf)
@@ -1105,11 +1108,6 @@ function atualizarMarcacoes(){
   }
 }
 
-function enviarMarcacao(key, marcado){
-  if(!usuario) return;  // deslogado: fica só no localStorage
-  api("progresso/"+key, {method: marcado ? "PUT" : "DELETE"}).catch(console.error);
-}
-
 function toggleDone(key){
   const marcado = !done.has(key);
   marcado ? done.add(key) : done.delete(key);
@@ -1128,70 +1126,6 @@ function marcarModulo(id, marcar){
     }
   });
   saveProg(); atualizarMarcacoes();
-}
-
-/* ============ conta e sincronização com o backend ============
-   A página funciona em dois modos:
-   - estático (GitHub Pages, file://): progresso só no localStorage
-   - com o servidor (pasta servidor/): progresso guardado por e-mail
-
-   PILOTO: identificação só por e-mail, sem senha. É deliberado — o dado
-   guardado é apenas "quais temas você marcou". Não vale para nada além
-   disso enquanto não houver autenticação de verdade.                   */
-let usuario = null;      // e-mail identificado, ou null
-let temBackend = false;  // detectado em iniciarConta()
-
-async function api(caminho, opcoes = {}){
-  const r = await fetch("/api/"+caminho, {headers:{"Content-Type":"application/json"}, ...opcoes});
-  if(!r.ok){
-    const corpo = await r.json().catch(()=>({}));
-    throw Object.assign(new Error(corpo.detail || "Erro de comunicação."), {status:r.status});
-  }
-  return r.status === 204 ? null : r.json();
-}
-
-async function iniciarConta(){
-  try { usuario = (await api("eu")).email; temBackend = true; }
-  catch(e){ usuario = null; temBackend = e.status === 401; }
-  if(usuario) await sincronizar().catch(console.error);
-  renderAuth();
-}
-
-async function sincronizar(){
-  // união: o que estava neste navegador + o que já estava na conta
-  const resp = await api("progresso/sincronizar",
-                         {method:"POST", body:JSON.stringify({temas:[...done]})});
-  done = new Set(resp.temas);
-  saveProg(); atualizarMarcacoes();
-}
-
-function renderAuth(){
-  const el = $("authArea");
-  if(!temBackend){ el.innerHTML = ""; return; }
-  el.innerHTML = usuario
-    ? `<span class="auth-mail" title="${esc(usuario)}">${esc(usuario)}</span><button class="btn" onclick="sair()">Sair</button>`
-    : `<button class="btn" onclick="abrirAuth()">Salvar progresso</button>`;
-}
-
-function abrirAuth(){ $("authErr").textContent = ""; $("authDlg").showModal(); }
-function fecharAuth(){ $("authDlg").close(); }
-
-$("authForm").addEventListener("submit", async ev=>{
-  ev.preventDefault();
-  const email = $("authEmail").value;
-  try{
-    const resp = await api("entrar", {method:"POST", body:JSON.stringify({email})});
-    usuario = resp.email;
-    fecharAuth(); renderAuth();
-    await sincronizar();
-  }catch(e){
-    $("authErr").textContent = e.message;
-  }
-});
-
-async function sair(){
-  try { await api("sair", {method:"POST"}); } catch(e){}
-  usuario = null; renderAuth(); // o progresso local continua no navegador
 }
 
 /* ============ visão isolada de um tema ============ */
