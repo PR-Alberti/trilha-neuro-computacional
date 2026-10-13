@@ -21,40 +21,92 @@ const SUPABASE_CHAVE = "sb_publishable_oKs7aMt62GnAqhINZk1EKQ_KAn2htuJ";
 // continua funcionando só com o localStorage
 const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_CHAVE) : null;
 let usuario = null;      // e-mail identificado, ou null
+let usuarioId = null;    // id dessa pessoa no Supabase
+
+// id da conta à qual o progresso deste navegador já foi unido
+const CONTA_KEY = "guia-neuro-conta";
+// marcações que ainda não chegaram ao banco: {"3-2": true, "1-4": false}
+const PEND_KEY = "guia-neuro-pendentes";
+
+function lerLocal(chave, padrao){
+  try { return JSON.parse(localStorage.getItem(chave)) ?? padrao; } catch(e){ return padrao; }
+}
+function gravarLocal(chave, valor){
+  try {
+    valor === null ? localStorage.removeItem(chave) : localStorage.setItem(chave, JSON.stringify(valor));
+  } catch(e){}
+}
 
 function iniciarConta(){
   renderAuth();
   if(!sb) return;
   sb.auth.onAuthStateChange((_evento, sessao)=>{
-    const antes = usuario;
+    const antes = usuarioId;
     usuario = sessao ? sessao.user.email : null;
+    usuarioId = sessao ? sessao.user.id : null;
     renderAuth();
     // o setTimeout tira a chamada de dentro do callback: o supabase-js
     // trava se a gente consultar o banco enquanto ele avisa da sessão
-    if(usuario && usuario !== antes) setTimeout(()=> sincronizar().catch(console.error), 0);
+    if(usuarioId && usuarioId !== antes) setTimeout(()=> sincronizar().catch(console.error), 0);
   });
 }
 
-/* União do progresso local com o da conta — ninguém perde nada. */
+/* Depois do login, a conta é a fonte da verdade: o que vale é o que está
+   no banco. A exceção é a primeira vez de uma conta neste navegador — aí o
+   que já estava marcado aqui é unido à conta, para ninguém perder nada. */
 async function sincronizar(){
-  const locais = [...done].map(tema => ({tema}));
-  if(locais.length){
-    const {error} = await sb.from("progresso").upsert(locais, {onConflict:"user_id,tema", ignoreDuplicates:true});
-    if(error) throw error;
+  if(lerLocal(CONTA_KEY, null) !== usuarioId){
+    const locais = [...done].map(tema => ({tema}));
+    if(locais.length){
+      const {error} = await sb.from("progresso").upsert(locais, {onConflict:"user_id,tema", ignoreDuplicates:true});
+      if(error) throw error;
+    }
+    gravarLocal(CONTA_KEY, usuarioId);
   }
+  await enviarPendentes();
   const {data, error} = await sb.from("progresso").select("tema");
   if(error) throw error;
   done = new Set(data.map(linha => linha.tema));
+  // o que ainda não conseguiu subir continua valendo na tela
+  for(const [tema, marcado] of Object.entries(lerLocal(PEND_KEY, {}))){
+    marcado ? done.add(tema) : done.delete(tema);
+  }
   saveProg();
   atualizarMarcacoes();
 }
 
+function pedidoMarcacao(tema, marcado){
+  return marcado
+    ? sb.from("progresso").upsert({tema}, {onConflict:"user_id,tema", ignoreDuplicates:true})
+    : sb.from("progresso").delete().eq("tema", tema);
+}
+
+/* Cada marcação entra na lista de pendentes antes de ir para o banco e só
+   sai de lá quando o banco confirma. Se a internet cair ou a aba fechar no
+   meio do caminho, a próxima sincronização tenta de novo. */
 function enviarMarcacao(key, marcado){
   if(!sb || !usuario) return;
-  const pedido = marcado
-    ? sb.from("progresso").upsert({tema:key}, {onConflict:"user_id,tema", ignoreDuplicates:true})
-    : sb.from("progresso").delete().eq("tema", key);
-  pedido.then(({error})=>{ if(error) console.error(error); });
+  gravarLocal(PEND_KEY, {...lerLocal(PEND_KEY, {}), [key]: marcado});
+  pedidoMarcacao(key, marcado).then(({error})=>{
+    if(error) return console.error(error);
+    confirmarEnvio(key, marcado);
+  });
+}
+
+function confirmarEnvio(tema, marcado){
+  const pend = lerLocal(PEND_KEY, {});
+  // se a pessoa mudou de ideia enquanto o pedido viajava, o novo valor fica
+  if(pend[tema] !== marcado) return;
+  delete pend[tema];
+  gravarLocal(PEND_KEY, Object.keys(pend).length ? pend : null);
+}
+
+async function enviarPendentes(){
+  for(const [tema, marcado] of Object.entries(lerLocal(PEND_KEY, {}))){
+    const {error} = await pedidoMarcacao(tema, marcado);
+    if(error) return console.error(error);
+    confirmarEnvio(tema, marcado);
+  }
 }
 
 function renderAuth(){
@@ -97,6 +149,19 @@ document.getElementById("authForm").addEventListener("submit", async ev=>{
 });
 
 async function sair(){
+  await enviarPendentes().catch(console.error);
   // scope "local": sai só deste navegador, sem derrubar os outros aparelhos
   await sb.auth.signOut({scope:"local"}).catch(console.error);
+  esquecerProgressoLocal();
+}
+
+/* Ao sair, o progresso some deste navegador (ele continua guardado na conta).
+   Sem isso, num computador compartilhado, a próxima pessoa a entrar herdaria
+   as marcações de quem usou antes. */
+function esquecerProgressoLocal(){
+  gravarLocal(CONTA_KEY, null);
+  gravarLocal(PEND_KEY, null);
+  done = new Set();
+  saveProg();
+  atualizarMarcacoes();
 }
