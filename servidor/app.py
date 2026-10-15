@@ -175,6 +175,11 @@ def pagina():
     return FileResponse(RAIZ_SITE / "index.html")
 
 
+@app.get("/conta.js", include_in_schema=False)
+def conta_js():
+    return FileResponse(RAIZ_SITE / "conta.js")
+
+
 @app.get("/Guia.pdf", include_in_schema=False)
 def guia_pdf():
     return FileResponse(RAIZ_SITE / "Guia.pdf")

@@ -8,7 +8,9 @@ Ciências Biológicas rumo à neurociência computacional — do pré-cálculo a
 | Arquivo | O que é |
 |---|---|
 | `index.html` | A página do guia (versão em construção) |
-| `servidor/` | API opcional: identificação por e-mail e progresso sincronizado |
+| `conta.js` | Login e progresso sincronizado, via Supabase |
+| `supabase/esquema.sql` | Tabela e regras de acesso do banco |
+| `servidor/` | Versão anterior do backend (API própria), não usada pela página |
 | `Guia.pdf` | O roteiro de conteúdo original que a página segue |
 | `testes/modulo-NN.pdf` | Teste de cada módulo — PDFs genéricos; substitua pelo teste autêntico mantendo o nome |
 
@@ -35,48 +37,61 @@ conteúdo, edite os arrays — não o HTML.
   (`guia-neuro-progresso`) e refletido nos cartões, módulos e sidebar.
 - **Teste da seção**: cada módulo aponta para `testes/modulo-NN.pdf`.
 
-## Backend
+## Conta e progresso (Supabase)
 
-A pasta `servidor/` traz uma API própria — o caminho de aprendizado de backend:
+Quem quiser pode entrar para o progresso acompanhar a pessoa entre aparelhos.
+A página continua estática (GitHub Pages); o login e o banco ficam no
+[Supabase](https://supabase.com), e todo o código disso está em
+[conta.js](conta.js).
 
-- **FastAPI + SQLite sem ORM**: o SQL aparece de verdade ([servidor/db.py](servidor/db.py)).
-- **Identificação só por e-mail, sem senha** — decisão de piloto. Não existe
-  "criar conta": o primeiro `POST /api/entrar` com um e-mail já cria o registro.
-  A sessão é server-side, em cookie `HttpOnly`/`SameSite=Lax`
-  ([servidor/seguranca.py](servidor/seguranca.py)).
-- **Progresso por usuário** na tabela `progresso`; ao se identificar, o progresso
-  local do navegador é **mesclado** com o da conta (`POST /api/progresso/sincronizar`).
-- O mesmo servidor entrega a página estática — um processo só, sem CORS — e a
-  documentação interativa da API fica em `/api/docs`.
-- O servidor publica **só** `index.html`, `Guia.pdf` e `testes/` (lista explícita
-  no fim de [servidor/app.py](servidor/app.py)). O banco vive em `servidor/dados/`,
-  fora do que é publicado — se você adicionar um arquivo novo à página, lembre de
-  incluí-lo nessa lista.
-- A página continua funcionando **sem** o servidor (modo estático/localStorage):
-  ela detecta o backend em tempo de execução e só então mostra o botão
-  "Salvar progresso".
+- **Entrar sem senha**: link mágico por e-mail, ou conta Google (o botão só
+  aparece se o provedor estiver ligado no painel do Supabase).
+- **Progresso por usuário** na tabela `progresso`
+  ([supabase/esquema.sql](supabase/esquema.sql)). O **Row Level Security** do
+  banco garante que cada pessoa só lê e altera as próprias linhas — por isso a
+  chave "publishable" pode ficar à vista no `conta.js`.
+- **A conta é a fonte da verdade**: na primeira vez de uma conta num navegador,
+  o que já estava marcado ali é unido à conta; depois disso vale o que está no
+  banco. Marcações feitas sem internet ficam pendentes e sobem depois.
+- **Sair** limpa o progresso daquele navegador (ele continua na conta), para
+  computadores compartilhados.
+- **Minha conta** (clicando no e-mail): diz o que é guardado — só o e-mail e os
+  temas marcados — e permite apagar a conta com tudo.
+- Sem login, ou se o Supabase estiver fora do ar, a página funciona como
+  antes, com o progresso só no `localStorage`.
 
-> **Aviso do piloto:** sem senha, quem digitar o e-mail de outra pessoa vê o
-> progresso dela. Isso é aceitável enquanto o dado guardado é só "quais temas
-> foram marcados" e o uso é restrito. Antes de abrir para desconhecidos, troque
-> por autenticação de verdade (link mágico por e-mail é o passo natural).
+> **Nunca vão para o repositório:** a chave `service_role` do Supabase, a senha
+> do banco e qualquer chave de API de IA. Só a chave "publishable" é pública.
 
-### Rodar o servidor
+### Configurar um projeto Supabase do zero
 
-```bash
-cd servidor
-python3 -m venv .venv            # ambiente isolado (uma vez)
-source .venv/bin/activate
-pip install -r requirements.txt  # uma vez
-uvicorn app:app --reload         # http://localhost:8000
-```
+1. Criar o projeto com *Enable automatic RLS* marcado.
+2. *SQL Editor* → colar [supabase/esquema.sql](supabase/esquema.sql) → *Run*
+   (pode rodar de novo a cada mudança no arquivo; ele não apaga dados).
+3. *Authentication → URL Configuration*: **Site URL** com o endereço do site
+   publicado; em **Redirect URLs**, esse mesmo endereço com `**` no fim e
+   `http://localhost:8000/**` para testar localmente.
+4. Pôr a *Project URL* e a chave *publishable* no topo do `conta.js`.
+5. Opcional: *Authentication → Sign In / Providers → Google*, com uma
+   credencial OAuth criada no Google Cloud.
 
-### Pendências antes de expor na internet
+### Limites conhecidos
 
-- Autenticação de verdade no lugar da identificação só por e-mail
-- Servir atrás de HTTPS e marcar o cookie de sessão como `Secure`
-- Limite de requisições por IP (rate limiting)
-- Backup periódico do `servidor/dados/guia.db`
+- O envio de e-mail embutido do Supabase permite poucos links por hora e é
+  pensado para testes. Para uma turma, ligar o login com Google ou configurar
+  um SMTP próprio.
+- No plano gratuito, o projeto Supabase é pausado depois de um tempo sem uso e
+  precisa ser reativado no painel.
+
+## API própria (versão anterior)
+
+A pasta `servidor/` guarda a primeira versão do backend, escrita à mão como
+exercício: FastAPI + SQLite sem ORM, com identificação só por e-mail e sessão
+em cookie. **A página não usa mais essa API** — ela foi trocada pelo Supabase
+porque um servidor próprio precisaria de uma hospedagem com processo e disco
+sempre ligados, o que os planos gratuitos não garantem. O servidor ainda entrega a página localmente
+(`uvicorn app:app --reload` dentro de `servidor/`), mas as rotas `/api/...`
+ficaram sem uso.
 
 ## Como visualizar
 
@@ -94,7 +109,9 @@ python3 -m http.server 8000
 - branches de tema (`pagina-base`, `backend-login`, ...) — desenvolvimento, mescladas
   na `main` via Pull Request no GitHub ou `git merge` quando prontas.
 
-## Publicação futura
+## Publicação
 
-O plano é tornar o repositório público e servir a página pelo **GitHub Pages**
-(Settings → Pages → branch `main`), já que o `index.html` está na raiz.
+O repositório é público e a página é servida pelo **GitHub Pages** a partir da
+branch `main` (o `index.html` está na raiz):
+<https://pr-alberti.github.io/trilha-neuro-computacional/>. Cada `git push` na
+`main` atualiza o site.
