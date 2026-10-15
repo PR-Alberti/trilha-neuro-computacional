@@ -180,6 +180,11 @@ def conta_js():
     return FileResponse(RAIZ_SITE / "conta.js")
 
 
+@app.get("/ia.js", include_in_schema=False)
+def ia_js():
+    return FileResponse(RAIZ_SITE / "ia.js")
+
+
 @app.get("/Guia.pdf", include_in_schema=False)
 def guia_pdf():
     return FileResponse(RAIZ_SITE / "Guia.pdf")

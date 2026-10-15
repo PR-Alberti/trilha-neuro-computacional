@@ -418,6 +418,29 @@ input.chk-mod{width:21px;height:21px}
 .prompt p{font-family:"IBM Plex Mono",monospace;font-size:.8rem;flex:1;min-width:240px;overflow-wrap:anywhere}
 .prompt button{background:var(--accent);color:#fff;border:none;border-radius:999px;padding:8px 16px;font-weight:600;font-size:.8rem}
 .prompt button:hover{filter:brightness(1.1)}
+/* exercícios com IA (ia.js) */
+.ia-form{display:grid;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.ia-form label{display:grid;gap:5px;font-size:.8rem;font-weight:600}
+.ia-qtd select{justify-self:start;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+.ia-ori{position:relative}
+.ia-ori textarea{padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;font-weight:400;font-size:.88rem;resize:vertical;min-height:60px}
+.ia-form select:focus,.ia-ori textarea:focus{border-color:var(--accent);outline:none}
+.ia-cont{justify-self:end;font-family:"IBM Plex Mono",monospace;font-size:.68rem;font-weight:500;color:var(--muted)}
+.ia-acoes{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ia-acoes .btn-primary:disabled{opacity:.6;cursor:wait}
+.ia-saldo{font-size:.78rem;color:var(--muted)}
+.ia-msg{font-size:.84rem;min-height:1.2em}
+.ia-msg.erro{color:var(--lv2-ink)}
+.ia-aviso{font-size:.74rem;color:var(--muted)}
+#iaLista{display:grid;gap:12px;margin-top:14px}
+.ia-ger{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:12px 16px}
+.ia-ger-h{display:flex;justify-content:space-between;gap:12px;font-size:.74rem;color:var(--muted);margin-bottom:6px;overflow-wrap:anywhere}
+.ia-ger-h .linkbtn{font-size:.74rem;flex-shrink:0}
+.ia-exs{display:grid;gap:14px;padding-left:1.3em}
+.ia-exs p{white-space:pre-wrap;overflow-wrap:anywhere}
+.ia-exs details{margin-top:6px;font-size:.9rem}
+.ia-exs summary{cursor:pointer;color:var(--accent-ink);font-weight:600;font-size:.82rem}
+.ia-exs details p{margin-top:6px;padding:8px 12px;border-left:3px solid var(--accent-soft);background:var(--surface-2);border-radius:0 8px 8px 0}
 .mnav{display:grid;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px}
 .mnav a{display:flex;gap:10px;align-items:center;padding:7px 9px;border-radius:8px;font-size:.84rem;text-decoration:none;color:var(--ink)}
 .mnav a:hover{background:var(--accent-soft-2)}
@@ -701,6 +724,8 @@ body.viewing-detail #detail{display:block}
 <!-- conta e sincronização de progresso (Supabase) — ver conta.js -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js"></script>
 <script src="conta.js"></script>
+<!-- exercícios gerados por IA (Gemini, via função do Supabase) — ver ia.js -->
+<script src="ia.js"></script>
 <script>
 /* ============================================================
    Dados do guia (fonte: Guia.pdf)
@@ -1198,6 +1223,9 @@ function renderDetail(modId, themeIdx){
             <button onclick="copyPrompt(this)">Copiar</button>
           </div>
         </div>
+        <div class="section"><h2>Exercícios com IA</h2>
+          <div id="iaBox"></div>
+        </div>
       </div>
       <aside class="d-side">
         <div class="section"><h2>Neste módulo</h2>
@@ -1220,6 +1248,7 @@ function renderDetail(modId, themeIdx){
       ${prev?`<a href="#tema-${m.id}-${themeIdx-1}"><span class="dir">← Tema anterior</span><br><span class="name">${esc(prev.n)}</span></a>`:""}
       ${next?`<a class="next" href="#tema-${m.id}-${themeIdx+1}"><span class="dir">Próximo tema →</span><br><span class="name">${esc(next.n)}</span></a>`:""}
     </nav>`;
+  if(typeof montarIA === "function") montarIA(key);   // painel de exercícios (ia.js)
   return true;
 }
 
