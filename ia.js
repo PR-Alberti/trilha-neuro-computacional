@@ -9,6 +9,9 @@
    e guardar o histórico. Sem login, o painel convida a entrar.
 
    Os textos da IA entram na página sempre escapados (esc), nunca como HTML.
+   As fórmulas vêm em LaTeX ($...$ e $$...$$) e são desenhadas pelo KaTeX.
+   Cada geração pode ser baixada como PDF (pela janela de impressão do
+   navegador) ou como .tex, para editar e compilar no Overleaf.
 
    Este arquivo usa do conta.js: sb, usuario, usuarioId e abrirAuth; e do
    script principal: esc.
@@ -137,7 +140,11 @@ function renderListaIA(){
     <article class="ia-ger">
       <header class="ia-ger-h">
         <span>${esc(new Date(g.criado_em).toLocaleString("pt-BR", {dateStyle:"short", timeStyle:"short"}))}${g.orientacoes ? ` · “${esc(g.orientacoes)}”` : ""}</span>
-        <button class="linkbtn" onclick="apagarGeracaoIA(${Number(g.id)})">apagar</button>
+        <span class="ia-ger-acoes">
+          <button class="linkbtn" onclick="baixarPdfIA(${Number(g.id)})" title="Abre a janela de impressão: escolha &quot;Salvar como PDF&quot;">baixar PDF</button>
+          <button class="linkbtn" onclick="baixarTexIA(${Number(g.id)})" title="Código LaTeX, para editar ou compilar no Overleaf">baixar .tex</button>
+          <button class="linkbtn" onclick="apagarGeracaoIA(${Number(g.id)})">apagar</button>
+        </span>
       </header>
       <ol class="ia-exs">
         ${g.itens.map(e => `
@@ -148,6 +155,21 @@ function renderListaIA(){
           </li>`).join("")}
       </ol>
     </article>`).join("");
+  desenharFormulas(el);
+}
+
+/* ---------------- fórmulas (KaTeX) ---------------- */
+
+const KATEX_CSS = "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css";
+
+// troca os trechos $...$ e $$...$$ por fórmulas desenhadas. Se o KaTeX não
+// carregou (sem internet), as fórmulas ficam como texto, mas nada quebra.
+function desenharFormulas(el){
+  if(!window.renderMathInElement) return;
+  renderMathInElement(el, {
+    delimiters:[{left:"$$", right:"$$", display:true}, {left:"$", right:"$", display:false}],
+    throwOnError:false,
+  });
 }
 
 /* ---------------- ações ---------------- */
@@ -198,6 +220,190 @@ async function gerarIA(){
     iaRascunho[tema] = {...iaRascunho[tema], orientacoes:""};
   }
   if(tema === iaTema) renderIA();
+}
+
+/* ---------------- baixar ---------------- */
+
+function acharGeracaoIA(id){
+  for(const tema in iaGeracoes){
+    const g = iaGeracoes[tema].find(x => x.id === id);
+    if(g) return {tema, g};
+  }
+  return null;
+}
+
+function infoTemaIA(tema){
+  const [mi, ti] = tema.split("-").map(Number);
+  const m = MODS.find(x => x.id === mi);
+  return {m, t:m.themes[ti - 1]};
+}
+
+// "exercicios-algebra-2026-10-16"
+function nomeArquivoIA(tema, g){
+  const {t} = infoTemaIA(tema);
+  const dia = new Date(g.criado_em).toLocaleDateString("sv-SE");
+  return `exercicios ${t.n} ${dia}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function baixarArquivo(nome, conteudo, tipo){
+  const url = URL.createObjectURL(new Blob([conteudo], {type:tipo}));
+  const a = Object.assign(document.createElement("a"), {href:url, download:nome});
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+/* PDF: monta uma folha de exercícios com cara de LaTeX (texto em STIX Two,
+   fórmulas com as fontes do KaTeX) e abre a janela de impressão, onde se escolhe "Salvar
+   como PDF". Dicas e resoluções vão para outra página, para o aluno tentar
+   resolver antes de olhar. */
+function documentoPdfIA(tema, g){
+  const {m, t} = infoTemaIA(tema);
+  const lista = campo => `<ol>${g.itens.map(e =>
+    `<li><div class="txt">${esc(e[campo] || "(sem dica)")}</div></li>`).join("")}</ol>`;
+  const corpo = document.createElement("div");
+  corpo.innerHTML = `
+    <header>
+      <p class="serie">Trilha · Neuro Computacional — Módulo ${pad2(m.id)} · ${esc(m.title)}</p>
+      <h1>Exercícios: ${esc(t.n)}</h1>
+      <p class="meta">Gerado em ${esc(new Date(g.criado_em).toLocaleDateString("pt-BR"))}${g.orientacoes ? ` · Orientações: “${esc(g.orientacoes)}”` : ""}</p>
+    </header>
+    <h2>Exercícios</h2>${lista("enunciado")}
+    <section class="gabarito">
+      <h2>Dicas</h2>${lista("dica")}
+      <h2>Resoluções</h2>${lista("resolucao")}
+    </section>
+    <footer>Exercícios gerados por IA: podem conter erros, confira as resoluções. ${esc(location.origin + location.pathname)}</footer>`;
+  desenharFormulas(corpo);
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<title>${esc(nomeArquivoIA(tema, g))}</title>
+<link rel="stylesheet" href="${KATEX_CSS}">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=STIX+Two+Text:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+@page{size:A4;margin:2.2cm 2cm}
+body{margin:0;font-family:"STIX Two Text","Latin Modern Roman","Times New Roman",serif;font-size:12pt;line-height:1.45;color:#000;background:#fff}
+header{border-bottom:.6pt solid #000;padding-bottom:8pt;margin-bottom:6pt}
+.serie{font-size:9pt;letter-spacing:.06em;text-transform:uppercase;margin:0}
+h1{font-size:20pt;font-weight:normal;margin:6pt 0 4pt}
+.meta{font-size:10pt;margin:0}
+h2{font-size:13pt;font-weight:bold;margin:18pt 0 8pt}
+ol{padding-left:1.6em;margin:0}
+li{margin-bottom:12pt;break-inside:avoid}
+.txt{white-space:pre-wrap}
+.katex{font-size:1.05em}
+.katex-display{margin:6pt 0}
+.gabarito{break-before:page}
+footer{margin-top:28pt;padding-top:6pt;border-top:.4pt solid #888;font-size:9pt;color:#444}
+</style></head><body>${corpo.innerHTML}</body></html>`;
+}
+
+function imprimirDocumento(html, titulo){
+  const quadro = document.createElement("iframe");
+  quadro.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+  quadro.srcdoc = html;
+  quadro.onload = async () => {
+    const w = quadro.contentWindow;
+    w.document.body.offsetHeight;          // força o layout, para as fontes começarem a carregar
+    try { await w.document.fonts.ready; } catch(e){}
+    // o navegador sugere o nome do PDF a partir do título da página
+    const tituloAntes = document.title;
+    document.title = titulo;
+    w.focus();
+    w.print();
+    document.title = tituloAntes;
+    setTimeout(() => quadro.remove(), 60000);
+  };
+  document.body.append(quadro);
+}
+
+function baixarPdfIA(id){
+  const achado = acharGeracaoIA(id);
+  if(!achado) return;
+  imprimirDocumento(documentoPdfIA(achado.tema, achado.g), nomeArquivoIA(achado.tema, achado.g));
+}
+
+/* .tex: o texto comum é escapado para o LaTeX; as fórmulas passam como estão.
+   Compila no Overleaf com pdfLaTeX, XeLaTeX ou LuaLaTeX. */
+const TEX_ESPECIAIS = {"\\":"\\textbackslash{}", "{":"\\{", "}":"\\}", "&":"\\&", "%":"\\%",
+  "#":"\\#", "_":"\\_", "^":"\\textasciicircum{}", "~":"\\textasciitilde{}", "$":"\\$"};
+// símbolos que podem aparecer fora das fórmulas e que o pdfLaTeX não conhece
+const TEX_UNICODE = {"≥":"\\geq", "≤":"\\leq", "≠":"\\neq", "≈":"\\approx", "×":"\\times", "−":"-",
+  "→":"\\to", "←":"\\leftarrow", "↔":"\\leftrightarrow", "⇒":"\\Rightarrow", "±":"\\pm", "∞":"\\infty",
+  "√":"\\surd", "∑":"\\sum", "∫":"\\int", "∂":"\\partial", "∈":"\\in", "∉":"\\notin", "⊂":"\\subset",
+  "∪":"\\cup", "∩":"\\cap", "∀":"\\forall", "∃":"\\exists", "α":"\\alpha", "β":"\\beta", "γ":"\\gamma",
+  "δ":"\\delta", "ε":"\\varepsilon", "η":"\\eta", "θ":"\\theta", "κ":"\\kappa", "λ":"\\lambda", "μ":"\\mu",
+  "ν":"\\nu", "ξ":"\\xi", "π":"\\pi", "ρ":"\\rho", "σ":"\\sigma", "τ":"\\tau", "φ":"\\varphi", "χ":"\\chi",
+  "ψ":"\\psi", "ω":"\\omega", "Δ":"\\Delta", "Θ":"\\Theta", "Λ":"\\Lambda", "Π":"\\Pi", "Σ":"\\Sigma",
+  "Φ":"\\Phi", "Ψ":"\\Psi", "Ω":"\\Omega", "✓":"\\checkmark", "✔":"\\checkmark", "✗":"\\times"};
+
+function textoParaTex(texto){
+  return (texto || "").trim()
+    // separa fórmulas ($$...$$ e $...$) do texto comum
+    .split(/(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$)/)
+    .map((parte, i) => {
+      if(i % 2) return parte.startsWith("$$") ? `\\[${parte.slice(2, -2)}\\]` : parte;
+      return parte.replace(/[\\{}&%#_^~$]/g, c => TEX_ESPECIAIS[c]);
+    })
+    .join("")
+    // cada quebra de linha vira um parágrafo (linhas vazias se juntam)
+    .replace(/\n\s*\n/g, "\n").replace(/\n/g, "\\par\n");
+}
+
+function documentoTexIA(tema, g){
+  const {m, t} = infoTemaIA(tema);
+  const lista = campo => [
+    "\\begin{enumerate}",
+    ...g.itens.map(e => `\\item ${textoParaTex(e[campo] || "(sem dica)")}\n`),
+    "\\end{enumerate}",
+  ].join("\n");
+  return [
+    "% Exercícios gerados por IA — Trilha Neuro Computacional",
+    "% Compila no Overleaf com pdfLaTeX, XeLaTeX ou LuaLaTeX.",
+    "\\documentclass[11pt,a4paper]{article}",
+    "\\usepackage{iftex}",
+    "\\ifPDFTeX",
+    "  \\usepackage[utf8]{inputenc}",
+    "  \\usepackage[T1]{fontenc}",
+    "  \\usepackage{lmodern}",
+    "\\fi",
+    "\\usepackage[brazil]{babel}",
+    "\\usepackage{amsmath,amssymb}",
+    "\\usepackage[margin=2.2cm]{geometry}",
+    "\\usepackage{newunicodechar}",
+    ...Object.entries(TEX_UNICODE).map(([c, cmd]) => `\\newunicodechar{${c}}{\\ensuremath{${cmd}}}`),
+    "\\setlength{\\parindent}{0pt}",
+    "\\setlength{\\parskip}{4pt}",
+    "",
+    `\\title{Exercícios: ${textoParaTex(t.n)}}`,
+    `\\author{Trilha Neuro Computacional --- Módulo ${pad2(m.id)}: ${textoParaTex(m.title)}}`,
+    `\\date{${new Date(g.criado_em).toLocaleDateString("pt-BR")}}`,
+    "",
+    "\\begin{document}",
+    "\\maketitle",
+    g.orientacoes ? `\\noindent\\textit{Orientações: ${textoParaTex(g.orientacoes)}}\n` : "",
+    "\\section*{Exercícios}",
+    lista("enunciado"),
+    "",
+    "\\newpage",
+    "\\section*{Dicas}",
+    lista("dica"),
+    "",
+    "\\section*{Resoluções}",
+    lista("resolucao"),
+    "",
+    "\\vfill",
+    "{\\footnotesize Exercícios gerados por IA: podem conter erros, confira as resoluções.\\par}",
+    "\\end{document}",
+    "",
+  ].join("\n");
+}
+
+function baixarTexIA(id){
+  const achado = acharGeracaoIA(id);
+  if(!achado) return;
+  baixarArquivo(nomeArquivoIA(achado.tema, achado.g) + ".tex", documentoTexIA(achado.tema, achado.g), "application/x-tex");
 }
 
 async function apagarGeracaoIA(id){

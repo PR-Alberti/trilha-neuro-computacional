@@ -127,8 +127,12 @@ página (ia.js) → função gerar-exercicios (Supabase) → Groq ou Gemini
   e as orientações. Na camada gratuita do Gemini, o Google pode usar esse
   conteúdo para melhorar os produtos dele — a página avisa para não escrever
   dados pessoais nas orientações.
-- **Fórmulas** saem em texto simples (`x² + 3x ≥ 0`). Desenhá-las com KaTeX é
-  um próximo passo possível.
+- **Fórmulas em LaTeX**: a IA escreve a matemática entre `$...$` e `$$...$$`,
+  e a página a desenha com o [KaTeX](https://katex.org).
+- **Baixar**: cada geração vira um **PDF** — uma folha de exercícios, com dicas
+  e resoluções numa página separada, aberta na janela de impressão do navegador
+  (*Salvar como PDF*) — ou um **`.tex`**, que compila no Overleaf com pdfLaTeX,
+  XeLaTeX ou LuaLaTeX.
 
 ### Colocar no ar (uma vez)
 
