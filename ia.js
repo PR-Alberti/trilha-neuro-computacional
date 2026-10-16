@@ -150,10 +150,11 @@ function renderListaIA(){
       <header class="ia-ger-h">
         <span>${esc(new Date(g.criado_em).toLocaleString("pt-BR", {dateStyle:"short", timeStyle:"short"}))}${g.orientacoes ? ` · “${esc(g.orientacoes)}”` : ""}${recolhida ? ` · ${n} exercício${n > 1 ? "s" : ""}` : ""}</span>
         <span class="ia-ger-acoes">
-          <button class="linkbtn" onclick="recolherGeracaoIA(${Number(g.id)})" aria-expanded="${!recolhida}">${recolhida ? "expandir" : "minimizar"}</button>
           <button class="linkbtn" onclick="baixarPdfIA(${Number(g.id)})" title="Abre a janela de impressão: escolha &quot;Salvar como PDF&quot;">baixar PDF</button>
           <button class="linkbtn" onclick="baixarTexIA(${Number(g.id)})" title="Código LaTeX, para editar ou compilar no Overleaf">baixar .tex</button>
           <button class="linkbtn" onclick="apagarGeracaoIA(${Number(g.id)})">apagar</button>
+          <button class="ia-recolher" onclick="recolherGeracaoIA(${Number(g.id)})" aria-expanded="${!recolhida}"
+            aria-label="${recolhida ? "Expandir" : "Minimizar"} exercícios" title="${recolhida ? "Expandir" : "Minimizar"}">${recolhida ? ICONE_EXPANDIR : ICONE_MINIMIZAR}</button>
         </span>
       </header>
       <ol class="ia-exs"${recolhida ? ' style="display:none"' : ""}>
@@ -168,6 +169,11 @@ function renderListaIA(){
   }).join("");
   desenharFormulas(el);
 }
+
+// setas do botão de minimizar: para cima recolhe, para baixo abre
+const icone = d => `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="${d}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ICONE_MINIMIZAR = icone("M4 10l4-4 4 4");
+const ICONE_EXPANDIR = icone("M4 6l4 4 4-4");
 
 function recolherGeracaoIA(id){
   iaRecolhidas.has(id) ? iaRecolhidas.delete(id) : iaRecolhidas.add(id);
