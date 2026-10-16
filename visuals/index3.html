@@ -1,0 +1,3201 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Guia de estudos de Machine Learning para neurociência computacional — do pré-cálculo aos modelos que codificam e decodificam o cérebro.">
+<title>Guia de Estudos: ML para Neurociência Computacional</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+/* Aplica o tema salvo antes do primeiro paint para evitar flash */
+(function(){
+  var t = null;
+  try { t = localStorage.getItem("guia-tema"); } catch(e){}
+  if(!t) t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.dataset.theme = t;
+})();
+</script>
+<style>
+/* ==========================================================================
+   DESIGN TOKENS & HIGH-TECH EDITORIAL THEME
+   ========================================================================== */
+:root {
+  color-scheme: light;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+
+  /* Superfícies e Linhas (Tema Claro) */
+  --bg-page: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-surface-2: #F1F5F9;
+  --bg-surface-elevated: #FFFFFF;
+  --bg-glass: rgba(255, 255, 255, 0.88);
+  --border: #E2E8F0;
+  --border-subtle: #EDF2F7;
+  --border-focus: #6366F1;
+
+  /* Texto */
+  --text-main: #0F172A;
+  --text-muted: #64748B;
+  --text-dim: #94A3B8;
+  --text-inverse: #FFFFFF;
+
+  /* Acentos Cromáticos */
+  --accent: #4F46E5;
+  --accent-hover: #4338CA;
+  --accent-soft: #EEF2FF;
+  --accent-soft-2: #F5F7FF;
+  --accent-ink: #3730A3;
+  --accent-glow: rgba(79, 70, 229, 0.22);
+
+  --cyan: #0284C7;
+  --cyan-soft: #E0F2FE;
+  --cyan-ink: #0369A1;
+
+  --emerald: #10B981;
+  --emerald-bg: #ECFDF5;
+  --emerald-line: #A7F3D0;
+  --emerald-ink: #047857;
+
+  --amber: #D97706;
+  --amber-bg: #FFFBEB;
+  --amber-line: #FDE68A;
+  --amber-ink: #B45309;
+
+  /* Níveis de Dificuldade */
+  --lv0: #2563EB;
+  --lv0-bg: #EFF6FF;
+  --lv0-line: #BFDBFE;
+  --lv0-ink: #1D4ED8;
+
+  --lv1: #7C3AED;
+  --lv1-bg: #F5F3FF;
+  --lv1-line: #DDD6FE;
+  --lv1-ink: #6D28D9;
+
+  --lv2: #DB2777;
+  --lv2-bg: #FDF2F8;
+  --lv2-line: #FBCFE8;
+  --lv2-ink: #BE185D;
+
+  /* Hero Escuro Premium */
+  --hero-bg: #090D16;
+  --hero-surface: rgba(255, 255, 255, 0.05);
+  --hero-surface-hover: rgba(255, 255, 255, 0.08);
+  --hero-line: rgba(255, 255, 255, 0.1);
+  --hero-text: #F8FAFC;
+  --hero-muted: #94A3B8;
+  --hero-accent: #818CF8;
+
+  /* Sombras e Raios */
+  --r-sm: 8px;
+  --r: 14px;
+  --r-lg: 20px;
+  --r-full: 9999px;
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 12px 28px -6px rgba(15, 23, 42, 0.09), 0 4px 8px -2px rgba(15, 23, 42, 0.04);
+  --shadow-xl: 0 20px 35px -8px rgba(15, 23, 42, 0.12);
+  --shadow-glow: 0 0 24px -4px var(--accent-glow);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-page: #090D16;
+  --bg-surface: #111726;
+  --bg-surface-2: #161F33;
+  --bg-surface-elevated: #1B243B;
+  --bg-glass: rgba(17, 23, 38, 0.88);
+  --border: #1E293B;
+  --border-subtle: #172033;
+  --border-focus: #818CF8;
+
+  --text-main: #F8FAFC;
+  --text-muted: #94A3B8;
+  --text-dim: #64748B;
+  --text-inverse: #090D16;
+
+  --accent: #818CF8;
+  --accent-hover: #A5B4FC;
+  --accent-soft: rgba(129, 140, 248, 0.14);
+  --accent-soft-2: rgba(129, 140, 248, 0.08);
+  --accent-ink: #C7D2FE;
+  --accent-glow: rgba(129, 140, 248, 0.35);
+
+  --cyan: #38BDF8;
+  --cyan-soft: rgba(56, 189, 248, 0.14);
+  --cyan-ink: #BAE6FD;
+
+  --emerald: #34D399;
+  --emerald-bg: rgba(52, 211, 153, 0.12);
+  --emerald-line: rgba(52, 211, 153, 0.3);
+  --emerald-ink: #A7F3D0;
+
+  --amber: #FBBF24;
+  --amber-bg: rgba(251, 191, 36, 0.12);
+  --amber-line: rgba(251, 191, 36, 0.3);
+  --amber-ink: #FDE68A;
+
+  --lv0: #60A5FA;
+  --lv0-bg: rgba(96, 165, 250, 0.14);
+  --lv0-line: rgba(96, 165, 250, 0.3);
+  --lv0-ink: #BFDBFE;
+
+  --lv1: #A78BFA;
+  --lv1-bg: rgba(167, 139, 250, 0.14);
+  --lv1-line: rgba(167, 139, 250, 0.3);
+  --lv1-ink: #DDD6FE;
+
+  --lv2: #F472B6;
+  --lv2-bg: rgba(244, 114, 182, 0.14);
+  --lv2-line: rgba(244, 114, 182, 0.3);
+  --lv2-ink: #FBCFE8;
+
+  --hero-bg: #06080E;
+  --hero-surface: rgba(255, 255, 255, 0.04);
+  --hero-surface-hover: rgba(255, 255, 255, 0.07);
+  --hero-line: rgba(255, 255, 255, 0.08);
+  --hero-text: #F8FAFC;
+  --hero-muted: #94A3B8;
+  --hero-accent: #A5B4FC;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 12px 28px -6px rgba(0, 0, 0, 0.7);
+  --shadow-xl: 0 20px 35px -8px rgba(0, 0, 0, 0.8);
+}
+
+/* RESET & BASE */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; font-size: 16px; -webkit-text-size-adjust: 100%; }
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  line-height: 1.6;
+  transition: background-color 0.25s ease, color 0.25s ease;
+  overflow-x: hidden;
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; }
+input { font-family: inherit; }
+
+/* HEADER / TOPBAR */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 900;
+  background: var(--bg-glass);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+  transition: border-color 0.25s ease, background 0.25s ease;
+}
+.topbar {
+  max-width: 1440px;
+  margin: 0 auto;
+  height: 64px;
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.nav-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-sm);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  transition: all 0.2s;
+}
+.nav-toggle-btn:hover {
+  color: var(--text-main);
+  border-color: var(--border-focus);
+  background: var(--bg-surface-2);
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+}
+.brand-icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  background: linear-gradient(135deg, var(--accent), #0284C7);
+  color: white;
+  font-size: 1.1rem;
+  box-shadow: 0 2px 8px var(--accent-glow);
+}
+.brand-pill {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--r-full);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--border-subtle);
+}
+
+.topnav {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 1rem;
+}
+.topnav a {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--r-sm);
+  transition: all 0.15s;
+}
+.topnav a:hover {
+  color: var(--text-main);
+  background: var(--bg-surface-2);
+}
+.header-spacer { flex: 1; }
+
+.topprog {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--r-full);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.tp-track {
+  width: 70px;
+  height: 7px;
+  border-radius: var(--r-full);
+  background: var(--border);
+  overflow: hidden;
+  position: relative;
+}
+.tp-fill {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--emerald));
+  border-radius: var(--r-full);
+  transition: width 0.4s ease;
+}
+.tp-num {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-main);
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1.1rem;
+  border-radius: var(--r-sm);
+  font-weight: 600;
+  font-size: 0.88rem;
+  background: var(--accent);
+  color: white !important;
+  box-shadow: 0 2px 8px var(--accent-glow);
+  transition: all 0.2s ease;
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px var(--accent-glow);
+}
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--r-sm);
+  font-weight: 500;
+  font-size: 0.88rem;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  transition: all 0.2s;
+}
+.btn-ghost:hover {
+  background: var(--bg-surface-2);
+  border-color: var(--border-focus);
+}
+
+.auth-area { display: inline-flex; align-items: center; gap: 0.5rem; }
+.auth-mail {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--r-sm);
+  background: var(--bg-surface-2);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.theme-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: 1.05rem;
+  transition: all 0.2s;
+}
+.theme-btn:hover {
+  color: var(--text-main);
+  border-color: var(--border-focus);
+  background: var(--bg-surface-2);
+}
+
+/* LAYOUT: SIDEBAR + CONTEÚDO */
+.layout {
+  max-width: 1440px;
+  margin: 0 auto;
+  display: flex;
+  min-height: calc(100vh - 64px);
+}
+.sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg-surface);
+  padding: 1.5rem 1rem 3rem 1rem;
+  position: sticky;
+  top: 64px;
+  height: calc(100vh - 64px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  transition: width 0.3s ease, transform 0.3s ease, padding 0.3s ease;
+}
+body.nav-recolhida .sidebar {
+  width: 0;
+  padding: 0;
+  border-right-color: transparent;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.sn-phase {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  padding: 1rem 0.5rem 0.4rem 0.5rem;
+}
+.sn-phase:first-of-type { padding-top: 0.2rem; }
+
+.sn-group {
+  margin-bottom: 0.35rem;
+  border-radius: var(--r-sm);
+  border: 1px solid transparent;
+  transition: all 0.15s;
+}
+.sn-group[open] {
+  background: var(--bg-surface-2);
+  border-color: var(--border-subtle);
+}
+.sn-mod {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--r-sm);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+  user-select: none;
+}
+.sn-mod::-webkit-details-marker { display: none; }
+.sn-mod:hover { background: var(--bg-surface-2); }
+.sn-chev {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  transition: transform 0.2s;
+}
+.sn-group[open] > .sn-mod > .sn-chev {
+  transform: rotate(90deg);
+  color: var(--accent);
+}
+.sn-name {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sn-num {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.sn-prog {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.sn-prog.full { color: var(--emerald-ink); font-weight: 700; }
+.sn-bar {
+  width: 28px;
+  height: 4px;
+  border-radius: var(--r-full);
+  background: var(--border);
+  overflow: hidden;
+}
+.sn-bar > i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s;
+}
+.sn-bar.full > i { background: var(--emerald); }
+
+.sn-themes {
+  padding: 0.25rem 0.5rem 0.6rem 1.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.sn-theme {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  transition: all 0.15s;
+}
+.sn-theme:hover {
+  color: var(--text-main);
+  background: rgba(0,0,0,0.03);
+}
+:root[data-theme="dark"] .sn-theme:hover {
+  background: rgba(255,255,255,0.04);
+}
+.sn-theme.done {
+  color: var(--text-dim);
+  text-decoration: line-through;
+}
+.sn-theme.atual {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.sn-tn {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sn-extra {
+  display: block;
+  margin-top: 1.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--r-sm);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  border: 1px dashed var(--border);
+  text-align: center;
+  transition: all 0.2s;
+}
+.sn-extra:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft-2);
+}
+
+.content { flex: 1; min-width: 0; }
+
+/* HERO */
+.hero {
+  position: relative;
+  background: var(--hero-bg);
+  color: var(--hero-text);
+  padding: 4.5rem 3rem 4rem 3rem;
+  display: grid;
+  grid-template-columns: 1.25fr 0.95fr;
+  gap: 3.5rem;
+  align-items: center;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+}
+.hero::before {
+  content: "";
+  position: absolute;
+  top: -150px;
+  right: -100px;
+  width: 650px;
+  height: 650px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(79, 70, 229, 0.22) 0%, rgba(2, 132, 199, 0.12) 40%, transparent 70%);
+  pointer-events: none;
+}
+.hero::after {
+  content: "";
+  position: absolute;
+  bottom: -100px;
+  left: 20%;
+  width: 450px;
+  height: 450px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-txt { position: relative; z-index: 2; }
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--r-full);
+  background: var(--hero-surface);
+  border: 1px solid var(--hero-line);
+  color: var(--hero-accent);
+  margin-bottom: 1.25rem;
+}
+.hero h1 {
+  font-family: var(--font-display);
+  font-size: 2.85rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  margin-bottom: 1.25rem;
+}
+.hero h1 em {
+  font-style: normal;
+  background: linear-gradient(135deg, #818CF8 0%, #38BDF8 60%, #34D399 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hero-lead {
+  font-size: 1.1rem;
+  line-height: 1.65;
+  color: var(--hero-muted);
+  margin-bottom: 2rem;
+  max-width: 620px;
+}
+.hero-lead strong { color: var(--hero-text); font-weight: 600; }
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+.btn-hero {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.6rem;
+  border-radius: var(--r);
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.25s ease;
+}
+.btn-hero.primary {
+  background: linear-gradient(135deg, var(--accent), #4338CA);
+  color: white;
+  box-shadow: 0 4px 18px var(--accent-glow);
+}
+.btn-hero.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--accent-glow);
+}
+.btn-hero.ghost {
+  background: var(--hero-surface);
+  border: 1px solid var(--hero-line);
+  color: var(--hero-text);
+}
+.btn-hero.ghost:hover {
+  background: var(--hero-surface-hover);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--hero-line);
+}
+.stat-box { display: flex; flex-direction: column; }
+.stat-box b {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: var(--hero-text);
+  line-height: 1.1;
+}
+.stat-box span {
+  font-size: 0.78rem;
+  color: var(--hero-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
+.pcard {
+  position: relative;
+  z-index: 2;
+  background: var(--hero-surface);
+  border: 1px solid var(--hero-line);
+  border-radius: var(--r-lg);
+  padding: 2rem;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+.pc-head {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1.75rem;
+}
+.ring {
+  width: 80px;
+  height: 80px;
+  position: relative;
+  flex-shrink: 0;
+}
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring circle.track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 6;
+}
+.ring circle.fill {
+  fill: none;
+  stroke: url(#heroGradient);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  transition: stroke-dashoffset 0.8s ease;
+}
+.ring-pct {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--hero-text);
+}
+.pc-meta b {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--hero-text);
+}
+.pc-meta span {
+  font-size: 0.88rem;
+  color: var(--hero-muted);
+}
+.pc-phases {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+  padding: 1.25rem 0;
+  border-top: 1px solid var(--hero-line);
+  border-bottom: 1px solid var(--hero-line);
+}
+.pc-ph {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.pc-ph-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+.pc-ph-top b { font-weight: 600; color: var(--hero-text); }
+.pc-ph-top span { font-family: var(--font-mono); color: var(--hero-muted); }
+.pc-ph-bar {
+  height: 6px;
+  border-radius: var(--r-full);
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.pc-ph-bar > i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #818CF8, #34D399);
+  border-radius: var(--r-full);
+  transition: width 0.4s ease;
+}
+.pc-next-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.pc-next-lbl {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--hero-accent);
+}
+.pc-next-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--hero-line);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--hero-text);
+  transition: all 0.2s;
+}
+.pc-next-link:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--hero-accent);
+  transform: translateX(3px);
+}
+
+/* SEÇÕES GERAIS */
+.sec {
+  padding: 3.5rem 3rem;
+  border-bottom: 1px solid var(--border);
+}
+.sec:last-of-type { border-bottom: none; }
+.sec-head {
+  margin-bottom: 2rem;
+  max-width: 800px;
+}
+.sec-head h2 {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+  margin-bottom: 0.5rem;
+}
+.sec-head p {
+  font-size: 1.05rem;
+  color: var(--text-muted);
+}
+
+/* MAPA / CIRCUITO DA TRILHA (ARQUITETURA DO CONECTOMA) */
+.mapwrap {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto;
+  position: relative;
+}
+.map-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.85rem;
+}
+.map-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--text-muted);
+}
+.map-pulse-icon {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+  animation: pulse-beacon 2s infinite;
+}
+@keyframes pulse-beacon {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(99, 102, 241, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+}
+.map-key {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 1.25rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.map-key li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.map-key i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2.5px solid var(--accent);
+  background: var(--bg-surface);
+}
+.map-key i.here {
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+.map-key i.part {
+  border-style: dashed;
+  background: var(--accent-soft);
+}
+.map-key i.done {
+  background: var(--emerald);
+  border-color: var(--emerald);
+}
+
+.map {
+  display: block;
+  width: 100%;
+  min-width: 980px;
+  height: auto;
+}
+.map rect.grid { fill: var(--bg-surface-2); }
+.map .pd { fill: var(--border); }
+
+/* Zonas de Fase */
+.map .phase-zone-1 {
+  fill: var(--bg-surface);
+  stroke: var(--border);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 5;
+  opacity: 0.9;
+}
+.map .phase-zone-2 {
+  fill: var(--accent-soft-2);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 5;
+  stroke-opacity: 0.45;
+}
+.map .zone-t {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.map .zone-t-base { fill: var(--text-dim); }
+.map .zone-t-ia { fill: var(--accent); font-weight: 800; }
+.map .zone-sub {
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 500;
+  fill: var(--text-muted);
+}
+
+/* Conectores Técnicos / Feeders */
+.map .feeder {
+  fill: none;
+  stroke: var(--text-dim);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+  opacity: 0.45;
+}
+
+/* Trilhos */
+.map .rail-halo {
+  fill: none;
+  stroke: var(--bg-surface-2);
+  stroke-width: 20;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.map .rail {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: all 0.3s;
+}
+.map .rail-calc { stroke: url(#grad-calc); }
+.map .rail-alg { stroke: url(#grad-alg); }
+.map .rail-prog { stroke: url(#grad-prog); }
+.map .rail-ia { stroke: url(#grad-ia); }
+
+.map .track-tag {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-anchor: middle;
+}
+.map .tag-calc { fill: #3B82F6; }
+.map .tag-alg { fill: #8B5CF6; }
+.map .tag-prog { fill: #10B981; }
+.map .tag-stat { fill: #F59E0B; }
+.map .tag-ia { fill: #EC4899; }
+
+/* Estações / Nós */
+.map .st {
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.map .st:hover {
+  transform: scale(1.04);
+}
+.map .st .halo {
+  fill: var(--bg-surface);
+  opacity: 0.95;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.06));
+}
+.map .st .dot {
+  fill: var(--bg-surface);
+  stroke-width: 3.5;
+  stroke: var(--border);
+  transition: all 0.25s;
+}
+.map .st.la .dot { stroke: #3B82F6; }
+.map .st.lb .dot { stroke: #8B5CF6; }
+.map .st.lc .dot { stroke: #10B981; }
+.map .st.stat-node .dot { stroke: #F59E0B; }
+.map .st.lia .dot { stroke: #EC4899; }
+.map .st.hub .dot { stroke-width: 4.5; }
+
+.map .st .num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--text-main);
+  text-anchor: middle;
+}
+.map .st .ok {
+  display: none;
+  font-size: 13px;
+  font-weight: 800;
+  fill: white;
+  text-anchor: middle;
+}
+.map .st .name {
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-weight: 700;
+  fill: var(--text-main);
+  text-anchor: middle;
+}
+.map .st .hrs {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  fill: var(--text-muted);
+  text-anchor: middle;
+}
+.map .label-bg {
+  fill: var(--bg-surface);
+  stroke: var(--border-subtle);
+  stroke-width: 1;
+  opacity: 0.94;
+}
+
+.map .st .pulse {
+  display: none;
+  fill: var(--accent);
+  opacity: 0.45;
+}
+.map .st.here .pulse { display: block; }
+.map .st.done .dot {
+  fill: var(--emerald);
+  stroke: var(--emerald);
+}
+.map .st.done .num { display: none; }
+.map .st.done .ok { display: block; }
+.map .st.done .label-bg { stroke: var(--emerald-line); }
+.map .st.partial .dot {
+  stroke-dasharray: 4 2;
+  stroke-width: 4;
+  fill: var(--bg-surface-2);
+}
+
+/* Legenda Inferior das Linhas */
+.map-legend-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.85rem 1.25rem;
+  margin-top: 1.25rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--r-sm);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.legend-track-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.track-color-pill {
+  width: 14px;
+  height: 6px;
+  border-radius: var(--r-full);
+  flex-shrink: 0;
+}
+.color-calc { background: linear-gradient(90deg, #4F46E5, #3B82F6); }
+.color-alg { background: linear-gradient(90deg, #8B5CF6, #A855F7); }
+.color-prog { background: linear-gradient(90deg, #10B981, #059669); }
+.color-stat { background: linear-gradient(90deg, #F59E0B, #D97706); }
+.color-ia { background: linear-gradient(90deg, #EC4899, #8B5CF6); }
+
+/* TOOLBAR & BUSCA */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--r);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+.search-box {
+  flex: 1;
+  min-width: 240px;
+  position: relative;
+}
+.search-box input {
+  width: 100%;
+  padding: 0.55rem 1rem 0.55rem 2.4rem;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-surface-2);
+  color: var(--text-main);
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+.search-box input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  background: var(--bg-surface);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.search-icon {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.95rem;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+.tb-seg {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-surface-2);
+  padding: 0.2rem;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+}
+.f-btn {
+  padding: 0.35rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: all 0.15s;
+}
+.f-btn.is-on {
+  background: var(--bg-surface);
+  color: var(--text-main);
+  box-shadow: var(--shadow-sm);
+}
+
+/* TIMELINE DE MÓDULOS */
+.phase-wrap { margin-bottom: 3.5rem; }
+.phase-card {
+  padding: 1.5rem 1.75rem;
+  border-radius: var(--r-lg);
+  background: linear-gradient(135deg, var(--bg-surface-2) 0%, var(--bg-surface) 100%);
+  border: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.phase-card-info h3 {
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 0.35rem;
+}
+.phase-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.4rem;
+}
+.phase-card-info p {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  max-width: 720px;
+}
+.phase-card-hours {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+}
+
+.mod-card {
+  border-radius: var(--r);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 1.25rem;
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+.mod-card.full { border-color: var(--emerald-line); }
+.mod-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-focus);
+}
+.mod-sum {
+  list-style: none;
+  cursor: pointer;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  user-select: none;
+}
+.mod-sum::-webkit-details-marker { display: none; }
+
+.mod-node {
+  width: 44px;
+  height: 44px;
+  position: relative;
+  flex-shrink: 0;
+}
+.mod-node svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.mod-node circle.nbg { fill: var(--bg-surface-2); }
+.mod-node circle.nt { fill: none; stroke: var(--border); stroke-width: 3.5; }
+.mod-node circle.nf {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  transition: stroke-dashoffset 0.5s ease;
+}
+.mod-card.full .mod-node circle.nf { stroke: var(--emerald); }
+.mod-node .nn {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.chk {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-surface);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.chk:checked {
+  background: var(--emerald);
+  border-color: var(--emerald);
+}
+.chk:checked::after {
+  content: "✓";
+  color: white;
+  font-size: 13px;
+  font-weight: 800;
+}
+.chk:indeterminate {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.chk:indeterminate::after {
+  content: "–";
+  color: white;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.mod-title-area { flex: 1; min-width: 0; }
+.mod-title-area h3 {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.25;
+}
+.mod-title-area .sub {
+  display: block;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-top: 0.15rem;
+}
+.mod-meta-area {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+.meta-chip {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.meta-chip em {
+  font-style: normal;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.dif-bars { display: inline-flex; gap: 3px; margin-top: 2px; }
+.dif-bars i {
+  width: 5px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--border);
+}
+.dif-bars i.on { background: var(--accent); }
+.prog-chip {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.prog-chip.full { color: var(--emerald-ink); font-weight: 700; }
+.mod-sum-chev {
+  font-size: 1.1rem;
+  color: var(--text-dim);
+  transition: transform 0.25s;
+}
+.mod-card[open] .mod-sum-chev {
+  transform: rotate(90deg);
+  color: var(--accent);
+}
+
+.mod-body {
+  padding: 0 1.75rem 1.75rem 1.75rem;
+  border-top: 1px solid var(--border-subtle);
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 1.75rem;
+}
+
+.neuro-callout {
+  grid-column: 1 / -1;
+  margin-top: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--r-sm);
+  background: linear-gradient(135deg, var(--accent-soft-2) 0%, var(--bg-surface-2) 100%);
+  border-left: 4px solid var(--accent);
+  display: flex;
+  gap: 1rem;
+}
+.neuro-callout-icon { font-size: 1.5rem; flex-shrink: 0; }
+.neuro-callout h4 {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent-ink);
+  margin-bottom: 0.25rem;
+}
+.neuro-callout p {
+  font-size: 0.92rem;
+  color: var(--text-main);
+  line-height: 1.55;
+}
+
+.lessons-col h4, .side-col h4 {
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  margin: 1.5rem 0 1rem 0;
+}
+.lessons-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.lesson-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-surface-2);
+  transition: all 0.2s;
+}
+.lesson-item:hover {
+  border-color: var(--border-focus);
+  background: var(--bg-surface);
+  transform: translateX(2px);
+  box-shadow: var(--shadow-sm);
+}
+.lesson-item.done {
+  background: var(--bg-surface);
+  border-color: var(--border-subtle);
+}
+.lesson-num {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.lesson-title-area { flex: 1; min-width: 0; }
+.lesson-title-area b {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+.lesson-item.done .lesson-title-area b { color: var(--text-muted); }
+.lesson-title-area .desc {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+.lesson-chips {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.lvchip {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--r-full);
+}
+.lvchip.lv0 { background: var(--lv0-bg); color: var(--lv0-ink); border: 1px solid var(--lv0-line); }
+.lvchip.lv1 { background: var(--lv1-bg); color: var(--lv1-ink); border: 1px solid var(--lv1-line); }
+.lvchip.lv2 { background: var(--lv2-bg); color: var(--lv2-ink); border: 1px solid var(--lv2-line); }
+.sub-cnt { font-size: 0.75rem; color: var(--text-dim); font-weight: 500; }
+.lesson-go {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-size: 0.85rem;
+  font-weight: 700;
+  transition: all 0.15s;
+}
+.lesson-item:hover .lesson-go {
+  background: var(--accent);
+  color: white;
+}
+
+.side-card {
+  padding: 1.25rem;
+  border-radius: var(--r-sm);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+}
+.mats-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.mats-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+.mtype {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.mats-list b { color: var(--text-main); font-weight: 600; flex: 1; }
+.mats-list a {
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.mats-list a:hover { text-decoration: underline; }
+
+.drill-box {
+  font-size: 0.86rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  padding: 0.85rem 1rem;
+  border-radius: var(--r-sm);
+  background: var(--amber-bg);
+  border: 1px solid var(--amber-line);
+  color: var(--amber-ink);
+  margin-bottom: 1.25rem;
+}
+.drill-box b { font-weight: 700; }
+
+.test-box {
+  padding: 1.25rem;
+  border-radius: var(--r-sm);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+}
+.test-box h4 {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0.35rem;
+}
+.test-box p {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+.btn-test {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--r-sm);
+  background: var(--text-main);
+  color: var(--bg-surface) !important;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.btn-test:hover { opacity: 0.9; transform: translateY(-1px); }
+.test-small {
+  font-size: 0.75rem !important;
+  color: var(--text-dim) !important;
+  margin-top: 0.6rem;
+  margin-bottom: 0 !important;
+}
+
+/* VISÃO DETALHE DE TEMA */
+.detail-view {
+  display: none;
+  padding: 3rem 4rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+body.viewing-detail #hub { display: none; }
+body.viewing-detail .detail-view { display: block; }
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin-bottom: 1.25rem;
+}
+.crumbs a:hover { color: var(--accent); }
+.crumbs .sep { color: var(--text-dim); }
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.stepper a {
+  width: 24px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--border);
+  transition: all 0.2s;
+}
+.stepper a.done { background: var(--emerald); }
+.stepper a.atual { background: var(--accent); width: 36px; }
+.stepper-lbl {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+}
+
+.detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+  margin-bottom: 1.75rem;
+}
+.dh h1 {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--text-main);
+  margin-bottom: 0.75rem;
+}
+.dh .lead {
+  font-size: 1.15rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.dh-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+.done-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.4rem;
+  border-radius: var(--r);
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: 1.5px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  transition: all 0.2s;
+}
+.done-toggle-btn.is-done {
+  background: var(--emerald);
+  border-color: var(--emerald);
+  color: white;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+}
+
+.detail-metabar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.detail-chip {
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--r-full);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.detail-chip b { color: var(--text-main); }
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1.45fr 1fr;
+  gap: 3rem;
+  margin-bottom: 3.5rem;
+}
+.d-sec { margin-bottom: 2.5rem; }
+.d-sec h2 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 1rem;
+}
+.topics-checklist {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.topics-checklist li {
+  padding: 0.85rem 1.15rem;
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.topics-checklist li::before {
+  content: "•";
+  color: var(--accent);
+  font-size: 1.3rem;
+  line-height: 0;
+}
+
+.prompt-card {
+  border-radius: var(--r);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  padding: 1.25rem;
+}
+.prompt-box {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  padding: 1rem;
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  margin-bottom: 1rem;
+  white-space: pre-wrap;
+}
+.btn-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--r-sm);
+  background: var(--accent);
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.btn-copy:hover { background: var(--accent-hover); }
+
+.mnav { display: flex; flex-direction: column; gap: 0.35rem; }
+.mnav a {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--r-sm);
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  transition: all 0.15s;
+}
+.mnav a:hover { background: var(--bg-surface-2); color: var(--text-main); }
+.mnav a.atual { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.mnav a.done { color: var(--text-dim); }
+.mn-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.mnav a.atual .mn-dot { background: var(--accent); }
+.mnav a.done .mn-dot { background: var(--emerald); }
+
+.pager {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+}
+.pager a {
+  padding: 1.25rem;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  transition: all 0.2s;
+}
+.pager a:hover {
+  border-color: var(--border-focus);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+.pager .dir {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.pager .name {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-top: 0.25rem;
+}
+.pager a.next { text-align: right; }
+
+/* MÉTODO / BENTO */
+.tips-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+.tip-card {
+  padding: 1.75rem;
+  border-radius: var(--r);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.25s;
+}
+.tip-card:hover {
+  border-color: var(--border-focus);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.tip-num {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--accent);
+  margin-bottom: 0.75rem;
+}
+.tip-card p {
+  font-size: 0.95rem;
+  color: var(--text-main);
+  line-height: 1.6;
+}
+
+/* FOOTER */
+.site-footer {
+  border-top: 1px solid var(--border);
+  background: var(--bg-surface);
+  padding: 3rem 2rem;
+  text-align: center;
+}
+.footer-wrap {
+  max-width: 800px;
+  margin: 0 auto;
+  font-size: 0.92rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* AUTH DIALOG */
+dialog#authDlg {
+  border: none;
+  border-radius: var(--r-lg);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  padding: 2.25rem;
+  box-shadow: var(--shadow-xl);
+  max-width: 440px;
+  width: 90%;
+  margin: auto;
+  border: 1px solid var(--border);
+}
+dialog#authDlg::backdrop {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(6px);
+}
+.authform h3 {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+}
+.auth-note {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+.authform label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 0.5rem;
+}
+.authform input[type="email"] {
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-surface-2);
+  color: var(--text-main);
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+}
+.authform input[type="email"]:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  background: var(--bg-surface);
+}
+.auth-err {
+  color: #EF4444;
+  font-size: 0.82rem;
+  margin-bottom: 1rem;
+}
+.auth-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+/* TOAST */
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--r);
+  background: var(--text-main);
+  color: var(--bg-surface);
+  font-size: 0.88rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+  transition: all 0.3s ease;
+  z-index: 9999;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* RESPONSIVO */
+@media (max-width: 1024px) {
+  .hero { grid-template-columns: 1fr; gap: 2.5rem; padding: 3rem 1.5rem; }
+  .mod-body { grid-template-columns: 1fr; }
+  .detail-grid { grid-template-columns: 1fr; gap: 2rem; }
+  .sec { padding: 2.5rem 1.5rem; }
+  .detail-view { padding: 2rem 1.5rem; }
+}
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 64px;
+    bottom: 0;
+    left: 0;
+    z-index: 850;
+    box-shadow: var(--shadow-xl);
+    transform: translateX(-100%);
+  }
+  body:not(.nav-recolhida) .sidebar {
+    transform: translateX(0);
+    width: 280px;
+  }
+  .topnav { display: none; }
+  .hero h1 { font-size: 2.1rem; }
+  .hero-stats { grid-template-columns: repeat(2, 1fr); }
+  .mod-meta-area { display: none; }
+}
+</style>
+</head>
+<body data-filter="2" class="nav-recolhida">
+
+<header class="site-header">
+  <div class="topbar">
+    <button class="nav-toggle-btn" id="navBtn" onclick="alternarSidebar()" title="Mostrar/Ocultar menu lateral" aria-label="Menu lateral">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+    </button>
+
+    <a class="brand" href="#">
+      <span class="brand-icon">🧠</span>
+      <span>NeuroComp</span>
+      <span class="brand-pill">Guia ML</span>
+    </a>
+
+    <nav class="topnav">
+      <a href="#fases">Trilha</a>
+      <a href="#mapa">Circuito</a>
+      <a href="#como-usar">Método</a>
+      <a href="Guia.pdf" target="_blank" rel="noopener">PDF Guia ↗</a>
+    </nav>
+
+    <span class="header-spacer"></span>
+
+    <div class="topprog" title="Progresso geral da trilha">
+      <span class="tp-track"><span class="tp-fill" id="tpFill"></span></span>
+      <span class="tp-num" id="tpNum">0/0</span>
+    </div>
+
+    <a class="btn-primary" id="btnContinuar" href="#tema-1-1">Começar</a>
+    <span id="authArea" class="auth-area"></span>
+
+    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Alternar modo claro/escuro" aria-label="Alternar tema">🌙</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar" id="sidenav" aria-label="Navegação dos módulos"></aside>
+
+  <div class="content">
+    <!-- VISÃO HUB -->
+    <main id="hub">
+      <section class="hero" id="topo">
+        <div class="hero-txt">
+          <p class="eyebrow">✨ Formação Científica · Da Biologia ao Machine Learning</p>
+          <h1>Machine Learning para <em>Neurociência Computacional</em></h1>
+          <p class="hero-lead">Trilha estruturada do zero para estudantes e pesquisadores de <strong>Ciências Biológicas</strong> que buscam domínio técnico e intuitivo — do pré-cálculo e álgebra linear aos modelos que decodificam sinais cerebrais.</p>
+
+          <div class="hero-actions">
+            <a class="btn-hero primary" id="heroCta" href="#tema-1-1">Começar pelo primeiro tema →</a>
+            <a class="btn-hero ghost" href="#mapa">Ver Circuito da Trilha</a>
+          </div>
+
+          <div class="hero-stats">
+            <div class="stat-box"><b>2</b><span>Fases</span></div>
+            <div class="stat-box"><b>9</b><span>Módulos</span></div>
+            <div class="stat-box"><b id="statTemas">—</b><span>Temas</span></div>
+            <div class="stat-box"><b>~380h</b><span>Carga Total</span></div>
+          </div>
+        </div>
+
+        <div class="pcard" aria-label="Painel de Progresso">
+          <div class="pc-head">
+            <div class="ring">
+              <svg viewBox="0 0 84 84">
+                <defs>
+                  <linearGradient id="heroGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#818CF8"/>
+                    <stop offset="100%" stop-color="#34D399"/>
+                  </linearGradient>
+                </defs>
+                <circle class="track" cx="42" cy="42" r="36"/>
+                <circle class="fill" id="heroRing" cx="42" cy="42" r="36" pathLength="100"/>
+              </svg>
+              <span class="ring-pct" id="heroPct">0%</span>
+            </div>
+            <div class="pc-meta">
+              <b>Seu Progresso</b>
+              <span id="heroSub">0 de 0 temas concluídos</span>
+            </div>
+          </div>
+
+          <div class="pc-phases" id="pcPhases"></div>
+
+          <div class="pc-next-card">
+            <span class="pc-next-lbl">Próximo Passo Recomendado</span>
+            <a class="pc-next-link" id="heroNext" href="#tema-1-1">
+              <span>Carregando...</span>
+              <span>→</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- CIRCUITO / MAPA METRÔ -->
+      <section class="sec" id="mapa">
+        <div class="sec-head">
+          <h2>O Conectoma de Aprendizado</h2>
+          <p>Três linhas fundamentais de base convergem na síntese de Estatística e Otimização para alimentar os modelos de Machine Learning e Deep Learning. Clique em qualquer nó para abrir o módulo.</p>
+        </div>
+
+        <div class="mapwrap card">
+          <div class="map-top">
+            <div class="map-hint">
+              <span class="map-pulse-icon"></span>
+              <span><strong>Arquitetura da Trilha:</strong> Cada nó representa um módulo didático com carga horária e dependências mapeadas.</span>
+            </div>
+            <ul class="map-key">
+              <li><i class="here"></i><span>Próxima Lição</span></li>
+              <li><i class="part"></i><span>Em Andamento</span></li>
+              <li><i class="done"></i><span>Concluída</span></li>
+            </ul>
+          </div>
+
+          <svg class="map" viewBox="0 0 1200 420" role="img" aria-label="Mapa curricular interativo da trilha de Machine Learning para Neurociência Computacional">
+            <defs>
+              <pattern id="circuit-dots" width="22" height="22" patternUnits="userSpaceOnUse">
+                <circle class="pd" cx="2" cy="2" r="1.2"/>
+              </pattern>
+              
+              <!-- Gradientes dos Trilhos -->
+              <linearGradient id="grad-calc" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#4F46E5"/>
+                <stop offset="60%" stop-color="#3B82F6"/>
+                <stop offset="100%" stop-color="#6366F1"/>
+              </linearGradient>
+              
+              <linearGradient id="grad-alg" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#4F46E5"/>
+                <stop offset="100%" stop-color="#8B5CF6"/>
+              </linearGradient>
+
+              <linearGradient id="grad-prog" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#4F46E5"/>
+                <stop offset="40%" stop-color="#10B981"/>
+                <stop offset="100%" stop-color="#F59E0B"/>
+              </linearGradient>
+
+              <linearGradient id="grad-ia" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#F59E0B"/>
+                <stop offset="40%" stop-color="#EC4899"/>
+                <stop offset="100%" stop-color="#8B5CF6"/>
+              </linearGradient>
+            </defs>
+
+            <!-- Fundo Grid Técnico -->
+            <rect class="grid" x="0" y="0" width="1200" height="420" rx="16"/>
+
+            <!-- ZONAS PEDAGÓGICAS (Fase 1 e Fase 2) -->
+            <!-- Zona Fase 1: Base -->
+            <rect class="phase-zone-1" x="35" y="20" width="830" height="380" rx="16"/>
+            <text class="zone-t zone-t-base" x="55" y="46">FASE 1 · BASE MATEMÁTICA &amp; COMPUTACIONAL</text>
+            
+            <!-- Zona Fase 2: IA -->
+            <rect class="phase-zone-2" x="895" y="55" width="275" height="310" rx="18"/>
+            <text class="zone-t zone-t-ia" x="915" y="82">FASE 2 · INTELIGÊNCIA ARTIFICIAL</text>
+            <text class="zone-sub" x="915" y="99">Encoding, Decoding &amp; Redes Corticais</text>
+
+            <!-- CONECTORES TÉCNICOS INTERDISCIPLINARES (Pontes conceituais) -->
+            <g class="feeder-lines">
+              <!-- De Álgebra Linear (05) para Estatística (07) -->
+              <path class="feeder" d="M 550,195 C 630,195 680,295 770,295"/>
+              <!-- De Cálculo Multivariável (03) para Estatística (07) -->
+              <path class="feeder" d="M 550,95 C 640,95 690,260 770,295"/>
+              <!-- De Álgebra Linear (05) para Otimização (04) -->
+              <path class="feeder" d="M 550,195 C 630,195 680,95 770,95"/>
+            </g>
+
+            <!-- TRILHOS PRINCIPAIS (Halos protetores + linhas fluidas) -->
+            <g class="halos">
+              <path class="rail-halo" d="M 110,195 C 200,195 240,95 330,95 H 770 C 860,95 900,195 980,195"/>
+              <path class="rail-halo" d="M 110,195 H 980"/>
+              <path class="rail-halo" d="M 110,195 C 200,195 240,295 330,295 H 770 C 860,295 900,195 980,195"/>
+              <path class="rail-halo" d="M 980,195 H 1140"/>
+            </g>
+
+            <g class="rails">
+              <!-- Linha A: Cálculo & Dinâmica (Top) -->
+              <path class="rail rail-calc" d="M 110,195 C 200,195 240,95 330,95 H 770 C 860,95 900,195 980,195"/>
+              
+              <!-- Linha B: Álgebra Linear (Middle) -->
+              <path class="rail rail-alg" d="M 110,195 H 980"/>
+              
+              <!-- Linha C: Computação & Estatística (Bottom) -->
+              <path class="rail rail-prog" d="M 110,195 C 200,195 240,295 330,295 H 770 C 860,295 900,195 980,195"/>
+              
+              <!-- Linha IA: Machine Learning & Deep Learning -->
+              <path class="rail rail-ia" d="M 980,195 H 1140"/>
+            </g>
+
+            <!-- RÓTULOS ELEGANTES DAS LINHAS -->
+            <text class="track-tag tag-calc" x="550" y="74">LINHA DO CÁLCULO &amp; DINÂMICA</text>
+            <text class="track-tag tag-alg" x="430" y="180">LINHA DA ÁLGEBRA LINEAR</text>
+            <text class="track-tag tag-prog" x="330" y="365">COMPUTAÇÃO</text>
+            <text class="track-tag tag-stat" x="770" y="365">ESTATÍSTICA &amp; DADOS</text>
+            <text class="track-tag tag-ia" x="1060" y="180">FRONTEIRA DE IA</text>
+
+            <!-- ESTAÇÕES / MÓDULOS INTERATIVOS -->
+
+            <!-- 01: Pré-Cálculo -->
+            <a href="#modulo-1" class="st hub start" id="map-mod-1">
+              <g transform="translate(110 195)">
+                <circle class="pulse" r="18"><animate attributeName="r" values="18;36" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".6;0" dur="2s" repeatCount="indefinite"/></circle>
+                <circle class="halo" r="26"/>
+                <circle class="dot" r="18"/>
+                <text class="num" y="5">01</text>
+                <text class="ok" y="6">✓</text>
+                <rect class="label-bg" x="-60" y="28" width="120" height="34" rx="6"/>
+                <text class="name" y="42">Pré-Cálculo</text>
+                <text class="hrs" y="55">~20 h · Base</text>
+              </g>
+            </a>
+
+            <!-- 02: Cálculo Real -->
+            <a href="#modulo-2" class="st la" id="map-mod-2">
+              <g transform="translate(330 95)">
+                <circle class="pulse" r="15"><animate attributeName="r" values="15;32" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".6;0" dur="2s" repeatCount="indefinite"/></circle>
+                <circle class="halo" r="23"/>
+                <circle class="dot" r="16"/>
+                <text class="num" y="5">02</text>
+                <text class="ok" y="6">✓</text>
+                <rect class="label-bg" x="-60" y="-48" width="120" height="34" rx="6"/>
+                <text class="name" y="-34">Cálculo Real</text>
+                <text class="hrs" y="-21">~40 h · Derivadas</text>
+              </g>
+            </a>
+
+            <!-- 03: Cálculo Multivariável -->
+            <a href="#modulo-3" class="st la" id="map-mod-3">
+              <g transform="translate(550 95)">
+                <circle class="pulse" r="15"><animate attributeName="r" values="15;32" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".6;0" dur="2s" repeatCount="indefinite"/></circle>
+                <circle class="halo" r="23"/>
+                <circle class="dot" r="16"/>
+                <text class="num" y="5">03</text>
+                <text class="ok" y="6">✓</text>
+                <rect class="label-bg" x="-75" y="-48" width="150" height="34" rx="6"/>
+                <text class="name" y="-34">Cálculo Multivariável</text>
+                <text class="hrs" y="-21">~25 h · Gradientes</text>
+              </g>
+            </a>
+
+            <!-- 04: Otimização -->
+            <a href="#modulo-4" class="st la" id="map-mod-4">
+              <g transform="translate(770 95)">
+                <circle class="pulse" r="15"><animate attributeName="r" values="15;32" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".6;0" dur="2s" repeatCount="indefinite"/></circle>
+                <circle class="halo" r="23"/>
+                <circle class="dot" r="16"/>
+                <text class="num" y="5">04</text>
+                <text class="ok" y="6">✓</text>
+                <rect class="label-bg" x="-60" y="-48" width="120" height="34" rx="6"/>
+                <text class="name" y="-34">Otimização</text>
+                <text class="hrs" y="-21">~15 h · Superfícies</text>
+              </g>
+            </a>
+
+            <!-- 05: Álgebra Linear -->
+            <a href="#modulo-5" class="st lb" id="map-mod-5">
+              <g transform="translate(550 195)">
+                <circle class="pulse" r="16"><animate attributeName="r" values="16;34" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".6;0" dur="2s" repeatCount="indefinite"/></circle>
+                <circle class="halo" r="24"/>
+                <circle class="dot" r="17"/>
+                <text class="num" y="5">05</text>
+                <text class="ok" y="6">✓</text>
+                <rect class="label-bg" x="-65" y="26" width="130" height="34" rx="6"/>
+                <text class="name" y="40">Álgebra Linear</text>
+                <text class="hrs" y="53">~40 h · Matrizes &amp; PCA</text>
+              </g>
+            </a>
+
+            <!-- 06: Programação -->
+            <a href="#modulo-6" class="st lc" id="map-mod-6">
+              <g transform="translate(330 295)">
+                <circle class="pulse" r="15"><animate attributeName="r" values="15;32" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".6;0" dur="2s" repeatCount="indefinite"/></circle>
+                <circle class="halo" r="23"/>
+                <circle class="dot" r="16"/>
+                <text class="num" y="5">06</text>
+                <text class="ok" y="6">✓</text>
+                <rect class="label-bg" x="-60" y="26" width="120" height="34" rx="6"/>
+                <text class="name" y="40">Programação</text>
+                <text class="hrs" y="53">~50 h · Python</text>
+              </g>
+            </a>
+
+            <!-- 07: Estatística & Probabilidade (REPOSICIONADO PARA COLUNA 4, JUNTO DE OTIMIZAÇÃO!) -->
+            <a href="#modulo-7" class="st lc stat-node" id="map-mod-7">
+              <g transform="translate(770 295)">
+                <circle class="pulse" r="16"><animate attributeName="r" values="16;34" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".6;0" dur="2s" repeatCount="indefinite"/></circle>
+                <circle class="halo" r="25"/>
+                <circle class="dot" r="17"/>
+                <text class="num" y="5">07</text>
+                <text class="ok" y="6">✓</text>
+                <rect class="label-bg" x="-75" y="26" width="150" height="34" rx="6"/>
+                <text class="name" y="40">Estatística &amp; Probabilidade</text>
+                <text class="hrs" y="53">~50 h · Inferência &amp; Dados</text>
+              </g>
+            </a>
+
+            <!-- 08: Machine Learning (HUB DE CONVERGÊNCIA) -->
+            <a href="#modulo-8" class="st hub lia" id="map-mod-8">
+              <g transform="translate(980 195)">
+                <circle class="pulse" r="20"><animate attributeName="r" values="20;40" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".6;0" dur="2s" repeatCount="indefinite"/></circle>
+                <circle class="halo" r="28"/>
+                <circle class="dot" r="19"/>
+                <text class="num" y="5">08</text>
+                <text class="ok" y="6">✓</text>
+                <rect class="label-bg" x="-75" y="28" width="150" height="34" rx="6"/>
+                <text class="name" y="42">Machine Learning</text>
+                <text class="hrs" y="55">~60 h · Hub de Modelagem</text>
+              </g>
+            </a>
+
+            <!-- 09: Deep Learning (ESTADO DA ARTE) -->
+            <a href="#modulo-9" class="st end lia" id="map-mod-9">
+              <g transform="translate(1140 195)">
+                <circle class="pulse" r="17"><animate attributeName="r" values="17;35" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".6;0" dur="2s" repeatCount="indefinite"/></circle>
+                <circle class="halo" r="25"/>
+                <circle class="dot" r="17"/>
+                <text class="num" y="5">09</text>
+                <text class="ok" y="6">✓</text>
+                <rect class="label-bg" x="-65" y="26" width="130" height="34" rx="6"/>
+                <text class="name" y="40">Deep Learning</text>
+                <text class="hrs" y="53">~80 h+ · Fronteira Neural</text>
+              </g>
+            </a>
+          </svg>
+
+          <!-- Legenda Pedagógica Inferior -->
+          <div class="map-legend-bar">
+            <div class="legend-track-item">
+              <span class="track-color-pill color-calc"></span>
+              <span><strong>Cálculo:</strong> Dinâmica, taxas e superfícies</span>
+            </div>
+            <div class="legend-track-item">
+              <span class="track-color-pill color-alg"></span>
+              <span><strong>Álgebra Linear:</strong> Matrizes, projeções e manifolds</span>
+            </div>
+            <div class="legend-track-item">
+              <span class="track-color-pill color-prog"></span>
+              <span><strong>Computação:</strong> Algoritmos e pipelines de dados</span>
+            </div>
+            <div class="legend-track-item">
+              <span class="track-color-pill color-stat"></span>
+              <span><strong>Estatística:</strong> Modelos geradores e inferência</span>
+            </div>
+            <div class="legend-track-item">
+              <span class="track-color-pill color-ia"></span>
+              <span><strong>IA:</strong> Encoding, decoding e representações</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CONTEÚDO PROGRAMÁTICO -->
+      <section class="sec" id="fases">
+        <div class="sec-head">
+          <h2>Conteúdo Programático</h2>
+          <p>Estrutura pedagógica completa em 9 módulos. Abra cada módulo para explorar lições, materiais e testes práticos.</p>
+        </div>
+
+        <div class="toolbar">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" placeholder="Buscar temas (ex: gradiente, PCA, CNN, EEG)..." oninput="handleSearch(this.value)">
+          </div>
+
+          <div class="tb-seg">
+            <button class="f-btn" onclick="setFilter('0',this)">Básico</button>
+            <button class="f-btn" onclick="setFilter('1',this)">Intermediário</button>
+            <button class="f-btn is-on" onclick="setFilter('2',this)">Avançado</button>
+          </div>
+
+          <button class="btn-ghost" onclick="setAll(true)">Expandir Tudo</button>
+          <button class="btn-ghost" onclick="setAll(false)">Recolher Tudo</button>
+        </div>
+
+        <div class="trilha" id="trilha"></div>
+      </section>
+
+      <!-- RECOMENDAÇÕES DE MÉTODO -->
+      <section class="sec" id="como-usar">
+        <div class="sec-head">
+          <h2>Como Usar Este Guia</h2>
+          <p>Diretrizes metodológicas essenciais para maximizar a retenção ao longo das ~380 horas de estudos.</p>
+        </div>
+
+        <div class="tips-grid">
+          <div class="tip-card">
+            <span class="tip-num">01</span>
+            <p><strong>Foco Sequencial:</strong> Estude uma seção por vez — no máximo duas em paralelo (ex.: matemática pela manhã + programação à tarde).</p>
+          </div>
+          <div class="tip-card">
+            <span class="tip-num">02</span>
+            <p><strong>Regra dos 50%:</strong> Metade do tempo deve ser prática ativa (código, resolução de equações no papel). Assistir vídeo passivamente não é estudar.</p>
+          </div>
+          <div class="tip-card">
+            <span class="tip-num">03</span>
+            <p><strong>Prática com IA:</strong> Após cada subseção, use o prompt gerador de exercícios presente no guia para resolver problemas contextualizados à neurociência.</p>
+          </div>
+          <div class="tip-card">
+            <span class="tip-num">04</span>
+            <p><strong>Teste de Fechamento:</strong> O teste da seção encerra o módulo. Sem realizá-lo, o conteúdo não está consolidado.</p>
+          </div>
+          <div class="tip-card">
+            <span class="tip-num">05</span>
+            <p><strong>Material Nuclear Primeiro:</strong> Foque nos itens essenciais primeiro; os aprofundamentos entram numa segunda passada ou diante de demandas reais de projeto.</p>
+          </div>
+          <div class="tip-card">
+            <span class="tip-num">06</span>
+            <p><strong>Imersão Antecipada:</strong> Leia abstracts de artigos de encoding/decoding e participe da comunidade Neuromatch para construir repertório conceitual.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- VISÃO ISOLADA DE TEMA -->
+    <main id="detail" class="detail-view">
+      <div id="detailContent"></div>
+    </main>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <div class="footer-wrap">
+    <p><strong>Do neurônio ao modelo computacional</strong> — uma trilha desenhada para estudantes de base biológica rumo à fronteira da neurociência quantitativa.</p>
+    <p style="margin-top: 0.5rem; font-size: 0.82rem; opacity: 0.75;">Sua vantagem comparativa é a intuição biológica; este guia pavimenta a matemática, a computação e a inteligência artificial.</p>
+  </div>
+</footer>
+
+<dialog id="authDlg">
+  <form class="authform" id="authForm">
+    <h3>Sincronizar Progresso</h3>
+    <p class="auth-note">Identificação simplificada por e-mail (sem senha no piloto). Permite sincronizar suas marcações entre dispositivos com segurança básica.</p>
+    <label for="authEmail">Seu E-mail:</label>
+    <input id="authEmail" type="email" placeholder="nome@universidade.br" required autocomplete="email">
+    <p class="auth-err" id="authErr"></p>
+    <div class="auth-actions">
+      <button type="button" class="btn-ghost" onclick="fecharAuth()">Cancelar</button>
+      <button type="submit" class="btn-primary" id="authSubmit">Conectar</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast"></div>
+
+<script>
+
+/* ============================================================
+   DADOS DA TRILHA
+   ============================================================ */
+const PHASES = [
+  {num:"Fase 1", name:"Base Matemática e Computacional", short:"Base", hours:"~240 h",
+   sub:"Construir o ferramental matemático, computacional e estatístico que sustenta tudo o que vem depois."},
+  {num:"Fase 2", name:"“IA”", short:"“IA”", hours:"~140 h+",
+   sub:"Transformar a base em tecnologia: dos métodos clássicos de Machine Learning ao estado da arte em Deep Learning."},
+];
+
+const MODS = [
+{id:1, ph:0, title:"Pré-Cálculo", sub:"O Alicerce Matemático", h:"~20 h", d:1, dl:"Baixa",
+ bio:"Curvas de resposta neuronal, escalas logarítmicas de frequência (bandas de EEG) e funções que descrevem a relação estímulo→resposta: sem fluência em funções e gráficos, os modelos do cérebro parecem mágica.",
+ themes:[
+  {n:"Álgebra", lv:0, d:"Manipular expressões com segurança é o que impede o cálculo de virar um pesadelo de contas.",
+   t:["Potenciação","Equação","Desigualdade"]},
+  {n:"Geometria", lv:0, d:"Áreas, ângulos e relações básicas — a intuição espacial que sustenta a geometria analítica.",
+   t:["Introdução","Áreas e ângulos de figuras planas clássicas","Relações básicas de ângulos"]},
+  {n:"Funções", lv:1, d:"O conceito mais importante do módulo: encarar f(x) como um objeto — como uma tuning curve: estímulo entra, resposta sai.",
+   t:["Introdução","Composição de função","Inversa","Gráfico"]},
+  {n:"Trigonometria", lv:1, d:"Senos e cossenos são a base de Fourier — e de tudo que envolve oscilações neurais.",
+   t:["Introdução de seno, cosseno e tangente","Círculo trigonométrico","Funções trigonométricas inversas","Relações e identidades fundamentais"]},
+  {n:"Geometria Analítica", lv:1, d:"Traduzir geometria em equações — o primeiro passo para pensar em “espaços”.",
+   t:["Introdução","Equação da reta","Equação do círculo"]},
+ ],
+ mats:[{k:"g",t:"Khan Academy — Pré-Cálculo",u:"https://pt.khanacademy.org/math/precalculus"},
+       {k:"y",t:"Playlist YouTube — Base Matemática",u:"https://www.youtube.com/playlist?list=PL83s8LGM84J62ahewE-sVGbnJdOqGp8lJ"}],
+ drill:"Após cada aula (subseção), peça a uma IA para criar 3 questões do tema aplicadas à neurociência para você resolver.",
+ final:"Criar e desenhar o gráfico analítico de uma função que modela a taxa de disparo de um neurônio em função da intensidade do estímulo."},
+
+{id:2, ph:0, title:"Cálculo Real", sub:"Taxas de Variação e Acúmulo", h:"~40 h", d:2, dl:"Média",
+ bio:"A dinâmica do potencial de membrana é descrita por derivadas (Hodgkin-Huxley é um sistema de equações diferenciais). Integrais somam correntes sinápticas e áreas sob a resposta hemodinâmica que o fMRI mede.",
+ themes:[
+  {n:"Limite", lv:0, d:"Formaliza a ideia de “chegar perto”: é a fundação sobre a qual derivadas e integrais são definidas.",
+   t:["Introdução","Definição formal","Propriedades","Limites laterais","Limites de funções compostas","Teorema do sanduíche/confronto"]},
+  {n:"Derivada", lv:1, d:"Taxas de variação instantâneas: a linguagem da dinâmica neural.",
+   t:["Introdução","Condições de derivabilidade","Propriedades","Regra da cadeia","Derivação implícita","Derivadas de ordem superior"]},
+  {n:"Integral de Riemann", lv:2, d:"O acúmulo: somar correntes, áreas sob curvas de resposta, energia de um sinal.",
+   t:["Introdução","Propriedades","Primitiva","Teorema Fundamental do Cálculo","Cálculo de áreas","Mudança de variável"]},
+ ],
+ mats:[{k:"g",t:"Livro base: Guidorizzi — Um Curso de Cálculo, vol. 1"},
+       {k:"y",t:"Livro complementar: Anton, Bivens e Davis — Cálculo"},
+       {k:"y",t:"Livro complementar: James Stewart — Cálculo"}],
+ drill:"Em cada subseção, selecionar exercícios de modelagem do Stewart focados em Biologia (geralmente ao final dos capítulos).",
+ final:"Deduzir analiticamente a taxa instantânea de variação do potencial de membrana, dada uma função polinomial do tempo."},
+
+{id:3, ph:0, title:"Cálculo Multivariável", sub:"A Complexidade do Mundo Real", h:"~25 h", d:3, dl:"Alta",
+ bio:"A atividade cerebral é intrinsecamente multivariável: milhares de neurônios ou voxels variando juntos. O gradiente e a regra da cadeia multivariável são o coração matemático do backpropagation — e de todo modelo de encoding.",
+ themes:[
+  {n:"Funções vetoriais", lv:0, d:"Funções que devolvem vetores: trajetórias e campos, a ponte para várias variáveis.",
+   t:["Introdução e visualização"]},
+  {n:"Diferencial em várias variáveis", lv:1, d:"Gradiente e regra da cadeia multivariável — o coração matemático do backpropagation.",
+   t:["Introdução","Diferenciabilidade e continuidade","Gradiente","Derivadas parciais","Derivada direcional","Regra da cadeia"]},
+  {n:"Integrais múltiplas", lv:2, d:"Somar sobre áreas e volumes: distribuições de probabilidade em várias dimensões.",
+   t:["Introdução","Integral dupla e tripla (retângulo e paralelepípedo)","Propriedades de integrais múltiplas","Mudança de variáveis"]},
+ ],
+ mats:[{k:"g",t:"Livro (fortemente recomendado): Diomara Pinto — Cálculo Diferencial e Integral de Funções de Várias Variáveis"},
+       {k:"y",t:"YouTube para dúvidas visuais e geométricas pontuais"}],
+ drill:"Em cada subseção, praticar a obtenção mecânica de gradientes em 2 e 3 dimensões.",
+ final:"Avaliar um mapa simplificado de ativação cortical Z=f(x,y) e encontrar a coordenada exata do pico de ativação local."},
+
+{id:4, ph:0, title:"Otimização", sub:"A Busca pelo Ótimo", h:"~15 h", d:2, dl:"Média",
+ bio:"Treinar qualquer modelo de encoding/decoding é otimizar uma função de custo. Paisagens de energia também aparecem em redes atratoras (Hopfield) e no enovelamento de proteínas — otimização é vocabulário obrigatório.",
+ themes:[
+  {n:"Espaço de variáveis", lv:0, d:"Enxergar cada configuração possível como um ponto num espaço — e o custo como uma paisagem sobre ele.", t:[]},
+  {n:"Minimização e maximização", lv:1, d:"Encontrar picos e vales: pontos críticos e o que eles significam.", t:[]},
+  {n:"Métodos computacionais", lv:2, d:"Gradiente descendente e suas armadilhas: mínimos locais vs. o mínimo global.", t:[]},
+ ],
+ mats:[{k:"g",t:"Vídeo: 3Blue1Brown — Gradient Descent (série de Redes Neurais)",u:"https://www.youtube.com/watch?v=IHZwWFHWa-w"},
+       {k:"y",t:"YouTube para visualizações de superfícies e paisagens de custo"}],
+ drill:"Em cada subseção, encontrar máximos e mínimos de funções de duas variáveis à mão, identificando pontos críticos.",
+ final:"Explicar, usando uma paisagem de energia como exemplo, por que um método de descida de gradiente pode ficar preso em um mínimo local."},
+
+{id:5, ph:0, title:"Álgebra Linear", sub:"A Linguagem dos Dados na Computação", h:"~40 h", d:3, dl:"Alta",
+ bio:"Dados neurais são matrizes: neurônios × tempo, voxels × estímulos, canais × frequências. PCA e SVD reduzem populações de milhares de neurônios a poucas dimensões interpretáveis — análise padrão em neurociência de sistemas.",
+ themes:[
+  {n:"Vetores, matrizes e operações", lv:0, d:"A aritmética dos dados: toda gravação neural é uma matriz.", t:[]},
+  {n:"Sistemas lineares e transformações", lv:1, d:"Resolver sistemas e enxergar matrizes como transformações do espaço.", t:[]},
+  {n:"Bases e espaços vetoriais", lv:1, d:"Trocar de “ponto de vista” escolhendo os eixos certos para descrever os dados.", t:[]},
+  {n:"Ortogonalidade", lv:1, d:"Direções independentes e projeções — a geometria por trás dos mínimos quadrados.", t:[]},
+  {n:"Autovalores e autovetores", lv:2, d:"As direções que uma transformação preserva; essenciais do PCA à estabilidade de redes recorrentes.", t:[]},
+  {n:"Decomposições", lv:2, d:"Quebrar matrizes em partes simples (ex.: SVD) — como o computador simplifica o caos.", t:[]},
+ ],
+ mats:[{k:"g",t:"Vídeo: 3Blue1Brown — Essência da Álgebra Linear",u:"https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab"},
+       {k:"y",t:"Estudo pelo livro: Linear Algebra and Its Applications — Strang"}],
+ drill:"Aviso didático: vários conteúdos aqui são abstratos demais. Sem os vídeos de visualização, fica muito difícil de entender — assista ao 3Blue1Brown primeiro.",
+ final:"Explicar geometricamente qual o sentido do autovetor de uma matriz de transição de estados (cadeia de Markov) numa rede neural simplificada."},
+
+{id:6, ph:0, title:"Programação (Python)", sub:"Saindo da Teoria para a Prática Ferramental", h:"~50 h", d:2, dl:"Média",
+ bio:"Da análise de spikes ao pré-processamento de EEG e fMRI (MNE, nilearn), a neurociência computacional vive em Python. Reprodutibilidade e versionamento são exigências de laboratórios e revistas — não detalhes.",
+ themes:[
+  {n:"Ambientes", lv:0, d:"IDEs, notebooks e terminais: montar sua bancada de trabalho digital.", t:[]},
+  {n:"Comandos iniciais e lógica básica", lv:0, d:"Variáveis, condicionais e laços — o controle de fluxo de qualquer script.", t:[]},
+  {n:"Informática básica", lv:0, d:"Arquivos, pastas, formatos e terminal: o que todo mundo assume que você já sabe.", t:[]},
+  {n:"Estruturas de dados básicas", lv:1, d:"Listas, dicionários e arrays: escolher o “recipiente” certo para cada dado.", t:[]},
+  {n:"Códigos funcionais", lv:1, d:"Organizar o código em funções reutilizáveis e legíveis.", t:[]},
+  {n:"Bibliotecas", lv:1, d:"NumPy, pandas, Matplotlib — e adiante MNE e nilearn: não reinvente a roda.", t:[]},
+  {n:"Visualizações", lv:1, d:"Transformar matrizes de dados em figuras que contam uma história.", t:[]},
+  {n:"Orientação a objetos", lv:2, d:"Ler e usar classes — o formato da maioria das bibliotecas científicas.", t:[]},
+  {n:"Complexidade", lv:2, d:"Noção de custo computacional: por que alguns códigos travam com dados grandes.", t:[]},
+  {n:"Prática", lv:2, d:"Projetos de verdade: pipelines completas e versionamento.", t:["Pipelines extensas","Git e GitHub"]},
+ ],
+ mats:[{k:"g",t:"Curso IMPATech — repositório no GitHub",u:"https://github.com/ry4n-felinto/impytech_2026"}],
+ drill:"Dica de sobrevivência: programação se aprende programando. Escreva código até a mão cansar.",
+ final:"Escrever um script em Python que baixe dados neurais públicos (ex.: OpenNeuro) via API, passe por um pipeline de limpeza leve, mostre 2 gráficos e suba tudo no GitHub de forma padronizada e limpa."},
+
+{id:7, ph:0, title:"Estatística e Probabilidade", sub:"Encontrando Certezas no Caos Experimental", h:"~50 h", d:4, dl:"Muito Alta",
+ bio:"A neuroimagem vive — bem ou mal — de estatística: p-valores, comparações múltiplas em fMRI, incerteza de medidas ruidosas. Modelos Bayesianos dominam as teorias modernas de percepção e decisão.",
+ themes:[
+  {n:"Combinatória", lv:0, d:"Contar sem enumerar: a base do cálculo de probabilidades.", t:[]},
+  {n:"Variável aleatória", lv:0, d:"Modelar o acaso: distribuições que descrevem experimentos e medidas ruidosas.", t:[]},
+  {n:"Introdução à inferência", lv:1, d:"Do dado à conclusão: estimar propriedades da população a partir da amostra.", t:[]},
+  {n:"Testes de hipóteses", lv:1, d:"O p-valor e as comparações múltiplas — críticos em neuroimagem.", t:[]},
+  {n:"Convergências", lv:2, d:"O que acontece quando n cresce: lei dos grandes números e teorema central do limite.", t:[]},
+  {n:"Inferência Bayesiana", lv:2, d:"Atualizar crenças com evidência — a matemática dos modelos de percepção e decisão.", t:[]},
+  {n:"Inferência não-Bayesiana (Frequentista)", lv:2, d:"Máxima verossimilhança e a interpretação clássica que domina os papers.", t:[]},
+ ],
+ mats:[{k:"g",t:"Livro: Tertuliano — Princípios de Probabilidade"},
+       {k:"y",t:"Aulas pontuais no YouTube para desmistificar os temas espinhosos à primeira vista (ex.: StatQuest)"}],
+ drill:"Acompanhar os exercícios do livro. O tema é muito complexo à primeira vista, mas se desmistifica com o tempo e a repetição.",
+ final:"Montar o design estatístico completo de um experimento de neuroimagem, especificando testes de hipóteses com correção para comparações múltiplas e rodando-os numa simulação no Python."},
+
+{id:8, ph:1, title:"Machine Learning", sub:"Criando a Inteligência Clássica", h:"~60 h", d:3, dl:"Alta",
+ bio:"Encoding e decoding neural são, no fundo, problemas de regressão e classificação: regressão ridge é O método dos encoding models, e classificadores multivariados (MVPA) leem estados mentais a partir de padrões de atividade.",
+ themes:[
+  {n:"Introdução", lv:0, d:"O vocabulário de ML: treino, teste, viés e variância.", t:[]},
+  {n:"Regressão (polinomial)", lv:0, d:"Prever valores contínuos — ex.: a atividade de um voxel a partir de features do estímulo (encoding).", t:[]},
+  {n:"Classificação", lv:1, d:"Prever categorias — ex.: decodificar qual estímulo foi visto a partir do padrão de atividade (MVPA).", t:[]},
+  {n:"Métricas estatísticas", lv:1, d:"Acurácia engana: precisão, recall e AUC para avaliar de verdade.", t:[]},
+  {n:"Reamostragem", lv:1, d:"Validação cruzada e bootstrap: em neuro os dados são poucos e ruidosos — é aqui que a maioria erra.", t:[]},
+  {n:"Regularização", lv:1, d:"Frear o overfitting: ridge é o método central dos encoding models.", t:[]},
+  {n:"Estudo de variáveis", lv:1, d:"Quais variáveis importam e como selecioná-las.", t:[]},
+  {n:"Árvores", lv:1, d:"Decisões encadeadas e florestas aleatórias.", t:[]},
+  {n:"Aprendizado não supervisionado", lv:1, d:"Clustering: achar tipos celulares e estados de rede sem rótulos.", t:[]},
+  {n:"GAMs", lv:2, d:"Modelos aditivos: flexibilidade sem abrir mão da interpretação.", t:[]},
+  {n:"SVM", lv:2, d:"Separar classes com margens máximas e kernels.", t:[]},
+  {n:"Métodos adicionais", lv:2, d:"Ensembles, boosting e o restante da caixa de ferramentas.", t:[]},
+ ],
+ mats:[{k:"g",t:"ISLR — Introduction to Statistical Learning (em Python ou R, a critério do aluno)",u:"https://www.statlearning.com/"},
+       {k:"g",t:"Notas de aula da matéria do IMPATech"},
+       {k:"y",t:"Elements of Statistical Learning (versão avançada do ISLR)"}],
+ drill:"A cada seção nova (Regressão, Classificação etc.), teste em um dataset médico do repositório UC Irvine ou em datasets neurais abertos.",
+ final:"Pegar um banco de dados gigantesco (Kaggle ou OpenNeuro) e fazer um pipeline robusto de tratamento, treinamento e reporte."},
+
+{id:9, ph:1, title:"Deep Learning", sub:"O Estado da Arte da Neurociência Computacional", h:"~80 h+", d:5, dl:"Máxima",
+ bio:"CNNs são hoje os principais modelos computacionais do sistema visual (V1→IT); Transformers decodificam linguagem contínua a partir de fMRI; RNNs modelam dinâmica cortical. Dominar Deep Learning é dominar a fronteira do encoding/decoding.",
+ themes:[
+  {n:"Fundamentos", lv:0, d:"Neurônios artificiais, camadas e backpropagation.", t:[]},
+  {n:"CNN", lv:1, d:"Convoluções para imagens — e os principais modelos do córtex visual.", t:[]},
+  {n:"RNN", lv:1, d:"Sequências e dinâmica temporal — parentes próximos dos circuitos corticais.", t:[]},
+  {n:"Representações", lv:1, d:"Embeddings: como os modelos “resumem” dados complexos — e como compará-los com o cérebro (RSA).", t:[]},
+  {n:"Transformers (Attention)", lv:2, d:"A arquitetura dos LLMs, do AlphaFold e da decodificação de linguagem contínua.", t:[]},
+  {n:"GNN", lv:2, d:"Grafos: conectomas, moléculas e interações como redes.", t:[]},
+  {n:"Generativos", lv:2, d:"Modelos que criam: reconstrução de estímulos visuais a partir de atividade cerebral usa exatamente estes.", t:["VAE","GAN","Diffusion"]},
+  {n:"LLM", lv:2, d:"Grandes modelos de linguagem e embeddings semânticos que preveem atividade cortical.", t:[]},
+  {n:"Reinforcement Learning", lv:2, d:"Aprender por tentativa e recompensa — a ponte com dopamina e aprendizado no cérebro.", t:[]},
+ ],
+ mats:[{k:"g",t:"Deep Learning Book — Ian Goodfellow (base teórica muito sólida)"},
+       {k:"g",t:"Andrej Karpathy — aulas de LLM e backprop no YouTube"}],
+ drill:"Dica operacional: utilize instâncias de Cloud ou o Google Colab; seu computador vai ferver caso não possua placa de vídeo compatível.",
+ final:"Fazer um projeto de ponta a ponta: uma CNN para classificar imagens de ressonância, ou um Transformer para decodificar estímulos a partir de fMRI público — documentando tudo rigorosamente num repositório."},
+];
+
+/* ============================================================
+   ESTADO E PERSISTÊNCIA LOCAL (localStorage)
+   ============================================================ */
+const PROG_KEY = "guia-neuro-progresso";
+let done = new Set();
+try { done = new Set(JSON.parse(localStorage.getItem(PROG_KEY) || "[]")); } catch(e){}
+function saveProg(){ try { localStorage.setItem(PROG_KEY, JSON.stringify([...done])); } catch(e){} }
+const doneCount = m => m.themes.reduce((a,_,i)=> a + done.has(m.id+"-"+(i+1)), 0);
+
+/* ============================================================
+   UTILITÁRIOS
+   ============================================================ */
+const esc = s => (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+const LV = ["Básico","Intermediário","Avançado"];
+const pad2 = n => String(n).padStart(2,"0");
+const $ = id => document.getElementById(id);
+const pct = (a,b) => b ? 100*a/b : 0;
+const difBars = d => Array.from({length:5},(_,i)=>`<i class="${i<d?"on":""}"></i>`).join("");
+
+function showToast(msg) {
+  const t = $("toast");
+  if(!t) return;
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 2400);
+}
+
+function tipoMat(t){
+  if(/livro/i.test(t)) return "Livro";
+  if(/playlist/i.test(t)) return "Playlist";
+  if(/v[ií]deo|youtube|3blue1brown|karpathy|aulas/i.test(t)) return "Vídeo";
+  if(/notas/i.test(t)) return "Notas";
+  if(/curso|khan/i.test(t)) return "Curso";
+  return "Link";
+}
+
+const matItem = x => `<li><span class="mtype">${tipoMat(x.t)}</span><b>${esc(x.t)}</b>${x.u?`<a href="${x.u}" target="_blank" rel="noopener noreferrer">Acessar ↗</a>`:""}</li>`;
+
+function proximoTema(){
+  for(const m of MODS)
+    for(let i=0; i<m.themes.length; i++){
+      const key = m.id+"-"+(i+1);
+      if(!done.has(key)) return {m, t:m.themes[i], key, idx:i+1};
+    }
+  return null;
+}
+
+/* ============================================================
+   TEMA ESCURO / CLARO
+   ============================================================ */
+function applyThemeBtn(){
+  const isDark = document.documentElement.dataset.theme === "dark";
+  $("themeBtn").textContent = isDark ? "☀️" : "🌙";
+  $("themeBtn").title = isDark ? "Mudar para modo claro" : "Mudar para modo escuro";
+}
+function toggleTheme(){
+  const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem("guia-tema", t); } catch(e){}
+  applyThemeBtn();
+}
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+function alternarSidebar(){
+  const recolhida = document.body.classList.toggle("nav-recolhida");
+  try { localStorage.setItem("guia-nav", recolhida ? "off" : "on"); } catch(e){}
+}
+function restaurarSidebar(){
+  let v = null;
+  try { v = localStorage.getItem("guia-nav"); } catch(e){}
+  if(v === "on" && window.innerWidth > 1024) {
+    document.body.classList.remove("nav-recolhida");
+  } else {
+    document.body.classList.add("nav-recolhida");
+  }
+}
+
+function renderNav(){
+  $("sidenav").innerHTML = PHASES.map((ph,i)=>`
+    <p class="sn-phase">${esc(ph.num)} · ${esc(ph.short)}</p>
+    ${MODS.filter(m=>m.ph===i).map(m=>{
+      const dn = doneCount(m), N = m.themes.length;
+      return `<details class="sn-group" id="sn-mod-${m.id}">
+        <summary class="sn-mod">
+          <span class="sn-chev">›</span>
+          <a class="sn-name" href="#modulo-${m.id}" onclick="event.stopPropagation()">
+            <span class="sn-num">${pad2(m.id)}</span>${esc(m.title)}
+          </a>
+          <span class="sn-prog${dn===N?" full":""}" id="sn-prog-${m.id}">${dn}/${N}</span>
+          <span class="sn-bar${dn===N?" full":""}" id="sn-bar-${m.id}"><i style="width:${pct(dn,N)}%"></i></span>
+        </summary>
+        <div class="sn-themes">
+          ${m.themes.map((t,ti)=>{
+            const key = m.id+"-"+(ti+1);
+            return `<div class="sn-theme lv${t.lv}${done.has(key)?" done":""}" id="sn-t-${key}">
+              <input type="checkbox" class="chk" onchange="toggleDone('${key}')"
+                     ${done.has(key)?"checked":""} title="Marcar como estudado">
+              <a class="sn-tn" href="#tema-${key}">${esc(t.n)}</a>
+            </div>`;
+          }).join("")}
+        </div>
+      </details>`;
+    }).join("")}
+  `).join("") + `<a class="sn-extra" href="#como-usar">💡 Como Usar o Guia</a>`;
+}
+
+function marcarAtualNaNav(key){
+  document.querySelectorAll(".sn-theme.atual").forEach(a=>a.classList.remove("atual"));
+  if(!key) return;
+  const a = $("sn-t-"+key);
+  if(!a) return;
+  a.classList.add("atual");
+  const d = a.closest("details.sn-group");
+  if(d) d.open = true;
+}
+
+/* ============================================================
+   RENDERIZAÇÃO DA TRILHA (HUB)
+   ============================================================ */
+function renderHub(){
+  $("trilha").innerHTML = PHASES.map((ph,i)=>`
+    <div class="phase-wrap" id="fase-${i+1}">
+      <div class="phase-card">
+        <div class="phase-card-info">
+          <span class="phase-badge">${esc(ph.num)}</span>
+          <h3>${esc(ph.name)}</h3>
+          <p>${esc(ph.sub)}</p>
+        </div>
+        <div class="phase-card-hours">${esc(ph.hours)}</div>
+      </div>
+
+      <div class="timeline">
+      ${MODS.filter(m=>m.ph===i).map(m=>{
+        const dn = doneCount(m), N = m.themes.length;
+        return `
+        <details class="mod-card${dn===N?" full":""}" id="modulo-${m.id}">
+          <summary class="mod-sum">
+            <span class="mod-node" aria-hidden="true">
+              <svg viewBox="0 0 44 44">
+                <circle class="nbg" cx="22" cy="22" r="19"/>
+                <circle class="nt" cx="22" cy="22" r="19"/>
+                <circle class="nf" id="ring-mod-${m.id}" cx="22" cy="22" r="19" pathLength="100"/>
+              </svg>
+              <span class="nn">${pad2(m.id)}</span>
+            </span>
+
+            <input type="checkbox" class="chk" id="chk-mod-${m.id}"
+                   onclick="event.stopPropagation()" onchange="marcarModulo(${m.id}, this.checked)"
+                   title="Marcar todos os temas do módulo">
+
+            <div class="mod-title-area">
+              <h3>${esc(m.title)}</h3>
+              <span class="sub">${esc(m.sub)}</span>
+            </div>
+
+            <div class="mod-meta-area">
+              <span class="meta-chip"><em>Carga</em>${m.h}</span>
+              <span class="meta-chip"><em>Nível</em><span class="dif-bars">${difBars(m.d)}</span></span>
+              <span class="meta-chip"><em>Progresso</em><span class="prog-chip" id="prog-mod-${m.id}">${dn}/${N}</span></span>
+            </div>
+
+            <span class="mod-sum-chev">›</span>
+          </summary>
+
+          <div class="mod-body">
+            <div class="neuro-callout">
+              <div class="neuro-callout-icon">🧠</div>
+              <div>
+                <h4>Por que isso importa na Neurociência?</h4>
+                <p>${esc(m.bio)}</p>
+              </div>
+            </div>
+
+            <div class="lessons-col">
+              <h4>Lições do Módulo</h4>
+              <ul class="lessons-list">
+                ${m.themes.map((t,ti)=>{
+                  const key = m.id+"-"+(ti+1), isDone = done.has(key);
+                  return `
+                  <li class="lesson-item lv${t.lv}${isDone?" done":""}" id="card-${key}" data-title="${t.n.toLowerCase()}" data-desc="${t.d.toLowerCase()}" data-lv="${t.lv}">
+                    <input type="checkbox" class="chk" onchange="toggleDone('${key}')"
+                           ${isDone?"checked":""} title="Marcar como estudado">
+                    <span class="lesson-num">${pad2(ti+1)}</span>
+                    <a class="lesson-title-area" href="#tema-${key}">
+                      <b>${esc(t.n)}</b>
+                      <span class="desc">${esc(t.d)}</span>
+                    </a>
+                    <div class="lesson-chips">
+                      <span class="lvchip lv${t.lv}">${LV[t.lv]}</span>
+                      ${t.t.length ? `<span class="sub-cnt">${t.t.length} tópicos</span>` : ""}
+                      <a class="lesson-go" href="#tema-${key}" title="Abrir lição">→</a>
+                    </div>
+                  </li>`;
+                }).join("")}
+              </ul>
+            </div>
+
+            <div class="side-col">
+              <h4>Materiais Recomendados</h4>
+              <div class="side-card">
+                <ul class="mats-list">${m.mats.map(matItem).join("")}</ul>
+              </div>
+
+              <div class="drill-box">
+                <b>Prática com IA:</b> ${esc(m.drill)}
+              </div>
+
+              <div class="test-box">
+                <h4>Teste de Consolidação</h4>
+                <p>${esc(m.final)}</p>
+                <a class="btn-test" href="testes/modulo-${pad2(m.id)}.pdf" target="_blank" rel="noopener">
+                  Abrir Teste (PDF) ↗
+                </a>
+                <p class="test-small">Avaliação conceitual e prática para fechamento do módulo.</p>
+              </div>
+            </div>
+          </div>
+        </details>`;
+      }).join("")}
+      </div>
+    </div>
+  `).join("");
+
+  $("statTemas").textContent = MODS.reduce((a,m)=>a+m.themes.length, 0);
+
+  $("pcPhases").innerHTML = PHASES.map((ph,i)=>`
+    <div class="pc-ph">
+      <div class="pc-ph-top">
+        <b>${esc(ph.num)} · ${esc(ph.short)}</b>
+        <span id="ph-num-${i}">0/0</span>
+      </div>
+      <div class="pc-ph-bar"><i id="ph-bar-${i}"></i></div>
+    </div>
+  `).join("");
+}
+
+function setAll(open){
+  document.querySelectorAll("details.mod-card").forEach(d=>d.open = open);
+}
+
+function setFilter(v, btn){
+  document.body.dataset.filter = v;
+  document.querySelectorAll(".f-btn").forEach(b=>b.classList.toggle("is-on", b===btn));
+  filtrarElementos();
+}
+
+function handleSearch(q){
+  filtrarElementos();
+}
+
+function filtrarElementos(){
+  const maxLv = parseInt(document.body.dataset.filter || "2", 10);
+  const q = ($("searchInput")?.value || "").toLowerCase().trim();
+
+  document.querySelectorAll(".lesson-item").forEach(item=>{
+    const lv = parseInt(item.dataset.lv || "0", 10);
+    const title = item.dataset.title || "";
+    const desc = item.dataset.desc || "";
+    const matchesLv = lv <= maxLv;
+    const matchesQ = !q || title.includes(q) || desc.includes(q);
+
+    if(matchesLv && matchesQ){
+      item.style.display = "";
+    } else {
+      item.style.display = "none";
+    }
+  });
+}
+
+/* ============================================================
+   PROGRESSO E MARCAÇÕES
+   ============================================================ */
+function atualizarMarcacoes(){
+  let feitos = 0, total = 0;
+  const porFase = PHASES.map(()=>({d:0, n:0}));
+
+  MODS.forEach(m=>{
+    const N = m.themes.length, dn = doneCount(m), full = N > 0 && dn === N;
+    feitos += dn; total += N;
+    porFase[m.ph].d += dn; porFase[m.ph].n += N;
+
+    m.themes.forEach((_,ti)=>{
+      const key = m.id+"-"+(ti+1), marcado = done.has(key);
+      const card = $("card-"+key);
+      if(card){
+        card.classList.toggle("done", marcado);
+        const chk = card.querySelector("input.chk");
+        if(chk) chk.checked = marcado;
+      }
+      const naNav = $("sn-t-"+key);
+      if(naNav){
+        naNav.classList.toggle("done", marcado);
+        const chk = naNav.querySelector("input.chk");
+        if(chk) chk.checked = marcado;
+      }
+    });
+
+    const cx = $("chk-mod-"+m.id);
+    if(cx){ cx.checked = full; cx.indeterminate = dn > 0 && !full; }
+
+    const det = $("modulo-"+m.id);
+    if(det) det.classList.toggle("full", full);
+
+    const ring = $("ring-mod-"+m.id);
+    if(ring) ring.style.strokeDashoffset = 100 - pct(dn,N);
+
+    const pm = $("prog-mod-"+m.id);
+    if(pm){ pm.textContent = `${dn}/${N}`; pm.classList.toggle("full", full); }
+
+    const sn = $("sn-prog-"+m.id);
+    if(sn){ sn.textContent = `${dn}/${N}`; sn.classList.toggle("full", full); }
+
+    const sb = $("sn-bar-"+m.id);
+    if(sb){ sb.firstElementChild.style.width = pct(dn,N)+"%"; sb.classList.toggle("full", full); }
+
+    const mn = $("map-mod-"+m.id);
+    if(mn){
+      mn.classList.toggle("done", full);
+      mn.classList.toggle("partial", dn > 0 && !full);
+    }
+  });
+
+  porFase.forEach((f,i)=>{
+    const numEl = $("ph-num-"+i), barEl = $("ph-bar-"+i);
+    if(numEl) numEl.textContent = `${f.d}/${f.n}`;
+    if(barEl) barEl.style.width = pct(f.d, f.n)+"%";
+  });
+
+  const p = Math.round(pct(feitos, total));
+  $("tpNum").textContent = `${feitos}/${total}`;
+  $("tpFill").style.width = p+"%";
+  $("heroPct").textContent = p+"%";
+  $("heroRing").style.strokeDashoffset = 100 - p;
+  $("heroSub").textContent = `${feitos} de ${total} temas concluídos`;
+
+  const nx = proximoTema();
+  const cta = $("heroCta"), top = $("btnContinuar"), next = $("heroNext");
+  document.querySelectorAll(".map .st.here").forEach(e=>e.classList.remove("here"));
+
+  if(nx){
+    const estacao = $("map-mod-"+nx.m.id);
+    if(estacao) estacao.classList.add("here");
+    const href = "#tema-"+nx.key;
+    cta.href = top.href = next.href = href;
+    cta.textContent = feitos ? "Continuar de onde parei →" : "Começar pelo primeiro tema →";
+    top.textContent = feitos ? "Continuar" : "Começar";
+    next.innerHTML = `<span>${pad2(nx.m.id)} · ${esc(nx.t.n)}</span><span>→</span>`;
+  } else {
+    cta.href = top.href = next.href = "#fases";
+    cta.textContent = "Rever a trilha";
+    top.textContent = "Concluído ✓";
+    next.innerHTML = `<span>Trilha Concluída! 🎉</span><span>✓</span>`;
+  }
+}
+
+function enviarMarcacao(key, marcado){
+  if(!usuario) return;
+  api("progresso/"+key, {method: marcado ? "PUT" : "DELETE"}).catch(console.error);
+}
+
+function toggleDone(key){
+  const marcado = !done.has(key);
+  marcado ? done.add(key) : done.delete(key);
+  saveProg();
+  atualizarMarcacoes();
+  enviarMarcacao(key, marcado);
+  showToast(marcado ? "Tema marcado como concluído! ✓" : "Tema desmarcado.");
+  const x = location.hash.match(/^#tema-(\d+)-(\d+)$/);
+  if(x) renderDetail(+x[1], +x[2]);
+}
+
+function marcarModulo(id, marcar){
+  const m = MODS.find(x=>x.id===id);
+  if(!m) return;
+  m.themes.forEach((_,ti)=>{
+    const key = id+"-"+(ti+1);
+    if(marcar !== done.has(key)){
+      marcar ? done.add(key) : done.delete(key);
+      enviarMarcacao(key, marcar);
+    }
+  });
+  saveProg();
+  atualizarMarcacoes();
+  showToast(marcar ? `Módulo ${id} concluído! 🎓` : `Módulo ${id} reaberto.`);
+}
+
+/* ============================================================
+   AUTENTICAÇÃO E SINCRONIZAÇÃO (API BACKEND)
+   ============================================================ */
+let usuario = null;
+let temBackend = false;
+
+async function api(caminho, opcoes = {}){
+  const r = await fetch("/api/"+caminho, {headers:{"Content-Type":"application/json"}, ...opcoes});
+  if(!r.ok){
+    const corpo = await r.json().catch(()=>({}));
+    throw Object.assign(new Error(corpo.detail || "Erro de comunicação."), {status:r.status});
+  }
+  return r.status === 204 ? null : r.json();
+}
+
+async function iniciarConta(){
+  try { usuario = (await api("eu")).email; temBackend = true; }
+  catch(e){ usuario = null; temBackend = e.status === 401; }
+  if(usuario) await sincronizar().catch(console.error);
+  renderAuth();
+}
+
+async function sincronizar(){
+  const resp = await api("progresso/sincronizar", {method:"POST", body:JSON.stringify({temas:[...done]})});
+  done = new Set(resp.temas);
+  saveProg();
+  atualizarMarcacoes();
+}
+
+function renderAuth(){
+  const el = $("authArea");
+  if(!temBackend){ el.innerHTML = ""; return; }
+  el.innerHTML = usuario
+    ? `<span class="auth-mail" title="${esc(usuario)}">${esc(usuario)}</span><button class="btn-ghost" onclick="sair()">Sair</button>`
+    : `<button class="btn-ghost" onclick="abrirAuth()">Salvar Progresso</button>`;
+}
+
+function abrirAuth(){ $("authErr").textContent = ""; $("authDlg").showModal(); }
+function fecharAuth(){ $("authDlg").close(); }
+
+$("authForm").addEventListener("submit", async ev=>{
+  ev.preventDefault();
+  const email = $("authEmail").value;
+  try {
+    const resp = await api("entrar", {method:"POST", body:JSON.stringify({email})});
+    usuario = resp.email;
+    fecharAuth();
+    renderAuth();
+    await sincronizar();
+    showToast("Progresso sincronizado com sucesso!");
+  } catch(e){
+    $("authErr").textContent = e.message;
+  }
+});
+
+async function sair(){
+  try { await api("sair", {method:"POST"}); } catch(e){}
+  usuario = null;
+  renderAuth();
+  showToast("Desconectado da conta.");
+}
+
+/* ============================================================
+   VISÃO ISOLADA DE TEMA
+   ============================================================ */
+function renderDetail(modId, themeIdx){
+  const m = MODS.find(x=>x.id===modId);
+  const t = m && m.themes[themeIdx-1];
+  if(!t) return false;
+  const ph = PHASES[m.ph];
+  const key = m.id+"-"+themeIdx, isDone = done.has(key);
+  const prev = m.themes[themeIdx-2], next = m.themes[themeIdx];
+  const prompt = `Crie 3 questões sobre ${t.n} (módulo de ${m.title}) aplicadas à neurociência, em níveis básico, intermediário e avançado, para eu resolver uma de cada vez.`;
+  const kOf = i => m.id+"-"+(i+1);
+
+  $("detailContent").innerHTML = `
+    <nav class="crumbs" aria-label="Navegação estrutural">
+      <a href="#fases">Trilha</a><span class="sep">›</span>
+      <a href="#modulo-${m.id}">${pad2(m.id)} · ${esc(m.title)}</a><span class="sep">›</span>
+      <span>${esc(t.n)}</span>
+    </nav>
+
+    <div class="stepper" aria-label="Progresso no módulo">
+      ${m.themes.map((x,i)=>`<a href="#tema-${kOf(i)}" class="${done.has(kOf(i))?"done":""}${i+1===themeIdx?" atual":""}" title="${esc(x.n)}"></a>`).join("")}
+    </div>
+    <p class="stepper-lbl">Tema ${themeIdx} de ${m.themes.length} · ${doneCount(m)} concluídos neste módulo</p>
+
+    <div class="detail-head">
+      <div class="dh">
+        <h1>${esc(t.n)}</h1>
+        <p class="lead">${esc(t.d)}</p>
+      </div>
+      <div class="dh-actions">
+        <button class="done-toggle-btn${isDone?" is-done":""}" onclick="toggleDone('${key}')">
+          ${isDone ? "Concluído ✓" : "Marcar como Concluído"}
+        </button>
+        ${isDone && next ? `<a class="btn-primary" href="#tema-${m.id}-${themeIdx+1}">Próximo Tema →</a>` : ""}
+      </div>
+    </div>
+
+    <div class="detail-metabar">
+      <span class="detail-chip">${ph.num} · <b>${esc(ph.name)}</b></span>
+      <span class="detail-chip">Módulo <b>${esc(m.title)}</b></span>
+      <span class="detail-chip"><span class="lvchip lv${t.lv}">${LV[t.lv]}</span></span>
+      <span class="detail-chip">Dificuldade: <b>${m.dl}</b></span>
+    </div>
+
+    <div class="detail-grid">
+      <div class="d-main">
+        <div class="d-sec">
+          <h2>Tópicos e Subtemas</h2>
+          ${t.t.length
+            ? `<ul class="topics-checklist">${t.t.map(s=>`<li>${esc(s)}</li>`).join("")}</ul>`
+            : `<p style="color:var(--text-muted); font-size:0.95rem;">Este tema forma uma unidade conceitual coesa sem subdivisões no guia.</p>`}
+        </div>
+
+        <div class="d-sec">
+          <h2>Prática Ativa com Inteligência Artificial</h2>
+          <p style="color:var(--text-muted); font-size:0.92rem; margin-bottom:1rem;">Copie este prompt e cole no seu modelo de IA preferido para exercitar o tema com exemplos biológicos:</p>
+          <div class="prompt-card">
+            <div class="prompt-box" id="aiPrompt">${esc(prompt)}</div>
+            <button class="btn-copy" onclick="copyPrompt(this)">
+              <span>Copiar Prompt</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <aside class="d-side">
+        <div class="d-sec">
+          <h2>Navegação no Módulo</h2>
+          <nav class="mnav">
+            ${m.themes.map((x,i)=>`
+              <a href="#tema-${kOf(i)}" class="${done.has(kOf(i))?"done":""}${i+1===themeIdx?" atual":""}">
+                <span class="mn-dot"></span>
+                <span>${pad2(i+1)}. ${esc(x.n)}</span>
+              </a>`).join("")}
+          </nav>
+        </div>
+
+        <div class="d-sec">
+          <h2>Materiais do Módulo</h2>
+          <div class="side-card">
+            <ul class="mats-list">${m.mats.map(matItem).join("")}</ul>
+          </div>
+        </div>
+
+        <div class="d-sec">
+          <h2>Teste do Módulo</h2>
+          <div class="test-box">
+            <p>${esc(m.final)}</p>
+            <a class="btn-test" href="testes/modulo-${pad2(m.id)}.pdf" target="_blank" rel="noopener">
+              Abrir Teste (PDF) ↗
+            </a>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <nav class="pager">
+      ${prev ? `
+      <a href="#tema-${m.id}-${themeIdx-1}">
+        <span class="dir">← Anterior</span>
+        <span class="name">${esc(prev.n)}</span>
+      </a>` : `<span></span>`}
+
+      ${next ? `
+      <a class="next" href="#tema-${m.id}-${themeIdx+1}">
+        <span class="dir">Próximo →</span>
+        <span class="name">${esc(next.n)}</span>
+      </a>` : `<span></span>`}
+    </nav>
+  `;
+  return true;
+}
+
+function copyPrompt(btn){
+  const txt = $("aiPrompt").textContent.trim();
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(txt).then(()=>{
+      showToast("Prompt copiado para a área de transferência! 📋");
+      btn.innerHTML = "<span>Copiado ✓</span>";
+      setTimeout(()=>btn.innerHTML = "<span>Copiar Prompt</span>", 2000);
+    });
+  }
+}
+
+/* ============================================================
+   ROTEAMENTO POR HASH
+   ============================================================ */
+function route(){
+  const h = location.hash;
+  let x;
+  if((x = h.match(/^#tema-(\d+)-(\d+)$/)) && renderDetail(+x[1], +x[2])){
+    document.body.classList.add("viewing-detail");
+    marcarAtualNaNav(x[1]+"-"+x[2]);
+    window.scrollTo({top:0, behavior:"instant"});
+    return;
+  }
+  document.body.classList.remove("viewing-detail");
+  marcarAtualNaNav(null);
+
+  if((x = h.match(/^#modulo-(\d+)$/))){
+    const d = $("modulo-" + x[1]);
+    if(d){ d.open = true; d.scrollIntoView({block:"start", behavior:"smooth"}); }
+    const g = $("sn-mod-" + x[1]);
+    if(g) g.open = true;
+  } else if(h === "" || h === "#"){
+    window.scrollTo({top:0, behavior:"instant"});
+  } else {
+    const el = $(h.slice(1));
+    if(el) el.scrollIntoView({block:"start", behavior:"smooth"});
+  }
+}
+
+window.addEventListener("hashchange", route);
+
+/* Suporte a atalhos de teclado */
+window.addEventListener("keydown", ev=>{
+  if(!document.body.classList.contains("viewing-detail")) return;
+  if(ev.target.tagName === "INPUT" || ev.target.tagName === "TEXTAREA") return;
+  if(ev.key === "ArrowLeft") {
+    const prevLink = document.querySelector(".pager a:not(.next)");
+    if(prevLink) prevLink.click();
+  } else if(ev.key === "ArrowRight") {
+    const nextLink = document.querySelector(".pager a.next");
+    if(nextLink) nextLink.click();
+  } else if(ev.key === "Escape") {
+    location.hash = "#fases";
+  }
+});
+
+// Inicialização
+applyThemeBtn();
+restaurarSidebar();
+renderHub();
+renderNav();
+atualizarMarcacoes();
+route();
+iniciarConta();
+</script>
+</body>
+</html>
