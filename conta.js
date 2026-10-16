@@ -133,8 +133,9 @@ function renderAuth(){
   el.innerHTML = usuario
     ? `<button class="linkbtn auth-mail" title="Minha conta: ${esc(usuario)}" onclick="abrirConta()">${esc(usuario)}</button><button class="btn" onclick="sair()">Sair</button>`
     : `<button class="btn" onclick="abrirAuth()">Salvar progresso</button>`;
-  // o painel de exercícios (ia.js) depende de quem está logado
+  // o painel de exercícios (ia.js) e o cartão de progresso da capa dependem de quem está logado
   if(typeof atualizarIA === "function") atualizarIA();
+  if(typeof aoMudarConta === "function") aoMudarConta();
 }
 
 function avisoAuth(texto, erro){

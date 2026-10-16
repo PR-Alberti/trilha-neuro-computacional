@@ -21,23 +21,37 @@ Ciências Biológicas rumo à neurociência computacional — do pré-cálculo a
 
 A página é orientada a dados: o conteúdo do guia vive em dois arrays JavaScript
 (`PHASES` e `MODS`) e o HTML dos módulos é gerado a partir deles. Para editar o
-conteúdo, edite os arrays — não o HTML.
+conteúdo, edite os arrays — não o HTML. A exceção são os textos fixos da capa:
+objetivos, "para quem é", dicas de estudo e perguntas frequentes ficam direto
+no HTML.
 
+- **Capa**: ocupa a primeira tela, com o cartão de progresso (percentual, fases
+  e o próximo tema a estudar), números da trilha e uma faixa de destaques. Abaixo
+  dela vêm objetivos, mapa da trilha, conteúdo programático, como estudar,
+  perguntas frequentes e uma chamada final para continuar a trilha.
 - Cada módulo é um `<details>` nativo: dá para **minimizar ou expandir** (botões
-  "Expandir/Recolher tudo" no topo).
+  "Expandir/Recolher" na barra do conteúdo programático).
+- **Busca de temas** na mesma barra: procura no nome, na descrição e nos
+  subtemas, sem diferenciar acentos, pelo início das palavras (`regressao` acha
+  "Regressão"; `pca` não acha "percepção"). Soma-se ao filtro de nível.
 - Cada tema do conteúdo programático abre **isoladamente** numa visão própria,
-  com subtemas, prompt de exercícios para IA e materiais do módulo.
+  com subtemas, prompt de exercícios para IA e materiais do módulo. "Anterior" e
+  "Próximo" atravessam módulos (do último tema de um vai ao primeiro do seguinte).
 - A navegação usa **roteamento por hash**: `#modulo-3` expande e rola até o
   módulo 3; `#tema-3-2` abre o 2º tema do módulo 3. Links são compartilháveis e
   o botão "voltar" do navegador funciona.
-- **Layout desktop**: sidebar fixa com os módulos e progresso; corpo do módulo em
-  2 colunas (temas | materiais + teste) em telas largas.
+- **Atalhos de teclado**: na visão do tema, `←` e `→` trocam de tema e `Esc`
+  volta ao módulo; no resto da página, `/` vai para a busca.
+- **Layout desktop**: abaixo da capa, guia lateral fixo com os módulos e o
+  progresso (recolhível); corpo do módulo em 2 colunas (temas | materiais +
+  teste) em telas largas.
 - Cada tema tem um **nível** (`lv`: 0 Básico · 1 Intermediário · 2 Avançado), com
   filtro por nível na página — a atribuição é editável no array `MODS`.
 - **Modo escuro**: toggle no header, salvo em `localStorage` (`guia-tema`) e
   respeitando `prefers-color-scheme` por padrão.
 - **Progresso**: "Marcar como estudado" em cada tema, salvo em `localStorage`
-  (`guia-neuro-progresso`) e refletido nos cartões, módulos e sidebar.
+  (`guia-neuro-progresso`) e refletido nos cartões, módulos, sidebar e mapa.
+  Cada marcação mostra um aviso rápido no pé da tela.
 - **Teste da seção**: cada módulo aponta para `testes/modulo-NN.pdf`.
 
 ## Conta e progresso (Supabase)
@@ -154,7 +168,8 @@ página (ia.js) → função gerar-exercicios (Supabase) → Groq ou Gemini
    gerar-exercicios → Logs*.
 
 Para trocar o modelo sem mexer no código, crie o secret `IA_MODELO` (padrões:
-`openai/gpt-oss-120b` no Groq, `gemini-3.8-flash` no Gemini). Para atualizar a função depois, abra-a no painel,
+`openai/gpt-oss-120b` no Groq, `gemini-3.8-flash` no Gemini). Para atualizar
+a função depois, abra-a no painel,
 cole o código novo e clique em *Deploy updates*.
 
 ## API própria (versão anterior)
