@@ -1,14 +1,15 @@
-// Função do Supabase (Edge Function) que gera exercícios de um tema com o Gemini.
+// Função do Supabase (Edge Function) que gera exercícios de um tema com IA.
 //
 // Caminho de um pedido:
-//   página (ia.js) → esta função → confere login e limite diário → Gemini
+//   página (ia.js) → esta função → confere login e limite diário → IA
 //   → guarda os exercícios na tabela `exercicios` → devolve para a página
 //
-// A chave do Gemini só existe aqui, nos secrets do Supabase. A página nunca a vê.
+// A chave da IA só existe aqui, nos secrets do Supabase. A página nunca a vê.
 //
-// Secrets (painel do Supabase → Edge Functions → Secrets):
-//   GEMINI_API_KEY   obrigatório: chave criada em aistudio.google.com
-//   GEMINI_MODELO    opcional: troca o modelo (padrão abaixo)
+// Secrets (painel do Supabase → Edge Functions → Secrets) — basta UMA das chaves:
+//   GROQ_API_KEY     chave criada em console.groq.com (se existir, usa o Groq)
+//   GEMINI_API_KEY   chave criada em aistudio.google.com
+//   IA_MODELO        opcional: troca o modelo do provedor em uso
 //
 // Este arquivo não importa nada de fora, para dar para colar direto no editor
 // de funções do painel do Supabase.
@@ -23,8 +24,13 @@ type Exercicio = { enunciado: string; dica: string; resolucao: string };
 const ORIGENS = ["https://pr-alberti.github.io", "http://localhost:8000"];
 const MAX_QUANTIDADE = 5;
 const MAX_ORIENTACOES = 300;
-const MODELO = Deno.env.get("GEMINI_MODELO") || "gemini-3.8-flash";
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+
+// qual IA usar: a que tiver chave configurada (o Groq, se houver as duas)
+const PROVEDOR = Deno.env.get("GROQ_API_KEY") ? "groq" : "gemini";
+const MODELO = Deno.env.get("IA_MODELO") || Deno.env.get("GEMINI_MODELO")
+  || (PROVEDOR === "groq" ? "openai/gpt-oss-120b" : "gemini-3.8-flash");
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 // o Supabase entrega as chaves novas como JSON ({"default": "sb_..."});
@@ -75,32 +81,72 @@ function montarPedido(t: Tema, quantidade: number, orientacoes: string): string 
 }
 
 // formato obrigatório da resposta: a IA só consegue devolver uma lista de exercícios
-function formatoResposta(quantidade: number) {
+function formatoResposta(quantidade: number, estrito: boolean) {
+  const exercicio = {
+    type: "object",
+    properties: {
+      enunciado: { type: "string" },
+      dica: { type: "string" },
+      resolucao: { type: "string" },
+    },
+    required: ["enunciado", "dica", "resolucao"],
+    ...(estrito ? { additionalProperties: false } : {}),
+  };
   return {
     type: "object",
     properties: {
-      exercicios: {
-        type: "array",
-        minItems: quantidade,
-        maxItems: quantidade,
-        items: {
-          type: "object",
-          properties: {
-            enunciado: { type: "string" },
-            dica: { type: "string" },
-            resolucao: { type: "string" },
-          },
-          required: ["enunciado", "dica", "resolucao"],
-        },
-      },
+      // o modo estrito do Groq não aceita minItems/maxItems; a quantidade
+      // vai no texto do pedido e é conferida depois
+      exercicios: estrito
+        ? { type: "array", items: exercicio }
+        : { type: "array", minItems: quantidade, maxItems: quantidade, items: exercicio },
     },
     required: ["exercicios"],
+    ...(estrito ? { additionalProperties: false } : {}),
   };
 }
 
 class IaOcupada extends Error {}
 
-async function gerarComGemini(t: Tema, quantidade: number, orientacoes: string): Promise<Exercicio[]> {
+async function gerarExercicios(t: Tema, quantidade: number, orientacoes: string): Promise<Exercicio[]> {
+  const texto = PROVEDOR === "groq"
+    ? await pedirAoGroq(montarPedido(t, quantidade, orientacoes), quantidade)
+    : await pedirAoGemini(montarPedido(t, quantidade, orientacoes), quantidade);
+  return conferirExercicios(JSON.parse(texto), quantidade);
+}
+
+// 429 = cota do projeto esgotada; 503 = serviço sobrecarregado
+async function conferirStatus(r: Response, nome: string) {
+  if (r.status === 429 || r.status === 503) throw new IaOcupada(`${nome} ${r.status}: ${await r.text()}`);
+  if (!r.ok) throw new Error(`${nome} ${r.status}: ${await r.text()}`);
+}
+
+async function pedirAoGroq(pedido: string, quantidade: number): Promise<string> {
+  const chave = Deno.env.get("GROQ_API_KEY");
+  const r = await fetch(GROQ_URL, {
+    method: "POST",
+    signal: AbortSignal.timeout(90_000),
+    headers: { Authorization: `Bearer ${chave}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: MODELO,
+      messages: [
+        { role: "system", content: INSTRUCOES },
+        { role: "user", content: pedido },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "exercicios", strict: true, schema: formatoResposta(quantidade, true) },
+      },
+      max_completion_tokens: 8192,
+    }),
+  });
+  await conferirStatus(r, "Groq");
+  const texto = (await r.json())?.choices?.[0]?.message?.content;
+  if (!texto) throw new Error("Groq sem texto na resposta");
+  return texto;
+}
+
+async function pedirAoGemini(pedido: string, quantidade: number): Promise<string> {
   const chave = Deno.env.get("GEMINI_API_KEY");
   if (!chave) throw new Error("secret GEMINI_API_KEY não configurado");
   const r = await fetch(GEMINI_URL, {
@@ -110,15 +156,13 @@ async function gerarComGemini(t: Tema, quantidade: number, orientacoes: string):
     body: JSON.stringify({
       model: MODELO,
       system_instruction: INSTRUCOES,
-      input: montarPedido(t, quantidade, orientacoes),
-      response_format: { type: "text", mime_type: "application/json", schema: formatoResposta(quantidade) },
+      input: pedido,
+      response_format: { type: "text", mime_type: "application/json", schema: formatoResposta(quantidade, false) },
       generation_config: { thinking_level: "low", max_output_tokens: 8192 },
       store: false, // não guardar a conversa no Google além do necessário
     }),
   });
-  // 429 = cota do projeto esgotada; 503 = Gemini sobrecarregado
-  if (r.status === 429 || r.status === 503) throw new IaOcupada(`Gemini ${r.status}: ${await r.text()}`);
-  if (!r.ok) throw new Error(`Gemini ${r.status}: ${await r.text()}`);
+  await conferirStatus(r, "Gemini");
   const resp = await r.json();
   const texto = (resp.steps ?? [])
     .filter((s: any) => s.type === "model_output")
@@ -127,7 +171,7 @@ async function gerarComGemini(t: Tema, quantidade: number, orientacoes: string):
     .map((c: any) => c.text)
     .join("") || resp.output_text;
   if (!texto) throw new Error(`Gemini sem texto (status ${resp.status}): ${JSON.stringify(resp.errors ?? [])}`);
-  return conferirExercicios(JSON.parse(texto), quantidade);
+  return texto;
 }
 
 // não confia cegamente na IA: só passa o que tem o formato certo
@@ -138,7 +182,7 @@ function conferirExercicios(dados: any, quantidade: number): Exercicio[] {
     .map((e: any) => ({ enunciado: texto(e?.enunciado), dica: texto(e?.dica), resolucao: texto(e?.resolucao) }))
     .filter((e: Exercicio) => e.enunciado && e.resolucao)
     .slice(0, quantidade);
-  if (!exercicios.length) throw new Error("resposta do Gemini sem exercícios válidos");
+  if (!exercicios.length) throw new Error("resposta da IA sem exercícios válidos");
   return exercicios;
 }
 
@@ -222,7 +266,7 @@ Deno.serve(async (req: Request) => {
     // 4. pede à IA; se falhar, devolve a geração ao aluno
     let exercicios: Exercicio[];
     try {
-      exercicios = await gerarComGemini(tema, quantidade, orientacoes);
+      exercicios = await gerarExercicios(tema, quantidade, orientacoes);
     } catch (e) {
       console.error(e);
       await rpc("devolver_geracao_ia", { p_user: userId }).catch(console.error);

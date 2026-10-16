@@ -2,7 +2,8 @@
    EXERCÍCIOS COM IA
    Painel "Exercícios com IA" na visão de cada tema. O aluno escolhe a
    quantidade, escreve orientações se quiser, e a função gerar-exercicios
-   (supabase/functions/gerar-exercicios) pede os exercícios ao Gemini.
+   (supabase/functions/gerar-exercicios) pede os exercícios à IA (Groq ou
+   Gemini, conforme a chave configurada no Supabase).
 
    Só funciona com login: é o login que permite o limite diário por aluno
    e guardar o histórico. Sem login, o painel convida a entrar.
@@ -97,7 +98,7 @@ function renderIA(){
         <span class="ia-saldo" id="iaSaldo"></span>
       </div>
       <p class="ia-msg" id="iaMsg" aria-live="polite"></p>
-      <p class="ia-aviso">Exercícios gerados por IA podem conter erros: confira as resoluções. As orientações são enviadas ao Google Gemini, então não escreva dados pessoais nelas.</p>
+      <p class="ia-aviso">Exercícios gerados por IA podem conter erros: confira as resoluções. As orientações são enviadas a um serviço de IA externo, então não escreva dados pessoais nelas.</p>
     </div>
     <div id="iaLista"></div>`;
   renderSaldoIA();
