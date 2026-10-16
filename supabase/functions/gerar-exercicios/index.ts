@@ -31,6 +31,9 @@ const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const PROVEDOR = Deno.env.get("GROQ_API_KEY") ? "groq" : "gemini";
 const MODELO = Deno.env.get("IA_MODELO") || Deno.env.get("GEMINI_MODELO")
   || (PROVEDOR === "groq" ? "openai/gpt-oss-120b" : "gemini-3.8-flash");
+// se o modelo principal estiver sobrecarregado ou sem cota, tenta este, que é
+// mais leve e tem cota gratuita própria
+const MODELO_RESERVA = PROVEDOR === "groq" ? "openai/gpt-oss-20b" : "gemini-3.5-flash-lite";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 // o Supabase entrega as chaves novas como JSON ({"default": "sb_..."});
@@ -108,11 +111,22 @@ function formatoResposta(quantidade: number, estrito: boolean) {
 
 class IaOcupada extends Error {}
 
-async function gerarExercicios(t: Tema, quantidade: number, orientacoes: string): Promise<Exercicio[]> {
-  const texto = PROVEDOR === "groq"
-    ? await pedirAoGroq(montarPedido(t, quantidade, orientacoes), quantidade)
-    : await pedirAoGemini(montarPedido(t, quantidade, orientacoes), quantidade);
-  return conferirExercicios(JSON.parse(texto), quantidade);
+async function gerarExercicios(t: Tema, quantidade: number, orientacoes: string) {
+  const pedido = montarPedido(t, quantidade, orientacoes);
+  const pedir = (modelo: string) => PROVEDOR === "groq"
+    ? pedirAoGroq(modelo, pedido, quantidade)
+    : pedirAoGemini(modelo, pedido, quantidade);
+  let modelo = MODELO, texto: string;
+  try {
+    texto = await pedir(modelo);
+  } catch (e) {
+    // só vale tentar outro modelo quando o problema é demanda ou cota
+    if (!(e instanceof IaOcupada) || MODELO_RESERVA === MODELO) throw e;
+    console.warn(`${modelo} ocupado; tentando ${MODELO_RESERVA}`);
+    modelo = MODELO_RESERVA;
+    texto = await pedir(modelo);
+  }
+  return { exercicios: conferirExercicios(JSON.parse(texto), quantidade), modelo };
 }
 
 // 429 = cota do projeto esgotada; 503 = serviço sobrecarregado
@@ -121,14 +135,14 @@ async function conferirStatus(r: Response, nome: string) {
   if (!r.ok) throw new Error(`${nome} ${r.status}: ${await r.text()}`);
 }
 
-async function pedirAoGroq(pedido: string, quantidade: number): Promise<string> {
+async function pedirAoGroq(modelo: string, pedido: string, quantidade: number): Promise<string> {
   const chave = Deno.env.get("GROQ_API_KEY");
   const r = await fetch(GROQ_URL, {
     method: "POST",
-    signal: AbortSignal.timeout(90_000),
+    signal: AbortSignal.timeout(60_000),
     headers: { Authorization: `Bearer ${chave}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: MODELO,
+      model: modelo,
       messages: [
         { role: "system", content: INSTRUCOES },
         { role: "user", content: pedido },
@@ -146,15 +160,15 @@ async function pedirAoGroq(pedido: string, quantidade: number): Promise<string> 
   return texto;
 }
 
-async function pedirAoGemini(pedido: string, quantidade: number): Promise<string> {
+async function pedirAoGemini(modelo: string, pedido: string, quantidade: number): Promise<string> {
   const chave = Deno.env.get("GEMINI_API_KEY");
   if (!chave) throw new Error("secret GEMINI_API_KEY não configurado");
   const r = await fetch(GEMINI_URL, {
     method: "POST",
-    signal: AbortSignal.timeout(90_000),
+    signal: AbortSignal.timeout(60_000),
     headers: { "x-goog-api-key": chave, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: MODELO,
+      model: modelo,
       system_instruction: INSTRUCOES,
       input: pedido,
       response_format: { type: "text", mime_type: "application/json", schema: formatoResposta(quantidade, false) },
@@ -264,9 +278,9 @@ Deno.serve(async (req: Request) => {
     if (restantes < 0) return responder(429, { erro: "limite", restantes: 0 });
 
     // 4. pede à IA; se falhar, devolve a geração ao aluno
-    let exercicios: Exercicio[];
+    let exercicios: Exercicio[], modelo: string;
     try {
-      exercicios = await gerarExercicios(tema, quantidade, orientacoes);
+      ({ exercicios, modelo } = await gerarExercicios(tema, quantidade, orientacoes));
     } catch (e) {
       console.error(e);
       await rpc("devolver_geracao_ia", { p_user: userId }).catch(console.error);
@@ -278,7 +292,7 @@ Deno.serve(async (req: Request) => {
     let geracao;
     try {
       geracao = await guardarExercicios({
-        user_id: userId, tema: chaveTema, orientacoes, itens: exercicios, modelo: MODELO,
+        user_id: userId, tema: chaveTema, orientacoes, itens: exercicios, modelo,
       });
     } catch (e) {
       console.error(e);

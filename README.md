@@ -107,6 +107,10 @@ página (ia.js) → função gerar-exercicios (Supabase) → Groq ou Gemini
   resto (página, banco, limites) não muda. O Groq entrou porque o Google negou
   acesso ao Gemini à conta usada no projeto ("Your project has been denied
   access").
+- **Modelo reserva**: se o modelo principal estiver sobrecarregado ou sem cota
+  (comum na camada gratuita), a função tenta automaticamente um mais leve
+  (`gemini-3.5-flash-lite` no Gemini, `openai/gpt-oss-20b` no Groq). A coluna
+  `modelo` da tabela `exercicios` registra qual respondeu.
 - **A chave da IA nunca sai do servidor**: fica nos secrets do Supabase, e a
   página só fala com a função.
 - **Limite**: 10 gerações por aluno por dia (horário de Brasília). O número
