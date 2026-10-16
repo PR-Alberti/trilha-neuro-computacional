@@ -156,7 +156,9 @@ async function rpc(nome: string, args: Record<string, unknown>) {
     method: "POST", headers: cabecalhosServico(), body: JSON.stringify(args),
   });
   if (!r.ok) throw new Error(`${nome}: ${r.status} ${await r.text()}`);
-  return r.json();
+  // funções que não devolvem nada (returns void) respondem com corpo vazio
+  const texto = await r.text();
+  return texto ? JSON.parse(texto) : null;
 }
 
 async function guardarExercicios(linha: Record<string, unknown>) {
