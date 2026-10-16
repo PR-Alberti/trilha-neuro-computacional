@@ -143,6 +143,12 @@ página (ia.js) → função gerar-exercicios (Supabase) → Groq ou Gemini
   dados pessoais nas orientações.
 - **Fórmulas em LaTeX**: a IA escreve a matemática entre `$...$` e `$$...$$`,
   e a página a desenha com o [KaTeX](https://katex.org).
+- **LaTeX quebrado**: a IA às vezes escreve `\times` com a barra simples, e o
+  JSON da resposta lê `\t` como tabulação (a fórmula vira "imes"). A função e
+  a página desfazem esses casos (`\t`, `\b`, `\f`, `\r` e comandos como
+  `\neq`) dentro das fórmulas, inclusive nos exercícios guardados antes.
+- **Minimizar**: cada geração tem "minimizar"/"expandir", e há "minimizar
+  todas" quando o tema tem mais de uma.
 - **Baixar**: cada geração vira um **PDF** — uma folha de exercícios, com dicas
   e resoluções numa página separada, aberta na janela de impressão do navegador
   (*Salvar como PDF*) — ou um **`.tex`**, que compila no Overleaf com pdfLaTeX,

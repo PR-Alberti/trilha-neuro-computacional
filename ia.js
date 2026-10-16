@@ -26,6 +26,7 @@ let iaRascunho = {};      // tema → {quantidade, orientacoes} digitados
 let iaGerando = null;     // tema com um pedido em andamento
 let iaRestantes = null;   // gerações que o aluno ainda tem hoje
 let iaMensagem = {};      // tema → {texto, erro}
+let iaRecolhidas = new Set();  // ids das gerações minimizadas
 
 /* Chamado pelo script principal toda vez que a visão de um tema é desenhada. */
 function montarIA(tema){
@@ -44,6 +45,7 @@ function atualizarIA(){
 function esquecerIA(){
   iaDono = usuarioId;
   iaGeracoes = {}; iaRascunho = {}; iaMensagem = {};
+  iaRecolhidas = new Set();
   iaRestantes = null;
 }
 
@@ -62,7 +64,7 @@ async function carregarIA(tema){
     .limit(10);
   if(error){ console.error(error); return; }
   if(dono !== usuarioId) return;   // a pessoa saiu enquanto carregava
-  iaGeracoes[tema] = data;
+  iaGeracoes[tema] = data.map(repararGeracao);
   if(tema === iaTema) renderListaIA();
 }
 
@@ -136,17 +138,26 @@ function renderListaIA(){
     el.innerHTML = `<p class="note">Você ainda não gerou exercícios deste tema.</p>`;
     return;
   }
-  el.innerHTML = lista.map(g => `
+  const todasRecolhidas = lista.every(g => iaRecolhidas.has(g.id));
+  el.innerHTML = (lista.length > 1 ? `
+    <p style="text-align:right;font-size:.78rem">
+      <button class="linkbtn" onclick="recolherTodasIA(${!todasRecolhidas})">${todasRecolhidas ? "expandir todas" : "minimizar todas"}</button>
+    </p>` : "") + lista.map(g => {
+    const recolhida = iaRecolhidas.has(g.id);
+    const n = g.itens.length;
+    return `
     <article class="ia-ger">
       <header class="ia-ger-h">
-        <span>${esc(new Date(g.criado_em).toLocaleString("pt-BR", {dateStyle:"short", timeStyle:"short"}))}${g.orientacoes ? ` · “${esc(g.orientacoes)}”` : ""}</span>
+        <span>${esc(new Date(g.criado_em).toLocaleString("pt-BR", {dateStyle:"short", timeStyle:"short"}))}${g.orientacoes ? ` · “${esc(g.orientacoes)}”` : ""}${recolhida ? ` · ${n} exercício${n > 1 ? "s" : ""}` : ""}</span>
         <span class="ia-ger-acoes">
           <button class="linkbtn" onclick="baixarPdfIA(${Number(g.id)})" title="Abre a janela de impressão: escolha &quot;Salvar como PDF&quot;">baixar PDF</button>
           <button class="linkbtn" onclick="baixarTexIA(${Number(g.id)})" title="Código LaTeX, para editar ou compilar no Overleaf">baixar .tex</button>
           <button class="linkbtn" onclick="apagarGeracaoIA(${Number(g.id)})">apagar</button>
+          <button class="ia-recolher" onclick="recolherGeracaoIA(${Number(g.id)})" aria-expanded="${!recolhida}"
+            aria-label="${recolhida ? "Expandir" : "Minimizar"} exercícios" title="${recolhida ? "Expandir" : "Minimizar"}">${recolhida ? ICONE_EXPANDIR : ICONE_MINIMIZAR}</button>
         </span>
       </header>
-      <ol class="ia-exs">
+      <ol class="ia-exs"${recolhida ? ' style="display:none"' : ""}>
         ${g.itens.map(e => `
           <li>
             <p class="ia-enun">${esc(e.enunciado)}</p>
@@ -154,11 +165,44 @@ function renderListaIA(){
             <details><summary>Ver resolução</summary><p>${esc(e.resolucao)}</p></details>
           </li>`).join("")}
       </ol>
-    </article>`).join("");
+    </article>`;
+  }).join("");
   desenharFormulas(el);
 }
 
+// setas do botão de minimizar: para cima recolhe, para baixo abre
+const icone = d => `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="${d}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ICONE_MINIMIZAR = icone("M4 10l4-4 4 4");
+const ICONE_EXPANDIR = icone("M4 6l4 4 4-4");
+
+function recolherGeracaoIA(id){
+  iaRecolhidas.has(id) ? iaRecolhidas.delete(id) : iaRecolhidas.add(id);
+  renderListaIA();
+}
+
+function recolherTodasIA(recolher){
+  for(const g of iaGeracoes[iaTema] || []) recolher ? iaRecolhidas.add(g.id) : iaRecolhidas.delete(g.id);
+  renderListaIA();
+}
+
 /* ---------------- fórmulas (KaTeX) ---------------- */
+
+// A IA às vezes escreve "\times" com a barra simples dentro do JSON, e o JSON
+// lê "\t" como tabulação: a fórmula vira "imes". Dentro das fórmulas esses
+// caracteres nunca são de verdade, então dá para desfazer. A função do servidor
+// já faz isso nas gerações novas; aqui vale também para as guardadas antes.
+const LATEX_QUEBRADO = {"\t":"\\t", "\b":"\\b", "\f":"\\f", "\r":"\\r"};
+const COMANDOS_COM_N = /\n(?=(?:eq|abla|u|ot|eg|i|leq|geq|mid|exists|subseteq|ewline)(?![a-zA-Z]))/g;
+function repararLatex(texto){
+  return (texto || "").replace(/\$\$[\s\S]+?\$\$|\$[^$]+?\$/g, f => f
+    .replace(/[\t\b\f\r](?=[a-zA-Z])/g, c => LATEX_QUEBRADO[c])
+    .replace(COMANDOS_COM_N, "\\n"));
+}
+function repararGeracao(g){
+  return {...g, itens:g.itens.map(e => ({
+    enunciado:repararLatex(e.enunciado), dica:repararLatex(e.dica), resolucao:repararLatex(e.resolucao),
+  }))};
+}
 
 const KATEX_CSS = "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css";
 
@@ -216,7 +260,7 @@ async function gerarIA(){
     console.error(error);
   } else {
     iaRestantes = data.restantes;
-    iaGeracoes[tema] = [data.geracao, ...(iaGeracoes[tema] || [])];
+    iaGeracoes[tema] = [repararGeracao(data.geracao), ...(iaGeracoes[tema] || [])];
     iaRascunho[tema] = {...iaRascunho[tema], orientacoes:""};
   }
   if(tema === iaTema) renderIA();
