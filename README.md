@@ -1,7 +1,8 @@
 # Guia de Estudos: ML para Neurociência Computacional
 
 Página web com uma trilha de estudos de Machine Learning voltada a estudantes de
-Ciências Biológicas rumo à neurociência computacional — do pré-cálculo ao deep learning.
+Ciências Biológicas rumo à neurociência computacional — do pré-cálculo ao deep learning,
+culminando no módulo 10 de Neurociência Computacional (atualmente em construção).
 
 ## Estrutura
 
@@ -10,9 +11,14 @@ Ciências Biológicas rumo à neurociência computacional — do pré-cálculo a
 | `index.html` | A página do guia (versão em construção) |
 | `conta.js` | Login e progresso sincronizado, via Supabase |
 | `ia.js` | Painel "Exercícios com IA" na visão de cada tema |
+| `conteudo/modulo-NN/` | Fontes das aulas em Delta (`project.toml` e `tema-TT.dlt`) |
+| `aulas/` | HTMLs compilados e `aulas/indice.js` (gerado — não editar à mão) |
+| `scripts/compilar-aulas.mjs` | Compila as aulas em Delta e gera `aulas/indice.js` |
+| `scripts/exportar-temas.mjs` | Copia o catálogo de temas do `index.html` para a função |
+| `docs/PADRAO-AULAS.md` | Contrato editorial e técnico das aulas em Delta |
+| `docs/DELTA-COLA.md` | Guia rápido de sintaxe do Delta |
 | `supabase/esquema.sql` | Tabelas e regras de acesso do banco |
 | `supabase/functions/gerar-exercicios/` | Função do servidor que pede os exercícios à IA (Groq ou Gemini) |
-| `scripts/exportar-temas.mjs` | Copia o catálogo de temas do `index.html` para a função |
 | `servidor/` | Versão anterior do backend (API própria), não usada pela página |
 | `Guia.pdf` | O roteiro de conteúdo original que a página segue |
 | `testes/modulo-NN.pdf` | Teste de cada módulo — PDFs genéricos; substitua pelo teste autêntico mantendo o nome |
@@ -21,7 +27,9 @@ Ciências Biológicas rumo à neurociência computacional — do pré-cálculo a
 
 A página é orientada a dados: o conteúdo do guia vive em dois arrays JavaScript
 (`PHASES` e `MODS`) e o HTML dos módulos é gerado a partir deles. Para editar o
-conteúdo, edite os arrays — não o HTML.
+conteúdo, edite os arrays — não o HTML. Atualmente a trilha tem 3 fases e 10 módulos
+(os módulos 1 a 9 ativos e o módulo 10, *Neurociência Computacional*, marcado como
+em construção).
 
 - Cada módulo é um `<details>` nativo: dá para **minimizar ou expandir** (botões
   "Expandir/Recolher tudo" no topo).
@@ -38,7 +46,31 @@ conteúdo, edite os arrays — não o HTML.
   respeitando `prefers-color-scheme` por padrão.
 - **Progresso**: "Marcar como estudado" em cada tema, salvo em `localStorage`
   (`guia-neuro-progresso`) e refletido nos cartões, módulos e sidebar.
-- **Teste da seção**: cada módulo aponta para `testes/modulo-NN.pdf`.
+- **Teste da seção**: cada módulo ativo aponta para `testes/modulo-NN.pdf` (o módulo 10, em construção, ainda não possui temas, materiais nem teste).
+
+## Aulas em Delta
+
+As aulas completas de cada tema são escritas em [Delta](https://www.npmjs.com/package/delta-lang) (`.dlt`) e compiladas para HTML autônomo integrado à página.
+
+- **Fontes**: `conteudo/modulo-NN/tema-TT.dlt`, com um projeto Delta por módulo em `conteudo/modulo-NN/project.toml` (`NN` e `TT` com dois dígitos, na ordem do array `MODS` do `index.html`).
+- **Saída gerada**: `aulas/modulo-NN/tema-TT.html` e o catálogo `aulas/indice.js`. **A pasta `aulas/` é gerada automaticamente e não deve ser editada à mão.**
+- **Instalar o Delta**:
+
+```bash
+npm i -g delta-lang
+```
+
+- **Compilar as aulas**:
+
+```bash
+# todos os módulos em conteudo/modulo-*
+node scripts/compilar-aulas.mjs
+
+# apenas um módulo específico (ex.: módulo 1), mantendo os demais em aulas/indice.js
+node scripts/compilar-aulas.mjs --modulo 1
+```
+
+- **Guias de escrita**: consulte [docs/PADRAO-AULAS.md](docs/PADRAO-AULAS.md) (estrutura pedagógica, estilo, notação e regras) e [docs/DELTA-COLA.md](docs/DELTA-COLA.md) (referência rápida de sintaxe Delta).
 
 ## Conta e progresso (Supabase)
 

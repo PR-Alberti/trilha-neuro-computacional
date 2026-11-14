@@ -21,6 +21,7 @@ const NIVEIS = ["Básico", "Intermediário", "Avançado"];
 
 const temas = {};
 for(const m of MODS){
+  if(!m.themes || !m.themes.length) continue;
   m.themes.forEach((t, i) => {
     temas[`${m.id}-${i + 1}`] = {
       fase: PHASES[m.ph].name,

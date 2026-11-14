@@ -105,9 +105,11 @@ body.nav-recolhida aside.sidebar{opacity:0;visibility:hidden;padding-left:0;padd
 aside.sidebar{position:sticky;top:61px;align-self:start;max-height:calc(100vh - 61px);overflow-y:auto;overflow-x:hidden;padding:22px 12px 30px 18px;border-right:1px solid var(--line);transition:opacity .15s ease}
 .sn-phase{font-family:"IBM Plex Mono",monospace;font-size:.64rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:20px 0 8px 8px}
 .sn-phase:first-child{margin-top:0}
-summary.sn-mod{display:grid;grid-template-columns:12px 1fr auto;gap:3px 8px;align-items:center;padding:7px 8px;border-radius:8px;cursor:pointer;list-style:none;font-size:.85rem}
+.sn-mod{display:grid;grid-template-columns:12px 1fr auto;gap:3px 8px;align-items:center;padding:7px 8px;border-radius:8px;cursor:pointer;list-style:none;font-size:.85rem}
 summary.sn-mod::-webkit-details-marker{display:none}
-summary.sn-mod:hover{background:var(--accent-soft)}
+.sn-mod:hover{background:var(--accent-soft)}
+a.sn-mod{text-decoration:none}
+.sn-soon .sn-name{color:var(--muted)}
 .sn-chev{font-family:"IBM Plex Mono",monospace;color:var(--accent);font-size:.8rem;transition:transform .18s ease}
 details.sn-group[open]>.sn-mod .sn-chev{transform:rotate(90deg)}
 a.sn-name{min-width:0;font-weight:500;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -215,7 +217,7 @@ svg.map{display:block;width:100%;min-width:1000px;height:auto}
 /* trilhos: halo na cor do fundo abre "vãos" onde as linhas se cruzam, como num mapa de metrô */
 .map .rail-halo{fill:none;stroke:var(--surface);stroke-width:16;stroke-linecap:round;stroke-linejoin:round}
 .map .rail{fill:none;stroke-width:9;stroke-linecap:round;stroke-linejoin:round}
-.map .rail.la{stroke:var(--lv0)}.map .rail.lb{stroke:var(--lv1)}.map .rail.lc{stroke:var(--lv2)}.map .rail.lia{stroke:var(--accent)}
+.map .rail.la{stroke:var(--lv0)}.map .rail.lb{stroke:var(--lv1)}.map .rail.lc{stroke:var(--lv2)}.map .rail.lia{stroke:var(--accent)}.map .rail.lsoon{stroke:var(--edge);stroke-width:6;stroke-dasharray:8 7}
 .map .rail.draw{stroke-dasharray:1;stroke-dashoffset:1;animation:rail 1.5s cubic-bezier(.4,0,.2,1) forwards}
 .map .rail.lia.draw{animation-delay:.9s}
 @keyframes rail{to{stroke-dashoffset:0}}
@@ -245,6 +247,8 @@ svg.map{display:block;width:100%;min-width:1000px;height:auto}
 .map .st.done .num{display:none}
 .map .st.done .ok{display:block}
 .map .st.done .name{fill:var(--muted)}
+.map .st.soon .dot{stroke:var(--edge);stroke-dasharray:4 3;stroke-width:3.5}
+.map .st.soon .num,.map .st.soon .name{fill:var(--muted)}
 /* "você está aqui": a próxima estação pulsa */
 .map .st .pulse{fill:none;stroke:var(--accent);stroke-width:3;display:none}
 .map .st.here .pulse{display:block}
@@ -254,6 +258,7 @@ svg.map{display:block;width:100%;min-width:1000px;height:auto}
 .tag{font-family:"IBM Plex Mono",monospace;font-size:.6rem;font-weight:600;letter-spacing:.08em;padding:3px 9px;border-radius:999px;text-transform:uppercase;white-space:nowrap}
 .tag-g{background:var(--green-bg);color:var(--green);border:1px solid var(--green-line)}
 .tag-y{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-line)}
+.tag-soon{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
 .lvchip{font-family:"IBM Plex Mono",monospace;font-size:.6rem;font-weight:600;letter-spacing:.06em;padding:3px 9px;border-radius:999px;text-transform:uppercase;white-space:nowrap}
 .lvchip.lv0{background:var(--lv0-bg);color:var(--lv0-ink)}
 .lvchip.lv1{background:var(--lv1-bg);color:var(--lv1-ink)}
@@ -323,14 +328,20 @@ details[open] .chev{transform:rotate(90deg)}
 @media (max-width:760px){
   .timeline{padding-left:0}.timeline::before{display:none}.node{display:none}
   summary.mod-sum{grid-template-columns:auto 1fr}.mod-meta{grid-column:1/3}.phase-prog{margin-left:0}
+  details.mod.is-soon summary.mod-sum{grid-template-columns:1fr}details.mod.is-soon .mod-meta{grid-column:1}
 }
 
 /* corpo do módulo: 2 colunas no desktop — lições | materiais+teste */
 .mod-body{border-top:1px solid var(--line);padding:20px 18px 22px;display:grid;gap:22px}
+details.mod.is-soon summary.mod-sum{grid-template-columns:1fr auto}
 @media (min-width:1120px){
   .mod-body{grid-template-columns:minmax(0,1.65fr) minmax(0,1fr);grid-template-areas:"bio bio" "themes side"}
   .bio{grid-area:bio}.blk-themes{grid-area:themes}.side{grid-area:side}
+  details.mod.is-soon .mod-body{grid-template-columns:1fr;grid-template-areas:"bio" "soon"}
 }
+.soon-card{grid-area:soon;background:var(--surface-2);border:1px dashed var(--line);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.soon-card p{font-size:.9rem;color:var(--muted)}
+.soon-card p strong{color:var(--ink)}
 .side{display:grid;gap:20px;align-self:start}
 .bio{background:var(--accent-soft-2);border:1px solid var(--accent-soft);border-left:4px solid var(--accent);border-radius:12px;padding:12px 16px}
 .bio h4,.blk h4{font-family:"IBM Plex Mono",monospace;font-size:.66rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:8px}
@@ -348,6 +359,8 @@ details[open] .chev{transform:rotate(90deg)}
 .lesson a.ll:hover b{color:var(--accent-ink)}
 .lesson .desc{display:block;color:var(--muted);font-size:.8rem;margin-top:1px}
 .lesson .lr{display:flex;align-items:center;gap:10px;white-space:nowrap}
+.aula-ind{display:inline-flex;align-items:center;color:var(--accent);opacity:.85}
+.lesson.done .aula-ind{color:var(--muted);opacity:.7}
 .lesson .cnt{font-family:"IBM Plex Mono",monospace;font-size:.64rem;color:var(--muted)}
 .lesson a.go{font-family:"IBM Plex Mono",monospace;color:var(--accent);font-weight:600;text-decoration:none;font-size:.95rem}
 .lesson.done{background:color-mix(in srgb,var(--green-bg) 42%,var(--surface))}
@@ -415,6 +428,13 @@ input.chk-mod{width:21px;height:21px}
 .topics{list-style:none;counter-reset:st;display:grid;gap:8px}
 .topics li{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;display:flex;gap:12px;align-items:baseline}
 .topics li::before{counter-increment:st;content:counter(st,decimal-leading-zero);font-family:"IBM Plex Mono",monospace;font-size:.7rem;color:var(--accent);font-weight:600}
+.aula-cta{margin-bottom:14px}
+.aula-secoes{list-style:none;display:grid;gap:8px}
+.aula-secoes a{display:flex;gap:12px;align-items:baseline;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;text-decoration:none;transition:border-color .15s ease,background .15s ease}
+.aula-secoes a:hover{border-color:var(--accent);background:var(--accent-soft-2);color:var(--accent-ink)}
+.aula-secoes .as-num{font-family:"IBM Plex Mono",monospace;font-size:.72rem;color:var(--accent);font-weight:600;flex-shrink:0}
+.aula-secoes .as-tit{flex:1;min-width:0}
+.aula-secoes .as-go{font-family:"IBM Plex Mono",monospace;color:var(--accent);font-weight:600;font-size:.9rem}
 .note{color:var(--muted);font-size:.88rem;max-width:70ch}
 .prompt{margin-top:12px;background:var(--surface);border:1px dashed var(--accent);border-radius:10px;padding:12px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .prompt p{font-family:"IBM Plex Mono",monospace;font-size:.8rem;flex:1;min-width:240px;overflow-wrap:anywhere}
@@ -529,8 +549,8 @@ body.viewing-detail #detail{display:block}
             <a class="btn-hero ghost" href="#mapa">Ver o mapa da trilha</a>
           </div>
           <div class="facts">
-            <span><b>2</b>fases</span>
-            <span><b>9</b>módulos</span>
+            <span><b>3</b>fases</span>
+            <span><b>10</b>módulos</span>
             <span><b id="statTemas">—</b>temas</span>
             <span><b>~380 h</b>de estudo</span>
           </div>
@@ -559,12 +579,12 @@ body.viewing-detail #detail{display:block}
           <p>Como num mapa de metrô: três linhas saem do Pré-Cálculo e se encontram em Machine Learning. Clique numa estação para ir ao módulo.</p>
         </div>
         <div class="mapwrap">
-          <svg class="map" viewBox="0 0 1200 400" role="img" aria-label="Mapa da trilha no estilo de um mapa de metrô: do Pré-Cálculo partem três linhas — cálculo, álgebra e computação e dados — que se encontram em Machine Learning e seguem até Deep Learning">
+          <svg class="map" viewBox="0 0 1340 400" role="img" aria-label="Mapa da trilha no estilo de um mapa de metrô: do Pré-Cálculo partem três linhas — cálculo, álgebra e computação e dados — que se encontram em Machine Learning, seguem até Deep Learning e apontam para Neurociência Computacional">
             <defs>
               <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle class="pd" cx="2" cy="2" r="1.3"/></pattern>
               <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="6"/></filter>
             </defs>
-            <rect class="grid" x="0" y="0" width="1200" height="400" rx="14"/>
+            <rect class="grid" x="0" y="0" width="1340" height="400" rx="14"/>
 
             <!-- zona da fase 2 -->
             <rect class="zone" x="928" y="118" width="258" height="164" rx="20"/>
@@ -576,11 +596,13 @@ body.viewing-detail #detail{display:block}
               <path class="rail-halo" d="M110 200 H990"/>
               <path class="rail-halo" d="M110 200 C200 200 200 305 290 305 H700 C800 305 880 200 990 200"/>
               <path class="rail-halo" d="M990 200 H1140"/>
+              <path class="rail-halo" d="M1140 200 H1275"/>
             </g>
             <path class="rail lc draw" pathLength="1" d="M110 200 C200 200 200 305 290 305 H700 C800 305 880 200 990 200"/>
             <path class="rail lb draw" pathLength="1" d="M110 200 H990"/>
             <path class="rail la draw" pathLength="1" d="M110 200 C200 200 200 95 290 95 H830 C910 95 910 200 990 200"/>
             <path class="rail lia draw" pathLength="1" d="M990 200 H1140"/>
+            <path class="rail lsoon" d="M1140 200 H1275"/>
 
             <!-- nomes das linhas, como placas de metrô -->
             <text class="tag start" x="110" y="160">INÍCIO</text>
@@ -643,6 +665,11 @@ body.viewing-detail #detail{display:block}
               <text class="num" y="4">09</text><text class="ok" y="5">✓</text>
               <text class="name" y="38">Deep Learning</text><text class="hrs" y="52">~80 h+</text>
             </g></a>
+            <a href="#modulo-10" class="st soon" id="map-mod-10"><g transform="translate(1275 200)">
+              <circle class="halo" r="24"/><circle class="dot" r="15"/>
+              <text class="num" y="4">10</text>
+              <text class="name" y="38">Neurociência</text><text class="hrs" y="52">em breve</text>
+            </g></a>
           </svg>
         </div>
         <div class="legend">
@@ -656,7 +683,7 @@ body.viewing-detail #detail{display:block}
       <section class="sec" id="fases">
         <div class="sec-head">
           <h2>Conteúdo programático</h2>
-          <p>Nove módulos em duas fases. Abra um módulo para ver as lições, os materiais e o teste da seção.</p>
+          <p>Dez módulos em três fases (o último em construção). Abra um módulo para ver as lições, os materiais e o teste da seção.</p>
         </div>
         <div class="toolbar">
           <button class="btn-ghost" onclick="setAll(true)">Expandir tudo</button>
@@ -734,6 +761,7 @@ body.viewing-detail #detail{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
 <script src="ia.js"></script>
+<script src="aulas/indice.js"></script>
 <script>
 /* ============================================================
    Dados do guia (fonte: Guia.pdf)
@@ -745,6 +773,8 @@ const PHASES = [
    sub:"Construir o ferramental matemático, computacional e estatístico que sustenta tudo o que vem depois."},
   {num:"Fase 2", name:"“IA”", short:"“IA”", hours:"~140 h+",
    sub:"Transformar a base em tecnologia: dos métodos clássicos de Machine Learning ao estado da arte em Deep Learning."},
+  {num:"Fase 3", name:"Neurociência Computacional", short:"Neuro", hours:"a definir",
+   sub:"O destino da trilha: aplicar matemática, estatística e modelos de aprendizado ao estudo do cérebro."},
 ];
 
 const MODS = [
@@ -898,6 +928,10 @@ const MODS = [
        {k:"g",t:"Andrej Karpathy — aulas de LLM e backprop no YouTube"}],
  drill:"Dica operacional: utilize instâncias de Cloud ou o Google Colab; seu computador vai ferver caso não possua placa de vídeo compatível.",
  final:"Fazer um projeto de ponta a ponta: uma CNN para classificar imagens de ressonância, ou um Transformer para decodificar estímulos a partir de fMRI público — documentando tudo rigorosamente num repositório."},
+
+{id:10, ph:2, soon:true, title:"Neurociência Computacional", sub:"Em construção", h:"a definir", d:5, dl:"A definir",
+ bio:"O destino da trilha: onde a base matemática, estatística e os modelos de aprendizado se encontram para decodificar e modelar o cérebro.",
+ themes:[], mats:[], drill:"", final:""},
 ];
 
 
@@ -910,7 +944,10 @@ const doneCount = m => m.themes.reduce((a,_,i)=> a + done.has(m.id+"-"+(i+1)), 0
 
 /* ============ utilidades ============ */
 const stars = n => "★".repeat(n) + "☆".repeat(5-n);
-const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+const esc = s => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;");
+const escAttr = s => String(s ?? "").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+const getAula = key => (typeof window.AULAS === "object" && window.AULAS && window.AULAS[key]) || null;
+const ICONE_LIVRO = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2.5 3.5A1.5 1.5 0 0 1 4 2h3.5v11.5H4A1.5 1.5 0 0 0 2.5 15V3.5zm11 0A1.5 1.5 0 0 0 12 2H8.5v11.5H12a1.5 1.5 0 0 1 1.5 1.5V3.5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>';
 const LV = ["Básico","Intermediário","Avançado"];
 const pad2 = n => String(n).padStart(2,"0");
 const $ = id => document.getElementById(id);
@@ -930,11 +967,13 @@ const matItem = x => `<li class="m-${x.k}"><span class="mtype">${tipoMat(x.t)}</
 
 /* primeiro tema ainda não estudado, na ordem da trilha */
 function proximoTema(){
-  for(const m of MODS)
+  for(const m of MODS){
+    if(m.soon) continue;
     for(let i=0;i<m.themes.length;i++){
       const key = m.id+"-"+(i+1);
       if(!done.has(key)) return {m, t:m.themes[i], key, idx:i+1};
     }
+  }
   return null;
 }
 
@@ -964,14 +1003,23 @@ function renderNav(){
   $("sidenav").innerHTML = PHASES.map((ph,i)=>`
     <p class="sn-phase">${ph.num} · ${esc(ph.short)}</p>
     ${MODS.filter(m=>m.ph===i).map(m=>{
-      const dn = doneCount(m), N = m.themes.length;
+      if(m.soon){
+        return `<div class="sn-group sn-soon" id="sn-mod-${m.id}">
+          <a class="sn-mod" href="#modulo-${m.id}" title="Em breve — conteúdo em definição">
+            <span class="sn-chev" aria-hidden="true">·</span>
+            <span class="sn-name"><span class="sn-num">${pad2(m.id)}</span>${esc(m.title)}</span>
+            <span class="sn-prog">em breve</span>
+          </a>
+        </div>`;
+      }
+      const dn = doneCount(m), N = m.themes.length, full = N > 0 && dn === N;
       return `<details class="sn-group" id="sn-mod-${m.id}">
         <summary class="sn-mod">
           <span class="sn-chev">›</span>
           <a class="sn-name" href="#modulo-${m.id}" onclick="event.stopPropagation()"
              title="Ir para o módulo na página"><span class="sn-num">${pad2(m.id)}</span>${esc(m.title)}</a>
-          <span class="sn-prog${dn===N?" full":""}" id="sn-prog-${m.id}">${dn}/${N}</span>
-          <span class="sn-bar${dn===N?" full":""}" id="sn-bar-${m.id}"><i style="width:${pct(dn,N)}%"></i></span>
+          <span class="sn-prog${full?" full":""}" id="sn-prog-${m.id}">${dn}/${N}</span>
+          <span class="sn-bar${full?" full":""}" id="sn-bar-${m.id}"><i style="width:${pct(dn,N)}%"></i></span>
         </summary>
         <div class="sn-themes">
           ${m.themes.map((t,ti)=>{
@@ -1001,20 +1049,52 @@ function marcarAtualNaNav(key){
 
 /* ============ hub ============ */
 function renderHub(){
-  $("trilha").innerHTML = PHASES.map((ph,i)=>`
+  $("trilha").innerHTML = PHASES.map((ph,i)=>{
+    const phMods = MODS.filter(m=>m.ph===i);
+    const phThemes = phMods.reduce((a,m)=>a+(m.soon?0:m.themes.length),0);
+    return `
     <div class="phase" id="fase-${i+1}">
       <div class="phase-head">
         <span class="phase-num">${ph.num}</span>
         <h2>${esc(ph.name)}</h2>
         <span class="hours">${ph.hours}</span>
-        <span class="phase-prog"><span class="bar"><i id="ph-bar2-${i}"></i></span><span id="ph-num2-${i}">0/0</span></span>
+        ${phThemes
+          ? `<span class="phase-prog"><span class="bar"><i id="ph-bar2-${i}"></i></span><span id="ph-num2-${i}">0/0</span></span>`
+          : `<span class="phase-prog" id="ph-num2-${i}">em breve</span>`}
       </div>
       <p class="phase-sub">${esc(ph.sub)}</p>
       <div class="timeline">
-      ${MODS.filter(m=>m.ph===i).map(m=>{
-        const dn = doneCount(m), N = m.themes.length;
+      ${phMods.map(m=>{
+        if(m.soon){
+          return `
+      <details class="mod is-soon" id="modulo-${m.id}">
+        <summary class="mod-sum">
+          <span class="node" aria-hidden="true">
+            <svg viewBox="0 0 44 44"><circle class="nbg" cx="22" cy="22" r="19"/><circle class="nt" cx="22" cy="22" r="19"/></svg>
+            <span class="nn">${pad2(m.id)}</span>
+          </span>
+          <h3 class="mod-title">${esc(m.title)}<span class="sub">${esc(m.sub)}</span></h3>
+          <span class="mod-meta">
+            <span class="mm"><em>carga</em>${esc(m.h)}</span>
+            <span class="tag tag-soon">Em breve</span>
+            <span class="chev">›</span>
+          </span>
+        </summary>
+        <div class="mod-body">
+          <div class="bio">
+            <h4>Por que isso importa na Neurociência?</h4>
+            <p>${esc(m.bio)}</p>
+          </div>
+          <div class="soon-card">
+            <span class="tag tag-soon">Em breve</span>
+            <p><strong>Em breve — conteúdo em definição.</strong> Os temas, materiais e o teste deste módulo serão adicionados depois.</p>
+          </div>
+        </div>
+      </details>`;
+        }
+        const dn = doneCount(m), N = m.themes.length, full = N > 0 && dn === N;
         return `
-      <details class="mod${dn===N?" full":""}" id="modulo-${m.id}">
+      <details class="mod${full?" full":""}" id="modulo-${m.id}">
         <summary class="mod-sum">
           <span class="node" aria-hidden="true">
             <svg viewBox="0 0 44 44"><circle class="nbg" cx="22" cy="22" r="19"/><circle class="nt" cx="22" cy="22" r="19"/><circle class="nf" id="ring-mod-${m.id}" cx="22" cy="22" r="19" pathLength="100"/></svg>
@@ -1040,7 +1120,7 @@ function renderHub(){
             <h4>Lições — clique num tema para abri-lo</h4>
             <ol class="lessons">
               ${m.themes.map((t,ti)=>{
-                const key = m.id+"-"+(ti+1), isDone = done.has(key);
+                const key = m.id+"-"+(ti+1), isDone = done.has(key), temAula = !!getAula(key);
                 return `
               <li class="lesson lv${t.lv}${isDone?" done":""}" id="card-${key}">
                 <input type="checkbox" class="chk" onchange="toggleDone('${key}')"
@@ -1049,6 +1129,7 @@ function renderHub(){
                 <span class="ln">${pad2(ti+1)}</span>
                 <a class="ll" href="#tema-${key}"><b>${esc(t.n)}</b><span class="desc">${esc(t.d)}</span></a>
                 <span class="lr">
+                  ${temAula ? `<span class="aula-ind" title="Aula disponível" aria-label="Aula disponível">${ICONE_LIVRO}</span>` : ""}
                   <span class="lvchip lv${t.lv}">${LV[t.lv]}</span>
                   <span class="cnt">${t.t.length ? t.t.length+" subtemas" : ""}</span>
                   <a class="go" href="#tema-${key}" aria-label="Abrir tema ${esc(t.n)}">→</a>
@@ -1072,10 +1153,12 @@ function renderHub(){
         </div>
       </details>`;}).join("")}
       </div>
-    </div>`).join("");
-  $("statTemas").textContent = MODS.reduce((a,m)=>a+m.themes.length,0);
-  $("pcPhases").innerHTML = PHASES.map((ph,i)=>`
-    <div class="pc-ph"><b>${ph.num} · ${esc(ph.short)}</b><span class="n" id="ph-num-${i}">0/0</span><span class="bar"><i id="ph-bar-${i}"></i></span></div>`).join("");
+    </div>`;}).join("");
+  $("statTemas").textContent = MODS.reduce((a,m)=>a+(m.soon?0:m.themes.length),0);
+  $("pcPhases").innerHTML = PHASES.map((ph,i)=>{
+    const phThemes = MODS.filter(m=>m.ph===i && !m.soon).reduce((a,m)=>a+m.themes.length,0);
+    return `<div class="pc-ph"><b>${ph.num} · ${esc(ph.short)}</b><span class="n" id="ph-num-${i}">${phThemes ? "0/0" : "em breve"}</span>${phThemes ? `<span class="bar"><i id="ph-bar-${i}"></i></span>` : ""}</div>`;
+  }).join("");
 }
 
 function setAll(open){ document.querySelectorAll("details.mod").forEach(d=>d.open=open); }
@@ -1092,6 +1175,7 @@ function atualizarMarcacoes(){
   let feitos = 0, total = 0;
   const porFase = PHASES.map(()=>({d:0,n:0}));
   MODS.forEach(m=>{
+    if(m.soon) return;
     const N = m.themes.length, dn = doneCount(m), full = N > 0 && dn === N;
     feitos += dn; total += N;
     porFase[m.ph].d += dn; porFase[m.ph].n += N;
@@ -1130,7 +1214,7 @@ function atualizarMarcacoes(){
 
   porFase.forEach((f,i)=>{
     [["ph-num-"+i,"ph-bar-"+i],["ph-num2-"+i,"ph-bar2-"+i]].forEach(([n,b])=>{
-      if($(n)) $(n).textContent = `${f.d}/${f.n}`;
+      if($(n)) $(n).textContent = f.n ? `${f.d}/${f.n}` : "em breve";
       if($(b)) $(b).style.width = pct(f.d,f.n)+"%";
     });
   });
@@ -1171,7 +1255,9 @@ function toggleDone(key){
 
 /* caixinha do módulo: marca ou desmarca todos os temas dele de uma vez */
 function marcarModulo(id, marcar){
-  MODS.find(m=>m.id===id).themes.forEach((_,ti)=>{
+  const mod = MODS.find(m=>m.id===id);
+  if(!mod || mod.soon || !mod.themes.length) return;
+  mod.themes.forEach((_,ti)=>{
     const key = id+"-"+(ti+1);
     if(marcar !== done.has(key)){
       marcar ? done.add(key) : done.delete(key);
@@ -1184,10 +1270,12 @@ function marcarModulo(id, marcar){
 /* ============ visão isolada de um tema ============ */
 function renderDetail(modId, themeIdx){
   const m = MODS.find(x=>x.id===modId);
-  const t = m && m.themes[themeIdx-1];
+  if(!m || m.soon) return false;
+  const t = m.themes[themeIdx-1];
   if(!t) return false;
   const ph = PHASES[m.ph];
   const key = m.id+"-"+themeIdx, isDone = done.has(key);
+  const aula = getAula(key);
   const prev = m.themes[themeIdx-2], next = m.themes[themeIdx];
   const prompt = `Crie 3 questões sobre ${t.n} (módulo de ${m.title}) aplicadas à neurociência, em níveis básico, intermediário e avançado, para eu resolver uma de cada vez.`;
   const kOf = i => m.id+"-"+(i+1);
@@ -1219,11 +1307,23 @@ function renderDetail(modId, themeIdx){
     </div>
     <div class="detail-grid">
       <div class="d-main">
+        ${aula ? `
+        <div class="section"><h2>Aula</h2>
+          <div class="aula-cta">
+            <a class="btn-primary" href="${escAttr(aula.url)}">Abrir a aula</a>
+          </div>
+          ${Array.isArray(aula.secoes) && aula.secoes.length
+            ? `<ul class="aula-secoes">${aula.secoes.map(s=>`<li><a href="${escAttr(aula.url + (s.id ? "#" + s.id : ""))}"><span class="as-num">${esc(s.num || "")}</span><span class="as-tit">${esc(s.titulo || "")}</span><span class="as-go" aria-hidden="true">→</span></a></li>`).join("")}</ul>`
+            : ""}
+        </div>` : `
+        <div class="section"><h2>Aula</h2>
+          <p class="note">Aula em preparação</p>
+        </div>
         <div class="section"><h2>Subtemas</h2>
           ${t.t.length
             ? `<ul class="topics">${t.t.map(s=>`<li>${esc(s)}</li>`).join("")}</ul>`
             : `<p class="note">Este tema não tem subdivisões no guia — trate-o como um bloco único de estudo.</p>`}
-        </div>
+        </div>`}
         <div class="section"><h2>Como estudar este tema</h2>
           <p class="note">${esc(m.drill)}</p>
           <div class="prompt">

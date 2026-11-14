@@ -1,0 +1,11 @@
+# Modelo do projeto Delta de um módulo. Copie para conteudo/modulo-NN/project.toml,
+# troque NN e acrescente cada tema em `inputs` (na ordem do guia) assim que o arquivo existir.
+# Compile com: node scripts/compilar-aulas.mjs --modulo N
+inputs = ["tema-01.dlt"]
+out = "../../aulas/modulo-NN"
+
+[document]
+lang         = "pt-BR"
+type         = "book"
+theme-accent = "indigo"
+theme-mode   = "auto"

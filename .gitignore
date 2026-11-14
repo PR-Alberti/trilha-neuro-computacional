@@ -5,3 +5,6 @@ __pycache__/
 # ambiente virtual e banco locais do servidor — nunca versionar
 servidor/.venv/
 servidor/dados/
+
+# documentação do Delta copiada para consulta dos agentes (não versionar)
+referencias/
