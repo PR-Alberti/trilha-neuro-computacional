@@ -1,0 +1,538 @@
+<document>
+  <title>Módulo 3 · Cálculo Multivariável</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-3-1">Voltar ao guia (Tema 3.1)</link></meta-item>
+    <meta-item key="Módulo">Módulo 3 · Cálculo Multivariável — A Complexidade do Mundo Real</meta-item>
+    <meta-item key="Nível">Básico</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-3-1">
+    <title>Funções vetoriais</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Funções que devolvem vetores: trajetórias e campos, a ponte para várias variáveis.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> A atividade cerebral é intrinsecamente multivariável: em um único experimento de eletrofisiologia ou neuroimagem, centenas de neurônios ou milhares de voxels variam juntos a cada milissegundo. Olhar para uma célula isolada esconde a coordenação coletiva do circuito; para enxergar o todo, reunimos as medidas simultâneas em um único objeto — um vetor — e representamos o estado da população em um instante como um ponto em um espaço geométrico. Quando esse ponto evolui no tempo, ele desenha uma trajetória.
+
+    Aprender a descrever, derivar e integrar funções que devolvem vetores constrói a ponte direta entre o Cálculo de uma variável (que você acabou de dominar) e os temas centrais deste módulo: os gradientes no Tema 3.2 (<mark>Diferencial em várias variáveis</mark>) e as integrais múltiplas no Tema 3.3 (<mark>Integrais múltiplas</mark>). Mais adiante, o gradiente e a regra da cadeia multivariável serão o coração matemático da retropropagação (<em>backpropagation</em>) em redes neurais e de todo modelo de codificação neural (<em>encoding</em>).
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>operar com vetores em $\mathbb{R}^2$, $\mathbb{R}^3$ e $\mathbb{R}^n$ (soma, multiplicação por escalar, norma euclidiana, vetor unitário e produto escalar);</item>
+      <item>interpretar uma função vetorial $\mathbf{r}(t)$ como curva paramétrica e distinguir a forma geométrica da curva da sua parametrização no tempo;</item>
+      <item>representar a dinâmica conjunta de neurônios como uma trajetória no espaço de estados e reconhecer a ideia de campo vetorial;</item>
+      <item>calcular limites, derivadas $\mathbf{r}'(t)$ (velocidade), rapidez $\|\mathbf{r}'(t)\|$ e aceleração $\mathbf{r}''(t)$ componente a componente, além da regra do produto escalar;</item>
+      <item>calcular o comprimento de arco de uma trajetória usando a integral definida.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Geometria Analítica e Trigonometria (Módulo 1, para coordenadas cartesianas, distância entre pontos e funções seno e cosseno) e Limite, Derivada e Integral de Riemann (Módulo 2, culminando no Tema 2.3).
+
+    <section id="sec:3-1-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Introdução e visualização</title>
+      <intro>
+        Um vetor empacota várias grandezas biológicas em um único objeto geométrico; quando esse pacote depende do tempo, ele se transforma em uma trajetória com direção, velocidade e comprimento bem definidos.
+      </intro>
+
+      <subsection id="sub:3-1-1-a">
+        <title>Vetores no plano e no espaço</title>
+
+        No Módulo 2 (<mark>Cálculo Real</mark>), cada função devolvia um único número real: o potencial de membrana em um instante, a concentração de um metabólito ou a taxa de disparo de um neurônio solitário. Na prática biológica, porém, você quase sempre registra várias variáveis ao mesmo tempo — por exemplo, as taxas de disparo de dois ou três neurônios em um circuito, ou as coordenadas $(x, y, z)$ da ponta da pata de um animal em locomoção.
+
+        Para lidar com essas medidas em conjunto sem repetir contas para cada coordenada separadamente, usamos <strong>vetores</strong>. Como a Álgebra Linear completa só será estudada no Módulo 5, montamos aqui uma caixa de ferramentas mínima — apenas o essencial para representar estados, medir distâncias e verificar ângulos.
+
+        <definition id="def:3-1-vetor">
+          <title>Vetor em $\mathbb{R}^n$, soma e multiplicação por escalar</title>
+          Um <strong>vetor</strong> em $\mathbb{R}^n$ é uma lista ordenada de $n$ números reais:
+          $$\mathbf{v} = (v_1,\, v_2,\, \dots,\, v_n) \in \mathbb{R}^n,$$
+          chamados de <strong>componentes</strong> de $\mathbf{v}$. No plano ($n = 2$), escrevemos $\mathbf{v} = (v_1, v_2)$; no espaço ($n = 3$), $\mathbf{v} = (v_1, v_2, v_3)$. O vetor com todas as componentes iguais a zero é o <strong>vetor nulo</strong> $\mathbf{0} = (0, \dots, 0)$.
+
+          Dados dois vetores $\mathbf{u} = (u_1, \dots, u_n)$ e $\mathbf{v} = (v_1, \dots, v_n)$ em $\mathbb{R}^n$ e um número real $c \in \mathbb{R}$ (chamado de <strong>escalar</strong>), definimos as duas operações básicas componente a componente:
+          <list marker="dash">
+            <item><strong>Soma vetorial:</strong> $\mathbf{u} + \mathbf{v} = (u_1 + v_1,\, u_2 + v_2,\, \dots,\, u_n + v_n)$.</item>
+            <item><strong>Multiplicação por escalar:</strong> $c\mathbf{v} = (c v_1,\, c v_2,\, \dots,\, c v_n)$.</item>
+          </list>
+          <intuition>
+            No plano $\mathbb{R}^2$ ou no espaço $\mathbb{R}^3$, você pode enxergar um vetor de duas formas equivalentes: como um <strong>ponto</strong> com aquelas coordenadas ou como uma <strong>seta</strong> que parte da origem $(0, \dots, 0)$ e aponta até esse ponto. Somar $\mathbf{u} + \mathbf{v}$ equivale a encadear as setas (colocar a cauda de $\mathbf{v}$ na ponta de $\mathbf{u}$). Multiplicar por $c$ estica ou encolhe a seta pelo fator $|c|$ e inverte seu sentido quando $c < 0$.
+          </intuition>
+        </definition>
+
+        A subtração de vetores segue imediatamente dessas duas regras: $\mathbf{u} - \mathbf{v} = \mathbf{u} + (-1)\mathbf{v} = (u_1 - v_1, \dots, u_n - v_n)$. Geometricamente, $\mathbf{u} - \mathbf{v}$ é a seta de deslocamento que vai da ponta de $\mathbf{v}$ até a ponta de $\mathbf{u}$ — exatamente o que precisamos para calcular quanto a atividade de uma população neural mudou entre dois instantes.
+
+        Também é útil decompor qualquer vetor em direções padrão ao longo dos eixos coordenados. Em $\mathbb{R}^2$, os <strong>vetores-base</strong> (<em>basis vectors</em>) canônicos são $\mathbf{e}_1 = (1, 0)$ e $\mathbf{e}_2 = (0, 1)$, de modo que $\mathbf{v} = (v_1, v_2) = v_1\mathbf{e}_1 + v_2\mathbf{e}_2$. Em $\mathbb{R}^3$, acrescentamos $\mathbf{e}_3 = (0, 0, 1)$ e escrevemos $\mathbf{v} = v_1\mathbf{e}_1 + v_2\mathbf{e}_2 + v_3\mathbf{e}_3$. (No Módulo 5, veremos que a ideia de base se generaliza para qualquer conjunto de direções independentes.)
+
+        Para medir o tamanho de uma seta — ou a distância entre dois estados biológicos — generalizamos diretamente o Teorema de Pitágoras visto em Geometria Analítica (Módulo 1).
+
+        <definition id="def:3-1-norma-unitario">
+          <title>Norma euclidiana e vetor unitário</title>
+          A <strong>norma euclidiana</strong> (ou módulo) de um vetor $\mathbf{v} = (v_1, \dots, v_n) \in \mathbb{R}^n$ é o número real não negativo:
+          $$\|\mathbf{v}\| = \sqrt{v_1^2 + v_2^2 + \dots + v_n^2}.$$
+          Um vetor $\mathbf{u}$ é chamado de <strong>vetor unitário</strong> (<em>unit vector</em>) quando $\|\mathbf{u}\| = 1$. Para qualquer vetor não nulo $\mathbf{v} \ne \mathbf{0}$, o vetor normalizado
+          $$\hat{\mathbf{v}} = \frac{\mathbf{v}}{\|\mathbf{v}\|} = \frac{1}{\|\mathbf{v}\|}(v_1, \dots, v_n)$$
+          é um vetor unitário com a mesma direção e o mesmo sentido de $\mathbf{v}$.
+          <intuition>
+            A norma $\|\mathbf{v}\|$ mede o comprimento da seta $\mathbf{v}$, e $\|\mathbf{u} - \mathbf{v}\|$ mede a distância em linha reta entre os pontos $\mathbf{u}$ e $\mathbf{v}$. Já dividir $\mathbf{v}$ por $\|\mathbf{v}\|$ "remove a escala" e deixa apenas a direção pura, com comprimento $1$. Note que $\|c\mathbf{v}\| = |c|\,\|\mathbf{v}\|$ para qualquer escalar $c \in \mathbb{R}$.
+          </intuition>
+        </definition>
+
+        Por fim, além de somar vetores e medir seus comprimentos, precisamos saber se dois vetores apontam na mesma direção, em direções opostas ou em ângulo reto (perpendiculares). Quem faz esse papel é o <strong>produto escalar</strong> (<em>dot product</em>).
+
+        <definition id="def:3-1-produto-escalar">
+          <title>Produto escalar</title>
+          Dados dois vetores $\mathbf{u} = (u_1, \dots, u_n)$ e $\mathbf{v} = (v_1, \dots, v_n)$ em $\mathbb{R}^n$, o <strong>produto escalar</strong> $\mathbf{u} \cdot \mathbf{v}$ é o número real obtido multiplicando componente a componente e somando tudo:
+          $$\mathbf{u} \cdot \mathbf{v} = \sum_{i=1}^n u_i v_i = u_1 v_1 + u_2 v_2 + \dots + u_n v_n.$$
+          Em $\mathbb{R}^2$ e $\mathbb{R}^3$, esse produto satisfaz a identidade geométrica:
+          $$\mathbf{u} \cdot \mathbf{v} = \|\mathbf{u}\|\,\|\mathbf{v}\|\cos\theta,$$
+          onde $\theta \in [0, \pi]$ é o ângulo entre as duas setas. Em particular, dois vetores não nulos $\mathbf{u}$ e $\mathbf{v}$ são <strong>perpendiculares</strong> (ou ortogonais) se, e somente se, $\mathbf{u} \cdot \mathbf{v} = 0$. Além disso, $\mathbf{v} \cdot \mathbf{v} = \|\mathbf{v}\|^2$.
+          <intuition>
+            O produto escalar devolve um número (um escalar), não um vetor, e mede o grau de alinhamento entre duas direções: quando os vetores formam ângulo agudo ($\theta < 90^\circ$), $\cos\theta > 0$ e o produto é positivo; a $90^\circ$ ($\cos 90^\circ = 0$), ele se anula; quando apontam para lados opostos ($\theta > 90^\circ$), o produto é negativo. A fórmula com $\cos\theta$ decorre diretamente da lei dos cossenos aplicada ao triângulo formado por $\mathbf{u}$, $\mathbf{v}$ e $\mathbf{u} - \mathbf{v}$, e no Módulo 5 ela nos permitirá definir ângulos até em espaços de mil dimensões.
+          </intuition>
+        </definition>
+
+        <example id="exm:3-1-estado-populacao">
+          <title>Estado instantâneo de uma população de três neurônios</title>
+          Em um registro eletrofisiológico simultâneo de três neurônios corticais diante de um estímulo visual, as taxas de disparo iniciais formam o vetor $\mathbf{r}_A = (12, 30, 5)\text{ Hz}$. Após alguns segundos de adaptação ao estímulo, o vetor passa a ser $\mathbf{r}_B = (15, 26, 5)\text{ Hz}$.
+          <list marker="a">
+            <item>Calcule a norma $\|\mathbf{r}_A\|$ (intensidade global da atividade inicial).</item>
+            <item>Encontre o vetor de variação $\Delta\mathbf{r} = \mathbf{r}_B - \mathbf{r}_A$ e sua norma $\|\Delta\mathbf{r}\|$.</item>
+            <item>Determine o vetor unitário $\hat{\mathbf{d}}$ na direção de $\Delta\mathbf{r}$.</item>
+          </list>
+
+          <strong>Solução.</strong>
+          <list marker="a">
+            <item>Aplicando a <ref to="def:3-1-norma-unitario"/> a $\mathbf{r}_A = (12, 30, 5)$:
+              $$\|\mathbf{r}_A\| = \sqrt{12^2 + 30^2 + 5^2} = \sqrt{144 + 900 + 25} = \sqrt{1\,069} \approx 32{,}70\text{ Hz}.$$
+            </item>
+            <item>Subtraindo componente a componente:
+              $$\Delta\mathbf{r} = \mathbf{r}_B - \mathbf{r}_A = (15 - 12,\, 26 - 30,\, 5 - 5) = (3, -4, 0)\text{ Hz}.$$
+              O primeiro neurônio aumentou sua taxa em $3\text{ Hz}$, o segundo reduziu em $4\text{ Hz}$ e o terceiro não variou. A distância percorrida entre os dois estados é:
+              $$\|\Delta\mathbf{r}\| = \sqrt{3^2 + (-4)^2 + 0^2} = \sqrt{9 + 16 + 0} = \sqrt{25} = 5\text{ Hz}.$$
+            </item>
+            <item>Dividimos $\Delta\mathbf{r}$ por sua norma $5$:
+              $$\hat{\mathbf{d}} = \frac{\Delta\mathbf{r}}{\|\Delta\mathbf{r}\|} = \frac{1}{5}(3, -4, 0) = (0{,}6;\, -0{,}8;\, 0).$$
+              <em>Conferência:</em> $\|\hat{\mathbf{d}}\| = \sqrt{0{,}6^2 + (-0{,}8)^2 + 0^2} = \sqrt{0{,}36 + 0{,}64} = 1$.
+            </item>
+          </list>
+        </example>
+
+        <example id="exm:3-1-produto-escalar">
+          <title>Ângulo e perpendicularidade pelo produto escalar</title>
+          Considere os vetores no plano $\mathbf{u} = (3, 4)$, $\mathbf{v} = (-4, 3)$, $\mathbf{a} = (1, \sqrt{3})$ e $\mathbf{b} = (2, 0)$.
+          <list marker="a">
+            <item>Mostre que $\mathbf{u}$ e $\mathbf{v}$ são perpendiculares.</item>
+            <item>Encontre o ângulo $\theta$ entre $\mathbf{a}$ e $\mathbf{b}$.</item>
+          </list>
+
+          <strong>Solução.</strong>
+          <list marker="a">
+            <item>Calculamos o produto escalar pela <ref to="def:3-1-produto-escalar"/>:
+              $$\mathbf{u} \cdot \mathbf{v} = 3 \cdot (-4) + 4 \cdot 3 = -12 + 12 = 0.$$
+              Como $\mathbf{u}$ e $\mathbf{v}$ são não nulos e $\mathbf{u} \cdot \mathbf{v} = 0$, o ângulo entre eles é $\theta = \frac{\pi}{2}\text{ rad}$ ($90^\circ$): são perpendiculares.
+            </item>
+            <item>Calculamos o produto escalar e as duas normas:
+              $$\mathbf{a} \cdot \mathbf{b} = 1 \cdot 2 + \sqrt{3} \cdot 0 = 2,$$
+              $$\|\mathbf{a}\| = \sqrt{1^2 + (\sqrt{3})^2} = \sqrt{1 + 3} = 2, \qquad \|\mathbf{b}\| = \sqrt{2^2 + 0^2} = 2.$$
+              Isolando $\cos\theta$ na fórmula $\mathbf{a} \cdot \mathbf{b} = \|\mathbf{a}\|\,\|\mathbf{b}\|\cos\theta$:
+              $$\cos\theta = \frac{\mathbf{a} \cdot \mathbf{b}}{\|\mathbf{a}\|\,\|\mathbf{b}\|} = \frac{2}{2 \cdot 2} = \frac{1}{2}.$$
+              No intervalo $[0, \pi]$, o ângulo cujo cosseno vale $\frac{1}{2}$ é $\theta = \frac{\pi}{3}\text{ rad}$ ($60^\circ$).
+            </item>
+          </list>
+        </example>
+
+        <exercise id="exr:3-1-1-1">
+          <title>Básico — Operações, norma, vetor unitário e produto escalar</title>
+          Dados $\mathbf{u} = (6, -8)$ e $\mathbf{v} = (-1, 3)$ em $\mathbb{R}^2$, calcule:
+          <list marker="a">
+            <item>$\mathbf{u} + 2\mathbf{v}$;</item>
+            <item>a norma $\|\mathbf{u}\|$ e o vetor unitário $\hat{\mathbf{u}}$ na direção de $\mathbf{u}$;</item>
+            <item>o produto escalar $\mathbf{u} \cdot \mathbf{v}$, indicando se o ângulo entre $\mathbf{u}$ e $\mathbf{v}$ é agudo ($< 90^\circ$), reto ($90^\circ$) ou obtuso ($> 90^\circ$).</item>
+          </list>
+          <hint><title>Ver dica</title>Em (a), multiplique primeiro as duas componentes de $\mathbf{v}$ por $2$ antes de somar a $\mathbf{u}$. Em (c), basta observar o sinal de $\mathbf{u} \cdot \mathbf{v}$.</hint>
+          <solution collapsible="true" collapsed="true">
+            <list marker="a">
+              <item>Multiplicando $\mathbf{v}$ por $2$, temos $2\mathbf{v} = (-2, 6)$. Somando componente a componente:
+                $$\mathbf{u} + 2\mathbf{v} = (6 + (-2),\, -8 + 6) = (4, -2).$$
+              </item>
+              <item>A norma de $\mathbf{u}$ é:
+                $$\|\mathbf{u}\| = \sqrt{6^2 + (-8)^2} = \sqrt{36 + 64} = \sqrt{100} = 10.$$
+                Dividindo $\mathbf{u}$ por $10$, obtemos o vetor unitário:
+                $$\hat{\mathbf{u}} = \frac{1}{10}(6, -8) = (0{,}6;\, -0{,}8).$$
+              </item>
+              <item>Calculando o produto escalar:
+                $$\mathbf{u} \cdot \mathbf{v} = 6 \cdot (-1) + (-8) \cdot 3 = -6 - 24 = -30.$$
+                Como $\mathbf{u} \cdot \mathbf{v} < 0$ e as normas são positivas, temos $\cos\theta < 0$, o que significa que o ângulo $\theta$ entre $\mathbf{u}$ e $\mathbf{v}$ é obtuso ($> 90^\circ$).
+              </item>
+            </list>
+          </solution>
+        </exercise>
+
+        <exercise id="exr:3-1-1-2">
+          <title>Básico — Vetores de estado de três neurônios no hipocampo</title>
+          Em um registro com três neurônios hipocampais de um roedor, o vetor de taxas de disparo em repouso é $\mathbf{r}_0 = (5, 8, 4)\text{ Hz}$. Durante a exploração de um ambiente novo, o vetor passa a ser $\mathbf{r}_1 = (11, 16, 4)\text{ Hz}$.
+          <list marker="a">
+            <item>Calcule o vetor de deslocamento $\Delta\mathbf{r} = \mathbf{r}_1 - \mathbf{r}_0$ e sua norma $\|\Delta\mathbf{r}\|$.</item>
+            <item>Verifique se $\Delta\mathbf{r}$ é perpendicular ao vetor $\mathbf{w} = (4, -3, 7)$.</item>
+          </list>
+          <hint><title>Ver dica</title>Subtraia coordenada por coordenada para achar $\Delta\mathbf{r}$ e lembre que dois vetores não nulos são perpendiculares quando seu produto escalar é zero.</hint>
+          <solution collapsible="true" collapsed="true">
+            <list marker="a">
+              <item>Subtraindo componente a componente:
+                $$\Delta\mathbf{r} = \mathbf{r}_1 - \mathbf{r}_0 = (11 - 5,\, 16 - 8,\, 4 - 4) = (6, 8, 0)\text{ Hz}.$$
+                Sua norma euclidiana vale:
+                $$\|\Delta\mathbf{r}\| = \sqrt{6^2 + 8^2 + 0^2} = \sqrt{36 + 64} = \sqrt{100} = 10\text{ Hz}.$$
+              </item>
+              <item>Calculamos o produto escalar $\Delta\mathbf{r} \cdot \mathbf{w}$:
+                $$\Delta\mathbf{r} \cdot \mathbf{w} = 6 \cdot 4 + 8 \cdot (-3) + 0 \cdot 7 = 24 - 24 + 0 = 0.$$
+                Como o produto escalar é igual a zero (e ambos os vetores são não nulos), $\Delta\mathbf{r}$ e $\mathbf{w}$ são perpendiculares.
+              </item>
+            </list>
+          </solution>
+        </exercise>
+      </subsection>
+
+      <subsection id="sub:3-1-1-b">
+        <title>Funções vetoriais e curvas paramétricas</title>
+
+        Até aqui, olhamos para vetores congelados em um único instante. Mas o cérebro não é uma fotografia: as taxas de disparo sobem e descem continuamente à medida que um estímulo aparece, o animal se move ou uma oscilação neural se propaga. Para descrever um vetor que varia com o tempo $t$, trocamos os números fixos das suas componentes por funções de $t$.
+
+        <definition id="def:3-1-funcao-vetorial">
+          <title>Função vetorial e funções-componente</title>
+          Uma <strong>função vetorial</strong> (<em>vector-valued function</em>) é uma regra $\mathbf{r}: I \subset \mathbb{R} \to \mathbb{R}^n$ que associa a cada número real $t$ de um intervalo $I$ um único vetor $\mathbf{r}(t) \in \mathbb{R}^n$:
+          $$\mathbf{r}(t) = \bigl(x_1(t),\, x_2(t),\, \dots,\, x_n(t)\bigr).$$
+          Cada função real $x_i: I \to \mathbb{R}$ é chamada de <strong>função-componente</strong> (<em>component function</em>). Em $\mathbb{R}^2$ e $\mathbb{R}^3$, usamos com frequência as letras usuais das coordenadas:
+          $$\mathbf{r}(t) = \bigl(x(t),\, y(t)\bigr) \qquad \text{ou} \qquad \mathbf{r}(t) = \bigl(x(t),\, y(t),\, z(t)\bigr).$$
+          À medida que o <strong>parâmetro</strong> $t$ percorre o intervalo $I$, a ponta do vetor $\mathbf{r}(t)$ desenha uma <strong>curva paramétrica</strong> (<em>parametric curve</em>) em $\mathbb{R}^n$.
+          <intuition>
+            Pense em um vaga-lume voando no escuro ou em um ponto brilhante na tela de um osciloscópio. Em cada instante $t$ (a variável de entrada, escalar), $\mathbf{r}(t)$ diz onde está a ponta do rastro (a saída, um vetor de coordenadas). O domínio é unidimensional (a reta do tempo $t$), mas a imagem vive em $2$, $3$ ou $n$ dimensões.
+          </intuition>
+        </definition>
+
+        Vale observar uma distinção fundamental: a <strong>curva</strong> é apenas o rastro geométrico (o conjunto de pontos visitados no plano ou no espaço), enquanto a <strong>parametrização</strong> $\mathbf{r}(t)$ é o rastro acompanhado de um "relógio" — ela especifica <em>em que instante</em> você passa por cada ponto, <em>em que sentido</em> o caminho é percorrido e <em>com que velocidade</em>.
+
+        Três curvas paramétricas aparecem o tempo todo como blocos de construção na matemática e na biologia:
+        <list marker="number">
+          <item><strong>Reta:</strong> dado um ponto inicial $\mathbf{p} \in \mathbb{R}^n$ e um vetor diretor $\mathbf{v} \ne \mathbf{0}$, a função $\mathbf{r}(t) = \mathbf{p} + t\mathbf{v}$ ($t \in \mathbb{R}$) percorre a linha reta que passa por $\mathbf{p}$ em $t = 0$ na direção de $\mathbf{v}$.</item>
+          <item><strong>Círculo:</strong> para raio $R > 0$ centrado na origem de $\mathbb{R}^2$, $\mathbf{r}(t) = (R\cos t,\, R\sin t)$ com $t \in [0, 2\pi]$ percorre o círculo $x^2 + y^2 = R^2$ no sentido anti-horário, porque $(R\cos t)^2 + (R\sin t)^2 = R^2(\cos^2 t + \sin^2 t) = R^2$.</item>
+          <item><strong>Hélice circular:</strong> em $\mathbb{R}^3$, $\mathbf{r}(t) = (R\cos t,\, R\sin t,\, bt)$ com $R > 0$ e $b \ne 0$ gira em círculo no plano $xy$ enquanto sobe (ou desce) linearmente ao longo do eixo $z$, formando um saca-rolhas — exatamente o padrão tridimensional da natação de muitas bactérias flageladas e espermatozoides.</item>
+        </list>
+
+        Em neurociência computacional, essa ideia ganha um nome próprio: o <strong>espaço de estados</strong> (<em>state space</em>). Em vez de desenhar um gráfico temporal separado para cada neurônio, colocamos a taxa de disparo do neurônio $1$ no eixo horizontal, a do neurônio $2$ no eixo vertical (e assim por diante até $n$ neurônios). O vetor $\mathbf{r}(t) = \bigl(r_1(t), r_2(t), \dots, r_n(t)\bigr)$ localiza o estado conjunto da rede em cada instante $t$, e sua evolução ao longo do tempo desenha uma <strong>trajetória</strong> no espaço de estados. Quando experimentos reais registram centenas ou milhares de neurônios ao mesmo tempo, é prática padrão projetar a atividade para $2$ ou $3$ dimensões justamente para visualizar essas trajetórias populacionais.
+
+        <example id="exm:3-1-trajetoria-neural">
+          <title>Oscilação neural sustentada e retorno amortecido ao repouso</title>
+          Considere dois neurônios acoplados (por exemplo, um par excitatório–inibitório) cujas taxas de disparo $r_1(t)$ e $r_2(t)$, em $\text{Hz}$, variam com o tempo $t \ge 0$ (em segundos). Analise os dois regimes abaixo:
+          <list marker="a">
+            <item><strong>Regime oscilatório sustentado:</strong> $r_1(t) = 20 + 10\cos(2\pi f t)$ e $r_2(t) = 20 + 10\sin(2\pi f t)$, com frequência $f = 2\text{ Hz}$.</item>
+            <item><strong>Regime amortecido após o fim do estímulo:</strong> $r_1(t) = 20 + 10e^{-t}\cos(2\pi t)$ e $r_2(t) = 20 + 10e^{-t}\sin(2\pi t)$.</item>
+          </list>
+
+          <strong>Solução.</strong>
+          <list marker="a">
+            <item>Escrevemos $\mathbf{r}(t) = \bigl(20 + 10\cos(4\pi t),\, 20 + 10\sin(4\pi t)\bigr)\text{ Hz}$, pois $2\pi f = 4\pi$. Subtraindo o centro $\mathbf{c} = (20, 20)\text{ Hz}$:
+              $$\mathbf{r}(t) - \mathbf{c} = \bigl(10\cos(4\pi t),\, 10\sin(4\pi t)\bigr).$$
+              A distância do estado atual até $\mathbf{c}$ é:
+              $$\|\mathbf{r}(t) - \mathbf{c}\| = \sqrt{10^2\cos^2(4\pi t) + 10^2\sin^2(4\pi t)} = 10\sqrt{1} = 10\text{ Hz}.$$
+              Portanto, no espaço de estados, a trajetória é um <strong>círculo</strong> de centro $(20, 20)\text{ Hz}$ e raio $10\text{ Hz}$. Uma volta completa ocorre quando o ângulo $4\pi t$ varia de $0$ a $2\pi$, ou seja, em $T = \frac{2\pi}{4\pi} = 0{,}5\text{ s}$ (dois ciclos por segundo, como indica $f = 2\text{ Hz}$). Em $t = 0\text{ s}$, a rede parte de $\mathbf{r}(0) = (30, 20)\text{ Hz}$; um quarto de ciclo depois ($t = 0{,}125\text{ s}$, quando $4\pi t = \frac{\pi}{2}$), passa por $\mathbf{r}(0{,}125) = (20, 30)\text{ Hz}$, girando no sentido anti-horário.
+            </item>
+            <item>No caso amortecido, subtraindo o mesmo ponto $\mathbf{c} = (20, 20)\text{ Hz}$:
+              $$\mathbf{r}(t) - \mathbf{c} = \bigl(10e^{-t}\cos(2\pi t),\, 10e^{-t}\sin(2\pi t)\bigr).$$
+              Calculando a norma dessa diferença (lembrando que $10e^{-t} > 0$):
+              $$\|\mathbf{r}(t) - \mathbf{c}\| = \sqrt{100e^{-2t}\cos^2(2\pi t) + 100e^{-2t}\sin^2(2\pi t)} = 10e^{-t}\text{ Hz}.$$
+              Como $e^{-t}$ decai continuamente para $0$ quando $t \to +\infty$, o raio encolhe a cada instante enquanto os termos $\cos(2\pi t)$ e $\sin(2\pi t)$ continuam girando $1$ volta por segundo. A trajetória é uma <strong>espiral</strong> que converge para o ponto fixo de repouso $(20, 20)\text{ Hz}$:
+              <list marker="dash">
+                <item>em $t = 0\text{ s}$: $\mathbf{r}(0) = (30, 20)\text{ Hz}$ (distância $10\text{ Hz}$ do repouso);</item>
+                <item>em $t = 1\text{ s}$ (após $1$ volta): $\mathbf{r}(1) = (20 + 10e^{-1},\, 20) \approx (23{,}68;\, 20)\text{ Hz}$ (distância $10e^{-1} \approx 3{,}68\text{ Hz}$);</item>
+                <item>em $t = 2\text{ s}$ (após $2$ voltas): $\mathbf{r}(2) = (20 + 10e^{-2},\, 20) \approx (21{,}35;\, 20)\text{ Hz}$ (distância $10e^{-2} \approx 1{,}35\text{ Hz}$).</item>
+              </list>
+            </item>
+          </list>
+        </example>
+
+        A <ref to="fig:3-1-trajetoria-estados"/> compara duas maneiras de olhar para o regime amortecido do <ref to="exm:3-1-trajetoria-neural"/>: à esquerda, as duas séries temporais individuais; à direita, a mesma dinâmica condensada em uma única espiral no espaço de estados (onde as setas vermelhas antecipam os vetores de velocidade que aprenderemos a calcular na próxima subseção).
+
+        <figure src="fig/trajetoria-estados.svg" alt="Dois painéis lado a lado da oscilação neural amortecida para t entre 0 e 3 segundos. À esquerda, as curvas senoidais amortecidas r1(t) e r2(t) oscilando ao redor de 20 Hz. À direita, a trajetória no espaço de estados r1 por r2 formando uma espiral que parte de (30, 20), converge para o ponto fixo (20, 20) e exibe quatro setas tangentes de velocidade." id="fig:3-1-trajetoria-estados">
+          <caption>Visualização da oscilação neural amortecida $\mathbf{r}(t) = \bigl(20 + 10e^{-t}\cos(2\pi t),\, 20 + 10e^{-t}\sin(2\pi t)\bigr)$ entre $t = 0$ e $t = 3\text{ s}$. À esquerda, as séries temporais separadas; à direita, a trajetória espiral no espaço de estados convergindo para o ponto fixo $(20, 20)\text{ Hz}$, com vetores de velocidade $\mathbf{r}'(t)$ tangentes à curva.</caption>
+        </figure>
+
+        Antes de avançar para a derivada, vale apresentar uma segunda noção importante que aparece na descrição deste tema: a de <strong>campo vetorial</strong> (<em>vector field</em>). Enquanto uma função vetorial $\mathbf{r}(t)$ associa um vetor a cada instante $t \in \mathbb{R}$, um campo vetorial associa um vetor $\mathbf{F}(\mathbf{x})$ a <em>cada ponto</em> $\mathbf{x}$ do espaço — pense em um mapa meteorológico que desenha uma seta de vento em cada coordenada $(x, y)$, ou em um espaço de estados onde cada ponto já traz desenhada a seta que indica para onde a rede neural evoluiria a partir dali. No próximo tema (Tema 3.2), você encontrará o exemplo mais famoso de campo vetorial em Machine Learning e neurociência: o <strong>gradiente</strong> $\nabla f(x, y)$, que associa a cada ponto uma seta apontando na direção de subida mais íngreme de uma função de custo ou de ativação.
+
+        <remark id="rem:3-1-curva-parametrizacao">
+          <title>Armadilha comum</title>
+          <strong>Confundir a curva geométrica com a parametrização.</strong> Considere $\mathbf{r}_1(t) = (\cos t, \sin t)$, $\mathbf{r}_2(t) = (\cos(2t), \sin(2t))$ e $\mathbf{r}_3(t) = (\cos t, -\sin t)$, todas para $t \in [0, 2\pi]$. As três funções desenham exatamente a <em>mesma curva</em> no plano (o círculo unitário $x^2 + y^2 = 1$). No entanto, são parametrizações bem diferentes: $\mathbf{r}_1$ dá uma volta no sentido anti-horário; $\mathbf{r}_2$ dá <em>duas</em> voltas no mesmo intervalo de tempo (o dobro da rapidez); e $\mathbf{r}_3$ percorre o círculo no sentido horário. Sempre verifique a orientação e a velocidade do parâmetro $t$, e não apenas a forma da figura final.
+        </remark>
+
+        <exercise id="exr:3-1-1-3">
+          <title>Intermediário — Cruzamento de trajetória no espaço de estados</title>
+          Durante uma tarefa motora, as taxas de disparo (em $\text{Hz}$) de dois neurônios seguem a função vetorial
+          $$\mathbf{r}(t) = (t^2 - 4t + 10,\; 3t + 5), \qquad t \ge 0 \text{ (em segundos)}.$$
+          <list marker="a">
+            <item>Em qual(is) instante(s) $t \ge 0$ a trajetória passa exatamente pelo ponto de estado $(7, 14)\text{ Hz}$?</item>
+            <item>A trajetória passa alguma vez pelo ponto $(7, 20)\text{ Hz}$?</item>
+            <item>Elimine o parâmetro $t$ para escrever $r_1$ em função de $r_2$ e identificar a forma geométrica da curva.</item>
+          </list>
+          <hint><title>Ver dica</title>Para pertencer à trajetória, um ponto precisa satisfazer <em>ambas</em> as equações $r_1(t) = a$ e $r_2(t) = b$ no <em>mesmo</em> instante $t$. Resolva uma componente e teste os valores encontrados na outra.</hint>
+          <solution collapsible="true" collapsed="true">
+            <list marker="a">
+              <item>Igualamos cada componente às coordenadas de $(7, 14)$:
+                $$r_1(t) = 7 \implies t^2 - 4t + 10 = 7 \implies t^2 - 4t + 3 = 0.$$
+                Fatorando (ou usando Bhaskara), $(t - 1)(t - 3) = 0$, o que fornece dois candidatos: $t = 1\text{ s}$ e $t = 3\text{ s}$. Precisamos testar ambos na segunda componente $r_2(t) = 3t + 5$:
+                <list marker="dash">
+                  <item>para $t = 1\text{ s}$: $r_2(1) = 3(1) + 5 = 8 \ne 14$ (não serve, pois $\mathbf{r}(1) = (7, 8)$);</item>
+                  <item>para $t = 3\text{ s}$: $r_2(3) = 3(3) + 5 = 14$ (confere, pois $\mathbf{r}(3) = (7, 14)$).</item>
+                </list>
+                Logo, a trajetória passa por $(7, 14)\text{ Hz}$ em um único instante: $t = 3\text{ s}$.
+              </item>
+              <item>Para atingir $(7, 20)$, a segunda componente exige $3t + 5 = 20 \implies 3t = 15 \implies t = 5\text{ s}$. Mas, nesse instante, $r_1(5) = 5^2 - 4(5) + 10 = 25 - 20 + 10 = 15 \ne 7$. Como não existe $t \ge 0$ que satisfaça ambas as equações ao mesmo tempo, a trajetória <strong>nunca</strong> passa por $(7, 20)\text{ Hz}$.
+              </item>
+              <item>Isolamos $t$ na segunda componente: $r_2 = 3t + 5 \implies t = \frac{r_2 - 5}{3}$. Substituindo na primeira componente:
+                $$r_1 = \left(\frac{r_2 - 5}{3}\right)^2 - 4\left(\frac{r_2 - 5}{3}\right) + 10.$$
+                Como $r_1$ é uma função quadrática de $r_2$, a curva geométrica no plano $(r_1, r_2)$ é um arco de parábola (para $t \ge 0$, com $r_2 \ge 5$).
+              </item>
+            </list>
+          </solution>
+        </exercise>
+      </subsection>
+
+      <subsection id="sub:3-1-1-c">
+        <title>Limite, derivada e velocidade</title>
+
+        Agora queremos responder à pergunta dinâmica: em um dado instante $t$, para onde a trajetória $\mathbf{r}(t)$ está indo e quão depressa? Como vimos em <mark>Limite</mark> e <mark>Derivada</mark> (Módulo 2), a resposta instantânea nasce de aproximar a mudança em um intervalo curto $h$ e fazer $h \to 0$. A ótima notícia é que, para funções vetoriais, tudo acontece <strong>componente a componente</strong>.
+
+        <definition id="def:3-1-limite-derivada">
+          <title>Limite, continuidade e derivada de função vetorial</title>
+          Seja $\mathbf{r}(t) = \bigl(x_1(t), x_2(t), \dots, x_n(t)\bigr)$ uma função vetorial definida em um intervalo aberto contendo $a$ (exceto possivelmente no próprio $a$).
+          <list marker="number">
+            <item><strong>Limite:</strong> $\lim_{t \to a} \mathbf{r}(t) = \left(\lim_{t \to a} x_1(t),\, \lim_{t \to a} x_2(t),\, \dots,\, \lim_{t \to a} x_n(t)\right)$, desde que todos os limites das componentes existam.</item>
+            <item><strong>Continuidade:</strong> $\mathbf{r}$ é contínua em $a$ quando $\lim_{t \to a} \mathbf{r}(t) = \mathbf{r}(a)$ (o que equivale a todas as componentes $x_i$ serem contínuas em $a$).</item>
+            <item><strong>Derivada:</strong> a derivada de $\mathbf{r}$ em $t$, denotada por $\mathbf{r}'(t)$ ou $\dfrac{d\mathbf{r}}{dt}$, é definida pelo limite do quociente de diferenças:
+              $$\mathbf{r}'(t) = \lim_{h \to 0} \frac{\mathbf{r}(t + h) - \mathbf{r}(t)}{h} = \bigl(x_1'(t),\, x_2'(t),\, \dots,\, x_n'(t)\bigr),$$
+              sempre que todas as funções-componente forem deriváveis em $t$.
+            </item>
+          </list>
+          <intuition>
+            Para $h > 0$ pequeno, a diferença $\mathbf{r}(t + h) - \mathbf{r}(t)$ é uma seta secante que liga a posição atual à posição um instante depois. Dividir por $h$ estica essa seta para representar o deslocamento por unidade de tempo. Quando $h \to 0$, a seta secante se alinha com a reta tangente à curva no ponto $\mathbf{r}(t)$, apontando exatamente no sentido do movimento.
+          </intuition>
+        </definition>
+
+        Essa interpretação geométrica dá nome a três grandezas centrais da cinemática de trajetórias (no espaço físico ou no espaço de estados neural):
+        <list marker="dash">
+          <item><strong>Vetor velocidade (<em>velocity vector</em>):</strong> $\mathbf{v}(t) = \mathbf{r}'(t)$, que é tangente à trajetória em $\mathbf{r}(t)$ (quando $\mathbf{r}'(t) \ne \mathbf{0}$) e aponta no sentido em que $t$ cresce. Observe novamente as setas vermelhas na <ref to="fig:3-1-trajetoria-estados"/>: em cada ponto marcado da espiral, $\mathbf{r}'(t)$ tangencia a curva e vai encurtando à medida que a oscilação perde amplitude.</item>
+          <item><strong>Rapidez (<em>speed</em>):</strong> a norma escalar da velocidade, $\|\mathbf{r}'(t)\| = \sqrt{(x_1'(t))^2 + \dots + (x_n'(t))^2} \ge 0$. Enquanto a velocidade $\mathbf{r}'(t)$ é um vetor (tem direção, sentido e intensidade), a rapidez $\|\mathbf{r}'(t)\|$ é apenas um número (o "velocímetro" da trajetória).</item>
+          <item><strong>Vetor aceleração (<em>acceleration vector</em>):</strong> a segunda derivada $\mathbf{a}(t) = \mathbf{r}''(t) = \bigl(x_1''(t), \dots, x_n''(t)\bigr)$, que mede a taxa de variação da velocidade.</item>
+        </list>
+
+        Como derivamos componente a componente, as regras de derivação do Módulo 2 se estendem naturalmente para vetores — incluindo uma regra do produto para o produto escalar que é surpreendentemente útil.
+
+        <proposition id="prop:3-1-regras-derivacao">
+          <title>Regras de derivação de funções vetoriais</title>
+          Sejam $\mathbf{u}(t)$ e $\mathbf{v}(t)$ funções vetoriais deriváveis com valores em $\mathbb{R}^n$, $c(t)$ uma função real derivável e $k \in \mathbb{R}$ uma constante. Então:
+          <list marker="number">
+            <item><strong>Soma:</strong> $(\mathbf{u} + \mathbf{v})'(t) = \mathbf{u}'(t) + \mathbf{v}'(t)$.</item>
+            <item><strong>Múltiplo escalar constante:</strong> $(k\mathbf{u})'(t) = k\,\mathbf{u}'(t)$.</item>
+            <item><strong>Produto por função escalar:</strong> $(c\mathbf{u})'(t) = c'(t)\mathbf{u}(t) + c(t)\mathbf{u}'(t)$.</item>
+            <item><strong>Produto escalar:</strong> $(\mathbf{u} \cdot \mathbf{v})'(t) = \mathbf{u}'(t) \cdot \mathbf{v}(t) + \mathbf{u}(t) \cdot \mathbf{v}'(t)$.</item>
+          </list>
+        </proposition>
+        <proof of="prop:3-1-regras-derivacao" collapsible="true" collapsed="true">
+          As regras 1, 2 e 3 decorrem diretamente da linearidade e da regra do produto aplicadas a cada componente $i = 1, \dots, n$. Para a regra 4, escrevemos o produto escalar pela <ref to="def:3-1-produto-escalar"/>:
+          $$\mathbf{u}(t) \cdot \mathbf{v}(t) = \sum_{i=1}^n u_i(t) v_i(t).$$
+          Derivando essa soma de funções reais com a regra do produto do Cálculo Real (Módulo 2) em cada termo:
+          $$\begin{aligned}
+          (\mathbf{u} \cdot \mathbf{v})'(t) &= \sum_{i=1}^n \bigl(u_i'(t) v_i(t) + u_i(t) v_i'(t)\bigr) \\
+          &= \sum_{i=1}^n u_i'(t) v_i(t) + \sum_{i=1}^n u_i(t) v_i'(t) \\
+          &= \mathbf{u}'(t) \cdot \mathbf{v}(t) + \mathbf{u}(t) \cdot \mathbf{v}'(t).
+          \end{aligned}$$
+        </proof>
+
+        Observe uma consequência elegante do item 4 da <ref to="prop:3-1-regras-derivacao"/>: se uma trajetória mantém norma constante $\|\mathbf{r}(t)\| = R$, então $\mathbf{r}(t) \cdot \mathbf{r}(t) = R^2$. Derivando os dois lados em relação a $t$, obtemos $2\mathbf{r}'(t) \cdot \mathbf{r}(t) = 0$, ou seja, $\mathbf{r}'(t) \cdot \mathbf{r}(t) = 0$. Em qualquer movimento sobre um círculo ou esfera centrados na origem, o vetor velocidade é automaticamente perpendicular ao vetor posição!
+
+        Por fim, conectamos derivadas vetoriais à <mark>Integral de Riemann</mark> (Tema 2.3, Módulo 2). Suponha que queremos saber a distância total percorrida ao longo de uma trajetória curva entre $t = a$ e $t = b$. Se dividirmos $[a, b]$ em fatias bem curtas de duração $\Delta t$, em cada fatia a curva quase não entorta: o deslocamento é aproximadamente $\Delta\mathbf{r} \approx \mathbf{r}'(t)\,\Delta t$, e seu comprimento é $\|\Delta\mathbf{r}\| \approx \|\mathbf{r}'(t)\|\,\Delta t$. Somando todas as fatias e refinando a partição até o limite da soma de Riemann, obtemos o comprimento exato da curva.
+
+        <definition id="def:3-1-comprimento-arco">
+          <title>Comprimento de arco</title>
+          Seja $\mathbf{r}: [a, b] \to \mathbb{R}^n$ uma função vetorial com derivada $\mathbf{r}'(t)$ contínua em $[a, b]$, que percorre a curva uma única vez sem voltar sobre si mesma (exceto possivelmente nas extremidades). O <strong>comprimento de arco</strong> (<em>arc length</em>) da curva entre $t = a$ e $t = b$ é a integral da rapidez:
+          $$L = \int_a^b \|\mathbf{r}'(t)\|\,dt.$$
+          Em particular, no plano ($n = 2$), $L = \int_a^b \sqrt{(x'(t))^2 + (y'(t))^2}\,dt$; no espaço ($n = 3$), $L = \int_a^b \sqrt{(x'(t))^2 + (y'(t))^2 + (z'(t))^2}\,dt$.
+          <intuition>
+            No Cálculo Real, integrar a velocidade escalar de um carro ao longo do tempo dá a distância marcada no hodômetro. Aqui é exatamente a mesma ideia: $\|\mathbf{r}'(t)\|$ é o hodômetro instantâneo (rapidez ao longo da curva), e a integral de Riemann soma essas pequenas distâncias percorridas de $t = a$ até $t = b$. Note também que, embora a parametrização possa mudar a rapidez com que percorremos o caminho, o comprimento total $L$ depende apenas da curva geométrica.
+          </intuition>
+        </definition>
+
+        <example id="exm:3-1-velocidade-neural">
+          <title>Velocidade, rapidez e comprimento de ciclo na trajetória neural circular</title>
+          Retome a oscilação sustentada dos dois neurônios do <ref to="exm:3-1-trajetoria-neural"/>, com frequência $f > 0$ (em $\text{Hz}$) e centro $\mathbf{c} = (20, 20)\text{ Hz}$:
+          $$\mathbf{r}(t) = \bigl(20 + 10\cos(2\pi f t),\; 20 + 10\sin(2\pi f t)\bigr)\text{ Hz}.$$
+          <list marker="a">
+            <item>Calcule o vetor velocidade $\mathbf{r}'(t)$ e a rapidez $\|\mathbf{r}'(t)\|$ (avalie numericamente para $f = 2\text{ Hz}$).</item>
+            <item>Verifique diretamente que $\mathbf{r}'(t) \cdot \bigl(\mathbf{r}(t) - \mathbf{c}\bigr) = 0$ para todo $t$.</item>
+            <item>Calcule o comprimento de arco percorrido no espaço de estados durante um ciclo completo, isto é, para $t \in \left[0, \frac{1}{f}\right]$.</item>
+          </list>
+
+          <strong>Solução.</strong>
+          <list marker="a">
+            <item>Derivamos cada componente aplicando a regra da cadeia (Módulo 2), lembrando que a derivada de $2\pi f t$ em relação a $t$ é $2\pi f$:
+              $$r_1'(t) = 0 + 10\bigl(-\sin(2\pi f t)\bigr) \cdot 2\pi f = -20\pi f \sin(2\pi f t),$$
+              $$r_2'(t) = 0 + 10\bigl(\cos(2\pi f t)\bigr) \cdot 2\pi f = 20\pi f \cos(2\pi f t).$$
+              Assim, $\mathbf{r}'(t) = \bigl(-20\pi f \sin(2\pi f t),\; 20\pi f \cos(2\pi f t)\bigr)\text{ Hz/s}$.
+
+              Calculando a rapidez $\|\mathbf{r}'(t)\|$:
+              $$\begin{aligned}
+              \|\mathbf{r}'(t)\| &= \sqrt{\bigl(-20\pi f \sin(2\pi f t)\bigr)^2 + \bigl(20\pi f \cos(2\pi f t)\bigr)^2} \\
+              &= \sqrt{(20\pi f)^2 \bigl(\sin^2(2\pi f t) + \cos^2(2\pi f t)\bigr)} = 20\pi f = 10 \cdot 2\pi f\text{ Hz/s}.
+              \end{aligned}$$
+              A rapidez no espaço de estados é constante ao longo de todo o ciclo. Para $f = 2\text{ Hz}$, vale $\|\mathbf{r}'(t)\| = 40\pi \approx 125{,}66\text{ Hz/s}$.
+            </item>
+            <item>Temos $\mathbf{r}(t) - \mathbf{c} = \bigl(10\cos(2\pi f t),\, 10\sin(2\pi f t)\bigr)$. Calculando o produto escalar com $\mathbf{r}'(t)$:
+              $$\begin{aligned}
+              \mathbf{r}'(t) \cdot \bigl(\mathbf{r}(t) - \mathbf{c}\bigr) &= \bigl(-20\pi f \sin(2\pi f t)\bigr)\bigl(10\cos(2\pi f t)\bigr) + \bigl(20\pi f \cos(2\pi f t)\bigr)\bigl(10\sin(2\pi f t)\bigr) \\
+              &= -200\pi f \sin(2\pi f t)\cos(2\pi f t) + 200\pi f \cos(2\pi f t)\sin(2\pi f t) = 0.
+              \end{aligned}$$
+              Portanto, o vetor velocidade é sempre perpendicular ao vetor raio $\mathbf{r}(t) - \mathbf{c}$, como se espera de uma trajetória circular tangente à circunferência.
+            </item>
+            <item>Pela <ref to="def:3-1-comprimento-arco"/>, integramos a rapidez constante de $0$ até $1/f$:
+              $$L = \int_0^{1/f} \|\mathbf{r}'(t)\|\,dt = \int_0^{1/f} 20\pi f\,dt = 20\pi f \cdot \frac{1}{f} = 20\pi \approx 62{,}83\text{ Hz},$$
+              que coincide exatamente com o perímetro $2\pi R = 2\pi \cdot 10 = 20\pi$ de um círculo de raio $10\text{ Hz}$. No espaço de estados, o "comprimento" da trajetória tem a unidade dos eixos ($\text{Hz}$), porque integramos a rapidez ($\text{Hz/s}$) no tempo ($\text{s}$).
+            </item>
+          </list>
+        </example>
+
+        <example id="exm:3-1-helice-bacteria">
+          <title>Natação helicoidal tridimensional de uma bactéria</title>
+          Em meio líquido, uma bactéria flagelada desloca-se seguindo uma hélice modelada (com posições em micrômetros, $\mu\text{m}$, e tempo $t$ em segundos) por:
+          $$\mathbf{r}(t) = \bigl(3\cos(2t),\; 3\sin(2t),\; 8t\bigr), \qquad t \in [0, \pi].$$
+          <list marker="a">
+            <item>Encontre a velocidade $\mathbf{r}'(t)$, a rapidez $\|\mathbf{r}'(t)\|$ e a aceleração $\mathbf{r}''(t)$.</item>
+            <item>Calcule a distância total percorrida pela bactéria ao longo de uma volta completa ($t \in [0, \pi]$).</item>
+          </list>
+
+          <strong>Solução.</strong>
+          <list marker="a">
+            <item>Derivamos cada componente em relação a $t$:
+              $$\mathbf{r}'(t) = \bigl(-6\sin(2t),\; 6\cos(2t),\; 8\bigr)\;\mu\text{m/s}.$$
+              A rapidez é:
+              $$\|\mathbf{r}'(t)\| = \sqrt{(-6\sin(2t))^2 + (6\cos(2t))^2 + 8^2} = \sqrt{36\bigl(\sin^2(2t) + \cos^2(2t)\bigr) + 64} = \sqrt{36 + 64} = \sqrt{100} = 10\;\mu\text{m/s}.$$
+              Derivando novamente $\mathbf{r}'(t)$, obtemos a aceleração:
+              $$\mathbf{r}''(t) = \bigl(-12\cos(2t),\; -12\sin(2t),\; 0\bigr)\;\mu\text{m/s}^2.$$
+              Aqui, o fator $2$ em $2t$ é uma velocidade angular de $2\text{ rad/s}$, o que torna as unidades de $\mathbf{r}'(t)$ ($\mu\text{m/s}$) e $\mathbf{r}''(t)$ ($\mu\text{m/s}^2$) coerentes. Note que a componente vertical da aceleração é nula (a bactéria sobe no eixo $z$ com velocidade constante $8\;\mu\text{m/s}$), enquanto as componentes horizontais apontam na direção oposta a $(3\cos(2t), 3\sin(2t))$ — isto é, para o eixo central da hélice, mantendo o movimento em espiral.
+            </item>
+            <item>Como $2t$ vai de $0$ a $2\pi$ quando $t$ vai de $0$ a $\pi$, o intervalo $[0, \pi]$ corresponde a uma volta completa. Integrando a rapidez constante:
+              $$L = \int_0^\pi \|\mathbf{r}'(t)\|\,dt = \int_0^\pi 10\,dt = 10\pi \approx 31{,}42\;\mu\text{m}.$$
+            </item>
+          </list>
+        </example>
+
+        <remark id="rem:3-1-armadilhas-derivada">
+          <title>Armadilha comum</title>
+          Dois erros aparecem com muita frequência ao derivar funções vetoriais:
+          <list marker="dash">
+            <item><strong>Confundir $\|\mathbf{r}'(t)\|$ com a derivada de $\|\mathbf{r}(t)\|$:</strong> essas duas quantidades <em>não</em> são iguais! Na trajetória circular $\mathbf{r}(t) = (10\cos t, 10\sin t)$, a norma da posição é constante: $\|\mathbf{r}(t)\| = 10$, logo $\frac{d}{dt}\|\mathbf{r}(t)\| = 0$. Porém, a rapidez é $\|\mathbf{r}'(t)\| = \|(-10\sin t, 10\cos t)\| = 10 \ne 0$. Lembre: $\|\mathbf{r}'(t)\|$ mede o quanto o ponto se move ao longo da curva, enquanto $\frac{d}{dt}\|\mathbf{r}(t)\|$ mede apenas o quanto ele se afasta ou se aproxima da origem.</item>
+            <item><strong>Esquecer a regra da cadeia em $\cos(2\pi f t)$ ou $\sin(2\pi f t)$:</strong> escrever $\frac{d}{dt}\cos(2\pi f t) = -\sin(2\pi f t)$ omite o fator $2\pi f$ da derivada interna. A resposta correta é $-2\pi f\sin(2\pi f t)$. Um bom teste de sanidade são as unidades: se $t$ está em segundos ($\text{s}$) e $f$ em hertz ($\text{s}^{-1}$), multiplicar por $2\pi f$ faz a velocidade sair em $\text{Hz/s}$, como deve ser.</item>
+          </list>
+        </remark>
+
+        <exercise id="exr:3-1-1-4">
+          <title>Intermediário — Velocidade, aceleração e comprimento de arco em $\mathbb{R}^3$</title>
+          Em um ensaio de rastreamento tridimensional, a posição de um marcador acoplado à ponta da pata de um camundongo (em $\text{cm}$) é aproximada por
+          $$\mathbf{r}(t) = \left(2t,\; t^2,\; \frac{t^3}{3}\right), \qquad t \in [0, 3]\text{ s}.$$
+          <list marker="a">
+            <item>Calcule $\mathbf{r}'(1)$, $\|\mathbf{r}'(1)\|$ e $\mathbf{r}''(1)$.</item>
+            <item>Mostre algebricamente que a rapidez $\|\mathbf{r}'(t)\|$ simplifica para $t^2 + 2$.</item>
+            <item>Calcule o comprimento de arco percorrido pelo marcador entre $t = 0\text{ s}$ e $t = 3\text{ s}$.</item>
+          </list>
+          <hint><title>Ver dica</title>Em (b), ao somar os quadrados das três componentes de $\mathbf{r}'(t)$, observe o trinômio quadrado perfeito $t^4 + 4t^2 + 4 = (t^2 + 2)^2$.</hint>
+          <solution collapsible="true" collapsed="true">
+            <list marker="a">
+              <item>Derivamos cada componente uma e duas vezes:
+                $$\mathbf{r}'(t) = (2,\; 2t,\; t^2), \qquad \mathbf{r}''(t) = (0,\; 2,\; 2t).$$
+                Avaliando em $t = 1\text{ s}$:
+                $$\mathbf{r}'(1) = (2, 2, 1)\text{ cm/s}, \qquad \|\mathbf{r}'(1)\| = \sqrt{2^2 + 2^2 + 1^2} = \sqrt{4 + 4 + 1} = \sqrt{9} = 3\text{ cm/s},$$
+                $$\mathbf{r}''(1) = (0, 2, 2)\text{ cm/s}^2.$$
+              </item>
+              <item>Calculando a norma de $\mathbf{r}'(t) = (2, 2t, t^2)$:
+                $$\|\mathbf{r}'(t)\| = \sqrt{2^2 + (2t)^2 + (t^2)^2} = \sqrt{4 + 4t^2 + t^4} = \sqrt{(t^2 + 2)^2}.$$
+                Como $t^2 + 2 > 0$ para todo $t \in \mathbb{R}$, a raiz quadrada cancela exatamente o quadrado, resultando em:
+                $$\|\mathbf{r}'(t)\| = t^2 + 2\text{ cm/s}.$$
+              </item>
+              <item>Substituímos $\|\mathbf{r}'(t)\| = t^2 + 2$ na fórmula do comprimento de arco (<ref to="def:3-1-comprimento-arco"/>):
+                $$L = \int_0^3 (t^2 + 2)\,dt = \left[\frac{t^3}{3} + 2t\right]_0^3 = \left(\frac{27}{3} + 6\right) - 0 = 9 + 6 = 15\text{ cm}.$$
+              </item>
+            </list>
+          </solution>
+        </exercise>
+
+        <exercise id="exr:3-1-1-5">
+          <title>Avançado — Instante de rapidez máxima em uma trajetória neural</title>
+          Em resposta a um pulso sensorial breve, as taxas de disparo de dois neurônios corticais (em $\text{Hz}$) evoluem no intervalo $t \in [0, 2]\text{ s}$ segundo a trajetória:
+          $$r_1(t) = 10 + 3t^2 - t^3, \qquad r_2(t) = 20 + 4t.$$
+          <list marker="a">
+            <item>Determine os vetores velocidade $\mathbf{r}'(t)$ e aceleração $\mathbf{r}''(t)$.</item>
+            <item>Defina $s(t) = \|\mathbf{r}'(t)\|^2 = \mathbf{r}'(t) \cdot \mathbf{r}'(t)$. Usando a regra de derivação do produto escalar (<ref to="prop:3-1-regras-derivacao"/>), encontre $s'(t)$ e determine o instante $t \in [0, 2]$ em que a rapidez $\|\mathbf{r}'(t)\|$ é máxima.</item>
+            <item>Calcule o vetor velocidade $\mathbf{r}'(t)$, a rapidez máxima $\|\mathbf{r}'(t)\|$ e a posição $\mathbf{r}(t)$ nesse instante.</item>
+          </list>
+          <hint><title>Ver dica</title>Como a função raiz quadrada é estritamente crescente, maximizar a rapidez $\|\mathbf{r}'(t)\|$ equivale a maximizar seu quadrado $s(t) = \mathbf{r}'(t) \cdot \mathbf{r}'(t)$. Pela regra do produto escalar, $s'(t) = 2\mathbf{r}'(t) \cdot \mathbf{r}''(t)$.</hint>
+          <solution collapsible="true" collapsed="true">
+            <list marker="a">
+              <item>Derivando componente a componente:
+                $$\mathbf{r}'(t) = (6t - 3t^2,\; 4)\text{ Hz/s}, \qquad \mathbf{r}''(t) = (6 - 6t,\; 0)\text{ Hz/s}^2.$$
+              </item>
+              <item>Aplicando o item 4 da <ref to="prop:3-1-regras-derivacao"/> a $\mathbf{u} = \mathbf{v} = \mathbf{r}'$:
+                $$s'(t) = \mathbf{r}''(t) \cdot \mathbf{r}'(t) + \mathbf{r}'(t) \cdot \mathbf{r}''(t) = 2\,\mathbf{r}'(t) \cdot \mathbf{r}''(t).$$
+                Substituindo as componentes de $\mathbf{r}'(t)$ e $\mathbf{r}''(t)$:
+                $$s'(t) = 2\bigl((6t - 3t^2)(6 - 6t) + 4 \cdot 0\bigr) = 2 \cdot 3t(2 - t) \cdot 6(1 - t) = 36t(2 - t)(1 - t).$$
+                Igualando $s'(t) = 0$ em $[0, 2]$, encontramos os pontos críticos $t = 0$, $t = 1$ e $t = 2$. Analisando o sinal de $s'(t)$:
+                <list marker="dash">
+                  <item>para $0 < t < 1$, todos os fatores $t$, $2 - t$ e $1 - t$ são positivos, logo $s'(t) > 0$ (a rapidez cresce);</item>
+                  <item>para $1 < t < 2$, $1 - t < 0$ enquanto $t > 0$ e $2 - t > 0$, logo $s'(t) < 0$ (a rapidez decresce).</item>
+                </list>
+                Portanto, a rapidez atinge o máximo global em $t = 1\text{ s}$.
+              </item>
+              <item>Avaliando em $t = 1\text{ s}$:
+                $$\mathbf{r}'(1) = \bigl(6(1) - 3(1)^2,\; 4\bigr) = (3, 4)\text{ Hz/s},$$
+                $$\|\mathbf{r}'(1)\| = \sqrt{3^2 + 4^2} = \sqrt{9 + 16} = \sqrt{25} = 5\text{ Hz/s},$$
+                $$\mathbf{r}(1) = \bigl(10 + 3(1)^2 - 1^3,\; 20 + 4(1)\bigr) = (12, 24)\text{ Hz}.$$
+                (Para conferir nos extremos do intervalo: em $t = 0$ e $t = 2$, $\mathbf{r}'(0) = \mathbf{r}'(2) = (0, 4)$, cuja rapidez é $4\text{ Hz/s} < 5\text{ Hz/s}$.)
+              </item>
+            </list>
+          </solution>
+        </exercise>
+      </subsection>
+    </section>
+
+    <section id="sec:3-1-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Vetores em $\mathbb{R}^n$:</strong> listas ordenadas $\mathbf{v} = (v_1, \dots, v_n)$ que se somam ($\mathbf{u} + \mathbf{v}$) e se escalam ($c\mathbf{v}$) componente a componente; os vetores-base canônicos em $\mathbb{R}^2$ são $\mathbf{e}_1 = (1, 0)$ e $\mathbf{e}_2 = (0, 1)$.</item>
+        <item><strong>Norma e vetor unitário:</strong> $\|\mathbf{v}\| = \sqrt{v_1^2 + \dots + v_n^2}$; para $\mathbf{v} \ne \mathbf{0}$, $\hat{\mathbf{v}} = \dfrac{\mathbf{v}}{\|\mathbf{v}\|}$ tem norma $1$ e preserva direção e sentido.</item>
+        <item><strong>Produto escalar:</strong> $\mathbf{u} \cdot \mathbf{v} = \sum_{i=1}^n u_i v_i = \|\mathbf{u}\|\,\|\mathbf{v}\|\cos\theta$; vetores não nulos são perpendiculares se, e somente se, $\mathbf{u} \cdot \mathbf{v} = 0$.</item>
+        <item><strong>Função vetorial e espaço de estados:</strong> $\mathbf{r}(t) = \bigl(x_1(t), \dots, x_n(t)\bigr)$ associa um vetor a cada instante $t$; na neurociência, traça trajetórias da atividade conjunta de neurônios no espaço de estados.</item>
+        <item><strong>Curva vs. parametrização:</strong> a curva é o conjunto de pontos visitados; a parametrização $\mathbf{r}(t)$ inclui a velocidade e o sentido com que a curva é percorrida.</item>
+        <item><strong>Derivada, velocidade, rapidez e aceleração:</strong> $\mathbf{r}'(t) = \bigl(x_1'(t), \dots, x_n'(t)\bigr)$ é o vetor velocidade (tangente à curva); $\|\mathbf{r}'(t)\|$ é a rapidez (atenção: $\|\mathbf{r}'(t)\| \ne \frac{d}{dt}\|\mathbf{r}(t)\|$); $\mathbf{r}''(t)$ é a aceleração.</item>
+        <item><strong>Regra do produto escalar:</strong> $(\mathbf{u} \cdot \mathbf{v})'(t) = \mathbf{u}'(t) \cdot \mathbf{v}(t) + \mathbf{u}(t) \cdot \mathbf{v}'(t)$; em trajetórias de raio constante, a velocidade é sempre perpendicular ao vetor raio.</item>
+        <item><strong>Comprimento de arco:</strong> $L = \int_a^b \|\mathbf{r}'(t)\|\,dt$ mede o comprimento da trajetória percorrida sem retrocesso entre $t = a$ e $t = b$.</item>
+      </list>
+    </section>
+
+    <section id="sec:3-1-alem">
+      <title>Para ir além</title>
+      Para consolidar os conceitos deste tema e preparar a transição para funções de várias variáveis no próximo tema (<strong>3.2 — Diferencial em várias variáveis</strong>) e, mais adiante, para o <strong>Módulo 4 (Otimização)</strong>, consulte os materiais recomendados para o Módulo 3:
+      <list marker="dash">
+        <item><strong>Livro-texto recomendado:</strong> Diomara Pinto — <em>Cálculo Diferencial e Integral de Funções de Várias Variáveis</em>.</item>
+        <item><strong>Apoio visual pontual:</strong> utilize o YouTube para buscas visuais pontuais quando quiser ver animações tridimensionais de hélices, vetores tangentes e campos vetoriais em movimento.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 3 · Cálculo Multivariável — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

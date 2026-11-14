@@ -1,0 +1,926 @@
+<document>
+  <title>Módulo 9 · Deep Learning</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-9-6">Voltar ao guia (Tema 9.6)</link></meta-item>
+    <meta-item key="Módulo">Módulo 9 · Deep Learning — O Estado da Arte da Neurociência Computacional</meta-item>
+    <meta-item key="Nível">Avançado</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-9-6">
+    <title>GNN</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Grafos: conectomas, moléculas e interações como redes.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Nem todo dado biológico cabe numa grade de pixels ou numa sequência linear. Sinapses químicas ligam neurônios em malhas tridimensionais irregulares, átomos formam anéis em fármacos e proteínas cooperam em complexos sem "esquerda" nem "direita". Enquanto CNNs (Tema 9.2) pressupõem grades regulares e RNNs ou Transformers (Temas 9.3 e 9.5) operam sobre sequências, as <strong>Redes Neurais em Grafos</strong> (<em>Graph Neural Networks</em>, GNNs) modelam diretamente conectomas, redes proteína-proteína e moléculas sem destruir sua topologia. Na neurociência computacional, grafos descrevem desde o mapa sináptico de <em>C. elegans</em> até conectomas humanos por ressonância magnética de difusão e fMRI funcional; todos os códigos desta aula foram dimensionados para rodar em CPU em poucos segundos.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>representar redes biológicas, moléculas e conectomas pelas matrizes de adjacência $\mathbf{A}$, de graus $\mathbf{D}$ e laplaciana $\mathbf{L}$;</item>
+      <item>explicar por que redes densas comuns falham em grafos e como a troca de mensagens (<em>message passing</em>) garante invariância e equivariância a permutações;</item>
+      <item>calcular à mão a normalização simétrica $\tilde{\mathbf{D}}^{-1/2}\tilde{\mathbf{A}}\tilde{\mathbf{D}}^{-1/2}$ e implementar uma camada GCN em PyTorch puro;</item>
+      <item>identificar o efeito da suavização excessiva (<em>oversmoothing</em>) e distinguir tarefas no nível do nó, da aresta e do grafo inteiro;</item>
+      <item>reconhecer armadilhas em conectômica funcional, como escolha de limiares, correlação versus anatomia e vazamento de dados.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Temas 9.1 (<strong>Fundamentos</strong>: camadas lineares, $\mathrm{ReLU}$, retropropagação) e 9.5 (<strong>Transformers</strong>: autoatenção como troca de mensagens), <strong>Álgebra Linear</strong> (Módulo 5: matrizes e autovalores), Python (Módulo 6), correlação (Módulo 7) e validação cruzada (Módulo 8, "Reamostragem").
+
+    <section id="sec:9-6-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Grafos e a matriz de adjacência</title>
+      <intro>
+        Para aplicar redes neurais a sistemas biológicos, transformamos conexões — sinapses, ligações químicas ou feixes axonais — em matrizes que o PyTorch consiga multiplicar.
+      </intro>
+
+      Em um circuito neural ou molécula, o que define quem influencia quem não é a posição no papel, mas sim <em>quem está ligado a quem</em>: essa estrutura pura de conexões é um <strong>grafo</strong>.
+
+      <definition id="def:9-6-grafo">
+        <title>Grafo: vértices, arestas e variantes</title>
+        Um <strong>grafo</strong> é um par $G = (V, E)$, onde $V = \{1, 2, \dots, n\}$ é o conjunto de $n$ <strong>vértices</strong> (ou <strong>nós</strong>) e $E$ é o conjunto de <strong>arestas</strong>. Distinguimos três variantes:
+        <list marker="dash">
+          <item><strong>Não direcionado:</strong> aresta é um par não ordenado $\{i, j\}$ (ligação covalente ou sinapse elétrica por junção comunicante).</item>
+          <item><strong>Direcionado (dígrafo):</strong> aresta é um par ordenado $(i, j)$ de $i$ para $j$ (sinapse química do neurônio pré-sináptico $i$ para o pós-sináptico $j$).</item>
+          <item><strong>Ponderado:</strong> cada aresta recebe um peso $w_{ij} \in \mathbb{R}$ medindo força, contatos ou correlação.</item>
+        </list>
+        <intuition>
+          Os nós representam entidades biológicas (neurônios, áreas corticais, proteínas, átomos) e as arestas são os canais por onde informação ou força flui.
+        </intuition>
+      </definition>
+
+      <definition id="def:9-6-adjacencia">
+        <title>Matriz de adjacência, vizinhança e matriz de graus</title>
+        Dado um grafo $G = (V, E)$ com $n$ nós, sua <strong>matriz de adjacência</strong> $\mathbf{A} \in \mathbb{R}^{n \times n}$ segue nesta aula a convenção linha-para-coluna:
+        $$A_{ij} = \begin{cases} 1 \text{ (ou } w_{ij}\text{)}, & \text{se existe aresta de } i \text{ para } j, \\ 0, & \text{caso contrário.} \end{cases}$$
+        Sem autolaços ($A_{ii} = 0$), definimos:
+        <list marker="dash">
+          <item><strong>Vizinhança de $i$:</strong> em grafo não direcionado, $\mathcal{N}(i) = \{j \in V : A_{ij} \ne 0\}$ reúne os vizinhos diretos de $i$.</item>
+          <item><strong>Grau e matriz de graus:</strong> em grafo não direcionado e não ponderado, o <strong>grau</strong> é $d_i = \sum_{j=1}^n A_{ij}$, e $\mathbf{D} \in \mathbb{R}^{n \times n}$ é diagonal com $D_{ii} = d_i$.</item>
+          <item><strong>Graus direcionados:</strong> em dígrafos, temos o <strong>grau de saída</strong> $d_i^{\text{out}} = \sum_{j=1}^n A_{ij}$ (linha $i$) e o <strong>grau de entrada</strong> $d_j^{\text{in}} = \sum_{i=1}^n A_{ij}$ (coluna $j$).</item>
+        </list>
+      </definition>
+
+      Em grafos não direcionados, $A_{ij} = A_{ji}$, logo $\mathbf{A} = \mathbf{A}^\top$ (simétrica, Módulo 5). Livros que escrevem $\mathbf{y} = \mathbf{A}\mathbf{x}$ usam a convenção oposta ($j \to i$), equivalente a $\mathbf{A}^\top$. A partir de $\mathbf{A}$ e $\mathbf{D}$, define-se a <strong>matriz laplaciana</strong> $\mathbf{L} = \mathbf{D} - \mathbf{A}$, cujo espectro mede a conectividade do grafo. A <ref to="fig:9-6-grafo"/> ilustra um grafo de $6$ nós e sua matriz $\mathbf{A}$.
+
+      <figure src="fig/t06-grafo.svg" alt="Grafo não direcionado de 6 nós à esquerda e sua matriz de adjacência binária 6 por 6 simétrica à direita" id="fig:9-6-grafo">
+        <caption>Grafo não direcionado ($n = 6$) e sua matriz de adjacência $\mathbf{A}$ binária e simétrica.</caption>
+      </figure>
+
+      <proposition id="prop:9-6-caminhos">
+        <title>Contagem de caminhos de comprimento 2 em $\mathbf{A}^2$</title>
+        Seja $\mathbf{A} \in \{0, 1\}^{n \times n}$ a adjacência de um grafo não ponderado. Então $(\mathbf{A}^2)_{ij}$ é igual ao número de caminhos de comprimento $2$ de $i$ até $j$ (podendo repetir nós).
+        <intuition>
+          Ir de $i$ a $j$ em dois passos exige um intermediário $k$ com arestas $i \to k$ e $k \to j$; o produto linha-por-coluna testa todos os $k$ de uma vez.
+        </intuition>
+      </proposition>
+      <proof of="prop:9-6-caminhos" collapsible="true" collapsed="true">
+        Pelo produto matricial (Módulo 5), $(\mathbf{A}^2)_{ij} = \sum_{k=1}^{n} A_{ik} A_{kj}$. Como $A_{ik}, A_{kj} \in \{0, 1\}$, cada termo vale $1$ se e somente se existem $i \to k$ e $k \to j$. Somar em $k$ conta os caminhos de comprimento $2$ (e $(\mathbf{A}^m)_{ij}$ conta os de comprimento $m$).
+      </proof>
+
+      Na biologia e na neurociência, essa representação aparece em múltiplas escalas:
+      <list marker="dash">
+        <item><strong>Conectoma de <em>C. elegans</em>:</strong> $302$ neurônios reconstruídos por microscopia eletrônica (White et al., 1986), com sinapses químicas direcionadas e junções comunicantes (<em>gap junctions</em>) não direcionadas.</item>
+        <item><strong>Conectomas humanos:</strong> regiões corticais ligadas por <strong>conectividade estrutural</strong> (tractografia por difusão) ou <strong>funcional</strong> (correlação BOLD de fMRI em repouso, Módulo 7).</item>
+        <item><strong>Redes PPI e moléculas:</strong> proteínas ligadas por interações físicas, ou átomos por ligações químicas.</item>
+      </list>
+
+      <example id="exm:9-6-caminhos-4nos">
+        <title>Matriz de adjacência, graus e $\mathbf{A}^2$ num grafo de 4 nós</title>
+        Considere o grafo não direcionado com $V = \{1, 2, 3, 4\}$ e $E = \{\{1, 2\}, \{1, 3\}, \{2, 3\}, \{3, 4\}\}$. Monte $\mathbf{A}$, $\mathbf{D}$ e calcule $\mathbf{A}^2$ à mão.
+
+        <strong>Solução.</strong> Pela <ref to="def:9-6-adjacencia"/>, somando as linhas temos $d = (2, 2, 3, 1)$:
+        $$\mathbf{A} = \begin{pmatrix} 0 & 1 & 1 & 0 \\ 1 & 0 & 1 & 0 \\ 1 & 1 & 0 & 1 \\ 0 & 0 & 1 & 0 \end{pmatrix}, \qquad \mathbf{D} = \begin{pmatrix} 2 & 0 & 0 & 0 \\ 0 & 2 & 0 & 0 \\ 0 & 0 & 3 & 0 \\ 0 & 0 & 0 & 1 \end{pmatrix}.$$
+        Calculando $\mathbf{A}^2 = \mathbf{A}\mathbf{A}$ linha por coluna — por exemplo, $(\mathbf{A}^2)_{1,1} = (0,1,1,0)\cdot(0,1,1,0) = 2$ ($1\to 2\to 1$ e $1\to 3\to 1$), $(\mathbf{A}^2)_{1,4} = 1$ ($1\to 3\to 4$) e $(\mathbf{A}^2)_{3,4} = 0$ — obtemos:
+        $$\mathbf{A}^2 = \begin{pmatrix} 2 & 1 & 1 & 1 \\ 1 & 2 & 1 & 1 \\ 1 & 1 & 3 & 0 \\ 1 & 1 & 0 & 1 \end{pmatrix}.$$
+        A diagonal $(2, 2, 3, 1)$ iguala os graus (idas e voltas a vizinhos), e $(\mathbf{A}^2)_{3,4} = 0$ indica que não há caminho de $2$ passos entre $3$ e $4$.
+      </example>
+
+      <example id="exm:9-6-microcircuito-dir">
+        <title>Microcircuito sináptico direcionado com inibição lateral</title>
+        Num circuito de inibição por alimentação direta (<em>feedforward inhibition</em>), um neurônio sensorial $S$ (nó $1$) envia sinapse $+2$ ao principal $P$ (nó $2$) e $+1$ ao interneurônio $I$ (nó $3$); $I$ envia $-1$ a $P$. Monte $\mathbf{A}$, ache os graus e interprete $\mathbf{A}^2$.
+
+        <strong>Solução.</strong> Pela convenção $i \to j$:
+        $$\mathbf{A} = \begin{pmatrix} 0 & 2 & 1 \\ 0 & 0 & 0 \\ 0 & -1 & 0 \end{pmatrix}, \qquad \mathbf{A}^2 = \begin{pmatrix} 0 & -1 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{pmatrix}.$$
+        Contando ligações não nulas, $d^{\text{out}} = (2, 0, 1)$ e $d^{\text{in}} = (0, 2, 1)$. A entrada $(\mathbf{A}^2)_{1,2} = 1\cdot(-1) = -1$ é o ganho da via indireta $S \to I \to P$, contrabalançando parcialmente a excitação direta $+2$.
+      </example>
+
+      Conferimos o <ref to="exm:9-6-caminhos-4nos"/> em NumPy (índices começam em `0`):
+
+      <code lang="python" id="cod:9-6-adjacencia">
+import numpy as np
+
+# Grafo não direcionado de 4 nós (índices 0, 1, 2, 3 representando nós 1, 2, 3, 4)
+# Arestas: (0,1), (0,2), (1,2), (2,3)
+A = np.array([
+    [0, 1, 1, 0],
+    [1, 0, 1, 0],
+    [1, 1, 0, 1],
+    [0, 0, 1, 0],
+], dtype=int)
+
+graus = A.sum(axis=1)
+D = np.diag(graus)
+A2 = A @ A
+
+print("Graus:", graus)
+print("Matriz D:\n", D)
+print("Matriz A^2:\n", A2)
+print("Caminhos de comprimento 2 entre nó 1 (idx 0) e nó 4 (idx 3):", A2[0, 3])
+
+# Saída esperada:
+# Graus: [2 2 3 1]
+# Matriz D:
+#  [[2 0 0 0]
+#   [0 2 0 0]
+#   [0 0 3 0]
+#   [0 0 0 1]]
+# Matriz A^2:
+#  [[2 1 1 1]
+#   [1 2 1 1]
+#   [1 1 3 0]
+#   [1 1 0 1]]
+# Caminhos de comprimento 2 entre nó 1 (idx 0) e nó 4 (idx 3): 1
+      </code>
+
+      <remark id="rem:9-6-armadilha-adj">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Confundir $\mathbf{A}$, $\mathbf{D}$ e $\mathbf{L}$:</strong> $\mathbf{A}$ guarda ligações, $\mathbf{D}$ é diagonal com graus e $\mathbf{L} = \mathbf{D} - \mathbf{A}$ combina ambas com sinais opostos.</item>
+          <item><strong>Inverter a direção:</strong> se um pacote adota $A_{ij}$ de $j \to i$, multiplicar $\mathbf{A}\mathbf{H}$ sem transpor propaga mensagens na contramão das sinapses.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-6-1-1">
+        <title>Básico — Circuito neural direcionado com realimentação</title>
+        Em um circuito com neurônio sensorial ($1$), interneurônio ($2$) e motor ($3$), há sinapses $1 \to 2$, $2 \to 3$ e realimentação $3 \to 2$. Usando $A_{ij} = 1$ para $i \to j$, escreva $\mathbf{A}$, indique os graus de saída e entrada e calcule $\mathbf{A}^2$ à mão.
+        <hint><title>Ver dica</title>Grau de saída é a soma da linha; grau de entrada, a soma da coluna.</hint>
+        <solution collapsible="true" collapsed="true">
+          Montando $\mathbf{A}$ e multiplicando $\mathbf{A}\mathbf{A}$:
+          $$\mathbf{A} = \begin{pmatrix} 0 & 1 & 0 \\ 0 & 0 & 1 \\ 0 & 1 & 0 \end{pmatrix}, \qquad \mathbf{A}^2 = \begin{pmatrix} 0 & 0 & 1 \\ 0 & 1 & 0 \\ 0 & 0 & 1 \end{pmatrix}.$$
+          Das linhas, $d^{\text{out}} = (1, 1, 1)$; das colunas, $d^{\text{in}} = (0, 2, 1)$ ($2$ recebe de $1$ e $3$). Os únicos caminhos de $2$ passos são $1 \to 2 \to 3$, $2 \to 3 \to 2$ e $3 \to 2 \to 3$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-6-1-2">
+        <title>Intermediário — Molécula de etanol simplificada como grafo</title>
+        No esqueleto pesado do etanol ($\text{CH}_3\text{--}\text{CH}_2\text{--}\text{OH}$), ligam-se $\text{C}_1$ ($1$), $\text{C}_2$ ($2$) e $\text{O}$ ($3$) por $\{1, 2\}$ e $\{2, 3\}$. Monte $\mathbf{A}$ e $\mathbf{X} \in \mathbb{R}^{3 \times 2}$ com número atômico ($Z_{\text{C}} = 6, Z_{\text{O}} = 8$) e contagem de hidrogênios ($3, 2, 1$). Calcule $\mathbf{A}\mathbf{X}$ e interprete-o.
+        <hint><title>Ver dica</title>Multiplique a matriz $3 \times 3$ pela matriz $3 \times 2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          $$\mathbf{A} = \begin{pmatrix} 0 & 1 & 0 \\ 1 & 0 & 1 \\ 0 & 1 & 0 \end{pmatrix}, \qquad \mathbf{X} = \begin{pmatrix} 6 & 3 \\ 6 & 2 \\ 8 & 1 \end{pmatrix} \implies \mathbf{A}\mathbf{X} = \begin{pmatrix} 6 & 2 \\ 14 & 4 \\ 6 & 2 \end{pmatrix}.$$
+          Cada linha $i$ de $\mathbf{A}\mathbf{X}$ soma os atributos dos vizinhos de $i$: $\text{C}_1$ e $\text{O}$ copiam $\text{C}_2$ $(6, 2)$, enquanto $\text{C}_2$ soma $\text{C}_1$ e $\text{O}$, obtendo $(6+8,\, 3+1) = (14, 4)$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-6-1-3">
+        <title>Avançado — Graus e espectro da laplaciana em Python</title>
+        Monte em NumPy a matriz $\mathbf{A}$ do grafo de $6$ nós da <ref to="fig:9-6-grafo"/> (arestas $\{1,2\}, \{1,6\}, \{2,3\}, \{2,6\}, \{3,4\}, \{3,5\}, \{4,5\}, \{5,6\}$), calcule $\mathbf{D}$ e $\mathbf{L} = \mathbf{D} - \mathbf{A}$ e verifique numericamente que todos os autovalores de $\mathbf{L}$ são $\ge 0$, sendo o menor igual a $0$.
+        <hint><title>Ver dica</title>Como $\mathbf{L}$ é simétrica, use <c>np.linalg.eigvalsh(L)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+
+# Grafo da figura (índices 0..5 correspondem aos nós 1..6)
+arestas = [(0, 1), (0, 5), (1, 2), (1, 5), (2, 3), (2, 4), (3, 4), (4, 5)]
+A = np.zeros((6, 6), dtype=float)
+for i, j in arestas:
+    A[i, j] = 1.0
+    A[j, i] = 1.0
+
+graus = A.sum(axis=1)
+D = np.diag(graus)
+L = D - A
+autovalores = np.linalg.eigvalsh(L)
+
+print("Graus:", graus.astype(int))
+print("Menor autovalor ≈ 0?", bool(np.isclose(autovalores[0], 0.0)))
+print("Todos autovalores >= 0?", bool(np.all(autovalores >= -1e-10)))
+
+# Saída esperada:
+# Graus: [2 3 3 2 3 3]
+# Menor autovalor ≈ 0? True
+# Todos autovalores >= 0? True
+          </code>
+          O menor autovalor é $0$ porque $\mathbf{L}\mathbf{1} = \mathbf{D}\mathbf{1} - \mathbf{A}\mathbf{1} = \mathbf{d} - \mathbf{d} = \mathbf{0}$.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-6-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Troca de mensagens entre vizinhos</title>
+      <intro>
+        Multiplicar $\mathbf{A}\mathbf{X}$ soma os atributos dos vizinhos de cada nó. Vamos transformar essa ideia em uma camada neural que independe da ordem em que numeramos os nós.
+      </intro>
+
+      Achatar $\mathbf{A}$ e $\mathbf{X}$ em um único vetor para alimentar um MLP (Tema 9.1) falha por dois motivos:
+      <list marker="number">
+        <item><strong>Ordem arbitrária:</strong> não há numeração oficial para átomos ou regiões corticais; trocar os rótulos $1$ e $3$ mantém a mesma molécula, mas muda as coordenadas de entrada e a previsão do MLP.</item>
+        <item><strong>Tamanho variável:</strong> MLPs exigem dimensão fixa, enquanto moléculas e redes celulares variam em número de nós.</item>
+      </list>
+
+      <definition id="def:9-6-permutacao">
+        <title>Permutação, invariância e equivariância</title>
+        Uma <strong>matriz de permutação</strong> $\mathbf{P} \in \{0, 1\}^{n \times n}$ possui exatamente um $1$ em cada linha e coluna, satisfazendo $\mathbf{P}^\top \mathbf{P} = \mathbf{I}_n$. Reordenar os nós transforma $\mathbf{H} \in \mathbb{R}^{n \times d}$ em $\mathbf{P}\mathbf{H}$ e $\mathbf{A}$ em $\mathbf{P}\mathbf{A}\mathbf{P}^\top$. Dizemos que:
+        <list marker="dash">
+          <item>uma função $f(\mathbf{A}, \mathbf{H})$ de saída global é <strong>invariante a permutações</strong> se $f(\mathbf{P}\mathbf{A}\mathbf{P}^\top,\, \mathbf{P}\mathbf{H}) = f(\mathbf{A}, \mathbf{H})$; </item>
+          <item>uma função $F(\mathbf{A}, \mathbf{H})$ que devolve um vetor por nó é <strong>equivariante a permutações</strong> se $F(\mathbf{P}\mathbf{A}\mathbf{P}^\top,\, \mathbf{P}\mathbf{H}) = \mathbf{P}\, F(\mathbf{A}, \mathbf{H})$ — reordenar a entrada reordena a saída na mesma ordem.</item>
+        </list>
+      </definition>
+
+      O esquema unificador de <strong>troca de mensagens</strong> (<em>message passing</em>; Gilmer et al., 2017) garante essa simetria aplicando a mesma regra local em toda vizinhança $\mathcal{N}(i)$:
+
+      <definition id="def:9-6-message-passing">
+        <title>Camada de troca de mensagens (Message Passing)</title>
+        Seja $\mathbf{h}_i^{(l-1)} \in \mathbb{R}^{d_{l-1}}$ o vetor de estado do nó $i$ na camada $l - 1$, com $\mathbf{h}_i^{(0)} = \mathbf{x}_i$. A camada atualiza todos os nós em três etapas:
+        <list marker="number">
+          <item><strong>Mensagem:</strong> cada vizinho $j \in \mathcal{N}(i)$ envia uma mensagem derivada de $\mathbf{h}_j^{(l-1)}$.</item>
+          <item><strong>Agregação:</strong> as mensagens de $\mathcal{N}(i)$ são reunidas em $\mathbf{m}_i^{(l)}$ por uma função invariante à ordem: soma ($\sum$), média ($\frac{1}{d_i}\sum$) ou máximo elemento a elemento ($\max$).</item>
+          <item><strong>Atualização:</strong> o nó combina seu estado anterior com $\mathbf{m}_i^{(l)}$ via não linearidade $\phi$ (como $\mathrm{ReLU}$). Com agregação pela média e pesos compartilhados:
+            $$\mathbf{h}_i^{(l)} = \phi\!\left(\mathbf{W}_{\text{self}}^{(l)} \mathbf{h}_i^{(l-1)} + \mathbf{W}_{\text{neigh}}^{(l)} \cdot \frac{1}{|\mathcal{N}(i)|}\sum_{j \in \mathcal{N}(i)} \mathbf{h}_j^{(l-1)} + \mathbf{b}^{(l)}\right).$$
+          </item>
+        </list>
+        <intuition>
+          Cada neurônio ou região cortical escuta a média dos colegas diretamente ligados, junta à sua própria memória local e atualiza seu estado usando o mesmo protocolo.
+        </intuition>
+      </definition>
+
+      Empilhando os nós como as linhas de $\mathbf{H} \in \mathbb{R}^{n \times d}$ (cada linha $i$ é $\mathbf{h}_i^\top$), escrevemos a agregação em forma matricial rápida:
+      <list marker="dash">
+        <item>a agregação por <strong>soma</strong> dos vizinhos de todos os nós de uma vez é $\mathbf{A}\mathbf{H}$, pois a linha $i$ vale $\sum_{j \in \mathcal{N}(i)} \mathbf{h}_j^\top$;</item>
+        <item>a agregação por <strong>média</strong> divide cada linha pelo grau $d_i$: $\mathbf{D}^{-1}\mathbf{A}\mathbf{H}$ (assumindo $d_i > 0$).</item>
+      </list>
+      Assim, a atualização simultânea de todos os nós escreve-se como:
+      $$\mathbf{H}' = \phi\!\left(\mathbf{H}\mathbf{W}_{\text{self}}^\top + \mathbf{D}^{-1}\mathbf{A}\mathbf{H}\mathbf{W}_{\text{neigh}}^\top + \mathbf{1}\mathbf{b}^\top\right).$$
+
+      <proposition id="prop:9-6-equivariancia">
+        <title>Equivariância da agregação matricial</title>
+        A agregação por soma $F(\mathbf{A}, \mathbf{H}) = \mathbf{A}\mathbf{H}$ é equivariante a permutações: $F(\mathbf{P}\mathbf{A}\mathbf{P}^\top, \mathbf{P}\mathbf{H}) = \mathbf{P}\, F(\mathbf{A}, \mathbf{H})$ para toda matriz de permutação $\mathbf{P}$.
+      </proposition>
+      <proof of="prop:9-6-equivariancia" collapsible="true" collapsed="true">
+        Usando $\mathbf{P}^\top \mathbf{P} = \mathbf{I}_n$, calculamos diretamente:
+        $$F(\mathbf{P}\mathbf{A}\mathbf{P}^\top,\, \mathbf{P}\mathbf{H}) = (\mathbf{P}\mathbf{A}\mathbf{P}^\top)(\mathbf{P}\mathbf{H}) = \mathbf{P}\mathbf{A}(\mathbf{P}^\top \mathbf{P})\mathbf{H} = \mathbf{P}(\mathbf{A}\mathbf{H}) = \mathbf{P}\, F(\mathbf{A}, \mathbf{H}).$$
+        Como $\mathbf{W}^\top$ e $\phi$ atuam independentemente em cada linha, a camada completa também é equivariante.
+      </proof>
+
+      Ao empilhar $L$ camadas, cada nó integra vizinhos a $1$ salto na primeira camada, $2$ saltos na segunda e até $L$ saltos na camada $L$, formando um <strong>campo receptivo</strong> de raio $L$ análogo ao de CNNs (Tema 9.2).
+
+      <observation id="obs:9-6-transformer-gnn">
+        Ponte com o Tema 9.5 (<strong>Transformers</strong>): na autoatenção, cada token pondera todos os outros tokens da sequência. Um Transformer equivale a uma troca de mensagens em um <strong>grafo completo</strong> com pesos aprendidos dinamicamente via $\mathrm{softmax}$, em vez de uma matriz $\mathbf{A}$ fixa.
+      </observation>
+
+      <example id="exm:9-6-mp-4nos">
+        <title>Cálculo à mão de troca de mensagens com 4 nós</title>
+        No grafo de $4$ nós do <ref to="exm:9-6-caminhos-4nos"/> ($d_1 = 2, d_2 = 2, d_3 = 3, d_4 = 1$), parta de $\mathbf{h} = (2, 4, 0, 6)^\top$ e aplique $h_i' = \mathrm{ReLU}\!\left(0{,}5\, h_i + 1{,}0 \cdot \frac{1}{d_i}\sum_{j \in \mathcal{N}(i)} h_j\right)$. Calcule $\mathbf{h}'$ à mão.
+
+        <strong>Solução.</strong> Calculando nó a nó:
+        <list marker="dash">
+          <item><strong>Nó $1$</strong> ($\mathcal{N}(1) = \{2, 3\}$): média $\frac{4 + 0}{2} = 2 \implies h_1' = \mathrm{ReLU}(0{,}5 \cdot 2 + 1{,}0 \cdot 2) = 3$.</item>
+          <item><strong>Nó $2$</strong> ($\mathcal{N}(2) = \{1, 3\}$): média $\frac{2 + 0}{2} = 1 \implies h_2' = \mathrm{ReLU}(0{,}5 \cdot 4 + 1{,}0 \cdot 1) = 3$.</item>
+          <item><strong>Nó $3$</strong> ($\mathcal{N}(3) = \{1, 2, 4\}$): média $\frac{2 + 4 + 6}{3} = 4 \implies h_3' = \mathrm{ReLU}(0{,}5 \cdot 0 + 1{,}0 \cdot 4) = 4$.</item>
+          <item><strong>Nó $4$</strong> ($\mathcal{N}(4) = \{3\}$): média $\frac{0}{1} = 0 \implies h_4' = \mathrm{ReLU}(0{,}5 \cdot 6 + 1{,}0 \cdot 0) = 3$.</item>
+        </list>
+        Na forma matricial, $\mathbf{D}^{-1}\mathbf{A}\mathbf{h} = (2, 1, 4, 0)^\top$, logo $0{,}5\mathbf{h} + 1{,}0\,\mathbf{D}^{-1}\mathbf{A}\mathbf{h} = (1, 2, 0, 3)^\top + (2, 1, 4, 0)^\top = (3, 3, 4, 3)^\top$. Como todas as entradas são positivas, $\mathbf{h}' = (3, 3, 4, 3)^\top$.
+      </example>
+
+      <example id="exm:9-6-propagacao-cortical">
+        <title>Propagação de atividade entre regiões corticais conectadas</title>
+        Quatro regiões corticais ligam-se em cadeia $R_1 \text{--} R_2 \text{--} R_3 \text{--} R_4$ ($d_1 = 1, d_2 = 2, d_3 = 2, d_4 = 1$). Com estado inicial $\mathbf{h}^{(0)} = (10, 0, 0, 0)^\top$ e regra $\mathbf{h}^{(t+1)} = 0{,}5\,\mathbf{h}^{(t)} + 0{,}5\,\mathbf{D}^{-1}\mathbf{A}\mathbf{h}^{(t)}$, acompanhe dois passos.
+
+        <strong>Solução.</strong>
+        <list marker="dash">
+          <item><strong>Após $1$ camada ($t = 1$):</strong> $\mathbf{D}^{-1}\mathbf{A}\mathbf{h}^{(0)} = \left(0,\, \frac{10+0}{2},\, 0,\, 0\right)^\top = (0, 5, 0, 0)^\top$, portanto:
+            $$\mathbf{h}^{(1)} = 0{,}5(10, 0, 0, 0)^\top + 0{,}5(0, 5, 0, 0)^\top = (5;\; 2{,}5;\; 0;\; 0)^\top.$$
+            A ativação atinge $R_2$ ($1$ salto).</item>
+          <item><strong>Após $2$ camadas ($t = 2$):</strong> agora $\mathbf{D}^{-1}\mathbf{A}\mathbf{h}^{(1)} = \left(2{,}5;\; \frac{5+0}{2};\; \frac{2{,}5+0}{2};\; 0\right)^\top = (2{,}5;\; 2{,}5;\; 1{,}25;\; 0)^\top$, logo:
+            $$\mathbf{h}^{(2)} = 0{,}5(5;\; 2{,}5;\; 0;\; 0)^\top + 0{,}5(2{,}5;\; 2{,}5;\; 1{,}25;\; 0)^\top = (3{,}75;\; 2{,}5;\; 0{,}625;\; 0)^\top.$$
+            Com $2$ camadas o sinal chega a $R_3$ ($2$ saltos) e só alcançará $R_4$ na $3^\text{a}$ camada.</item>
+        </list>
+      </example>
+
+      O código a seguir verifica em NumPy a equivariância da agregação $\mathbf{D}^{-1}\mathbf{A}\mathbf{H}$:
+
+      <code lang="python" id="cod:9-6-message-passing">
+import numpy as np
+
+# Grafo de 4 nós (arestas: 0-1, 0-2, 1-2, 2-3) e atributos 4x2
+A = np.array([
+    [0, 1, 1, 0],
+    [1, 0, 1, 0],
+    [1, 1, 0, 1],
+    [0, 0, 1, 0],
+], dtype=float)
+H = np.array([
+    [2.0, 1.0],
+    [4.0, 0.0],
+    [0.0, 3.0],
+    [6.0, -1.0],
+], dtype=float)
+
+def agregar_media(A_mat, H_mat):
+    graus = A_mat.sum(axis=1)
+    D_inv = np.diag(1.0 / graus)
+    return D_inv @ A_mat @ H_mat
+
+saida_orig = agregar_media(A, H)
+
+# Permutação que reordena os nós como [2, 0, 3, 1]
+perm = [2, 0, 3, 1]
+P = np.eye(4)[perm]
+A_perm = P @ A @ P.T
+H_perm = P @ H
+saida_perm = agregar_media(A_perm, H_perm)
+
+erro = np.max(np.abs(saida_perm - P @ saida_orig))
+print("Saída original:\n", saida_orig)
+print("Equivariante (erro < 1e-12)?", bool(erro < 1e-12))
+
+# Saída esperada:
+# Saída original:
+#  [[2.  1.5]
+#   [1.  2. ]
+#   [4.  0. ]
+#   [0.  3. ]]
+# Equivariante (erro < 1e-12)? True
+      </code>
+
+      <remark id="rem:9-6-armadilha-mp">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Esquecer o estado próprio:</strong> usar só $\mathbf{D}^{-1}\mathbf{A}\mathbf{H}$ sem $\mathbf{W}_{\text{self}}\mathbf{h}_i$ nem autolaços faz cada nó descartar suas características (em $2$ nós ligados, eles simplesmente trocariam de valor a cada camada).</item>
+          <item><strong>Usar agregação dependente da ordem:</strong> concatenar os vizinhos $\mathcal{N}(i)$ numa lista fixa quebra a equivariância a permutações.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-6-2-1">
+        <title>Básico — Agregação por soma versus média no grafo estrela</title>
+        Num grafo estrela de $4$ nós, o centro ($1$, <em>hub</em>) liga-se às folhas $2, 3, 4$, sem ligações entre folhas. Dados $\mathbf{h} = (1, 2, 2, 2)^\top$, calcule à mão $\mathbf{A}\mathbf{h}$ (soma) e $\mathbf{D}^{-1}\mathbf{A}\mathbf{h}$ (média). O que a média perde em relação à soma?
+        <hint><title>Ver dica</title>O centro tem grau $d_1 = 3$ e cada folha tem $d_2 = d_3 = d_4 = 1$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Com $\mathbf{D} = \mathrm{diag}(3, 1, 1, 1)$:
+          $$\mathbf{A}\mathbf{h} = \begin{pmatrix} 2 + 2 + 2 \\ 1 \\ 1 \\ 1 \end{pmatrix} = \begin{pmatrix} 6 \\ 1 \\ 1 \\ 1 \end{pmatrix}, \qquad \mathbf{D}^{-1}\mathbf{A}\mathbf{h} = \begin{pmatrix} 6/3 \\ 1/1 \\ 1/1 \\ 1/1 \end{pmatrix} = \begin{pmatrix} 2 \\ 1 \\ 1 \\ 1 \end{pmatrix}.$$
+          A soma preserva o tamanho da vizinhança (o <em>hub</em> recebe $6$, distinguindo-se de um nó com $1$ vizinho de valor $2$), enquanto a média normaliza pelo grau e iguala ambos em $2$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-6-2-2">
+        <title>Intermediário — Cascata de sinalização proteica em dois passos</title>
+        Quatro proteínas ligam-se em estrela ao redor da proteína $2$ (arestas $\{1, 2\}$, $\{2, 3\}$ e $\{2, 4\}$). A proteína $1$ é fosforilada inicialmente: $\mathbf{h}^{(0)} = (8, 0, 0, 0)^\top$. Aplicando duas vezes $\mathbf{h}^{(t+1)} = \mathrm{ReLU}\!\left(0{,}5\,\mathbf{h}^{(t)} + 0{,}5\,\mathbf{D}^{-1}\mathbf{A}\mathbf{h}^{(t)}\right)$, calcule $\mathbf{h}^{(1)}$ e $\mathbf{h}^{(2)}$ à mão.
+        <hint><title>Ver dica</title>Os graus são $d_1 = 1$, $d_2 = 3$ e $d_3 = d_4 = 1$; conclua $t = 1$ antes de calcular $t = 2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Em $t = 1$, apenas a proteína $2$ tem vizinho ativo ($8$, dividido por $d_2 = 3$), logo $\mathbf{D}^{-1}\mathbf{A}\mathbf{h}^{(0)} = (0,\, 8/3,\, 0,\, 0)^\top$ e:
+          $$\mathbf{h}^{(1)} = 0{,}5\begin{pmatrix} 8 \\ 0 \\ 0 \\ 0 \end{pmatrix} + 0{,}5\begin{pmatrix} 0 \\ 8/3 \\ 0 \\ 0 \end{pmatrix} = \begin{pmatrix} 4 \\ 4/3 \\ 0 \\ 0 \end{pmatrix} \approx \begin{pmatrix} 4{,}00 \\ 1{,}33 \\ 0{,}00 \\ 0{,}00 \end{pmatrix}.$$
+          Em $t = 2$, a média dos vizinhos de $1, 3, 4$ vale $4/3$ e a de $2$ vale $(4 + 0 + 0)/3 = 4/3$, dando $\mathbf{D}^{-1}\mathbf{A}\mathbf{h}^{(1)} = (4/3,\, 4/3,\, 4/3,\, 4/3)^\top$. Como todas as entradas são positivas, $\mathrm{ReLU}$ preserva:
+          $$\mathbf{h}^{(2)} = 0{,}5\begin{pmatrix} 4 \\ 4/3 \\ 0 \\ 0 \end{pmatrix} + 0{,}5\begin{pmatrix} 4/3 \\ 4/3 \\ 4/3 \\ 4/3 \end{pmatrix} = \begin{pmatrix} 8/3 \\ 4/3 \\ 2/3 \\ 2/3 \end{pmatrix} \approx \begin{pmatrix} 2{,}67 \\ 1{,}33 \\ 0{,}67 \\ 0{,}67 \end{pmatrix}.$$
+          Note que a soma ponderada pelos graus $\sum_i d_i h_i$ conserva-se igual a $8$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-6-2-3">
+        <title>Avançado — Camada de troca de mensagens tratando nós isolados</title>
+        Implemente em NumPy <c>camada_mp(A, H, W_self, W_neigh)</c> executando $\mathrm{ReLU}(\mathbf{H}\mathbf{W}_{\text{self}} + \mathbf{D}^{-1}\mathbf{A}\mathbf{H}\mathbf{W}_{\text{neigh}})$ sem divisão por zero quando há nós isolados ($d_i = 0$). Teste com arestas $\{0, 1\}$ e $\{1, 2\}$ (nó $3$ isolado), $\mathbf{H} = \begin{pmatrix} 2 & 0 \\ 4 & 2 \\ 0 & 4 \\ 3 & -1 \end{pmatrix}$, $\mathbf{W}_{\text{self}} = \mathbf{I}_2$ e $\mathbf{W}_{\text{neigh}} = 0{,}5\,\mathbf{I}_2$.
+        <hint><title>Ver dica</title>Use <c>np.where</c> para substituir graus iguais a zero por $1$ antes de dividir.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+
+def camada_mp(A, H, W_self, W_neigh):
+    graus = A.sum(axis=1)
+    graus_seguros = np.where(graus > 0, graus, 1.0)
+    media_viz = (A @ H) / graus_seguros[:, None]
+    pre_ativ = H @ W_self + media_viz @ W_neigh
+    return np.maximum(0.0, pre_ativ)
+
+A = np.array([
+    [0, 1, 0, 0],
+    [1, 0, 1, 0],
+    [0, 1, 0, 0],
+    [0, 0, 0, 0],
+], dtype=float)
+H = np.array([
+    [2.0, 0.0],
+    [4.0, 2.0],
+    [0.0, 4.0],
+    [3.0, -1.0],
+])
+W_self = np.eye(2)
+W_neigh = 0.5 * np.eye(2)
+
+saida = camada_mp(A, H, W_self, W_neigh)
+print("Saída:\n", saida)
+
+# Saída esperada:
+# Saída:
+#  [[4.  1. ]
+#   [4.5 3. ]
+#   [2.  5. ]
+#   [3.  0. ]]
+          </code>
+          Para o nó isolado (índice `3`), a média dos vizinhos é `(0, 0)`, restando `H[3] @ W_self = [3.0, -1.0]`, que após `ReLU` resulta em `[3.0, 0.0]`.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-6-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Uma camada GCN em PyTorch</title>
+      <intro>
+        Chegou a hora de conhecer a Rede Convolucional em Grafos (GCN) e implementá-la em PyTorch puro para classificar comunidades em um grafo sintético.
+      </intro>
+
+      A soma $\mathbf{A}\mathbf{H}$ e a média $\mathbf{D}^{-1}\mathbf{A}\mathbf{H}$ têm limitações ao treinar por gradiente descendente (Módulo 4):
+      <list marker="dash">
+        <item>Na <strong>soma pura</strong>, um <em>hub</em> com $100$ conexões acumula ativações muito maiores que uma folha, desestabilizando gradientes na retropropagação (Tema 9.1).</item>
+        <item>Na <strong>média simples</strong>, $\mathbf{D}^{-1}\mathbf{A}$ não é simétrica e ignora o grau de quem <em>envia</em> a mensagem (um <em>hub</em> genérico pesa igual a um vizinho exclusivo).</item>
+        <item>Sem <strong>autolaços</strong>, cada nó ignora suas próprias características ao multiplicar por $\mathbf{A}$.</item>
+      </list>
+
+      Para resolver os três problemas juntos, Kipf &amp; Welling (2017) propuseram a <strong>Rede Convolucional em Grafos</strong> (<em>Graph Convolutional Network</em>, <strong>GCN</strong>), usando normalização simétrica com autolaços.
+
+      <definition id="def:9-6-gcn">
+        <title>Camada GCN (Kipf &amp; Welling, 2017)</title>
+        Dado um grafo não direcionado com adjacência $\mathbf{A} \in \mathbb{R}^{n \times n}$ e atributos $\mathbf{H}^{(l-1)} \in \mathbb{R}^{n \times d_{l-1}}$:
+        <list marker="number">
+          <item>Adicionamos autolaços: $\tilde{\mathbf{A}} = \mathbf{A} + \mathbf{I}_n$.</item>
+          <item>Calculamos a matriz diagonal de graus aumentados $\tilde{\mathbf{D}}$ com $\tilde{D}_{ii} = d_i + 1$.</item>
+          <item>Construímos $\hat{\mathbf{A}} = \tilde{\mathbf{D}}^{-1/2} \tilde{\mathbf{A}} \tilde{\mathbf{D}}^{-1/2}$, cuja entrada $(i, j)$ não nula vale $\frac{\tilde{A}_{ij}}{\sqrt{\tilde{d}_i \tilde{d}_j}}$.</item>
+        </list>
+        Com pesos treináveis $\mathbf{W}^{(l)} \in \mathbb{R}^{d_{l-1} \times d_l}$ e ativação $\phi$, a camada propaga:
+        <equation id="eq:9-6-gcn">\mathbf{H}^{(l)} = \phi\!\left(\tilde{\mathbf{D}}^{-1/2} \tilde{\mathbf{A}} \tilde{\mathbf{D}}^{-1/2} \mathbf{H}^{(l-1)} \mathbf{W}^{(l)}\right)</equation>
+        <intuition>
+          Dividir por $\sqrt{\tilde{d}_i \tilde{d}_j}$ atenua tanto quem recebe muitas conexões ($\tilde{d}_i$ alto) quanto quem envia mensagens para muitos nós ($\tilde{d}_j$ alto), mantendo a matriz simétrica e as escalas numéricas estáveis.
+        </intuition>
+      </definition>
+
+      Pela associatividade matricial, aplicar primeiro <c>nn.Linear</c> ($\mathbf{H}\mathbf{W}$, com viés opcional) e depois multiplicar à esquerda por $\hat{\mathbf{A}}$ equivale a multiplicar $\hat{\mathbf{A}}\mathbf{H}$ e depois aplicar $\mathbf{W}$.
+
+      <example id="exm:9-6-norm-caminho3">
+        <title>Normalização simétrica à mão no caminho de 3 nós</title>
+        Calcule $\hat{\mathbf{A}} = \tilde{\mathbf{D}}^{-1/2} \tilde{\mathbf{A}} \tilde{\mathbf{D}}^{-1/2}$ para o caminho $1\text{--}2\text{--}3$ (arestas $\{1, 2\}$ e $\{2, 3\}$), com raízes exatas e decimais aproximados.
+
+        <strong>Solução.</strong> Somando $\mathbf{I}_3$ a $\mathbf{A}$, obtemos $\tilde{\mathbf{A}}$ e graus $\tilde{d}_1 = 2$, $\tilde{d}_2 = 3$, $\tilde{d}_3 = 2$, logo $\tilde{\mathbf{D}} = \mathrm{diag}(2, 3, 2)$:
+        $$\tilde{\mathbf{A}} = \begin{pmatrix} 1 & 1 & 0 \\ 1 & 1 & 1 \\ 0 & 1 & 1 \end{pmatrix}, \qquad \tilde{\mathbf{D}}^{-1/2} = \begin{pmatrix} \frac{1}{\sqrt{2}} & 0 & 0 \\ 0 & \frac{1}{\sqrt{3}} & 0 \\ 0 & 0 & \frac{1}{\sqrt{2}} \end{pmatrix}.$$
+        Dividindo cada entrada $\tilde{A}_{ij}$ por $\sqrt{\tilde{d}_i \tilde{d}_j}$:
+        <list marker="dash">
+          <item>$(1, 1)$ e $(3, 3)$: $\frac{1}{\sqrt{2 \cdot 2}} = \frac{1}{2} = 0{,}500$; $(2, 2)$: $\frac{1}{\sqrt{3 \cdot 3}} = \frac{1}{3} \approx 0{,}333$;</item>
+          <item>$(1, 2), (2, 1), (2, 3), (3, 2)$: $\frac{1}{\sqrt{2 \cdot 3}} = \frac{1}{\sqrt{6}} \approx 0{,}408$; $(1, 3)$ e $(3, 1)$: $0$.</item>
+        </list>
+        Portanto:
+        $$\hat{\mathbf{A}} = \begin{pmatrix} \frac{1}{2} & \frac{1}{\sqrt{6}} & 0 \\[4pt] \frac{1}{\sqrt{6}} & \frac{1}{3} & \frac{1}{\sqrt{6}} \\[4pt] 0 & \frac{1}{\sqrt{6}} & \frac{1}{2} \end{pmatrix} \approx \begin{pmatrix} 0{,}500 & 0{,}408 & 0 \\ 0{,}408 & 0{,}333 & 0{,}408 \\ 0 & 0{,}408 & 0{,}500 \end{pmatrix}.$$
+        A matriz resultante é simétrica, com entradas em $[0, 1]$, atribuindo peso $1/3$ ao próprio nó central $2$ e $1/\sqrt{6}$ a cada vizinho.
+      </example>
+
+      <example id="exm:9-6-gcn-neuro-passo">
+        <title>Uma camada GCN completa em três regiões ligadas em cadeia</title>
+        Suponha que os três nós do <ref to="exm:9-6-norm-caminho3"/> sejam três regiões corticais $R_1 \text{--} R_2 \text{--} R_3$, com matriz de atributos $\mathbf{H} = \begin{pmatrix} 2 & 0 \\ 0 & 3 \\ 2 & 0 \end{pmatrix}$, matriz de pesos $\mathbf{W} = \begin{pmatrix} 1 \\ -1 \end{pmatrix}$ e ativação $\phi = \mathrm{ReLU}$. Calcule $\mathbf{H}' = \mathrm{ReLU}(\hat{\mathbf{A}}\mathbf{H}\mathbf{W})$.
+
+        <strong>Solução.</strong> Primeiro aplicamos a projeção linear $\mathbf{H}\mathbf{W} = (2 \cdot 1 + 0 \cdot (-1),\; 0 \cdot 1 + 3 \cdot (-1),\; 2 \cdot 1 + 0 \cdot (-1))^\top = (2, -3, 2)^\top$. Em seguida, multiplicamos à esquerda por $\hat{\mathbf{A}}$:
+        <list marker="dash">
+          <item>Regiões $R_1$ e $R_3$: $\frac{1}{2}(2) + \frac{1}{\sqrt{6}}(-3) + 0(2) = 1 - \frac{3}{\sqrt{6}} \approx 1 - 3(0{,}4082) \approx -0{,}225$;</item>
+          <item>Região $R_2$: $\frac{1}{\sqrt{6}}(2) + \frac{1}{3}(-3) + \frac{1}{\sqrt{6}}(2) = \frac{4}{\sqrt{6}} - 1 \approx 4(0{,}4082) - 1 \approx 0{,}633$.</item>
+        </list>
+        Aplicando $\mathrm{ReLU}(z) = \max(0, z)$ a cada entrada, obtemos $\mathbf{H}' \approx (0;\; 0{,}633;\; 0)^\top$. Embora $R_2$ tivesse projeção inicial negativa ($-3$), os sinais positivos vindos de $R_1$ e $R_3$ inverteram o balanço local para $+0{,}633$.
+      </example>
+
+      Diferentemente de CNNs (Tema 9.2), onde dezenas de camadas costumam ajudar, cada multiplicação por $\hat{\mathbf{A}}$ funciona como um filtro passa-baixa local entre vizinhos. Empilhar muitas camadas seguidas ($16$ ou $30$, por exemplo) mistura tanto as representações dentro de uma componente conexa que os vetores de todos os nós convergem para padrões quase proporcionais a $\sqrt{\tilde{d}_i}$ e perdem distinção — fenômeno chamado de <strong>suavização excessiva</strong> (<em>oversmoothing</em>). Por isso, GCNs clássicas usam de $2$ a $4$ camadas (ou conexões residuais).
+
+      Abaixo implementamos uma GCN de $2$ camadas em PyTorch puro e a comparamos a um MLP sem grafo num <strong>modelo de blocos estocástico</strong>: um grafo sintético de $100$ nós em $2$ comunidades de $50$ (pense em dois módulos funcionais ou famílias proteicas), com probabilidade de aresta $0{,}10$ intragrupo e $0{,}01$ intergrupo, $8$ atributos muito ruidosos e apenas $10\%$ dos rótulos conhecidos no treino ($5$ nós por grupo):
+
+      <code lang="python" id="cod:9-6-gcn-sbm">
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+rng = np.random.default_rng(0)
+torch.manual_seed(0)
+
+# 1. Grafo sintético: 2 comunidades de 50 nós (100 nós no total)
+n_por_grupo = 50
+n = 2 * n_por_grupo
+rotulos = np.array([0] * n_por_grupo + [1] * n_por_grupo)
+
+A = np.zeros((n, n), dtype=np.float32)
+for i in range(n):
+    for j in range(i + 1, n):
+        p = 0.10 if rotulos[i] == rotulos[j] else 0.01
+        if rng.random() < p:
+            A[i, j] = 1.0
+            A[j, i] = 1.0
+
+# Normalização simétrica da GCN: D_til^(-1/2) (A + I) D_til^(-1/2)
+A_til = A + np.eye(n, dtype=np.float32)
+graus_til = A_til.sum(axis=1)
+d_inv_sqrt = 1.0 / np.sqrt(graus_til)
+A_norm_np = (d_inv_sqrt[:, None] * A_til) * d_inv_sqrt[None, :]
+
+# Atributos ruidosos (sinal sutil +/- 0.25 com ruído N(0, 1))
+sinal = np.where(rotulos[:, None] == 0, -0.25, 0.25).astype(np.float32)
+X_np = sinal + rng.normal(0.0, 1.0, size=(n, 8)).astype(np.float32)
+
+# Apenas 10% dos rótulos conhecidos no treino (5 de cada comunidade)
+idx_treino = np.concatenate([
+    rng.choice(np.arange(0, 50), size=5, replace=False),
+    rng.choice(np.arange(50, 100), size=5, replace=False),
+])
+mask_treino = np.zeros(n, dtype=bool)
+mask_treino[idx_treino] = True
+mask_teste = ~mask_treino
+
+X = torch.from_numpy(X_np)
+A_norm = torch.from_numpy(A_norm_np)
+y = torch.from_numpy(rotulos).long()
+m_tr = torch.from_numpy(mask_treino)
+m_te = torch.from_numpy(mask_teste)
+
+# 2. Definição da camada GCN e dos modelos (GCN vs. MLP)
+class CamadaGCN(nn.Module):
+    def __init__(self, d_in, d_out):
+        super().__init__()
+        self.linear = nn.Linear(d_in, d_out)
+
+    def forward(self, H, A_norm):
+        return A_norm @ self.linear(H)
+
+class RedeGCN(nn.Module):
+    def __init__(self, d_in, d_oculta, n_classes):
+        super().__init__()
+        self.gcn1 = CamadaGCN(d_in, d_oculta)
+        self.gcn2 = CamadaGCN(d_oculta, n_classes)
+
+    def forward(self, X, A_norm):
+        H = F.relu(self.gcn1(X, A_norm))
+        return self.gcn2(H, A_norm)
+
+class RedeMLP(nn.Module):
+    def __init__(self, d_in, d_oculta, n_classes):
+        super().__init__()
+        self.fc1 = nn.Linear(d_in, d_oculta)
+        self.fc2 = nn.Linear(d_oculta, n_classes)
+
+    def forward(self, X):
+        H = F.relu(self.fc1(X))
+        return self.fc2(H)
+
+def treinar_e_avaliar(modelo, usa_grafo=True, epocas=200):
+    otim = torch.optim.Adam(modelo.parameters(), lr=0.02, weight_decay=5e-4)
+    for _ in range(epocas):
+        modelo.train()
+        otim.zero_grad()
+        logits = modelo(X, A_norm) if usa_grafo else modelo(X)
+        perda = F.cross_entropy(logits[m_tr], y[m_tr])
+        perda.backward()
+        otim.step()
+    modelo.eval()
+    with torch.no_grad():
+        logits = modelo(X, A_norm) if usa_grafo else modelo(X)
+        preds = logits.argmax(dim=1)
+        return (preds[m_te] == y[m_te]).float().mean().item()
+
+torch.manual_seed(0)
+acc_gcn = treinar_e_avaliar(RedeGCN(8, 16, 2), usa_grafo=True)
+torch.manual_seed(0)
+acc_mlp = treinar_e_avaliar(RedeMLP(8, 16, 2), usa_grafo=False)
+
+print(f"Acurácia no teste (MLP, sem grafo): {acc_mlp:.1%}")
+print(f"Acurácia no teste (GCN, com grafo): {acc_gcn:.1%}")
+
+# Saída esperada aproximada (pode variar um pouco entre versões e máquinas):
+# Acurácia no teste (MLP, sem grafo): ≈ 71%
+# Acurácia no teste (GCN, com grafo): ≈ 97%
+      </code>
+
+      Com apenas $10$ nós rotulados e sinal fraco por nó, o MLP tenta decorar ruído em cada linha de $\mathbf{X}$; já a GCN de $2$ camadas filtra o ruído ao promediar cada nó com dezenas de vizinhos da mesma comunidade (mesmo aqueles sem rótulo no treino!), elevando a razão sinal-ruído.
+
+      <remark id="rem:9-6-armadilha-gcn">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Esquecer os autolaços em $\tilde{\mathbf{A}} = \mathbf{A} + \mathbf{I}$:</strong> nós de grau $1$ substituem seus próprios atributos pelos do vizinho, e nós isolados ($d_i = 0$) geram divisão por zero em $\mathbf{D}^{-1/2}$.</item>
+          <item><strong>Achar que mais camadas sempre melhoram a GNN:</strong> empilhar muitas camadas GCN causa <em>oversmoothing</em> e mistura os nós até ficarem indistinguíveis.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-6-3-1">
+        <title>Básico — Pesos entre um neurônio hub e um periférico</title>
+        Num conectoma, um neurônio <em>hub</em> possui $99$ conexões ($\tilde{d}_{\text{hub}} = 100$) e liga-se a um neurônio periférico com $3$ conexões ($\tilde{d}_{\text{perif}} = 4$). Na matriz $\hat{\mathbf{A}}$ da GCN: (a) qual é o peso $\hat{A}_{\text{hub, perif}}$ da ligação entre eles? (b) qual é o autopeso $\hat{A}_{ii}$ de cada um na diagonal?
+        <hint><title>Ver dica</title>Use diretamente $\hat{A}_{ij} = 1/\sqrt{\tilde{d}_i \tilde{d}_j}$ com $100$ e $4$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Para o par $(\text{hub}, \text{perif})$: $\hat{A}_{\text{hub, perif}} = \frac{1}{\sqrt{100 \cdot 4}} = \frac{1}{\sqrt{400}} = \frac{1}{20} = 0{,}05$.</item>
+            <item>Na diagonal: $\hat{A}_{\text{hub, hub}} = \frac{1}{\sqrt{100 \cdot 100}} = \frac{1}{100} = 0{,}01$ e $\hat{A}_{\text{perif, perif}} = \frac{1}{\sqrt{4 \cdot 4}} = \frac{1}{4} = 0{,}25$.</item>
+          </list>
+          Como o <em>hub</em> recebe entradas de $100$ fontes (contando consigo mesmo), cada contribuição recebe peso pequeno para evitar explosão de escala.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-6-3-2">
+        <title>Intermediário — Sem autolaços versus com autolaços</title>
+        Considere $2$ nós conectados ($1\text{--}2$), de modo que $\mathbf{A} = \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}$, e estado inicial $\mathbf{h}^{(0)} = (10, 0)^\top$. Calcule $\mathbf{h}^{(1)}$, $\mathbf{h}^{(2)}$ e $\mathbf{h}^{(3)}$ sob: (a) a regra sem autolaços $\mathbf{h}^{(t+1)} = \mathbf{A}\mathbf{h}^{(t)}$; (b) a regra normalizada com autolaços $\mathbf{h}^{(t+1)} = \hat{\mathbf{A}}\mathbf{h}^{(t)}$, com $\hat{\mathbf{A}} = \tilde{\mathbf{D}}^{-1/2}(\mathbf{A} + \mathbf{I}_2)\tilde{\mathbf{D}}^{-1/2}$.
+        <hint><title>Ver dica</title>Em (b), $\tilde{\mathbf{A}}$ é toda preenchida com $1$ e $\tilde{d}_1 = \tilde{d}_2 = 2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Sem autolaços, $\mathbf{A}$ apenas troca os dois nós de posição a cada passo:
+              $$\mathbf{h}^{(1)} = \begin{pmatrix} 0 \\ 10 \end{pmatrix}, \qquad \mathbf{h}^{(2)} = \begin{pmatrix} 10 \\ 0 \end{pmatrix}, \qquad \mathbf{h}^{(3)} = \begin{pmatrix} 0 \\ 10 \end{pmatrix}.$$
+              O sistema oscila indefinidamente e cada nó perde a própria informação.</item>
+            <item>Com autolaços, $\tilde{\mathbf{A}} = \begin{pmatrix} 1 & 1 \\ 1 & 1 \end{pmatrix}$ e $\tilde{\mathbf{D}} = \mathrm{diag}(2, 2)$, logo $\hat{\mathbf{A}} = \begin{pmatrix} 0{,}5 & 0{,}5 \\ 0{,}5 & 0{,}5 \end{pmatrix}$ e $\mathbf{h}^{(1)} = \mathbf{h}^{(2)} = \mathbf{h}^{(3)} = (5, 5)^\top$, integrando ambos os estados sem oscilações.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-6-3-3">
+        <title>Avançado — Observando o <em>oversmoothing</em> em PyTorch</title>
+        Usando o grafo de $100$ nós do <ref to="cod:9-6-gcn-sbm"/>, aplique $\mathbf{H}^{(k)} = \hat{\mathbf{A}}\mathbf{H}^{(k-1)}$ para $k \in \{0, 1, 2, 4, 16\}$ a partir de $\mathbf{H}^{(0)} = \mathbf{X}$. Em cada $k$, normalize cada linha para norma euclidiana $1$ e meça o desvio padrão médio entre os $100$ nós. Observe como a dispersão varia nas primeiras camadas e após $16$ propagações.
+        <hint><title>Ver dica</title>Use <c>H_unit = F.normalize(H, p=2, dim=1)</c> e depois <c>H_unit.std(dim=0).mean().item()</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+import torch
+import torch.nn.functional as F
+
+rng = np.random.default_rng(0)
+n = 100
+rotulos = np.array([0] * 50 + [1] * 50)
+A = np.zeros((n, n), dtype=np.float32)
+for i in range(n):
+    for j in range(i + 1, n):
+        p = 0.10 if rotulos[i] == rotulos[j] else 0.01
+        if rng.random() < p:
+            A[i, j] = 1.0
+            A[j, i] = 1.0
+
+A_til = A + np.eye(n, dtype=np.float32)
+d_inv_sqrt = 1.0 / np.sqrt(A_til.sum(axis=1))
+A_norm = torch.from_numpy((d_inv_sqrt[:, None] * A_til) * d_inv_sqrt[None, :])
+
+sinal = np.where(rotulos[:, None] == 0, -0.25, 0.25).astype(np.float32)
+H = torch.from_numpy(sinal + rng.normal(0.0, 1.0, size=(n, 8)).astype(np.float32))
+
+for k in range(17):
+    if k in (0, 1, 2, 4, 16):
+        H_unit = F.normalize(H, p=2, dim=1)
+        dispersao = H_unit.std(dim=0).mean().item()
+        print(f"k = {k:2d} | dispersão entre nós: {dispersao:.4f}")
+    H = A_norm @ H
+
+# Saída esperada:
+# k =  0 | dispersão entre nós: 0.3540
+# k =  1 | dispersão entre nós: 0.3465
+# k =  2 | dispersão entre nós: 0.3344
+# k =  4 | dispersão entre nós: 0.3077
+# k = 16 | dispersão entre nós: 0.1554
+          </code>
+          A dispersão cai devagar nas primeiras camadas (de $0{,}3540$ para $0{,}3344$ em $k = 2$) e cai pela metade após $16$ propagações ($0{,}1554$): a suavização excessiva (<em>oversmoothing</em>) aparece com muitas camadas, não com $2$.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-6-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>GNNs na biologia e na neurociência</title>
+      <intro>
+        Além de classificar nós individuais, frequentemente queremos prever ligações ausentes ou resumir uma molécula ou conectoma inteiro em uma única decisão.
+      </intro>
+
+      A partir das representações finais dos nós $\mathbf{H}^{(L)} \in \mathbb{R}^{n \times d}$, o uso da saída depende da pergunta científica.
+
+      <definition id="def:9-6-niveis-tarefa">
+        <title>Três níveis de tarefa e agrupamento global (pooling)</title>
+        Uma GNN opera em três níveis distintos de granularidade:
+        <list marker="number">
+          <item><strong>Nível do nó (<em>node-level</em>):</strong> prevê uma saída para cada nó $i$ usando $\mathbf{h}_i^{(L)}$ (como classificar comunidades no <ref to="cod:9-6-gcn-sbm"/> ou atribuir o tipo celular em tecidos).</item>
+          <item><strong>Nível da aresta (<em>edge-level / link prediction</em>):</strong> prevê a existência ou o peso de uma ligação entre $u$ e $v$ combinando $(\mathbf{h}_u^{(L)}, \mathbf{h}_v^{(L)})$ por produto interno ou camada linear.</item>
+          <item><strong>Nível do grafo inteiro (<em>graph-level</em>):</strong> colapsa os $n$ nós em um único vetor $\mathbf{h}_G \in \mathbb{R}^d$ invariante a permutações via <strong>agrupamento global</strong> (<em>global pooling</em> ou <em>readout</em>):
+            $$\mathbf{h}_G^{\text{média}} = \frac{1}{n}\sum_{i=1}^n \mathbf{h}_i^{(L)} \qquad \text{ou} \qquad \mathbf{h}_G^{\text{soma}} = \sum_{i=1}^n \mathbf{h}_i^{(L)}.$$
+          </item>
+        </list>
+      </definition>
+
+      Aplicações centrais em biologia e neurociência incluem:
+      <list marker="dash">
+        <item><strong>Moléculas e descoberta de fármacos (nível do grafo):</strong> átomos são nós com atributos químicos (número atômico, carga, hibridização) e ligações são arestas; o <em>pooling</em> global estima solubilidade, permeabilidade ou toxicidade.</item>
+        <item><strong>Redes proteína-proteína (nó e aresta):</strong> inferir funções de proteínas pouco estudadas pela vizinhança ou prever pares candidatos à interação.</item>
+        <item><strong>Transcriptômica espacial (nó):</strong> células próximas ligam-se em um grafo de vizinhança, combinando expressão gênica e microambiente para distinguir domínios corticais ou tumorais.</item>
+        <item><strong>Neurociência de sistemas e conectômica:</strong> classificar estados cognitivos ou grupos clínicos a partir de grafos de fMRI/EEG (grafo); prever conectividade funcional a partir da estrutural (aresta); modelar propagação de sinais em conectomas reais como <em>C. elegans</em> (nó).</item>
+      </list>
+
+      Contudo, aplicar GNNs a dados de neuroimagem humana traz três desafios metodológicos sérios:
+      <list marker="number">
+        <item><strong>Dependência de limiares arbitrários:</strong> matrizes de correlação de fMRI ($r_{ij} \in [-1, 1]$) são densas; cortes como $|r_{ij}| > 0{,}3$ alteram drasticamente os graus e a conectividade do grafo.</item>
+        <item><strong>Correlação funcional não é conexão anatômica:</strong> duas regiões podem oscilar em sincronia por receberem projeções comuns (como do tálamo), sem nenhum feixe axonal direto entre elas.</item>
+        <item><strong>Poucos participantes e vazamento de dados:</strong> estudos clínicos têm dezenas de sujeitos com múltiplas sessões; se sessões do mesmo participante caírem no treino e no teste, ocorre <strong>vazamento de dados</strong> (<em>data leakage</em>; Módulo 8, "Reamostragem"), fazendo a rede memorizar a "impressão digital" individual do cérebro.</item>
+      </list>
+
+      <example id="exm:9-6-limiar-fmri">
+        <title>De matriz de correlação funcional $4 \times 4$ a grafo binário</title>
+        Dada a matriz de correlação temporal $\mathbf{R}$ de fMRI entre $4$ regiões corticais ($R_1, R_2, R_3, R_4$):
+        $$\mathbf{R} = \begin{pmatrix} 1{,}00 & 0{,}62 & -0{,}45 & 0{,}18 \\ 0{,}62 & 1{,}00 & 0{,}25 & -0{,}35 \\ -0{,}45 & 0{,}25 & 1{,}00 & 0{,}51 \\ 0{,}18 & -0{,}35 & 0{,}51 & 1{,}00 \end{pmatrix},$$
+        construa a matriz binária $\mathbf{A}$ ($A_{ii} = 0$) com limiar $|r_{ij}| > 0{,}3$ e calcule os graus.
+
+        <strong>Solução.</strong> Avaliando os $6$ pares distintos $(i, j)$:
+        <list marker="dash">
+          <item>$(1, 2)$: $|0{,}62| > 0{,}3 \implies A_{12} = A_{21} = 1$; $(1, 3)$: $|-0{,}45| > 0{,}3 \implies A_{13} = A_{31} = 1$;</item>
+          <item>$(1, 4)$ e $(2, 3)$: $|0{,}18| \le 0{,}3$ e $|0{,}25| \le 0{,}3 \implies A_{14} = A_{23} = 0$;</item>
+          <item>$(2, 4)$: $|-0{,}35| > 0{,}3 \implies A_{24} = A_{42} = 1$; $(3, 4)$: $|0{,}51| > 0{,}3 \implies A_{34} = A_{43} = 1$.</item>
+        </list>
+        Portanto:
+        $$\mathbf{A} = \begin{pmatrix} 0 & 1 & 1 & 0 \\ 1 & 0 & 0 & 1 \\ 1 & 0 & 0 & 1 \\ 0 & 1 & 1 & 0 \end{pmatrix},$$
+        e todas as regiões têm grau $d_1 = d_2 = d_3 = d_4 = 2$ (ciclo $1\text{--}2\text{--}4\text{--}3\text{--}1$). Note que $(1, 3)$ entrou pelo módulo apesar de ser uma anticorrelação ($-0{,}45$), e subir o corte para $|r_{ij}| > 0{,}4$ apagaria $(2, 4)$, derrubando $R_2$ e $R_4$ para grau $1$.
+      </example>
+
+      <example id="exm:9-6-pooling-global">
+        <title>Comparando média global e soma global em duas moléculas</title>
+        Após uma camada GNN ($d = 2$), uma molécula $G_1$ de $3$ átomos gerou $\mathbf{H}_{G_1} = \begin{pmatrix} 1 & 3 \\ 2 & 1 \\ 0 & 2 \end{pmatrix}$, e uma molécula $G_2$ de $4$ átomos gerou $\mathbf{H}_{G_2} = \begin{pmatrix} 1 & 2 \\ 1 & 2 \\ 1 & 2 \\ 1 & 2 \end{pmatrix}$. Calcule $\mathbf{h}_G^{\text{média}}$ e $\mathbf{h}_G^{\text{soma}}$ para ambas.
+
+        <strong>Solução.</strong>
+        <list marker="dash">
+          <item><strong>Média global:</strong> $\mathbf{h}_{G_1}^{\text{média}} = \left(\frac{1+2+0}{3},\, \frac{3+1+2}{3}\right) = (1{,}0;\; 2{,}0)$ e $\mathbf{h}_{G_2}^{\text{média}} = \left(\frac{4}{4},\, \frac{8}{4}\right) = (1{,}0;\; 2{,}0)$.</item>
+          <item><strong>Soma global:</strong> $\mathbf{h}_{G_1}^{\text{soma}} = (1+2+0,\, 3+1+2) = (3,\; 6)$ e $\mathbf{h}_{G_2}^{\text{soma}} = (4,\; 8)$.</item>
+        </list>
+        A média gerou exatamente o mesmo vetor $(1{,}0;\; 2{,}0)$, apagando a diferença de tamanho entre $3$ e $4$ átomos, ao passo que a soma preservou essa escala estrutural.
+      </example>
+
+      O script abaixo reproduz ambos os exemplos em NumPy:
+
+      <code lang="python" id="cod:9-6-limiar-pooling">
+import numpy as np
+
+# 1. Limiar em matriz de correlação funcional 4x4
+R = np.array([
+    [ 1.00,  0.62, -0.45,  0.18],
+    [ 0.62,  1.00,  0.25, -0.35],
+    [-0.45,  0.25,  1.00,  0.51],
+    [ 0.18, -0.35,  0.51,  1.00],
+])
+sem_diagonal = ~np.eye(4, dtype=bool)
+A_03 = ((np.abs(R) > 0.3) & sem_diagonal).astype(int)
+A_04 = ((np.abs(R) > 0.4) & sem_diagonal).astype(int)
+
+print("Graus com |r| > 0.3:", A_03.sum(axis=1))
+print("Graus com |r| > 0.4:", A_04.sum(axis=1))
+
+# 2. Pooling global: média vs. soma
+H_G1 = np.array([[1.0, 3.0], [2.0, 1.0], [0.0, 2.0]])
+H_G2 = np.array([[1.0, 2.0], [1.0, 2.0], [1.0, 2.0], [1.0, 2.0]])
+
+print("G1 média:", H_G1.mean(axis=0), "| soma:", H_G1.sum(axis=0))
+print("G2 média:", H_G2.mean(axis=0), "| soma:", H_G2.sum(axis=0))
+
+# Saída esperada:
+# Graus com |r| > 0.3: [2 2 2 2]
+# Graus com |r| > 0.4: [2 1 2 1]
+# G1 média: [1. 2.] | soma: [3. 6.]
+# G2 média: [1. 2.] | soma: [4. 8.]
+      </code>
+
+      <remark id="rem:9-6-armadilha-bio">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Confundir conectividade funcional com anatomia:</strong> uma aresta em fMRI mede correlação estatística, não existência de axônio direto.</item>
+          <item><strong>Tratar um limiar como verdade absoluta:</strong> se a conclusão muda drasticamente entre $|r| > 0{,}25$ e $|r| > 0{,}35$, o efeito pode ser artefato do corte.</item>
+          <item><strong>Vazamento entre sessões:</strong> agrupe todas as sessões e janelas do mesmo participante no mesmo <em>fold</em> de validação cruzada.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-6-4-1">
+        <title>Básico — Calculando três tipos de pooling global</title>
+        Num grafo de transcriptômica espacial com $4$ células, uma GNN produziu $\mathbf{h}_1 = (2, 0)$, $\mathbf{h}_2 = (4, 2)$, $\mathbf{h}_3 = (0, 6)$ e $\mathbf{h}_4 = (2, 4)$. Calcule à mão $\mathbf{h}_G$ usando: (a) soma global, (b) média global e (c) máximo global elemento a elemento.
+        <hint><title>Ver dica</title>Aplique cada operação separadamente na primeira e na segunda coordenada.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item><strong>Soma global:</strong> $(2 + 4 + 0 + 2,\; 0 + 2 + 6 + 4) = (8, 12)$.</item>
+            <item><strong>Média global:</strong> $(8/4,\; 12/4) = (2, 3)$.</item>
+            <item><strong>Máximo global:</strong> $(\max(2, 4, 0, 2),\; \max(0, 2, 6, 4)) = (4, 6)$.</item>
+          </list>
+          Todas as três operações são simétricas e produzem o mesmo $\mathbf{h}_G$ sob qualquer numeração das células.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-6-4-2">
+        <title>Intermediário — Evitando vazamento de dados em conectomas de fMRI</title>
+        Um estudo registrou fMRI em repouso de $30$ participantes ($15$ controles e $15$ pacientes), com $4$ sessões por pessoa ($120$ grafos ao todo). Para avaliar uma GNN no nível do grafo, um aluno embaralha os $120$ grafos e aplica validação cruzada $5$-fold padrão (Módulo 8, "Reamostragem"). Por que a acurácia será enganosamente alta e como corrigir o desenho?
+        <hint><title>Ver dica</title>Considere o que ocorre quando $3$ sessões de um participante ficam no treino e a $4^\text{a}$ vai para o teste.</hint>
+        <solution collapsible="true" collapsed="true">
+          Cada indivíduo tem uma assinatura conectômica funcional muito estável entre sessões. Ao embaralhar os $120$ grafos sem respeitar o participante, sessões do mesmo sujeito aparecem no treino e no teste (<strong>vazamento de dados</strong> / <em>data leakage</em>), permitindo à GNN memorizar cada cérebro em vez de aprender a condição clínica.
+
+          A correção é usar validação cruzada <strong>agrupada por participante</strong>: dividir os $30$ sujeitos em $5$ grupos de $6$ ($24$ sujeitos $= 96$ grafos no treino e $6$ sujeitos inéditos $= 24$ grafos no teste por rodada).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-6-4-3">
+        <title>Avançado — Classificação de grafos em PyTorch (esparsos vs. densos)</title>
+        Escreva um script PyTorch autocontido que gere $40$ grafos de $8$ nós ($20$ esparsos com $p = 0{,}20$ e $20$ densos com $p = 0{,}60$), use o grau como atributo inicial ($x_i = d_i$), passe cada grafo por uma camada GCN seguida de $\mathrm{ReLU}$ e <em>pooling</em> global por soma, e treine um classificador linear ($28$ grafos no treino, $12$ no teste).
+        <hint><title>Ver dica</title>Use <c>x_i = d_i</c> em matriz $8 \times 1$ para que o grafo carregue informação estrutural na entrada.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+rng = np.random.default_rng(0)
+torch.manual_seed(0)
+
+def gerar_grafo(n, p, rng):
+    A = np.zeros((n, n), dtype=np.float32)
+    for i in range(n):
+        for j in range(i + 1, n):
+            if rng.random() < p:
+                A[i, j] = 1.0
+                A[j, i] = 1.0
+    graus = A.sum(axis=1, keepdims=True)
+    A_til = A + np.eye(n, dtype=np.float32)
+    d_inv_sqrt = 1.0 / np.sqrt(A_til.sum(axis=1))
+    A_norm = (d_inv_sqrt[:, None] * A_til) * d_inv_sqrt[None, :]
+    return torch.from_numpy(A_norm), torch.from_numpy(graus)
+
+dados = []
+for _ in range(20):
+    dados.append((*gerar_grafo(8, 0.20, rng), 0))
+for _ in range(20):
+    dados.append((*gerar_grafo(8, 0.60, rng), 1))
+
+ordem = rng.permutation(len(dados))
+treino = [dados[i] for i in ordem[:28]]
+teste = [dados[i] for i in ordem[28:]]
+
+class ClassificadorGrafos(nn.Module):
+    def __init__(self, d_oculta):
+        super().__init__()
+        self.fc_no = nn.Linear(1, d_oculta)
+        self.fc_grafo = nn.Linear(d_oculta, 2)
+
+    def forward(self, A_norm, X):
+        H = F.relu(A_norm @ self.fc_no(X))
+        h_G = H.sum(dim=0, keepdim=True)  # pooling global por soma
+        return self.fc_grafo(h_G)
+
+modelo = ClassificadorGrafos(8)
+otim = torch.optim.Adam(modelo.parameters(), lr=0.05)
+
+for _ in range(120):
+    modelo.train()
+    otim.zero_grad()
+    perda_total = 0.0
+    for A_norm, X, classe in treino:
+        logits = modelo(A_norm, X)
+        alvo = torch.tensor([classe], dtype=torch.long)
+        perda_total = perda_total + F.cross_entropy(logits, alvo)
+    (perda_total / len(treino)).backward()
+    otim.step()
+
+modelo.eval()
+acertos = 0
+with torch.no_grad():
+    for A_norm, X, classe in teste:
+        pred = modelo(A_norm, X).argmax(dim=1).item()
+        acertos += int(pred == classe)
+
+print(f"Acurácia no teste (12 grafos): {acertos / len(teste):.1%}")
+
+# Saída esperada aproximada (pode variar levemente entre versões/máquinas):
+# Acurácia no teste (12 grafos): ≈ 100% (apenas 12 grafos de teste: estimativa muito incerta)
+          </code>
+          O grau na entrada permite ao <em>pooling</em> global por soma distinguir a densidade dos grafos; com entrada constante igual a $1$ em grafos regulares, $\hat{\mathbf{A}}\mathbf{1} = \mathbf{1}$ apagaria essa diferença.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-6-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Grafos e matrizes:</strong> $G = (V, E)$ codifica-se pela adjacência $\mathbf{A}$ (simétrica se não direcionado), graus $\mathbf{D}$ ($d_i = \sum_j A_{ij}$) e laplaciana $\mathbf{L} = \mathbf{D} - \mathbf{A}$.</item>
+        <item><strong>Caminhos:</strong> em grafos não ponderados, $(\mathbf{A}^2)_{ij}$ conta caminhos de comprimento $2$ entre $i$ e $j$.</item>
+        <item><strong>Permutações:</strong> reordenar nós por $\mathbf{P}$ leva $\mathbf{H} \mapsto \mathbf{P}\mathbf{H}$ e $\mathbf{A} \mapsto \mathbf{P}\mathbf{A}\mathbf{P}^\top$; saídas por nó devem ser equivariantes e globais, invariantes.</item>
+        <item><strong>Troca de mensagens:</strong> cada nó agrega vizinhos por função simétrica (soma, média, máximo) e atualiza seu estado; $L$ camadas dão alcance de $L$ saltos.</item>
+        <item><strong>GCN e <em>oversmoothing</em>:</strong> $\mathbf{H}^{(l)} = \phi\!\left(\tilde{\mathbf{D}}^{-1/2}\tilde{\mathbf{A}}\tilde{\mathbf{D}}^{-1/2}\mathbf{H}^{(l-1)}\mathbf{W}^{(l)}\right)$ com $\tilde{\mathbf{A}} = \mathbf{A} + \mathbf{I}_n$ controla a escala em <em>hubs</em>; muitas camadas colapsam os nós (<em>oversmoothing</em>).</item>
+        <item><strong>Tarefas e <em>pooling</em>:</strong> previsões ocorrem por nó, aresta ou grafo inteiro ($\mathbf{h}_G^{\text{soma}}$ ou $\mathbf{h}_G^{\text{média}}$).</item>
+        <item><strong>Cuidados em conectômica:</strong> correlação de fMRI não é axônio direto, limiares alteram a topologia e sessões do mesmo participante exigem validação agrupada.</item>
+      </list>
+    </section>
+
+    <section id="sec:9-6-alem">
+      <title>Para ir além</title>
+      Para consolidar os fundamentos teóricos e práticos em PyTorch:
+      <list marker="dash">
+        <item><strong>Base teórica:</strong> <em>Deep Learning Book</em> (Ian Goodfellow) — otimização, representações hierárquicas e regularização.</item>
+        <item><strong>Aulas em vídeo:</strong> Andrej Karpathy — aulas de LLM e <em>backprop</em> no YouTube para dominar autograd e camadas lineares do zero.</item>
+        <item><strong>PyTorch:</strong> <link to="https://pytorch.org/docs/stable/index.html">pytorch.org/docs/stable</link> — referência para <c>torch.nn</c> e operações matriciais.</item>
+        <item><strong>NumPy:</strong> <link to="https://numpy.org/doc/stable/">numpy.org/doc/stable</link> — álgebra linear (<c>numpy.linalg</c>) e manipulação de matrizes de adjacência.</item>
+      </list>
+
+      No próximo tema, <strong>9.7 Generativos</strong>, invertemos o problema: em vez de classificar grafos ou sinais existentes, aprenderemos a gerar novas amostras sintéticas, como moléculas candidatas a fármacos.
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 9 · Deep Learning — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

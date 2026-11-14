@@ -1,0 +1,846 @@
+<document>
+  <title>Módulo 6 · Programação (Python)</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-6-2">Voltar ao guia (Tema 6.2)</link></meta-item>
+    <meta-item key="Módulo">Módulo 6 · Programação (Python) — Saindo da Teoria para a Prática Ferramental</meta-item>
+    <meta-item key="Nível">Básico</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-6-2">
+    <title>Comandos iniciais e lógica básica</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Variáveis, condicionais e laços — o controle de fluxo de qualquer script.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Da análise de disparos neuronais (<em>spikes</em>) ao pré-processamento de eletroencefalografia (EEG, amostrado tipicamente entre $250$ e $1\,000\text{ Hz}$) e de ressonância magnética funcional (fMRI, com tempo de repetição $\text{TR} \approx 2\text{ s}$), a neurociência computacional vive em Python. Quando você trabalha com dezenas de sujeitos experimentais ou milhões de bases nitrogenadas, fazer contas na mão ou clicar célula por célula em uma planilha não é apenas lento — é difícil de auditar e de reproduzir. Um script bem estruturado registra cada regra de cálculo de forma transparente, permitindo que outro pesquisador (ou você mesmo daqui a seis meses) obtenha exatamente os mesmos resultados a partir dos dados brutos.
+
+    No tema anterior (<mark>Ambientes</mark>), você preparou seu espaço no Google Colab ou em um editor local e executou suas primeiras células. Agora vamos construir o vocabulário mínimo da linguagem: guardar medidas fisiológicas na memória, formatar relatórios em texto, fazer o programa tomar decisões quando um potencial de membrana cruza o limiar de $-55\text{ mV}$ e repetir operações automaticamente ao longo de sequências genéticas ou séries temporais. Esse mesmo alicerce sustentará a organização de arquivos em <mark>Informática básica</mark> e os modelos preditivos que desenvolveremos no Módulo 8 (<mark>Machine Learning</mark>).
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>criar variáveis legíveis, identificar os tipos básicos (<c>int</c>, <c>float</c>, <c>str</c>, <c>bool</c>) e combinar operadores aritméticos, de comparação e lógicos;</item>
+      <item>manipular textos com métodos de <em>string</em> e formatar saídas numéricas e tabelas usando <em>f-strings</em>;</item>
+      <item>estruturar decisões no código com <c>if</c>, <c>elif</c> e <c>else</c>, respeitando a indentação e a ordem das condições;</item>
+      <item>automatizar repetições com laços <c>for</c> e <c>while</c>, empregando acumuladores, <c>range</c>, <c>break</c> e <c>continue</c>;</item>
+      <item>evitar armadilhas frequentes, como comparações exatas de ponto flutuante, contagem equivocada de amostras acima do limiar e laços infinitos.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Ter concluído o tema <mark>Ambientes</mark> (saber abrir o Google Colab ou um ambiente Python local e executar uma célula de código) e dominar as operações aritméticas básicas vistas no Módulo 1 (<mark>Pré-Cálculo</mark>).
+
+    <section id="sec:6-2-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Variáveis, tipos e operadores</title>
+      <intro>
+        Todo script começa dando nome aos dados na memória e combinando esses valores com operadores numéricos e lógicos que funcionam de modo muito parecido com a álgebra — com algumas diferenças essenciais.
+      </intro>
+
+      Imagine a bancada de um laboratório de neurofisiologia. Para não confundir frascos parecidos, você cola etiquetas em cada tubo: "solucao_kcl", "tampao_ph7", "registro_01". Em Python, uma variável funciona exatamente como essa etiqueta colada em um valor guardado na memória do computador. Quando você precisa do valor mais tarde, basta escrever o nome da etiqueta; se o conteúdo do tubo mudar durante o experimento, você atualiza o valor associado à mesma etiqueta.
+
+      <definition id="def:6-2-variavel">
+        <title>Variável e operador de atribuição</title>
+        Uma <strong>variável</strong> é um nome simbólico que aponta para um valor armazenado na memória. O sinal <c>=</c> é o <strong>operador de atribuição</strong> (<em>assignment operator</em>): ele calcula a expressão à direita e associa o resultado ao nome à esquerda.
+
+        Por convenção do Python, nomes de variáveis usam letras minúsculas separadas por sublinhado — estilo chamado de <em>snake case</em> (por exemplo, <c>potencial_repouso</c>) —, sem espaços, sem começar por dígito e, preferencialmente, sem acentos.
+        <intuition>
+          Em matemática, $x = x + 1$ é um absurdo sem solução. Em programação, <c>x = x + 1</c> faz perfeito sentido porque <c>=</c> não testa igualdade: ele significa "pegue o valor atual de <c>x</c>, some $1$ e guarde o novo resultado de volta na etiqueta <c>x</c>".
+        </intuition>
+      </definition>
+
+      Observe esse comportamento no código abaixo. Você pode copiar cada bloco desta aula para uma célula nova do Google Colab e rodá-lo de forma independente:
+
+      <code lang="python" id="cod:6-2-atribuicao">
+potencial_mv = -70
+potencial_mv = potencial_mv + 15
+print(potencial_mv)  # -55
+      </code>
+
+      Na primeira linha, a etiqueta <c>potencial_mv</c> passa a apontar para <c>-70</c>. Na segunda linha, o Python primeiro avalia o lado direito (<c>-70 + 15</c>, obtendo <c>-55</c>) e só depois atualiza <c>potencial_mv</c>. A função <c>print()</c> exibe o valor na tela, exatamente como mostrado no comentário após <c>#</c>.
+
+      Nem todo dado tem a mesma natureza: uma contagem de células é um número inteiro, uma concentração em milimolar tem casas decimais, o código de um animal é um texto e a resposta para "o neurônio disparou?" é verdadeira ou falsa. O Python classifica cada valor em um tipo específico.
+
+      <definition id="def:6-2-tipos">
+        <title>Tipos primitivos e conversões</title>
+        Os quatro tipos básicos mais comuns em Python são:
+        <list marker="dash">
+          <item><c>int</c>: números inteiros positivos, negativos ou zero (ex.: <c>-70</c>, <c>0</c>, <c>42</c>);</item>
+          <item><c>float</c>: números de ponto flutuante (<em>floating-point</em>), isto é, com ponto decimal ou notação científica (ex.: <c>-70.0</c>, <c>3.14</c>, <c>1e-3</c>);</item>
+          <item><c>str</c>: cadeias de caracteres (<em>strings</em>), isto é, qualquer texto delimitado por aspas simples ou duplas (ex.: <c>"CA1"</c>, <c>'ATGC'</c>);</item>
+          <item><c>bool</c>: valores booleanos (<em>boolean</em>), que assumem apenas <c>True</c> ou <c>False</c> (sempre com inicial maiúscula).</item>
+        </list>
+        A função <c>type(valor)</c> informa o tipo de um dado, enquanto <c>int()</c>, <c>float()</c> e <c>str()</c> convertem um valor de um tipo para outro quando a conversão faz sentido.
+      </definition>
+
+      Note que, dentro de código Python, números decimais usam <strong>ponto</strong> (<c>12.5</c>), nunca vírgula — na língua inglesa, a vírgula separa itens em uma lista ou argumentos de função. Veja como verificar e converter tipos na prática:
+
+      <code lang="python" id="cod:6-2-tipos">
+especie = "Rattus norvegicus"
+potencial_repouso = -70
+taxa_hz = 12.5
+disparou = False
+
+print(type(especie))            # <class 'str'>
+print(type(potencial_repouso))  # <class 'int'>
+print(type(taxa_hz))            # <class 'float'>
+print(type(disparou))           # <class 'bool'>
+
+texto_num = "15"
+print(int(texto_num) + 5)       # 20
+print(float(potencial_repouso)) # -70.0
+print(int(3.9))                 # 3
+      </code>
+
+      Repare em dois detalhes importantes no bloco acima. Primeiro, <c>"15"</c> entre aspas é um texto (<c>str</c>), não um número; somar <c>"15" + 5</c> geraria erro até convertermos com <c>int("15")</c>. Segundo, <c>int(3.9)</c> devolve <c>3</c>: a conversão de <c>float</c> para <c>int</c> <strong>trunca</strong> a parte decimal em direção a zero, em vez de arredondar para <c>4</c>.
+
+      Para fazer contas com números, o Python oferece sete operadores aritméticos fundamentais: soma (<c>+</c>), subtração (<c>-</c>), multiplicação (<c>*</c>), divisão real (<c>/</c>), divisão inteira (<c>//</c>), resto da divisão ou módulo (<c>%</c>) e potenciação (<c>**</c>). A ordem de prioridade (precedência) segue a matemática escolar: parênteses <c>()</c> primeiro, depois <c>**</c>, em seguida <c>*</c>, <c>/</c>, <c>//</c> e <c>%</c> (avaliados da esquerda para a direita), e por último <c>+</c> e <c>-</c>. Sempre que uma expressão ficar longa, use parênteses explícitos para deixar sua intenção cristalina.
+
+      <proposition id="prop:6-2-divisao-float">
+        <title>Tipo resultante da divisão real e da divisão inteira</title>
+        Em Python 3, o operador <c>/</c> <strong>sempre</strong> retorna um valor do tipo <c>float</c>, mesmo quando os dois operandos são <c>int</c> e a divisão é exata (por exemplo, <c>8 / 2</c> resulta em <c>4.0</c>). Já o operador <c>//</c> descarta a fração (arredondando para baixo) e retorna <c>int</c> quando ambos os operandos são <c>int</c>.
+      </proposition>
+
+      Além dos operadores aritméticos, temos os operadores de comparação, que produzem sempre um <c>bool</c> (<c>True</c> ou <c>False</c>): igual a (<c>==</c>), diferente de (<c>!=</c>), menor que (&lt;), menor ou igual (&lt;=), maior que (&gt;) e maior ou igual (&gt;=). Podemos combinar comparações usando os operadores lógicos <c>and</c> (verdadeiro somente se ambos os lados forem verdadeiros), <c>or</c> (verdadeiro se pelo menos um lado for verdadeiro) e <c>not</c> (inverte o valor lógico). Por fim, quando queremos atualizar uma variável aplicando uma operação sobre ela mesma, usamos a <strong>atribuição composta</strong>, como <c>x += 5</c> no lugar de <c>x = x + 5</c> (o mesmo vale para <c>-=</c>, <c>*=</c> e <c>/=</c>).
+
+      <code lang="python" id="cod:6-2-operadores">
+v_m = -52.0
+limiar = -55.0
+periodo_refratario = False
+
+pode_disparar = (v_m >= limiar) and (not periodo_refratario)
+print(8 / 2)          # 4.0
+print(7 // 2, 7 % 2)  # 3 1
+print(2 ** 10)        # 1024
+print(pode_disparar)  # True
+      </code>
+
+      Nesse trecho, testar se <c>v_m</c> é maior ou igual a <c>limiar</c> resulta em <c>True</c> (porque $-52{,}0 \ge -55{,}0$) e <c>not periodo_refratario</c> também resulta em <c>True</c> (pois nega <c>False</c>). Como os dois lados de <c>and</c> são verdadeiros, <c>pode_disparar</c> recebe <c>True</c>. Note também que <c>7 // 2</c> dá o quociente inteiro <c>3</c>, enquanto <c>7 % 2</c> dá o resto <c>1</c>.
+
+      <example id="exm:6-2-mv-taxa">
+        <title>Conversão de potencial para volts e taxa de disparo</title>
+        Um neurônio piramidal em repouso apresenta potencial de membrana de $-70\text{ mV}$. Durante um registro de $1{,}5\text{ s}$, ele emite $36$ potenciais de ação. Escreva um script que converta o potencial para volts ($\text{V}$) e calcule a taxa média de disparo em hertz ($\text{Hz}$).
+
+        <code lang="python" id="cod:6-2-exm-unidades">
+potencial_mv = -70
+potencial_v = potencial_mv / 1000
+
+spikes = 36
+duracao_s = 1.5
+taxa_hz = spikes / duracao_s
+
+print(potencial_v)  # -0.07
+print(taxa_hz)      # 24.0
+        </code>
+
+        Como $1\text{ V} = 1\,000\text{ mV}$, dividir <c>-70</c> por <c>1000</c> com o operador <c>/</c> fornece <c>-0.07</c> (do tipo <c>float</c>). Para a taxa de disparo, dividimos o total de <em>spikes</em> (<c>36</c>) pela duração em segundos (<c>1.5</c>), obtendo <c>24.0</c> Hz — uma frequência fisiologicamente realista para disparos sustentados.
+      </example>
+
+      <example id="exm:6-2-duracao-registro">
+        <title>Convertendo duração do experimento com // e %</title>
+        Um registro eletrofisiológico durou $125$ minutos. Converta essa duração para horas inteiras e minutos restantes usando <c>//</c> e <c>%</c>. Em seguida, verifique se a sessão atingiu pelo menos $2$ horas e acumulou no mínimo $100$ <em>spikes</em> válidos, e depois atualize a contagem somando mais $15$ <em>spikes</em> de um bloco extra com <c>+=</c>.
+
+        <code lang="python" id="cod:6-2-exm-tempo">
+total_minutos = 125
+horas = total_minutos // 60
+minutos_restantes = total_minutos % 60
+
+spikes_validos = 120
+sessao_completa = (horas >= 2) and (spikes_validos >= 100)
+
+print(horas, minutos_restantes)  # 2 5
+print(sessao_completa)           # True
+
+spikes_validos += 15
+print(spikes_validos)            # 135
+        </code>
+
+        A divisão inteira <c>125 // 60</c> extrai quantas horas completas cabem em $125$ minutos ($2$), enquanto o resto <c>125 % 60</c> devolve os $5$ minutos que sobram. Como ambas as condições de <c>sessao_completa</c> são verdadeiras, obtemos <c>True</c>. Por fim, <c>spikes_validos += 15</c> soma $15$ ao valor anterior $120$, atualizando a variável para <c>135</c>.
+      </example>
+
+      <remark id="rem:6-2-ponto-flutuante">
+        <title>Armadilha comum</title>
+        Experimente testar <c>0.1 + 0.2 == 0.3</c> em Python: a resposta será surpreendentemente <c>False</c>! Isso não é um defeito do Python, mas uma consequência da representação binária de ponto flutuante usada por praticamente todos os computadores. Assim como a fração $1/3$ não tem escrita decimal finita ($0{,}333\dots$), números decimais simples como $0{,}1$ e $0{,}2$ viram dízimas periódicas na base $2$, acumulando um erro minúsculo na última casa binária (<c>0.1 + 0.2</c> vale aproximadamente <c>0.30000000000000004</c>).
+
+        <strong>Regra de ouro:</strong> nunca compare valores <c>float</c> com <c>==</c>. Em vez disso, verifique se a diferença absoluta está abaixo de uma tolerância pequena ($|a - b| < 10^{-9}$, usando <c>abs(a - b)</c>), ou use a função <c>math.isclose(a, b)</c> da biblioteca padrão <c>math</c>.
+
+        <code lang="python" id="cod:6-2-float-isclose">
+import math
+
+soma = 0.1 + 0.2
+print(soma == 0.3)                  # False
+print(abs(soma - 0.3) < 1e-9)       # True
+print(math.isclose(soma, 0.3))      # True
+        </code>
+      </remark>
+
+      <exercise id="exr:6-2-1-1">
+        <title>Básico — Conversão de temperatura corporal e janela temporal</title>
+        Em um protocolo de registro <em>in vitro</em>, a câmara de perfusão é mantida a <c>temp_c = 37.5</c> °C e cada estímulo dura <c>janela_ms = 250</c> ms. Escreva um script que calcule a temperatura em Kelvin ($T_K = T_C + 273{,}15$) e a duração em segundos, imprima ambos os valores e exiba também os tipos de <c>temp_c</c> e <c>janela_ms</c>.
+        <hint><title>Ver dica</title>Para converter milissegundos para segundos, divida por <c>1000</c>. Use <c>type()</c> para inspecionar o tipo de cada variável.</hint>
+        <solution collapsible="true" collapsed="true">
+          Somamos <c>273.15</c> para passar de graus Celsius para Kelvin e dividimos <c>janela_ms</c> por <c>1000</c> para obter segundos (o operador <c>/</c> já devolve <c>float</c>).
+
+          <code lang="python" id="cod:6-2-sol-1-1">
+temp_c = 37.5
+janela_ms = 250
+
+temp_k = temp_c + 273.15
+janela_s = janela_ms / 1000
+
+print(temp_k, janela_s)                 # 310.65 0.25
+print(type(temp_c), type(janela_ms))    # <class 'float'> <class 'int'>
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-2-1-2">
+        <title>Básico — Duração de EEG em horas, minutos e segundos</title>
+        Uma gravação contínua de EEG tem duração total de <c>total_segundos = 7520</c>. Usando apenas os operadores <c>//</c> e <c>%</c>, escreva um código que calcule e imprima quantas horas inteiras, quantos minutos restantes e quantos segundos finais formam essa gravação.
+        <hint><title>Ver dica</title>Lembre que $1\text{ hora} = 3\,600\text{ s}$. Primeiro extraia as horas e guarde o resto em segundos; depois divida esse resto por <c>60</c> para obter minutos e segundos finais.</hint>
+        <solution collapsible="true" collapsed="true">
+          Dividimos <c>7520</c> por <c>3600</c> usando <c>//</c> para achar <c>2</c> horas completas; o resto <c>7520 % 3600</c> vale <c>320</c> segundos. Em seguida, <c>320 // 60</c> resulta em <c>5</c> minutos e <c>320 % 60</c> deixa <c>20</c> segundos finais ($2 \cdot 3600 + 5 \cdot 60 + 20 = 7520$).
+
+          <code lang="python" id="cod:6-2-sol-1-2">
+total_segundos = 7520
+
+horas = total_segundos // 3600
+resto = total_segundos % 3600
+minutos = resto // 60
+segundos = resto % 60
+
+print(horas, minutos, segundos)  # 2 5 20
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-2-1-3">
+        <title>Intermediário — Potencial de membrana e condição de disparo</title>
+        No modelo passivo linear, o potencial após injeção de corrente é $V_m = V_{\text{rep}} + R_{\text{in}} \cdot I$. Considere <c>v_rep = -70.0</c> mV, <c>r_in_mohm = 50.0</c> $\text{M}\Omega$ e <c>i_na = 0.2</c> $\text{nA}$ (como $\text{M}\Omega \cdot \text{nA} = \text{mV}$, basta multiplicar os valores). Calcule <c>v_m</c>, depois adicione uma despolarização extra de <c>6.0</c> mV usando <c>+=</c>, e avalie uma expressão booleana que seja <c>True</c> somente se o novo <c>v_m</c> tiver atingido ou superado o limiar <c>-55.0</c> mV e estiver abaixo de <c>40.0</c> mV.
+        <hint><title>Ver dica</title>A multiplicação tem precedência sobre a soma, mas parênteses deixam a fórmula mais legível. Use <c>and</c> para exigir as duas desigualdades simultaneamente.</hint>
+        <solution collapsible="true" collapsed="true">
+          Inicialmente, $V_m = -70{,}0 + 50{,}0 \cdot 0{,}2 = -60{,}0\text{ mV}$, ainda abaixo do limiar. Ao somar <c>6.0</c> mV com <c>+=</c>, o potencial sobe para <c>-54.0</c> mV, satisfazendo simultaneamente a condição de ser maior ou igual a <c>-55.0</c> e menor que <c>40.0</c>.
+
+          <code lang="python" id="cod:6-2-sol-1-3">
+v_rep = -70.0
+r_in_mohm = 50.0
+i_na = 0.2
+
+v_m = v_rep + (r_in_mohm * i_na)
+print(v_m)  # -60.0
+
+v_m += 6.0
+no_disparo = (v_m >= -55.0) and (v_m < 40.0)
+print(v_m, no_disparo)  # -54.0 True
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-2-1-4">
+        <title>Avançado — Passo de simulação e comparação de ponto flutuante</title>
+        Em uma simulação numérica de membrana com passo de integração <c>dt = 0.1</c> ms, três passos somados dão <c>t_acumulado = 0.1 + 0.1 + 0.1</c>. Escreva um script que imprima o resultado da comparação direta <c>t_acumulado == 0.3</c> e, em seguida, faça a comparação segura de duas maneiras: usando tolerância manual com <c>abs()</c> menor que <c>1e-9</c> e usando <c>math.isclose()</c>.
+        <hint><title>Ver dica</title>Importe o módulo <c>math</c> no topo do bloco para usar <c>math.isclose(t_acumulado, 0.3)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Por causa do arredondamento binário em ponto flutuante, <c>0.1 + 0.1 + 0.1</c> resulta em um valor ligeiramente maior que <c>0.3</c>, fazendo a igualdade estrita <c>==</c> falhar. Tanto a margem de erro <c>1e-9</c> quanto <c>math.isclose()</c> absorvem esse resíduo numérico e confirmam que os valores são equivalentes.
+
+          <code lang="python" id="cod:6-2-sol-1-4">
+import math
+
+t_acumulado = 0.1 + 0.1 + 0.1
+
+print(t_acumulado == 0.3)                  # False
+print(abs(t_acumulado - 0.3) < 1e-9)       # True
+print(math.isclose(t_acumulado, 0.3))      # True
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-2-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Texto e saída: strings e f-strings</title>
+      <intro>
+        Biologia computacional não lida apenas com números: códigos de sujeitos, regiões cerebrais e sequências de DNA são textos que precisam ser limpos, medidos e exibidos com clareza.
+      </intro>
+
+      Pense em uma sequência de DNA como um colar de contas coloridas onde cada posição guarda uma única letra (<c>A</c>, <c>T</c>, <c>C</c> ou <c>G</c>). Em Python, essa sequência de caracteres é uma <em>string</em> (<c>str</c>). Como pesquisador, você vai querer saber quantas contas existem no colar, qual é a primeira conta, quantas vezes aparece a letra <c>G</c> ou como formatar um resumo limpo dos resultados sem uma cascata infinita de casas decimais.
+
+      <definition id="def:6-2-string">
+        <title>String, comprimento e indexação base zero</title>
+        Uma <strong>string</strong> (<c>str</c>) é uma sequência ordenada e imutável de caracteres delimitada por aspas simples (<c>'...'</c>) ou duplas (<c>"..."</c>).
+        <list marker="dash">
+          <item><c>len(texto)</c> retorna o número total de caracteres (incluindo espaços e pontuações);</item>
+          <item>a <strong>indexação</strong> acessa um caractere pela posição entre colchetes, começando sempre do índice <c>0</c>: <c>seq[0]</c> é o primeiro caractere, <c>seq[1]</c> é o segundo e <c>seq[len(seq) - 1]</c> é o último.</item>
+        </list>
+        (Veremos fatiamento de trechos inteiros e índices negativos no tema <em>Estruturas de dados básicas</em>.)
+      </definition>
+
+      Strings trazem ferramentas embutidas chamadas <strong>métodos</strong> (<em>methods</em>), acionadas com um ponto após o nome da variável. Os quatro mais úteis no início são: <c>.upper()</c> (converte tudo para maiúsculas), <c>.lower()</c> (converte tudo para minúsculas), <c>.count(trecho)</c> (conta quantas vezes um pedaço aparece sem sobreposição) e <c>.replace(antigo, novo)</c> (troca todas as ocorrências de um trecho por outro). Além disso, podemos juntar textos com <c>+</c> (concatenação) e repeti-los com <c>*</c>.
+
+      <code lang="python" id="cod:6-2-strings-metodos">
+regiao = "hipocampo ca1"
+print(len(regiao))                    # 13
+print(regiao[0])                      # h
+print(regiao.upper())                 # HIPOCAMPO CA1
+print(regiao.replace("ca1", "ca3"))   # hipocampo ca3
+print(regiao)                         # hipocampo ca1
+
+divisor = "-" * 10
+print(divisor + " FIM")               # ---------- FIM
+      </code>
+
+      Preste atenção à penúltima linha impressa: mesmo depois de chamarmos <c>regiao.upper()</c> e <c>regiao.replace(...)</c>, a variável <c>regiao</c> continuou valendo <c>"hipocampo ca1"</c>! Isso acontece porque strings são <strong>imutáveis</strong>: os métodos sempre fabricam e devolvem uma <em>nova</em> string, deixando a original intacta a menos que você salve o retorno em uma variável (como <c>regiao = regiao.upper()</c>).
+
+      Na hora de mostrar resultados, você pode passar vários argumentos separados por vírgula para <c>print(a, b, c)</c>, que os exibe separados por um espaço. Mas a forma mais elegante e moderna de montar frases com variáveis e controlar casas decimais são as <strong>f-strings</strong> (<em>formatted string literals</em>): basta colocar a letra <c>f</c> antes das aspas e inserir variáveis ou expressões entre chaves <c>{...}</c>. Após dois-pontos <c>:</c> dentro das chaves, especificamos o formato desejado:
+      <list marker="dash">
+        <item><c>f"{taxa:.1f} Hz"</c>: exibe um número <c>float</c> com exatamente $1$ casa decimal;</item>
+        <item><c>f"{fracao:.1%}"</c>: multiplica uma fração por $100$, exibe $1$ casa decimal e acrescenta o sinal <c>%</c>;</item>
+        <item><c>f"{n:>5}"</c>: alinhamento à direita em campo de largura fixa ($5$ caracteres), preenchendo com espaços à esquerda (útil para tabelas e relatórios alinhados).</item>
+      </list>
+
+      <code lang="python" id="cod:6-2-fstrings">
+taxa = 24.0
+fracao = 0.625
+n = 42
+
+print(f"{taxa:.1f} Hz")  # 24.0 Hz
+print(f"{fracao:.1%}")   # 62.5%
+print(f"ID:{n:>5}")      # ID:   42
+      </code>
+
+      <em>Nota rápida sobre entrada pelo teclado:</em> caso queira um script interativo que peça um valor ao usuário durante a execução, o Python oferece a função <c>input("Digite o ID: ")</c> (que funciona inclusive no Google Colab abrindo uma caixinha de texto e sempre devolve uma <c>str</c>). Porém, scripts de análise científica raramente usam <c>input()</c>, porque parar esperando digitação manual impede rodar o programa automaticamente em dezenas de arquivos. Por isso, nossos scripts definem os dados diretamente no código.
+
+      <example id="exm:6-2-conteudo-gc">
+        <title>Calculando o conteúdo GC de uma sequência de DNA</title>
+        Em genética e bioinformática, o <strong>conteúdo GC</strong> é a fração de bases guanina (<c>G</c>) e citosina (<c>C</c>) em uma sequência de DNA, parâmetro ligado à estabilidade térmica da dupla hélice. Suponha que você recebeu a leitura <c>dna_bruto = "atgGCcGt"</c>, com letras maiúsculas e minúsculas misturadas. Padronize a sequência, conte as bases <c>G</c> e <c>C</c> e exiba o conteúdo GC em porcentagem com uma casa decimal.
+
+        <code lang="python" id="cod:6-2-exm-gc">
+dna_bruto = "atgGCcGt"
+dna = dna_bruto.upper()
+
+qtd_g = dna.count("G")
+qtd_c = dna.count("C")
+total = len(dna)
+fracao_gc = (qtd_g + qtd_c) / total
+
+print("Sequência:", dna, "| Tamanho:", total)  # Sequência: ATGGCCGT | Tamanho: 8
+print(f"Conteúdo GC: {fracao_gc:.1%}")          # Conteúdo GC: 62.5%
+        </code>
+
+        Ao converter tudo para maiúsculas com <c>.upper()</c>, obtemos <c>"ATGGCCGT"</c>, de tamanho $8$. Nessa sequência há $3$ guaninas (<c>G</c>) e $2$ citosinas (<c>C</c>), somando $5$ bases em $8$ totais ($5 / 8 = 0{,}625$). O especificador <c>:.1%</c> dentro da <em>f-string</em> multiplica <c>0.625</c> por $100$ e exibe <c>62.5%</c> automaticamente.
+      </example>
+
+      <example id="exm:6-2-tabela-fstring">
+        <title>Relatório alinhado de disparos neuronais</title>
+        Suponha que dois neurônios registrados durante $2{,}0\text{ s}$ emitiram <c>45</c> e <c>128</c> <em>spikes</em>. Use <em>f-strings</em> para exibir uma tabela alinhada com o identificador em maiúsculas, o número de <em>spikes</em> alinhado à direita em $5$ colunas e a taxa de disparo em Hz com uma casa decimal.
+
+        <code lang="python" id="cod:6-2-exm-tabela">
+n1_id = "n01"
+n1_spikes = 45
+n1_taxa = n1_spikes / 2.0
+
+n2_id = "n02"
+n2_spikes = 128
+n2_taxa = n2_spikes / 2.0
+
+print(f"{n1_id.upper()} | {n1_spikes:>5} spikes | {n1_taxa:.1f} Hz")  # N01 |    45 spikes | 22.5 Hz
+print(f"{n2_id.upper()} | {n2_spikes:>5} spikes | {n2_taxa:.1f} Hz")  # N02 |   128 spikes | 64.0 Hz
+        </code>
+
+        Como <c>45</c> ocupa $2$ dígitos, o alinhamento à direita com largura $5$ preenche $3$ espaços à esquerda; já <c>128</c> tem $3$ dígitos e recebe $2$ espaços à esquerda. Assim a palavra <c>spikes</c> fica perfeitamente alinhada nas duas linhas, e <c>:.1f</c> garante exatamente uma casa decimal tanto para <c>22.5</c> quanto para <c>64.0</c>.
+      </example>
+
+      <remark id="rem:6-2-strings-armadilhas">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Diferença entre maiúsculas e minúsculas:</strong> em Python, <c>"A"</c> e <c>"a"</c> são caracteres diferentes. Em <c>"atgGCcGt".count("G")</c>, o resultado seria <c>2</c> em vez de <c>3</c>, ignorando o <c>g</c> minúsculo! Sempre normalize com <c>.upper()</c> ou <c>.lower()</c> antes de contar ou comparar.</item>
+          <item><strong>Tentar alterar uma letra no lugar:</strong> como strings são imutáveis, escrever <c>dna[0] = "C"</c> dispara <c>TypeError</c>. Quando precisar trocar trechos, use <c>.replace()</c> e guarde o resultado em uma variável.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:6-2-2-1">
+        <title>Básico — Formatação de resumo fisiológico</title>
+        Dadas as variáveis <c>sujeito = "camundongo_04"</c>, <c>taxa_hz = 18.46</c> e <c>amostras = 500</c>, imprima uma única linha exatamente no formato <c>CAMUNDONGO_04 |   500 amostras | 18.5 Hz</c> usando métodos de string e uma <em>f-string</em>.
+        <hint><title>Ver dica</title>Use <c>.upper()</c> em <c>sujeito</c>, o especificador de alinhamento à direita com largura 5 em <c>amostras</c> e formatação com 1 casa decimal em <c>taxa_hz</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Combinamos <c>sujeito.upper()</c> diretamente dentro da <em>f-string</em> com os especificadores de largura e de casas decimais. Note que <c>18.46</c> arredonda para <c>18.5</c> na exibição com <c>:.1f</c>, enquanto <c>500</c> ganha dois espaços à esquerda para completar $5$ caracteres.
+
+          <code lang="python" id="cod:6-2-sol-2-1">
+sujeito = "camundongo_04"
+taxa_hz = 18.46
+amostras = 500
+
+print(f"{sujeito.upper()} | {amostras:>5} amostras | {taxa_hz:.1f} Hz")  # CAMUNDONGO_04 |   500 amostras | 18.5 Hz
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-2-2-2">
+        <title>Intermediário — Transcrição para RNAm e fração de uracilas</title>
+        Dada a sequência codificante de DNA <c>dna = "atgCgtTacA"</c>, converta-a para maiúsculas e substitua toda timina (<c>"T"</c>) por uracila (<c>"U"</c>) usando <c>.replace()</c> para obter a sequência correspondente de RNA mensageiro. Em seguida, imprima o RNAm obtido, sua primeira base (<c>rna[0]</c>) e a porcentagem de uracilas formatada com uma casa decimal.
+        <hint><title>Ver dica</title>Encadeie ou aplique em sequência <c>.upper()</c> e <c>.replace("T", "U")</c>, e depois divida <c>rna.count("U")</c> por <c>len(rna)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          A sequência normalizada <c>"ATGCGTTACA"</c> tem $10$ bases; ao trocar <c>"T"</c> por <c>"U"</c>, obtemos <c>"AUGCGUUACA"</c>, cuja primeira base é <c>"A"</c>. Nela aparecem $3$ uracilas em $10$ posições, isto é, $3 / 10 = 0{,}3 = 30{,}0\%$.
+
+          <code lang="python" id="cod:6-2-sol-2-2">
+dna = "atgCgtTacA"
+rna = dna.upper().replace("T", "U")
+
+fracao_u = rna.count("U") / len(rna)
+print(f"RNAm: {rna} | Primeira base: {rna[0]}")  # RNAm: AUGCGUUACA | Primeira base: A
+print(f"Uracilas: {fracao_u:.1%}")                # Uracilas: 30.0%
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-2-2-3">
+        <title>Avançado — Limpeza textual de registro experimental</title>
+        Um arquivo de metadados trouxe uma linha no formato <c>registro = "sujeito_a;v1;2000hz"</c>. Sem alterar a variável original, produza uma versão limpa em que tudo esteja em maiúsculas, todo ponto e vírgula <c>";"</c> seja trocado por <c>" | "</c> e todo sublinhado <c>"_"</c> vire hífen <c>"-"</c>. Imprima o texto limpo, seu número total de caracteres e quantas vezes o dígito <c>"0"</c> aparece nele.
+        <hint><title>Ver dica</title>Aplique <c>.upper()</c> e duas chamadas a <c>.replace()</c>, guardando o resultado em <c>limpo</c>, e depois use <c>len(limpo)</c> e <c>limpo.count("0")</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Cada chamada a <c>.replace()</c> retorna uma nova string com a substituição aplicada, que pode ser passada imediatamente para a etapa seguinte. O resultado <c>"SUJEITO-A | V1 | 2000HZ"</c> possui $9 + 3 + 2 + 3 + 6 = 23$ caracteres e $3$ dígitos zero.
+
+          <code lang="python" id="cod:6-2-sol-2-3">
+registro = "sujeito_a;v1;2000hz"
+limpo = registro.upper().replace(";", " | ").replace("_", "-")
+
+print(limpo)                                         # SUJEITO-A | V1 | 2000HZ
+print(f"Tamanho: {len(limpo)} | Zeros: {limpo.count('0')}")  # Tamanho: 23 | Zeros: 3
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-2-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Decisões com if, elif e else</title>
+      <intro>
+        Um código linear sempre executa as mesmas linhas. Para reagir a dados diferentes — disparar ou ficar em silêncio, aceitar ou descartar uma amostra —, o script precisa ramificar o caminho conforme condições lógicas.
+      </intro>
+
+      Um neurônio biológico é um tomador de decisões em tempo real: se a soma das correntes sinápticas levar o potencial de membrana ao limiar ($V_m \ge -55\text{ mV}$), ele dispara um potencial de ação; caso contrário, permanece em estado sub-limiar. Em Python, expressamos essa ramificação de comportamento com os comandos <c>if</c> ("se"), <c>elif</c> ("senão, se") e <c>else</c> ("senão").
+
+      <definition id="def:6-2-condicional">
+        <title>Estrutura condicional e indentação</title>
+        A instrução <c>if</c> avalia uma condição booleana seguida de dois-pontos (<c>:</c>) e executa o bloco subordinado apenas quando a condição for <c>True</c>. Podemos encadear testes alternativos com <c>elif</c> e encerrar com um bloco padrão <c>else</c> (sem condição), executado somente se todos os testes anteriores falharem.
+
+        Em Python, o que define quais linhas pertencem a um bloco é a <strong>indentação</strong> (<em>indentation</em>): um recuo uniforme de <strong>4 espaços</strong> à esquerda. Se o recuo faltar ou ficar desalinhado, o interpretador interrompe a execução com um <c>IndentationError</c>.
+      </definition>
+
+      Na grande maioria dos casos, a condição após <c>if</c> ou <c>elif</c> é uma comparação explícita (<c>contagem == 0</c>, <c>especie != "Mus"</c> ou desigualdades de limiar) ou uma combinação com <c>and</c>, <c>or</c> e <c>not</c>. Vale saber também, de forma breve, que o Python aceita qualquer valor em um <c>if</c> atribuindo-lhe um sentido lógico implícito: os valores <c>0</c>, <c>0.0</c>, a string vazia <c>""</c> e <c>None</c> (que representa ausência de dado) são tratados como falsos (<em>falsy</em>), enquanto números não nulos e strings não vazias são tratados como verdadeiros (<em>truthy</em>). Assim, <c>if nome:</c> testa se a string <c>nome</c> não está vazia.
+
+      <example id="exm:6-2-estado-membrana">
+        <title>Classificando o estado do potencial de membrana</title>
+        Vamos classificar o potencial de membrana <c>v_m</c> (em $\text{mV}$) em quatro estados fisiológicos contínuos, sem lacunas entre faixas:
+        <list marker="dash">
+          <item><strong>acima do limiar</strong>: $V_m \ge -55{,}0\text{ mV}$;</item>
+          <item><strong>despolarizado</strong> (sub-limiar): $-69{,}5\text{ mV} < V_m < -55{,}0\text{ mV}$;</item>
+          <item><strong>em repouso</strong> (faixa de $\pm 0{,}5\text{ mV}$ em torno de $-70{,}0\text{ mV}$): $-70{,}5\text{ mV} \le V_m \le -69{,}5\text{ mV}$;</item>
+          <item><strong>hiperpolarizado</strong>: $V_m < -70{,}5\text{ mV}$.</item>
+        </list>
+
+        <code lang="python" id="cod:6-2-exm-membrana">
+v_m = -62.0
+
+if v_m >= -55.0:
+    estado = "acima do limiar"
+elif v_m > -69.5:
+    estado = "despolarizado"
+elif v_m >= -70.5:
+    estado = "em repouso"
+else:
+    estado = "hiperpolarizado"
+
+print(f"{v_m:.1f} mV -> {estado}")  # -62.0 mV -> despolarizado
+        </code>
+
+        Como ordenamos os testes do maior potencial para o menor, o Python primeiro descarta a condição do limiar ($-62{,}0 \ge -55{,}0$, que é <c>False</c>) e em seguida aceita o segundo teste ($-62{,}0 > -69{,}5$, que é <c>True</c>), atribuindo <c>"despolarizado"</c> e ignorando o restante da cadeia.
+      </example>
+
+      <example id="exm:6-2-classificar-ph">
+        <title>Validação e classificação do pH de uma solução</title>
+        Em bioquímica e fisiologia celular, o $\text{pH}$ usual varia de $0$ a $14$, com neutralidade próxima de $7{,}0$ (aqui adotamos tolerância de $\pm 0{,}05$). Podemos usar um primeiro <c>if</c> com <c>or</c> para detectar erros de leitura fora da escala antes de classificar a solução.
+
+        <code lang="python" id="cod:6-2-exm-ph">
+ph = 7.4
+
+if ph < 0.0 or ph > 14.0:
+    classe = "valor fora da escala padrão (0 a 14)"
+elif ph < 6.95:
+    classe = "ácida"
+elif ph <= 7.05:
+    classe = "neutra"
+else:
+    classe = "básica"
+
+print(f"pH {ph:.2f}: solução {classe}")  # pH 7.40: solução básica
+        </code>
+
+        O valor <c>7.4</c> passa pela validação inicial (não é menor que $0$ nem maior que $14$), falha nos testes de acidez e neutralidade e cai no <c>else</c>, classificando a solução fisiológica como levemente básica — coerente com o $\text{pH}$ arterial humano em torno de $7{,}40$.
+      </example>
+
+      <remark id="rem:6-2-if-armadilhas">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Usar <c>=</c> em vez de <c>==</c>:</strong> escrever <c>if v_m = -70:</c> gera um <c>SyntaxError</c>. Lembre que <c>=</c> atribui um valor, enquanto <c>==</c> compara dois valores.</item>
+          <item><strong>Ordem errada nos <c>elif</c>:</strong> em uma cadeia <c>if / elif / else</c>, <strong>vence a primeira condição verdadeira</strong>. No <ref to="exm:6-2-estado-membrana"/>, se você colocasse o teste de despolarizado ($v_m > -69{,}5$) no primeiro <c>if</c> antes de testar o limiar ($v_m \ge -55{,}0$) no <c>elif</c>, um potencial de <c>-40.0</c> mV seria capturado logo no primeiro <c>if</c> e rotulado erroneamente como <c>"despolarizado"</c> em vez de <c>"acima do limiar"</c>. Sempre ordene intervalos numéricos de forma estritamente decrescente ou crescente.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:6-2-3-1">
+        <title>Básico — Bandas de frequência do EEG</title>
+        No eletroencefalograma, as oscilações neurais costumam ser divididas por frequência $f$ (em Hz) nas bandas: delta ($f < 4$), teta ($4 \le f < 8$), alfa ($8 \le f < 13$), beta ($13 \le f < 30$) e gama ($f \ge 30$). Dado <c>freq_hz = 10.5</c>, escreva uma estrutura <c>if / elif / else</c> que classifique a banda e imprima a frequência e o nome da banda.
+        <hint><title>Ver dica</title>Comece testando se <c>freq_hz</c> é menor que <c>4</c> e suba faixa por faixa com <c>elif</c>, deixando a banda gama para o <c>else</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Ordenando os limiares do menor para o maior (<c>4</c>, <c>8</c>, <c>13</c>, <c>30</c>), cada <c>elif</c> só é alcançado quando a frequência já superou ou igualou o limite anterior. Para <c>10.5</c> Hz, o terceiro teste ($f < 13$) é o primeiro verdadeiro, resultando na banda alfa.
+
+          <code lang="python" id="cod:6-2-sol-3-1">
+freq_hz = 10.5
+
+if freq_hz < 4:
+    banda = "delta"
+elif freq_hz < 8:
+    banda = "teta"
+elif freq_hz < 13:
+    banda = "alfa"
+elif freq_hz < 30:
+    banda = "beta"
+else:
+    banda = "gama"
+
+print(f"{freq_hz:.1f} Hz -> banda {banda}")  # 10.5 Hz -> banda alfa
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-2-3-2">
+        <title>Básico — Triagem de registro usando valor falsy</title>
+        Considere <c>codigo_amostra = ""</c> e <c>qtd_spikes = 18</c>. Escreva um condicional que verifique se <c>codigo_amostra</c> está vazio (aproveitando o fato de <c>""</c> ser <em>falsy</em>) ou se <c>qtd_spikes</c> é menor ou igual a zero, imprimindo <c>"Registro inválido"</c> ou <c>"Registro válido"</c>.
+        <hint><title>Ver dica</title>A expressão <c>not codigo_amostra</c> avalia para <c>True</c> quando a string é vazia <c>""</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Como <c>codigo_amostra</c> é <c>""</c> (<em>falsy</em>), <c>not codigo_amostra</c> resulta em <c>True</c>. Por causa do operador <c>or</c>, toda a condição do <c>if</c> se torna verdadeira e o registro é sinalizado como inválido.
+
+          <code lang="python" id="cod:6-2-sol-3-2">
+codigo_amostra = ""
+qtd_spikes = 18
+
+if (not codigo_amostra) or (qtd_spikes <= 0):
+    print("Registro inválido")  # Registro inválido
+else:
+    print("Registro válido")
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-2-3-3">
+        <title>Intermediário — Controle de qualidade em patch-clamp</title>
+        Em um experimento de registro intracelular (<em>patch-clamp</em>), uma célula só é aceita se o potencial de repouso <c>v_rep</c> estiver entre <c>-80.0</c> e <c>-58.0</c> mV (inclusive) <strong>e</strong> a resistência de acesso <c>r_acesso</c> for menor ou igual a <c>25.0</c> $\text{M}\Omega$. Escreva um código com <c>v_rep = -68.0</c> e <c>r_acesso = 18.5</c> que imprima <c>"Célula aceita"</c> caso passe nos dois critérios, ou indique qual critério falhou (ou se ambos falharam).
+        <hint><title>Ver dica</title>Armazene os dois testes em variáveis booleanas (<c>v_ok</c> e <c>r_ok</c>) antes do <c>if</c> para combinar os quatro cenários possíveis com clareza.</hint>
+        <solution collapsible="true" collapsed="true">
+          Guardar cada critério em uma variável booleana torna a lógica de decisão muito mais legível do que repetir desigualdades. Para <c>v_rep = -68.0</c> e <c>r_acesso = 18.5</c>, ambos os booleanos são <c>True</c>, entrando no primeiro ramo.
+
+          <code lang="python" id="cod:6-2-sol-3-3">
+v_rep = -68.0
+r_acesso = 18.5
+
+v_ok = (-80.0 <= v_rep) and (v_rep <= -58.0)  # Em Python, também vale: -80.0 <= v_rep <= -58.0
+r_ok = r_acesso <= 25.0
+
+if v_ok and r_ok:
+    print("Célula aceita")  # Célula aceita
+elif not v_ok and not r_ok:
+    print("Rejeitada: potencial e resistência fora da faixa")
+elif not v_ok:
+    print("Rejeitada: potencial de repouso fora da faixa")
+else:
+    print("Rejeitada: resistência de acesso alta demais")
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-2-3-4">
+        <title>Avançado — Validação de códon e detecção de início de tradução</title>
+        Dado <c>codon_bruto = "atg"</c>, converta para maiúsculas e escreva uma estrutura condicional que verifique primeiro se o texto possui exatamente $3$ letras (<c>len(codon) == 3</c>). Se não tiver, imprima <c>"Códon inválido"</c>. Se tiver $3$ letras, classifique como <c>"Códon de início (ATG)"</c> quando for <c>"ATG"</c>; caso contrário, verifique se começa com adenina (<c>codon[0] == "A"</c>) para imprimir <c>"Começa com A, mas não é ATG"</c>; senão, imprima <c>"Outro códon"</c>.
+        <hint><title>Ver dica</title>Teste <c>len(codon) != 3</c> logo no <c>if</c> inicial: isso garante que, nos ramos seguintes, <c>codon[0]</c> sempre existe e não causará erro em uma string vazia.</hint>
+        <solution collapsible="true" collapsed="true">
+          Validar o comprimento antes de acessar <c>codon[0]</c> é uma boa prática defensiva para evitar <c>IndexError</c> caso chegue uma string vazia. Depois da conversão para maiúsculas, <c>"atg"</c> vira <c>"ATG"</c>, tem tamanho $3$ e cai no segundo ramo (<c>elif codon == "ATG":</c>).
+
+          <code lang="python" id="cod:6-2-sol-3-4">
+codon = "atg".upper()
+
+if len(codon) != 3:
+    print("Códon inválido")
+elif codon == "ATG":
+    print("Códon de início (ATG)")  # Códon de início (ATG)
+elif codon[0] == "A":
+    print("Começa com A, mas não é ATG")
+else:
+    print("Outro códon")
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-2-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Repetição: for e while</title>
+      <intro>
+        O verdadeiro poder da computação aparece quando aplicamos a mesma regra lógica a milhares de bases de DNA ou de amostras elétricas por segundo — sem cansaço nem erro de distração.
+      </intro>
+
+      Imagine contar na mão quantos potenciais de ação um neurônio disparou em $10$ minutos de registro a $1\,000$ amostras por segundo: são $600\,000$ números para inspecionar! Em vez de copiar e colar comandos <c>if</c> milhares de vezes, usamos um <strong>laço</strong> (<em>loop</em>) para percorrer os dados um passo por vez. O Python oferece duas estruturas principais de repetição: <c>for</c> e <c>while</c>.
+
+      <definition id="def:6-2-laco-for">
+        <title>Laço for e função range()</title>
+        O laço <c>for</c> percorre, um a um, os elementos de uma sequência — como os caracteres de uma <c>str</c>, os valores de uma lista literal (por exemplo, <c>[-70, -68, -54]</c>) ou uma sequência numérica gerada por <c>range()</c>.
+        <list marker="dash">
+          <item><c>range(fim)</c>: gera os inteiros de <c>0</c> até <c>fim - 1</c>;</item>
+          <item><c>range(inicio, fim)</c>: gera de <c>inicio</c> até <c>fim - 1</c>;</item>
+          <item><c>range(inicio, fim, passo)</c>: avança de <c>passo</c> em <c>passo</c> (inclusive negativo para contagem regressiva), <strong>sempre excluindo <c>fim</c></strong>.</item>
+        </list>
+        (Avise-se desde já: listas e suas operações completas serão estudadas no tema <em>Estruturas de dados básicas</em>; aqui usaremos apenas listas literais curtas para representar séries de medidas.)
+      </definition>
+
+      Um padrão constante em laços <c>for</c> é o <strong>acumulador</strong>: criamos uma variável antes do laço (como <c>gc = 0</c> ou <c>soma = 0.0</c>) e a atualizamos dentro do laço com <c>+=</c> sempre que a condição desejada acontecer.
+
+      <example id="exm:6-2-for-gc">
+        <title>Contando G e C base por base com for</title>
+        Podemos refazer o cálculo do <ref to="exm:6-2-conteudo-gc"/> percorrendo a sequência <c>"ATGGCCGT"</c> letra por letra com um laço <c>for</c> e conferindo o total acumulado com <c>.count()</c>.
+
+        <code lang="python" id="cod:6-2-exm-for-gc">
+dna = "ATGGCCGT"
+gc = 0
+
+for base in dna:
+    if base == "G" or base == "C":
+        gc += 1
+
+conferencia = dna.count("G") + dna.count("C")
+print(f"Contagem com for: {gc} | Conferência: {conferencia}")  # Contagem com for: 5 | Conferência: 5
+        </code>
+
+        A cada volta do laço, a variável <c>base</c> recebe uma letra da string <c>dna</c> (<c>"A"</c>, depois <c>"T"</c>, depois <c>"G"</c>...). Quando <c>base</c> vale <c>"G"</c> ou <c>"C"</c>, o acumulador <c>gc</c> sobe em $1$. Ao final das $8$ iterações, <c>gc</c> vale $5$, batendo exatamente com <c>dna.count("G") + dna.count("C")</c>.
+      </example>
+
+      Agora vamos a um dos algoritmos mais importantes da eletrofisiologia: contar <em>spikes</em> em uma série temporal de potenciais de membrana. Um potencial de ação dura cerca de $1$ a $2\text{ ms}$; portanto, se amostramos o neurônio rapidamente, um único <em>spike</em> gera várias amostras seguidas acima do limiar $-55\text{ mV}$. Por isso, um <em>spike</em> não é "uma amostra acima de $-55\text{ mV}$", mas sim um <strong>cruzamento do limiar de baixo para cima</strong>: o instante em que a amostra imediatamente anterior estava abaixo de $-55\text{ mV}$ e a amostra atual atingiu ou superou $-55\text{ mV}$.
+
+      <example id="exm:6-2-cruzamento-limiar">
+        <title>Contagem de spikes por cruzamento de limiar</title>
+        Considere uma sequência curta de potenciais de membrana (em $\text{mV}$): <c>[-70, -68, -54, -40, 20, -60, -72, -65, -55, 10, -68]</c>. Para comparar cada amostra <c>potenciais[i]</c> com a amostra anterior <c>potenciais[i - 1]</c>, iniciamos o laço no índice <c>1</c> usando <c>range(1, len(potenciais))</c>.
+
+        <code lang="python" id="cod:6-2-exm-spikes">
+potenciais = [-70, -68, -54, -40, 20, -60, -72, -65, -55, 10, -68]
+limiar = -55
+spikes = 0
+
+for i in range(1, len(potenciais)):
+    anterior = potenciais[i - 1]
+    atual = potenciais[i]
+    if anterior < limiar and atual >= limiar:
+        spikes += 1
+
+print(f"Spikes detectados: {spikes}")  # Spikes detectados: 2
+        </code>
+
+        Veja o que o laço faz passo a passo: na transição de <c>-68</c> para <c>-54</c> (<c>i = 2</c>), temos $-68 < -55$ e $-54 \ge -55$, contando o 1º <em>spike</em>. Nas amostras seguintes (<c>-40</c> e <c>20</c>), embora o potencial continue acima de $-55\text{ mV}$, a amostra anterior já não estava abaixo do limiar, então elas não são contadas de novo! O 2º <em>spike</em> só é registrado em <c>i = 8</c>, na subida de <c>-65</c> para <c>-55</c>.
+      </example>
+
+      E quando não sabemos de antemão quantas repetições serão necessárias até alcançar um objetivo? Nesse caso entra o laço <c>while</c>.
+
+      <definition id="def:6-2-laco-while">
+        <title>Laço while, break e continue</title>
+        O laço <c>while</c> repete um bloco de instruções <strong>enquanto</strong> sua condição booleana permanecer verdadeira (<c>True</c>). Dentro de qualquer laço (<c>for</c> ou <c>while</c>), dois comandos ajustam o fluxo:
+        <list marker="dash">
+          <item><c>continue</c>: interrompe apenas a volta atual e salta para a próxima iteração do laço;</item>
+          <item><c>break</c>: encerra imediatamente o laço inteiro, saindo dele.</item>
+        </list>
+        Se a condição de um <c>while</c> nunca se tornar <c>False</c>, ocorre um <strong>laço infinito</strong> (<em>infinite loop</em>): no Google Colab, interrompa clicando no botão de parar (quadrado) da célula; no terminal, pressione <c>Ctrl+C</c>.
+      </definition>
+
+      Em números inteiros grandes, o Python permite usar sublinhados como separadores visuais de milhar para facilitar a leitura — por exemplo, <c>1_000_000</c> equivale exatamente a <c>1000000</c>. Vamos usar esse recurso no próximo exemplo biológico.
+
+      <example id="exm:6-2-while-bacterias">
+        <title>Gerações até uma cultura bacteriana passar de 1 milhão</title>
+        Uma cultura começa com $100$ bactérias e dobra de tamanho a cada geração (como vimos na curva exponencial do Módulo 1, <mark>Pré-Cálculo</mark>). Usando <c>while</c>, descubra em quantas gerações a população ultrapassa $1\,000\,000$ de células.
+
+        <code lang="python" id="cod:6-2-exm-bacterias">
+populacao = 100
+geracoes = 0
+
+while populacao <= 1_000_000:
+    populacao *= 2
+    geracoes += 1
+
+print(f"Gerações: {geracoes} | População: {populacao}")  # Gerações: 14 | População: 1638400
+        </code>
+
+        Na 13ª geração, a cultura atinge $100 \cdot 2^{13} = 819\,200$ células — valor ainda menor ou igual a $1\,000\,000$, então o laço executa mais uma volta. Na 14ª geração, <c>populacao</c> dobra para $100 \cdot 2^{14} = 1\,638\,400$, tornando falsa a condição do <c>while</c> e encerrando o laço.
+      </example>
+
+      Para ver <c>continue</c> e <c>break</c> em ação juntos, imagine ler amostras de potencial onde <c>None</c> indica uma falha momentânea de registro (que deve ser pulada) e qualquer valor igual ou acima de <c>100</c> mV indica saturação do amplificador (que exige parar a média ali mesmo):
+
+      <code lang="python" id="cod:6-2-break-continue">
+leituras = [-70, None, -65, -52, 120, -68]
+soma = 0
+validas = 0
+
+for valor in leituras:
+    if valor is None:
+        continue
+    if valor >= 100:
+        break
+    soma += valor
+    validas += 1
+
+print(f"Válidas: {validas} | Média: {soma / validas:.1f} mV")  # Válidas: 3 | Média: -62.3 mV
+      </code>
+
+      As três leituras válidas antes da saturação (<c>-70</c>, <c>-65</c> e <c>-52</c>) somam <c>-187</c>. O valor <c>None</c> é ignorado pelo <c>continue</c>, enquanto <c>120</c> aciona o <c>break</c> e encerra o laço antes mesmo de chegar ao <c>-68</c>, produzindo a média $-187 / 3 \approx -62{,}3\text{ mV}$.
+
+      <remark id="rem:6-2-lacos-armadilhas">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Contar amostras acima do limiar em vez de cruzamentos:</strong> se você testar apenas se <c>atual</c> é maior ou igual a <c>-55</c> dentro do laço, um único potencial de ação largo será contado $3$, $5$ ou $10$ vezes dependendo da taxa de amostragem! Sempre exija as duas condições juntas (<c>anterior</c> abaixo do limiar <c>and</c> <c>atual</c> no limiar ou acima, como no <ref to="exm:6-2-cruzamento-limiar"/>).</item>
+          <item><strong>Esquecer de atualizar a variável do <c>while</c>:</strong> se você esquecer <c>populacao *= 2</c> dentro do <c>while</c>, <c>populacao</c> ficará parada em <c>100</c> e o programa entrará em laço infinito.</item>
+          <item><strong>Confundir o limite do <c>range()</c>:</strong> lembre que o fim é exclusivo; <c>range(1, 5)</c> gera apenas <c>1, 2, 3, 4</c>.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:6-2-4-1">
+        <title>Básico — Soma, média e filtragem com laço for</title>
+        Um conjunto de cinco neurônios registrou as seguintes taxas de disparo em Hz: <c>taxas = [12.0, 45.5, 8.5, 30.0, 24.0]</c>. Sem utilizar a função pronta <c>sum()</c>, use um laço <c>for</c> com acumuladores para calcular a soma total, a média das taxas e quantos neurônios dispararam acima de <c>20.0</c> Hz.
+        <hint><title>Ver dica</title>Inicie <c>soma = 0.0</c> e <c>ativos = 0</c> antes do <c>for</c>; dentro do laço, some toda taxa a <c>soma</c> e use um <c>if</c> para incrementar <c>ativos</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Percorrendo os cinco valores, acumulamos $12{,}0 + 45{,}5 + 8{,}5 + 30{,}0 + 24{,}0 = 120{,}0\text{ Hz}$, o que dá média $120{,}0 / 5 = 24{,}0\text{ Hz}$. Três neurônios (<c>45.5</c>, <c>30.0</c> e <c>24.0</c>) superam <c>20.0</c> Hz.
+
+          <code lang="python" id="cod:6-2-sol-4-1">
+taxas = [12.0, 45.5, 8.5, 30.0, 24.0]
+soma = 0.0
+ativos = 0
+
+for taxa in taxas:
+    soma += taxa
+    if taxa > 20.0:
+        ativos += 1
+
+media = soma / len(taxas)
+print(f"Soma: {soma:.1f} Hz | Média: {media:.1f} Hz | Acima de 20 Hz: {ativos}")  # Soma: 120.0 Hz | Média: 24.0 Hz | Acima de 20 Hz: 3
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-2-4-2">
+        <title>Intermediário — Complementar reverso de uma sequência de DNA</title>
+        Em biologia molecular, o <strong>complementar reverso</strong> de uma fita de DNA troca cada base pelo seu par (<c>A</c> $\leftrightarrow$ <c>T</c>, <c>C</c> $\leftrightarrow$ <c>G</c>) e inverte a ordem da sequência. Dada a fita curta <c>dna = "ATGGCT"</c>, construa o complementar reverso utilizando um laço <c>for</c>, condicionais e concatenação de strings (sem usar fatiamento avançado).
+        <hint><title>Ver dica</title>Para inverter a ordem enquanto percorre <c>dna</c> do início ao fim, inicie <c>rev_comp = ""</c> e concatene cada nova base complementar <em>à esquerda</em>: <c>rev_comp = comp + rev_comp</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          A fita <c>5'-ATGGCT-3'</c> tem complemento direto <c>TACCGA</c>; lida de trás para frente, resulta em <c>5'-AGCCAT-3'</c>. Ao concatenar <c>comp + rev_comp</c> a cada letra, a última base processada (<c>"T"</c> $\to$ <c>"A"</c>) vai parar exatamente no início da nova string.
+
+          <code lang="python" id="cod:6-2-sol-4-2">
+dna = "ATGGCT"
+rev_comp = ""
+
+for base in dna:
+    if base == "A":
+        comp = "T"
+    elif base == "T":
+        comp = "A"
+    elif base == "C":
+        comp = "G"
+    elif base == "G":
+        comp = "C"
+    else:
+        comp = "N"  # Base ambígua ou desconhecida
+    rev_comp = comp + rev_comp
+
+print(f"Original: {dna} | Complementar reverso: {rev_comp}")  # Original: ATGGCT | Complementar reverso: AGCCAT
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-2-4-3">
+        <title>Intermediário — Cruzamentos de limiar e taxa média de disparo</title>
+        Um registro intracelular amostrado a cada <c>dt_ms = 1.0</c> ms ($1\,000\text{ Hz}$) contém $20$ amostras (janela total de $0{,}02\text{ s}$):
+        <c>traco = [-70, -68, -60, -52, 20, -45, -66, -72, -70, -69, -68, -65, -55, 15, -50, -64, -71, -70, -69, -70]</c>.
+        Conte os <em>spikes</em> usando cruzamento do limiar <c>-55</c> mV de baixo para cima e calcule a taxa média de disparo em Hz com uma casa decimal.
+        <hint><title>Ver dica</title>Use <c>range(1, len(traco))</c> para verificar se <c>traco[i - 1]</c> é menor que <c>-55</c> e <c>traco[i]</c> é maior ou igual a <c>-55</c>; depois divida o total de <em>spikes</em> por <c>duracao_s = len(traco) * dt_ms / 1000</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Há $6$ amostras individuais maiores ou iguais a $-55\text{ mV}$, mas apenas $2$ cruzamentos de baixo para cima: na passagem de <c>-60</c> para <c>-52</c> e na passagem de <c>-65</c> para <c>-55</c>. Adotando a convenção de que cada uma das $N$ amostras representa um intervalo de duração $\Delta t$, a duração total da janela é $N \cdot \Delta t = 20 \cdot 1{,}0 / 1\,000 = 0{,}02\text{ s}$. Dividindo $2$ <em>spikes</em> por $0{,}02\text{ s}$, encontramos uma taxa de $100{,}0\text{ Hz}$ (compatível com interneurônios corticais de disparo rápido).
+
+          <code lang="python" id="cod:6-2-sol-4-3">
+traco = [-70, -68, -60, -52, 20, -45, -66, -72, -70, -69, -68, -65, -55, 15, -50, -64, -71, -70, -69, -70]
+dt_ms = 1.0
+limiar = -55
+spikes = 0
+
+for i in range(1, len(traco)):
+    if traco[i - 1] < limiar and traco[i] >= limiar:
+        spikes += 1
+
+duracao_s = (len(traco) * dt_ms) / 1000
+taxa_hz = spikes / duracao_s
+print(f"Spikes: {spikes} | Taxa: {taxa_hz:.1f} Hz")  # Spikes: 2 | Taxa: 100.0 Hz
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-2-4-4">
+        <title>Avançado — Decaimento farmacológico com laço while</title>
+        Após uma dose intravenosa, a concentração plasmática de um fármaco começa em <c>100.0</c> mg/L e cai $20\%$ a cada hora (ou seja, é multiplicada por <c>0.8</c> por hora). Usando um laço <c>while</c>, determine após quantas horas a concentração fica estritamente abaixo de $10\%$ do valor inicial (<c>10.0</c> mg/L) e imprima o total de horas e a concentração final com duas casas decimais.
+        <hint><title>Ver dica</title>Mantenha o laço rodando enquanto <c>concentracao</c> for maior ou igual a <c>limite</c>, multiplicando <c>concentracao</c> por <c>0.8</c> e somando <c>1</c> a <c>horas</c> em cada volta.</hint>
+        <solution collapsible="true" collapsed="true">
+          Multiplicando por $0{,}8$ repetidamente: após $10$ horas temos $100 \cdot 0{,}8^{10} \approx 10{,}74\text{ mg/L}$ (ainda acima do limite de $10{,}0\text{ mg/L}$); na 11ª hora, a concentração cai para $100 \cdot 0{,}8^{11} \approx 8{,}59\text{ mg/L}$, tornando a condição falsa e encerrando o laço.
+
+          <code lang="python" id="cod:6-2-sol-4-4">
+concentracao = 100.0
+limite = 0.10 * concentracao
+horas = 0
+
+while concentracao >= limite:
+    concentracao *= 0.8
+    horas += 1
+
+print(f"Horas: {horas} | Concentração: {concentracao:.2f} mg/L")  # Horas: 11 | Concentração: 8.59 mg/L
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-2-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Atribuição e nomes:</strong> <c>=</c> associa o resultado da direita ao nome à esquerda (por isso <c>x = x + 1</c> ou <c>x += 1</c> atualiza a variável); prefira nomes descritivos em <em>snake case</em> sem acentos.</item>
+        <item><strong>Tipos básicos e conversões:</strong> <c>int</c>, <c>float</c>, <c>str</c> e <c>bool</c> são verificados com <c>type()</c> e convertidos com <c>int()</c>, <c>float()</c> e <c>str()</c>.</item>
+        <item><strong>Operadores numéricos e lógicos:</strong> <c>/</c> sempre devolve <c>float</c>, enquanto <c>//</c> dá o quociente inteiro e <c>%</c> o resto; comparações (<c>==</c>, <c>!=</c>, etc.) combinam-se com <c>and</c>, <c>or</c> e <c>not</c>.</item>
+        <item><strong>Ponto flutuante:</strong> nunca compare <c>float</c> com <c>==</c> (como <c>0.1 + 0.2 == 0.3</c>); verifique se <c>abs(a - b)</c> é menor que uma tolerância (como <c>1e-9</c>) ou use <c>math.isclose(a, b)</c>.</item>
+        <item><strong>Strings:</strong> são imutáveis e indexadas a partir de <c>0</c> (<c>seq[0]</c>, comprimento com <c>len(seq)</c>); métodos como <c>.upper()</c>, <c>.lower()</c>, <c>.count()</c> e <c>.replace()</c> sempre retornam novas strings.</item>
+        <item><strong>Saída formatada:</strong> use <em>f-strings</em> para inserir variáveis e formatar decimais (<c>:.1f</c>), porcentagens (<c>:.1%</c>) e alinhamentos com largura fixa (como mostrado no <ref to="exm:6-2-tabela-fstring"/>).</item>
+        <item><strong>Condicionais:</strong> <c>if</c>, <c>elif</c> e <c>else</c> dependem de indentação de $4$ espaços; a primeira condição verdadeira vence, então ordene faixas numéricas com cuidado e não troque <c>==</c> por <c>=</c>.</item>
+        <item><strong>Laços:</strong> use <c>for</c> (com sequências ou <c>range(inicio, fim, passo)</c>, de fim exclusivo) quando souber o conjunto a percorrer, e <c>while</c> quando depender de uma condição de parada — atualizando sempre a variável de controle e usando <c>break</c> ou <c>continue</c> quando necessário.</item>
+        <item><strong>Detecção de spikes:</strong> em séries temporais de potencial, conte cruzamentos do limiar de baixo para cima (<c>anterior</c> abaixo do limiar e <c>atual</c> no limiar ou acima), nunca amostras individuais acima do limiar.</item>
+      </list>
+    </section>
+
+    <section id="sec:6-2-alem">
+      <title>Para ir além</title>
+      Dica de sobrevivência do módulo: <strong>programação se aprende programando. Escreva código até a mão cansar.</strong> Não basta ler os blocos prontos acima — abra uma célula em branco no <link to="https://colab.research.google.com">Google Colab</link>, mude os valores, quebre um código de propósito para reconhecer mensagens de erro como <c>IndentationError</c> e <c>TypeError</c> e refaça os exercícios sem olhar a solução.
+
+      Os próximos passos da trilha levam você a organizar scripts e arquivos no tema <mark>Informática básica</mark> e a dominar listas e dicionários em <mark>Estruturas de dados básicas</mark>, preparando o terreno para o projeto final do Módulo 6 (baixar dados neurais públicos via API, limpá-los, gerar gráficos e publicar tudo no GitHub). Para praticar e consultar referências confiáveis:
+      <list marker="dash">
+        <item><strong>Material do módulo:</strong> <link to="https://github.com/ry4n-felinto/impytech_2026">Curso IMPATech — repositório no GitHub</link>, com exercícios e exemplos práticos em Python.</item>
+        <item><strong>Referência oficial:</strong> <link to="https://docs.python.org/pt-br/3/tutorial/">Tutorial oficial do Python (em português)</link>, especialmente os capítulos sobre controle de fluxo, strings e tipos numéricos.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 6 · Programação (Python) — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

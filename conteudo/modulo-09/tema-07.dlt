@@ -1,0 +1,625 @@
+<document>
+  <title>Módulo 9 · Deep Learning</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-9-7">Voltar ao guia (Tema 9.7)</link></meta-item>
+    <meta-item key="Módulo">Módulo 9 · Deep Learning — O Estado da Arte da Neurociência Computacional</meta-item>
+    <meta-item key="Nível">Avançado</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-9-7">
+    <title>Generativos</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Modelos que criam: reconstrução de estímulos visuais a partir de atividade cerebral usa exatamente estes.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Até aqui, quase toda rede que vimos era <strong>discriminativa</strong>: dado um estímulo $\mathbf{x}$, um classificador aprende a distribuição condicional $p(y \mid \mathbf{x})$ para prever um rótulo $y$ (como distinguir dígitos ou respostas neuronais). Um <strong>modelo generativo</strong> faz o caminho oposto: ele aprende a distribuição dos próprios dados, $p(\mathbf{x})$, ou sua versão condicionada $p(\mathbf{x} \mid \text{condição})$, tornando-se capaz de amostrar exemplos inéditos e realistas.
+
+    Na neurociência computacional, essa mudança de perspectiva resolve um desafio central da decodificação neural: enquanto CNNs modelam a via visual V1→IT, RNNs capturam dinâmicas corticais e <em>Transformers</em> decodificam linguagem contínua em fMRI, os modelos generativos permitem sintetizar imagens inteiras a partir da atividade cerebral medida em exames de ressonância funcional. Para treinar arquiteturas grandes com imagens naturais, recomenda-se usar instâncias em Cloud ou Google Colab com GPU, pois um computador comum aquece sem placa de vídeo compatível; todos os códigos desta aula, porém, foram dimensionados para rodar em CPU em poucos segundos.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>formular o <em>autoencoder</em> variacional (VAE), derivar a ELBO e aplicar a reparametrização;</item>
+      <item>explicar o jogo minimax de uma GAN, o discriminador ótimo e a perda não saturante;</item>
+      <item>descrever os processos direto e reverso de modelos de difusão e treinar um modelo 1D em PyTorch;</item>
+      <item>comparar VAEs, GANs e difusão e explicar como a reconstrução de estímulos a partir de fMRI combina regressão <em>ridge</em> com modelos generativos.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Retomamos MLPs, retropropagação (<em>backpropagation</em>) e Adam de <mark>9.1 Fundamentos</mark>, <em>autoencoders</em> e espaço latente de <mark>9.4 Representações</mark> (em continuidade após <mark>9.6 GNN</mark>), otimização do Módulo 4 (<mark>Minimização e maximização</mark>), distribuição normal, esperança, <em>posterior</em> e máxima verossimilhança do Módulo 7 (<mark>Variável aleatória</mark>, <mark>Inferência Bayesiana</mark> e <mark>Inferência não-Bayesiana (Frequentista)</mark>) e regularização <em>ridge</em> do Módulo 8 (<mark>Regularização</mark>).
+
+    <section id="sec:9-7-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>VAE</title>
+      <intro>
+        Um <em>autoencoder</em> variacional transforma o espaço latente discreto e cheio de lacunas de um <em>autoencoder</em> comum em uma nuvem probabilística contínua, da qual podemos sortear novos exemplos.
+      </intro>
+
+      No Tema 9.4, você viu que um <em>autoencoder</em> clássico comprime uma entrada $\mathbf{x}$ em um código $\mathbf{z}$ e a reconstrói com um decodificador. Porém, ele aprende a colocar cada dado em pontos isolados do espaço latente: se você sortear um vetor $\mathbf{z}$ ao acaso entre esses pontos, o decodificador gera apenas ruído sem sentido. O <strong><em>autoencoder</em> variacional</strong> (VAE, de <em>Variational Autoencoder</em>; Kingma &amp; Welling, 2014) resolve isso impondo que o espaço latente siga uma distribuição conhecida, permitindo amostrar $\mathbf{z} \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$ e gerar dados novos.
+
+      <strong>Aviso de notação:</strong> nesta seção, $\sigma$ (escalar) e $\boldsymbol{\sigma}$ (vetor) representam <em>desvio-padrão</em>, e não a função sigmoide logística.
+
+      <definition id="def:9-7-vae">
+        <title>Modelo generativo latente e codificador variacional</title>
+        Um VAE define um processo gerador para $\mathbf{x} \in \mathbb{R}^D$ a partir de variáveis latentes $\mathbf{z} \in \mathbb{R}^d$:
+        <list marker="dash">
+          <item><strong>Prior:</strong> $p(\mathbf{z}) = \mathcal{N}(\mathbf{0}, \mathbf{I})$ (normal padrão multivariada).</item>
+          <item><strong>Decodificador (verossimilhança):</strong> $p_{\boldsymbol{\theta}}(\mathbf{x} \mid \mathbf{z})$, parametrizado por uma rede neural com pesos $\boldsymbol{\theta}$.</item>
+          <item><strong>Codificador (aproximação variacional):</strong> como a <em>posterior</em> verdadeira $p_{\boldsymbol{\theta}}(\mathbf{z} \mid \mathbf{x})$ exige calcular a integral intratável $p_{\boldsymbol{\theta}}(\mathbf{x}) = \int p_{\boldsymbol{\theta}}(\mathbf{x} \mid \mathbf{z}) p(\mathbf{z})\,d\mathbf{z}$, o codificador com pesos $\boldsymbol{\phi}$ aproxima-a por uma gaussiana diagonal:
+            <equation id="eq:9-7-vae-q">q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x}) = \mathcal{N}\!\left(\boldsymbol{\mu}_{\boldsymbol{\phi}}(\mathbf{x}),\, \operatorname{diag}\!\left(\boldsymbol{\sigma}_{\boldsymbol{\phi}}^2(\mathbf{x})\right)\right)</equation>
+          </item>
+        </list>
+        <intuition>
+          Em vez de mapear uma imagem para um único ponto rígido $\mathbf{z}$, o codificador mapeia a imagem para uma pequena região borrada (média $\boldsymbol{\mu}$ e dispersão $\boldsymbol{\sigma}$), forçando pontos vizinhos no espaço latente a decodificarem padrões parecidos.
+        </intuition>
+      </definition>
+
+      Por máxima verossimilhança (Módulo 7), gostaríamos de maximizar $\log p_{\boldsymbol{\theta}}(\mathbf{x})$, mas a integral sobre $\mathbf{z}$ é intratável em alta dimensão. Em vez disso, maximizamos um limite inferior garantido para $\log p_{\boldsymbol{\theta}}(\mathbf{x})$, chamado <strong>ELBO</strong> (<em>Evidence Lower Bound</em>).
+
+      <theorem id="thm:9-7-elbo">
+        <title>Limite inferior da evidência (ELBO)</title>
+        Para qualquer distribuição $q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x})$ com suporte compatível, a log-verossimilhança marginal satisfaz:
+        <equation id="eq:9-7-elbo">\log p_{\boldsymbol{\theta}}(\mathbf{x}) \ge \mathbb{E}_{q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x})}\!\left[\log p_{\boldsymbol{\theta}}(\mathbf{x} \mid \mathbf{z})\right] - D_{\mathrm{KL}}\!\left(q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x}) \,\|\, p(\mathbf{z})\right)</equation>
+        onde $D_{\mathrm{KL}}(q \,\|\, p) = \mathbb{E}_q\!\left[\log \frac{q(\mathbf{z})}{p(\mathbf{z})}\right] \ge 0$ é a divergência de Kullback–Leibler.
+      </theorem>
+      <proof of="thm:9-7-elbo" collapsible="true" collapsed="true">
+        Escrevemos a integral marginal multiplicando e dividindo por $q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x})$:
+        $$\log p_{\boldsymbol{\theta}}(\mathbf{x}) = \log \int p_{\boldsymbol{\theta}}(\mathbf{x}, \mathbf{z})\,d\mathbf{z} = \log \int q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x}) \frac{p_{\boldsymbol{\theta}}(\mathbf{x}, \mathbf{z})}{q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x})}\,d\mathbf{z} = \log \mathbb{E}_{q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x})}\!\left[\frac{p_{\boldsymbol{\theta}}(\mathbf{x}, \mathbf{z})}{q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x})}\right].$$
+        Como a função $\log$ é côncava, a desigualdade de Jensen ($\log \mathbb{E}[Y] \ge \mathbb{E}[\log Y]$) fornece:
+        $$\log p_{\boldsymbol{\theta}}(\mathbf{x}) \ge \mathbb{E}_{q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x})}\!\left[\log \frac{p_{\boldsymbol{\theta}}(\mathbf{x} \mid \mathbf{z}) p(\mathbf{z})}{q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x})}\right] = \mathbb{E}_{q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x})}[\log p_{\boldsymbol{\theta}}(\mathbf{x} \mid \mathbf{z})] - \mathbb{E}_{q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x})}\!\left[\log \frac{q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x})}{p(\mathbf{z})}\right],$$
+        que é exatamente a diferença entre a reconstrução esperada e $D_{\mathrm{KL}}(q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x}) \,\|\, p(\mathbf{z}))$.
+      </proof>
+
+      Na prática de otimização (Módulo 4), minimizamos $-\text{ELBO}$, que equilibra dois termos concorrentes: a <strong>perda de reconstrução</strong> $-\mathbb{E}_q[\log p_{\boldsymbol{\theta}}(\mathbf{x} \mid \mathbf{z})]$ (que cobra do decodificador reproduzir $\mathbf{x}$) e a <strong>regularização KL</strong> $D_{\mathrm{KL}}(q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x}) \,\|\, p(\mathbf{z}))$ (que puxa todas as gaussianas codificadas para perto da normal padrão $\mathcal{N}(\mathbf{0}, \mathbf{I})$, mantendo o espaço latente contínuo e organizado).
+
+      <proposition id="prop:9-7-kl-gauss">
+        <title>KL fechada e truque da reparametrização</title>
+        Para $q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x}) = \mathcal{N}(\boldsymbol{\mu}, \operatorname{diag}(\boldsymbol{\sigma}^2))$ e $p(\mathbf{z}) = \mathcal{N}(\mathbf{0}, \mathbf{I})$ em $\mathbb{R}^d$:
+        <list marker="number">
+          <item><strong>Divergência KL por dimensão:</strong>
+            <equation id="eq:9-7-kl-gauss">D_{\mathrm{KL}}\!\left(\mathcal{N}(\boldsymbol{\mu}, \operatorname{diag}(\boldsymbol{\sigma}^2)) \,\|\, \mathcal{N}(\mathbf{0}, \mathbf{I})\right) = \frac{1}{2}\sum_{j=1}^{d}\left(\mu_j^2 + \sigma_j^2 - \ln \sigma_j^2 - 1\right)</equation>
+          </item>
+          <item><strong>Truque da reparametrização:</strong> em vez de sortear diretamente $\mathbf{z} \sim \mathcal{N}(\boldsymbol{\mu}, \operatorname{diag}(\boldsymbol{\sigma}^2))$, sorteamos um ruído fixo $\boldsymbol{\varepsilon} \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$ e calculamos:
+            <equation id="eq:9-7-reparam">\mathbf{z} = \boldsymbol{\mu} + \boldsymbol{\sigma} \odot \boldsymbol{\varepsilon}</equation>
+          </item>
+        </list>
+      </proposition>
+
+      Por que reparametrizar? Um sorteio aleatório direto dentro do grafo computacional não tem derivada em relação a $\boldsymbol{\mu}$ e $\boldsymbol{\sigma}$, bloqueando a retropropagação até o codificador. Ao deslocar a aleatoriedade para $\boldsymbol{\varepsilon}$, a equação <ref to="eq:9-7-reparam"/> vira uma função determinística e diferenciável de $\boldsymbol{\mu}$ e $\boldsymbol{\sigma}$ (dado $\boldsymbol{\varepsilon}$), permitindo que os gradientes fluam normalmente. Na implementação, o codificador não devolve $\boldsymbol{\sigma}$ diretamente, mas sim $\log \boldsymbol{\sigma}^2$ (log-variância), o que garante positividade ($\sigma_j = \exp(\frac{1}{2}\log \sigma_j^2) > 0$) e maior estabilidade numérica.
+
+      <example id="exm:9-7-kl-mao">
+        <title>Cálculo à mão da KL e da reparametrização</title>
+        Suponha um espaço latente de $1$ dimensão em que o codificador produz $\mu = 1$ e $\sigma = 0{,}5$. Calcule $D_{\mathrm{KL}}(\mathcal{N}(1, 0{,}5^2) \,\|\, \mathcal{N}(0, 1))$ e obtenha a amostra reparametrizada para $\varepsilon = -0{,}4$.
+
+        <strong>Solução.</strong> Temos $\mu^2 = 1^2 = 1$ e $\sigma^2 = 0{,}5^2 = 0{,}25$. Como $\ln(0{,}25) = \ln(1/4) = -\ln 4 \approx -1{,}3863$, substituímos em <ref to="eq:9-7-kl-gauss"/>:
+        $$D_{\mathrm{KL}} = \frac{1}{2}\left(1 + 0{,}25 - (-1{,}3863) - 1\right) = \frac{1{,}6363}{2} \approx 0{,}8181.$$
+        Para $\varepsilon = -0{,}4$, a reparametrização <ref to="eq:9-7-reparam"/> resulta em $z = 1 + 0{,}5 \cdot (-0{,}4) = 0{,}8$.
+      </example>
+
+      <example id="exm:9-7-vae-neuro">
+        <title>Fatores latentes em populações neurais</title>
+        Quando registramos centenas de neurônios simultaneamente no córtex motor ou visual, as taxas de disparo individuais parecem ruidosas e de altíssima dimensão. Contudo, esses neurônios compartilham uma dinâmica coletiva coordenada que vive em poucas dimensões (Dayan &amp; Abbott). Treinado sobre vetores de disparos populacionais, um VAE aprende variáveis latentes $\mathbf{z}$ de baixa dimensão que resumem o estado interno da rede neural e permitem gerar novos padrões de disparo biologicamente plausíveis a partir de $\mathbf{z} \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$.
+      </example>
+
+      O código a seguir treina um VAE pequeno (<c>64 → 32 → 2 → 32 → 64</c>) nos dígitos $8 \times 8$ de <c>load_digits</c>. Normalizamos os pixels dividindo por $16$ para deixá-los em $[0, 1]$ e usamos entropia cruzada binária com <c>reduction="sum"</c>: além de tratar cada pixel normalizado como probabilidade média de ativação, somar sobre os $64$ pixels coloca a reconstrução na mesma escala de soma por dimensões que a KL somada nas $2$ dimensões latentes.
+
+      <code lang="python" id="cod:9-7-vae">
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from sklearn.datasets import load_digits
+from torch.utils.data import DataLoader, TensorDataset
+
+torch.manual_seed(0)
+np.random.seed(0)
+
+digits = load_digits()
+X = torch.tensor(digits.data / 16.0, dtype=torch.float32)  # (1797, 64) em [0, 1]
+loader = DataLoader(TensorDataset(X), batch_size=64, shuffle=True)
+
+
+class VAE(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.enc = nn.Sequential(nn.Linear(64, 32), nn.ReLU())
+        self.fc_mu = nn.Linear(32, 2)
+        self.fc_logvar = nn.Linear(32, 2)
+        self.dec = nn.Sequential(
+            nn.Linear(2, 32),
+            nn.ReLU(),
+            nn.Linear(32, 64),
+            nn.Sigmoid(),
+        )
+
+    def encode(self, x):
+        h = self.enc(x)
+        return self.fc_mu(h), self.fc_logvar(h)
+
+    def reparameterize(self, mu, logvar):
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return mu + std * eps
+
+    def forward(self, x):
+        mu, logvar = self.encode(x)
+        z = self.reparameterize(mu, logvar)
+        return self.dec(z), mu, logvar
+
+
+modelo = VAE()
+opt = torch.optim.Adam(modelo.parameters(), lr=1e-3)
+
+for epoca in range(40):
+    soma_rec, soma_kl = 0.0, 0.0
+    for (lote,) in loader:
+        x_hat, mu, logvar = modelo(lote)
+        rec = F.binary_cross_entropy(x_hat, lote, reduction="sum")
+        kl = -0.5 * torch.sum(1.0 + logvar - mu.pow(2) - logvar.exp())
+        perda = rec + kl
+        opt.zero_grad()
+        perda.backward()
+        opt.step()
+        soma_rec += rec.item()
+        soma_kl += kl.item()
+
+n_dados = len(X)
+# Valores aproximados; podem variar levemente entre versões e máquinas
+print(f"Reconstrucao media ≈ {soma_rec / n_dados:.2f} | KL medio ≈ {soma_kl / n_dados:.2f}")
+# Reconstrucao media ≈ 24.23 | KL medio ≈ 1.49
+
+with torch.no_grad():
+    z_novos = torch.randn(5, 2)
+    amostras = modelo.dec(z_novos)
+print("Forma das amostras:", tuple(amostras.shape))  # Forma das amostras: (5, 64)
+print(f"Faixa de valores ≈ [{amostras.min():.3f}, {amostras.max():.3f}]")
+# Faixa de valores ≈ [0.000, 0.883]
+      </code>
+
+      <remark id="rem:9-7-armadilha-vae">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Achar que o VAE minimiza apenas a reconstrução:</strong> se você zerar o termo KL, o modelo vira um <em>autoencoder</em> comum, com buracos no espaço latente que inviabilizam gerar dados novos a partir de $\mathcal{N}(\mathbf{0}, \mathbf{I})$.</item>
+          <item><strong>Esquecer que o codificador devolve $\log \boldsymbol{\sigma}^2$:</strong> usar a saída bruta como se fosse $\boldsymbol{\sigma}$ produz desvios negativos e valores errados na KL; sempre converta com <c>std = torch.exp(0.5 * logvar)</c>.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-7-1-1">
+        <title>Básico — KL gaussiana à mão</title>
+        Para uma variável latente de $2$ dimensões, um codificador produziu $\boldsymbol{\mu} = (1,\, 0)^\top$ e $\boldsymbol{\sigma} = (1,\, 2)^\top$. Sabendo que $\ln 2 \approx 0{,}6931$, calcule $D_{\mathrm{KL}}(q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x}) \,\|\, \mathcal{N}(\mathbf{0}, \mathbf{I}))$.
+        <hint><title>Ver dica</title>Aplique a fórmula por dimensão e some as duas parcelas; note que $\ln(2^2) = 2\ln 2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Na primeira dimensão ($\mu_1 = 1$, $\sigma_1 = 1$):
+          $$D_1 = \frac{1}{2}\left(1^2 + 1^2 - \ln 1 - 1\right) = \frac{1}{2}(1) = 0{,}5.$$
+          Na segunda dimensão ($\mu_2 = 0$, $\sigma_2 = 2$, $\sigma_2^2 = 4$):
+          $$D_2 = \frac{1}{2}\left(0 + 4 - \ln 4 - 1\right) = \frac{1}{2}\left(3 - 2 \cdot 0{,}6931\right) = \frac{1{,}6138}{2} = 0{,}8069.$$
+          Somando as dimensões: $D_{\mathrm{KL}} = 0{,}5 + 0{,}8069 = 1{,}3069$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-7-1-2">
+        <title>Intermediário — Fator latente neural e log-variância</title>
+        Um VAE treinado sobre taxas de disparo de $200$ neurônios corticais com $d = 2$ fatores latentes recebe um ensaio e devolve $\boldsymbol{\mu} = (1{,}5;\, -0{,}8)^\top$ e $\log \boldsymbol{\sigma}^2 = (0;\, -2\ln 2)^\top$. Calcule o vetor latente $\mathbf{z}$ para $\boldsymbol{\varepsilon} = (0{,}4;\, -1{,}0)^\top$.
+        <hint><title>Ver dica</title>Converta $\log \boldsymbol{\sigma}^2$ para $\boldsymbol{\sigma} = \exp(\frac{1}{2}\log \boldsymbol{\sigma}^2)$ antes de aplicar $\mathbf{z} = \boldsymbol{\mu} + \boldsymbol{\sigma} \odot \boldsymbol{\varepsilon}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculamos cada desvio-padrão:
+          $$\sigma_1 = e^{\frac{1}{2} \cdot 0} = 1, \qquad \sigma_2 = e^{\frac{1}{2}(-2\ln 2)} = e^{-\ln 2} = \frac{1}{2} = 0{,}5.$$
+          Aplicando a reparametrização elemento a elemento:
+          $$z_1 = 1{,}5 + 1 \cdot 0{,}4 = 1{,}9, \qquad z_2 = -0{,}8 + 0{,}5 \cdot (-1{,}0) = -1{,}3.$$
+          Logo, $\mathbf{z} = (1{,}9;\, -1{,}3)^\top$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-7-1-3">
+        <title>Avançado — Equilíbrio entre reconstrução e KL</title>
+        Explique o que acontece com as amostras geradas por $\mathbf{z} \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$ em dois cenários extremos de treino de um VAE: (a) quando multiplicamos o termo KL por $\beta = 0$; (b) quando multiplicamos o termo KL por um valor muito alto ($\beta = 100$), forçando $D_{\mathrm{KL}} \approx 0$ para todo $\mathbf{x}$.
+        <hint><title>Ver dica</title>Analise se o codificador ainda organiza o espaço latente no caso (a) e se o código $\mathbf{z}$ ainda carrega informação sobre $\mathbf{x}$ no caso (b).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Com $\beta = 0$, o VAE reduz-se a um <em>autoencoder</em> determinístico: cada entrada é comprimida em regiões arbitrárias e isoladas para minimizar a reconstrução. Ao sortear $\mathbf{z} \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$, caímos fora das regiões visitadas no treino e o decodificador gera artefatos incoerentes.</item>
+            <item>Com $\beta = 100$, o codificador é forçado a fazer $q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x}) \approx \mathcal{N}(\mathbf{0}, \mathbf{I})$ para todas as entradas $\mathbf{x}$ (colapso da posterior). Como $\mathbf{z}$ perde dependência de $\mathbf{x}$, o decodificador ignora $\mathbf{z}$ e passa a reconstruir sempre uma média borrada dos dados.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-7-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>GAN</title>
+      <intro>
+        Em vez de aproximar uma verossimilhança explícita, as redes adversárias generativas colocam um falsificador e um detetive em competição direta até que amostras sintéticas se tornem indistinguíveis dos dados reais.
+      </intro>
+
+      Imagine um falsificador de quadros tentando enganar um perito de museu. No começo, as falsificações são grosseiras e o perito as reconhece facilmente; porém, cada erro do falsificador lhe ensina o que ajustar, forçando o perito a ficar mais atento, até o ponto em que as cópias parecem autênticas. Essa disputa é o coração das <strong>redes adversárias generativas</strong> (GANs, de <em>Generative Adversarial Networks</em>; Goodfellow et al., 2014).
+
+      <definition id="def:9-7-gan">
+        <title>Gerador, discriminador e jogo minimax</title>
+        Uma GAN é composta por duas redes neurais que competem entre si:
+        <list marker="dash">
+          <item><strong>Gerador $G$:</strong> recebe ruído $\mathbf{z} \sim p_{\mathbf{z}}$ (em geral $\mathcal{N}(\mathbf{0}, \mathbf{I})$) e produz um dado sintético $G(\mathbf{z})$, induzindo uma distribuição $p_g$.</item>
+          <item><strong>Discriminador $D$:</strong> recebe uma amostra $\mathbf{x}$ e devolve a probabilidade $D(\mathbf{x}) \in (0, 1)$ de que $\mathbf{x}$ seja real (vinda de $p_{\text{dados}}$) e não gerada por $G$.</item>
+        </list>
+        O treino formula-se como o jogo minimax:
+        <equation id="eq:9-7-gan-minimax">\min_{G} \max_{D} V(D, G) = \mathbb{E}_{\mathbf{x} \sim p_{\text{dados}}}\!\left[\log D(\mathbf{x})\right] + \mathbb{E}_{\mathbf{z} \sim p_{\mathbf{z}}}\!\left[\log\!\left(1 - D(G(\mathbf{z}))\right)\right]</equation>
+      </definition>
+
+      Observe que $D$ tenta <strong>maximizar</strong> $V(D, G)$ (atribuir $D(\mathbf{x}) \to 1$ aos reais e $D(G(\mathbf{z})) \to 0$ aos falsos), enquanto $G$ tenta <strong>minimizar</strong> $V(D, G)$ (fazer $D(G(\mathbf{z})) \to 1$). Quando $G$ está fixo, existe uma resposta analítica exata para o melhor discriminador possível.
+
+      <proposition id="prop:9-7-d-otimo">
+        <title>Discriminador ótimo e ponto de equilíbrio</title>
+        Para um gerador $G$ fixo (com densidade $p_g$), o discriminador que maximiza $V(D, G)$ em cada ponto $\mathbf{x}$ onde $p_{\text{dados}}(\mathbf{x}) + p_g(\mathbf{x}) > 0$ é:
+        <equation id="eq:9-7-d-otimo">D^*(\mathbf{x}) = \frac{p_{\text{dados}}(\mathbf{x})}{p_{\text{dados}}(\mathbf{x}) + p_g(\mathbf{x})}</equation>
+        No equilíbrio ótimo ($p_g = p_{\text{dados}}$), vale $D^*(\mathbf{x}) = \frac{1}{2}$ em toda parte e $V(D^*, G^*) = -\ln 4 \approx -1{,}386$ (adotando $\log = \ln$).
+      </proposition>
+      <proof of="prop:9-7-d-otimo" collapsible="true" collapsed="true">
+        Escrevendo as esperanças como integrais sobre $\mathbf{x}$ (usando $p_g$ para a distribuição de $G(\mathbf{z})$):
+        $$V(D, G) = \int \left[p_{\text{dados}}(\mathbf{x}) \ln D(\mathbf{x}) + p_g(\mathbf{x}) \ln\!\left(1 - D(\mathbf{x})\right)\right] d\mathbf{x}.$$
+        Em um $\mathbf{x}$ fixo, sejam $a = p_{\text{dados}}(\mathbf{x})$, $b = p_g(\mathbf{x})$ e $y = D(\mathbf{x}) \in (0, 1)$. Para maximizar $f(y) = a \ln y + b \ln(1 - y)$, derivamos em relação a $y$ e igualamos a zero:
+        $$f'(y) = \frac{a}{y} - \frac{b}{1 - y} = 0 \implies a(1 - y) = by \implies y^* = \frac{a}{a + b} = \frac{p_{\text{dados}}(\mathbf{x})}{p_{\text{dados}}(\mathbf{x}) + p_g(\mathbf{x})}.$$
+        Como $f''(y) = -\frac{a}{y^2} - \frac{b}{(1 - y)^2} < 0$, trata-se de máximo global. Quando $p_g = p_{\text{dados}}$, temos $D^*(\mathbf{x}) = \frac{p_{\text{dados}}}{2 p_{\text{dados}}} = \frac{1}{2}$, e a função objetivo resulta em:
+        $$V(D^*, G^*) = \mathbb{E}_{\mathbf{x} \sim p_{\text{dados}}}\!\left[\ln \frac{1}{2}\right] + \mathbb{E}_{\mathbf{z} \sim p_{\mathbf{z}}}\!\left[\ln \frac{1}{2}\right] = -\ln 2 - \ln 2 = -\ln 4 \approx -1{,}386.$$
+      </proof>
+
+      Na prática, minimizar $\log(1 - D(G(\mathbf{z})))$ sofre um problema grave no início do treino: como $G$ ainda é ruim, $D$ rejeita as amostras falsas com facilidade ($D(G(\mathbf{z})) \approx 0$), saturando a sigmoide na saída de $D$ e deixando os gradientes para $G$ quase nulos. Por isso, usamos a <strong>perda não saturante</strong> para o gerador: em vez de minimizar $\log(1 - D(G(\mathbf{z})))$, treinamos $G$ para <strong>maximizar $\log D(G(\mathbf{z}))$</strong> (equivalentemente, minimizar $-\log D(G(\mathbf{z}))$), que fornece gradientes fortes mesmo quando $D(G(\mathbf{z}))$ está próximo de zero.
+
+      Apesar de gerarem amostras muito nítidas, GANs são difíceis de treinar: sofrem com <strong>instabilidade</strong> (os pesos oscilam em vez de convergir), <strong>colapso de modos</strong> (<em>mode collapse</em>, quando $G$ descobre poucas amostras que enganam $D$ e passa a repetir apenas elas, ignorando a diversidade dos dados) e ausência de uma função de perda que meça a qualidade visual — além de não possuírem codificador nem verossimilhança explícita $p_{\boldsymbol{\theta}}(\mathbf{x})$.
+
+      <example id="exm:9-7-gan-mao">
+        <title>Discriminador ótimo à mão</title>
+        Em certo ponto $x$, a densidade dos dados reais é $p_{\text{dados}}(x) = 0{,}6$ e a do gerador é $p_g(x) = 0{,}2$. Calcule $D^*(x)$ e interprete o resultado.
+
+        <strong>Solução.</strong> Pela equação <ref to="eq:9-7-d-otimo"/>:
+        $$D^*(x) = \frac{0{,}6}{0{,}6 + 0{,}2} = \frac{0{,}6}{0{,}8} = 0{,}75.$$
+        Como há três vezes mais densidade real do que gerada em $x$, o discriminador ótimo atribui $75\%$ de chance de uma amostra ali ser real, sinalizando ao gerador que ele deve aumentar a concentração de amostras nessa região.
+      </example>
+
+      <example id="exm:9-7-gan-neuro">
+        <title>Aumento de dados em registros neurais pequenos</title>
+        Em experimentos de eletrofisiologia ou EEG com poucos ensaios por participante, classificadores de decodificação facilmente sofrem sobreajuste (Tema 8.5). Uma GAN condicional pode aprender a gerar trens de disparos ou trechos de sinais fisiológicos sintéticos realistas para ampliar o conjunto de treino (<em>data augmentation</em>), desde que validemos cuidadosamente se as amostras sintéticas preservam estatísticas temporais reais sem colapsar em poucos padrões repetidos.
+      </example>
+
+      Abaixo, treinamos uma GAN 1D em PyTorch para transformar ruído $\mathcal{N}(0, 1)$ em amostras de uma gaussiana deslocada $\mathcal{N}(4,\, 1{,}25^2)$, usando a perda não saturante via <c>BCEWithLogitsLoss</c> e otimizador Adam com <c>lr=5e-4</c> e <c>betas=(0.5, 0.999)</c>.
+
+      <code lang="python" id="cod:9-7-gan">
+import torch
+import torch.nn as nn
+
+torch.manual_seed(0)
+
+G = nn.Sequential(
+    nn.Linear(1, 32),
+    nn.LeakyReLU(0.2),
+    nn.Linear(32, 32),
+    nn.LeakyReLU(0.2),
+    nn.Linear(32, 1),
+)
+D = nn.Sequential(
+    nn.Linear(1, 32),
+    nn.LeakyReLU(0.2),
+    nn.Linear(32, 32),
+    nn.LeakyReLU(0.2),
+    nn.Linear(32, 1),
+)
+
+opt_G = torch.optim.Adam(G.parameters(), lr=5e-4, betas=(0.5, 0.999))
+opt_D = torch.optim.Adam(D.parameters(), lr=5e-4, betas=(0.5, 0.999))
+bce = nn.BCEWithLogitsLoss()
+
+for passo in range(3000):
+    # 1) Atualiza D: reais -> 1, falsos -> 0
+    x_real = 4.0 + 1.25 * torch.randn(256, 1)
+    x_falso = G(torch.randn(256, 1)).detach()
+    perda_D = bce(D(x_real), torch.ones(256, 1)) + bce(D(x_falso), torch.zeros(256, 1))
+    opt_D.zero_grad()
+    perda_D.backward()
+    opt_D.step()
+
+    # 2) Atualiza G (perda nao saturante: maximizar log D(G(z)))
+    z = torch.randn(256, 1)
+    perda_G = bce(D(G(z)), torch.ones(256, 1))
+    opt_G.zero_grad()
+    perda_G.backward()
+    opt_G.step()
+
+with torch.no_grad():
+    amostras = G(torch.randn(10000, 1)).squeeze()
+
+print(f"Media gerada ≈ {amostras.mean():.2f} (alvo: 4.00)")
+print(f"Desvio gerado ≈ {amostras.std():.2f} (alvo: 1.25)")
+# Média gerada ≈ 4 (alvo 4,00); desvio entre ≈ 1,0 e ≈ 1,6 (alvo 1,25) — o resultado de uma GAN varia de execução para execução
+      </code>
+
+      Esse resultado ilustra na prática a instabilidade das GANs: a média é aprendida com facilidade, mas a dispersão varia bastante entre execuções — sintoma parecido com o colapso de modos.
+
+      <remark id="rem:9-7-armadilha-gan">
+        <title>Armadilha comum</title>
+        Achar que uma perda baixa do discriminador é bom sinal para o gerador. Se a perda de $D$ cai perto de $0$, significa que $D$ separa facilmente dados reais de falsos — ou seja, $G$ está gerando amostras ruins ou não recebe gradientes úteis. No equilíbrio ideal ($D^* = 0{,}5$), a entropia cruzada binária de $D$ estabiliza perto de $\ln 2 \approx 0{,}693$ por classe ($\approx 1{,}386$ somando reais e falsos).
+      </remark>
+
+      <exercise id="exr:9-7-2-1">
+        <title>Básico — Discriminador ótimo em dois pontos</title>
+        Em uma GAN 1D, temos $p_{\text{dados}}(x_1) = 0{,}1$ e $p_g(x_1) = 0{,}4$ no ponto $x_1$, e $p_{\text{dados}}(x_2) = 0{,}5$ e $p_g(x_2) = 0{,}1$ no ponto $x_2$. Calcule $D^*(x_1)$ e $D^*(x_2)$ e indique em qual ponto o gerador está produzindo amostras em excesso.
+        <hint><title>Ver dica</title>Substitua diretamente em $D^*(x) = \frac{p_{\text{dados}}(x)}{p_{\text{dados}}(x) + p_g(x)}$ e compare com o equilíbrio $0{,}5$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para $x_1$:
+          $$D^*(x_1) = \frac{0{,}1}{0{,}1 + 0{,}4} = \frac{0{,}1}{0{,}5} = 0{,}20.$$
+          Para $x_2$:
+          $$D^*(x_2) = \frac{0{,}5}{0{,}5 + 0{,}1} = \frac{0{,}5}{0{,}6} \approx 0{,}833.$$
+          Como $D^*(x_1) < 0{,}5$, o gerador está colocando massa de probabilidade em excesso em $x_1$ (e massa insuficiente em $x_2$).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-7-2-2">
+        <title>Intermediário — Colapso de modos em dados de EEG</title>
+        Você treina uma GAN para gerar segmentos sintéticos de EEG pertencentes a três estágios do sono (N1, N2 e REM). Após algumas épocas, a perda de $D$ estabiliza, porém todas as amostras geradas parecem apenas variações mínimas de um único ritmo de sono N2, enquanto N1 e REM desaparecem. Nomeie esse fenômeno e explique como ele pode prejudicar um classificador de sono treinado com esses dados sintéticos.
+        <hint><title>Ver dica</title>Lembre da falha em que o gerador concentra toda a saída em poucas regiões fáceis de enganar o discriminador.</hint>
+        <solution collapsible="true" collapsed="true">
+          O fenômeno é o <strong>colapso de modos</strong> (<em>mode collapse</em>): o gerador descobre que produzir apenas segmentos típicos do estágio N2 já engana o discriminador e passa a ignorar os modos correspondentes a N1 e REM. Um classificador treinado com esse aumento de dados sofrerá forte desbalanceamento artificial, perdendo sensibilidade para identificar N1 e REM.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-7-2-3">
+        <title>Avançado — Gradiente da perda não saturante</title>
+        Seja $D(G(\mathbf{z})) = \sigma_{\text{log}}(s)$, onde $\sigma_{\text{log}}(s) = \frac{1}{1 + e^{-s}}$ é a sigmoide aplicada ao <em>logit</em> $s$ do discriminador (com $\sigma_{\text{log}}'(s) = \sigma_{\text{log}}(s)(1 - \sigma_{\text{log}}(s))$). Calcule e compare as derivadas $\frac{d}{ds}\ln(1 - \sigma_{\text{log}}(s))$ (perda minimax) e $\frac{d}{ds}(-\ln \sigma_{\text{log}}(s))$ (perda não saturante) quando o discriminador rejeita fortemente a amostra falsa com $s = -5$ ($\sigma_{\text{log}}(-5) \approx 0{,}0067$).
+        <hint><title>Ver dica</title>Aplique a regra da cadeia (Módulo 3) e cancele o fator $\sigma_{\text{log}}(s)$ ou $1 - \sigma_{\text{log}}(s)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para a perda minimax saturante:
+          $$\frac{d}{ds}\ln\!\left(1 - \sigma_{\text{log}}(s)\right) = \frac{-\sigma_{\text{log}}'(s)}{1 - \sigma_{\text{log}}(s)} = -\sigma_{\text{log}}(s) \approx -0{,}0067.$$
+          Para a perda não saturante (minimizar $-\ln \sigma_{\text{log}}(s)$):
+          $$\frac{d}{ds}\!\left(-\ln \sigma_{\text{log}}(s)\right) = \frac{-\sigma_{\text{log}}'(s)}{\sigma_{\text{log}}(s)} = -\!\left(1 - \sigma_{\text{log}}(s)\right) \approx -0{,}9933.$$
+          Em $s = -5$, o gradiente da perda não saturante é quase $150$ vezes maior em módulo, evitando que o treinamento de $G$ estagne no início.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-7-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Diffusion</title>
+      <intro>
+        Modelos de difusão aprendem a criar estrutura desfazendo, passo a passo, a adição gradual de ruído gaussiano — a mesma ideia que hoje impulsiona a reconstrução de imagens a partir de atividade cerebral.
+      </intro>
+
+      Pingue uma gota de tinta em um copo de água: aos poucos, as moléculas se espalham até que toda a água fique uniformemente turva, sem vestígio da forma inicial. Os <strong>modelos de difusão</strong> (Sohl-Dickstein et al., 2015; Ho, Jain &amp; Abbeel, 2020) transformam essa metáfora em algoritmo. Primeiro definimos um processo fixo que corrompe um dado $\mathbf{x}_0$ adicionando pequenas doses de ruído gaussiano em $T$ passos, até sobrar ruído puro $\mathbf{x}_T \approx \mathcal{N}(\mathbf{0}, \mathbf{I})$. Em seguida, treinamos uma rede neural para inverter cada passo de ruído, esculpindo um dado novo a partir do acaso.
+
+      <definition id="def:9-7-difusao">
+        <title>Processo direto de difusão</title>
+        Dado um cronograma de variâncias pequenas $\beta_1, \dots, \beta_T \in (0, 1)$, definimos $\alpha_t = 1 - \beta_t$ e o produto acumulado $\bar{\alpha}_t = \prod_{s=1}^{t} \alpha_s$. Cada passo do <strong>processo direto</strong> (fixo, sem parâmetros aprendidos) segue:
+        <equation id="eq:9-7-difusao-passo">q(\mathbf{x}_t \mid \mathbf{x}_{t-1}) = \mathcal{N}\!\left(\sqrt{1 - \beta_t}\,\mathbf{x}_{t-1},\; \beta_t \mathbf{I}\right)</equation>
+      </definition>
+
+      Uma propriedade algébrica notável permite saltar do dado limpo $\mathbf{x}_0$ diretamente para qualquer passo intermediário $\mathbf{x}_t$ em uma única conta, sem precisar simular todos os passos anteriores durante o treino.
+
+      <proposition id="prop:9-7-difusao-fechada">
+        <title>Forma fechada do processo direto</title>
+        Sob a <ref to="def:9-7-difusao"/>, para qualquer $t \in \{1, \dots, T\}$, a distribuição marginal de $\mathbf{x}_t$ dado $\mathbf{x}_0$ escreve-se como:
+        <equation id="eq:9-7-difusao-fechada">\mathbf{x}_t = \sqrt{\bar{\alpha}_t}\,\mathbf{x}_0 + \sqrt{1 - \bar{\alpha}_t}\,\boldsymbol{\varepsilon}, \qquad \boldsymbol{\varepsilon} \sim \mathcal{N}(\mathbf{0}, \mathbf{I})</equation>
+      </proposition>
+      <proof of="prop:9-7-difusao-fechada" collapsible="true" collapsed="true">
+        Provamos para dois passos ($t = 1$ e $t = 2$); a indução até $T$ repete exatamente o mesmo argumento. Em $t = 1$, pela definição e com $\bar{\alpha}_1 = \alpha_1$:
+        $$\mathbf{x}_1 = \sqrt{\alpha_1}\,\mathbf{x}_0 + \sqrt{1 - \alpha_1}\,\boldsymbol{\varepsilon}_1, \qquad \boldsymbol{\varepsilon}_1 \sim \mathcal{N}(\mathbf{0}, \mathbf{I}).$$
+        Em $t = 2$, $\mathbf{x}_2 = \sqrt{\alpha_2}\,\mathbf{x}_1 + \sqrt{1 - \alpha_2}\,\boldsymbol{\varepsilon}_2$ com $\boldsymbol{\varepsilon}_2 \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$ independente de $\boldsymbol{\varepsilon}_1$. Substituindo $\mathbf{x}_1$:
+        $$\mathbf{x}_2 = \sqrt{\alpha_2 \alpha_1}\,\mathbf{x}_0 + \sqrt{\alpha_2(1 - \alpha_1)}\,\boldsymbol{\varepsilon}_1 + \sqrt{1 - \alpha_2}\,\boldsymbol{\varepsilon}_2.$$
+        Como a soma de duas gaussianas independentes de média zero é gaussiana de média zero com variâncias somadas:
+        $$\operatorname{Var} = \alpha_2(1 - \alpha_1) + (1 - \alpha_2) = \alpha_2 - \alpha_1\alpha_2 + 1 - \alpha_2 = 1 - \alpha_1\alpha_2 = 1 - \bar{\alpha}_2.$$
+        Logo, o termo de ruído combinado tem lei $\mathcal{N}(\mathbf{0}, (1 - \bar{\alpha}_2)\mathbf{I})$, dando $\mathbf{x}_2 = \sqrt{\bar{\alpha}_2}\,\mathbf{x}_0 + \sqrt{1 - \bar{\alpha}_2}\,\boldsymbol{\varepsilon}$.
+      </proof>
+
+      No <strong>processo reverso aprendido</strong> (DDPM; Ho, Jain &amp; Abbeel, 2020), uma rede neural $\boldsymbol{\varepsilon}_{\boldsymbol{\theta}}(\mathbf{x}_t, t)$ recebe o dado ruidoso $\mathbf{x}_t$ e o índice temporal $t$ para prever qual ruído $\boldsymbol{\varepsilon}$ foi adicionado, minimizando o erro quadrático:
+      <equation id="eq:9-7-ddpm-loss">\mathcal{L}_{\text{DDPM}}(\boldsymbol{\theta}) = \mathbb{E}_{t, \mathbf{x}_0, \boldsymbol{\varepsilon}}\!\left[\left\|\boldsymbol{\varepsilon} - \boldsymbol{\varepsilon}_{\boldsymbol{\theta}}\!\left(\sqrt{\bar{\alpha}_t}\,\mathbf{x}_0 + \sqrt{1 - \bar{\alpha}_t}\,\boldsymbol{\varepsilon},\, t\right)\right\|_2^2\right]</equation>
+      Para gerar uma amostra nova, sorteamos $\mathbf{x}_T \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$ e iteramos de $t = T$ até $t = 1$ com a regra DDPM:
+      <equation id="eq:9-7-ddpm-sample">\mathbf{x}_{t-1} = \frac{1}{\sqrt{\alpha_t}}\left(\mathbf{x}_t - \frac{\beta_t}{\sqrt{1 - \bar{\alpha}_t}}\,\boldsymbol{\varepsilon}_{\boldsymbol{\theta}}(\mathbf{x}_t, t)\right) + \sigma_t \mathbf{z}, \qquad \mathbf{z} \sim \mathcal{N}(\mathbf{0}, \mathbf{I})</equation>
+      usando $\sigma_t^2 = \beta_t$ (uma das escolhas do artigo original) e $\mathbf{z} = \mathbf{0}$ no último passo ($t = 1$). Como rodar centenas de passos diretamente sobre milhões de pixels custa caro, modelos modernos de <strong>difusão latente</strong> (como o <em>Stable Diffusion</em>; Rombach et al., 2022) primeiro comprimem a imagem com um <em>autoencoder</em> (Tema 9.4) para um espaço latente menor, aplicam a difusão ali e condicionam $\boldsymbol{\varepsilon}_{\boldsymbol{\theta}}$ em representações de texto ou imagem.
+
+      A <ref to="fig:9-7-difusao"/> ilustra como o processo direto dissolve gradualmente dois picos bem separados (uma mistura bimodal) até transformá-los em uma única curva normal padrão $\mathcal{N}(0, 1)$.
+
+      <figure src="fig/t07-difusao.svg" alt="Quatro histogramas mostrando x_t em t=0, t=10, t=25 e t=50 no processo direto de difusão sobre uma mistura bimodal em -2 e +2, convergindo para N(0,1)" id="fig:9-7-difusao">
+        <caption>Evolução do processo direto de difusão ($T = 50$) sobre a mistura bimodal $\frac{1}{2}\mathcal{N}(-2, 0{,}3^2) + \frac{1}{2}\mathcal{N}(2, 0{,}3^2)$. Conforme $t$ cresce e $\bar{\alpha}_t$ cai, os dois modos se fundem na distribuição $\mathcal{N}(0, 1)$.</caption>
+      </figure>
+
+      <example id="exm:9-7-difusao-mao">
+        <title>Cronograma direto e razão sinal-ruído</title>
+        Considere um cronograma constante $\beta_t = 0{,}1$ para $t = 1, 2, 3$. Calcule $\bar{\alpha}_t$, a razão sinal-ruído $\mathrm{SNR}_t = \frac{\bar{\alpha}_t}{1 - \bar{\alpha}_t}$ em cada passo e o valor de $x_2$ quando $x_0 = 2$ e $\varepsilon = -1$.
+
+        <strong>Solução.</strong> Como $\alpha_t = 1 - 0{,}1 = 0{,}9$:
+        <list marker="dash">
+          <item>$t = 1$: $\bar{\alpha}_1 = 0{,}9$, $1 - \bar{\alpha}_1 = 0{,}1$, $\mathrm{SNR}_1 = \frac{0{,}9}{0{,}1} = 9{,}00$.</item>
+          <item>$t = 2$: $\bar{\alpha}_2 = 0{,}9^2 = 0{,}81$, $1 - \bar{\alpha}_2 = 0{,}19$, $\mathrm{SNR}_2 = \frac{0{,}81}{0{,}19} \approx 4{,}263$.</item>
+          <item>$t = 3$: $\bar{\alpha}_3 = 0{,}9^3 = 0{,}729$, $1 - \bar{\alpha}_3 = 0{,}271$, $\mathrm{SNR}_3 = \frac{0{,}729}{0{,}271} \approx 2{,}690$.</item>
+        </list>
+        Para $t = 2$, $x_0 = 2$ e $\varepsilon = -1$:
+        $$x_2 = \sqrt{0{,}81} \cdot 2 + \sqrt{0{,}19} \cdot (-1) = 0{,}9 \cdot 2 - 0{,}4359 = 1{,}8 - 0{,}4359 = 1{,}3641.$$
+      </example>
+
+      O código abaixo treina uma rede de difusão 1D ($T = 50$ passos) na mistura bimodal da <ref to="fig:9-7-difusao"/>, amostra $2\,000$ pontos de volta desde $\mathcal{N}(0, 1)$ e confere a fração, média e desvio em cada modo.
+
+      <code lang="python" id="cod:9-7-difusao">
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+torch.manual_seed(0)
+
+T = 50
+betas = torch.linspace(1e-3, 0.2, T)
+alphas = 1.0 - betas
+alpha_bar = torch.cumprod(alphas, dim=0)
+
+
+def amostrar_dados(n):
+    modos = torch.randint(0, 2, (n, 1)).float() * 4.0 - 2.0  # -2.0 ou +2.0
+    return modos + 0.3 * torch.randn(n, 1)
+
+
+eps_theta = nn.Sequential(
+    nn.Linear(2, 64),
+    nn.SiLU(),
+    nn.Linear(64, 64),
+    nn.SiLU(),
+    nn.Linear(64, 64),
+    nn.SiLU(),
+    nn.Linear(64, 1),
+)
+opt = torch.optim.Adam(eps_theta.parameters(), lr=2e-3)
+
+for passo in range(2500):
+    x0 = amostrar_dados(256)
+    t_idx = torch.randint(0, T, (256,))
+    ab = alpha_bar[t_idx].unsqueeze(1)
+    eps = torch.randn_like(x0)
+    x_t = torch.sqrt(ab) * x0 + torch.sqrt(1.0 - ab) * eps
+    t_norm = (t_idx.float().unsqueeze(1) + 1.0) / T
+    perda = F.mse_loss(eps_theta(torch.cat([x_t, t_norm], dim=1)), eps)
+    opt.zero_grad()
+    perda.backward()
+    opt.step()
+
+with torch.no_grad():
+    x = torch.randn(2000, 1)
+    for t_idx in reversed(range(T)):
+        t_norm = torch.full((2000, 1), (t_idx + 1) / T)
+        eps_pred = eps_theta(torch.cat([x, t_norm], dim=1))
+        a_t, ab_t, b_t = alphas[t_idx], alpha_bar[t_idx], betas[t_idx]
+        media = (x - (b_t / torch.sqrt(1.0 - ab_t)) * eps_pred) / torch.sqrt(a_t)
+        x = media + torch.sqrt(b_t) * torch.randn_like(x) if t_idx > 0 else media
+
+x = x.squeeze()
+esq, dir_ = x[x < 0], x[x >= 0]
+# Valores aproximados; podem variar levemente entre versoes e maquinas
+print(f"Fracao esq ≈ {len(esq)/len(x):.2f} | media ≈ {esq.mean():.2f}, desvio ≈ {esq.std():.2f}")
+print(f"Fracao dir ≈ {len(dir_)/len(x):.2f} | media ≈ {dir_.mean():.2f}, desvio ≈ {dir_.std():.2f}")
+# Fracao esq ≈ 0.49 | media ≈ -1.95, desvio ≈ 0.29
+# Fracao dir ≈ 0.51 | media ≈ 1.91, desvio ≈ 0.35
+      </code>
+
+      <subsection id="sub:9-7-3-cerebro">
+        <title>Do cérebro à imagem: reconstrução de estímulos</title>
+
+        Como reconstruir uma imagem que uma pessoa acabou de ver apenas olhando sua atividade cerebral em fMRI? A receita atual combina exatamente aprendizado linear do Módulo 8 com modelos generativos profundos:
+        <list marker="number">
+          <item><strong>Coleta pareada:</strong> registra-se a resposta BOLD em milhares de voxels do córtex visual enquanto a pessoa observa milhares de fotografias naturais.</item>
+          <item><strong>Mapeamento linear (<em>ridge</em>):</strong> treina-se uma regressão linear regularizada (<em>ridge</em>, Módulo 8) para prever, a partir dos voxels, o vetor latente visual e/ou o vetor de condicionamento semântico (texto) correspondentes à imagem vista.</item>
+          <item><strong>Síntese generativa:</strong> o vetor latente previsto pelo cérebro guia o processo reverso de um modelo generativo pré-treinado, produzindo a imagem reconstruída.</item>
+        </list>
+
+        Em um trabalho pioneiro, Shen, Horikawa, Majima &amp; Kamitani (2019, <em>PLOS Computational Biology</em>) mostraram que otimizar imagens para casar com características de redes profundas decodificadas da fMRI — inclusive usando geradores profundos — reconstruía tanto estímulos vistos quanto imagens apenas imaginadas. Mais recentemente, Takagi &amp; Nishimoto (2023, <em>CVPR</em>) aplicaram essa estratégia a um modelo de difusão latente (<em>Stable Diffusion</em>) usando o conjunto público <em>Natural Scenes Dataset</em>: regressões <em>ridge</em> ligaram o córtex visual inicial ao espaço latente da imagem (estrutura espacial) e áreas visuais superiores ao condicionamento textual (semântica).
+
+        Contudo, há limites científicos e éticos decisivos. Primeiro, <strong>a nitidez engana</strong>: o modelo de difusão não lê pixels do cérebro, mas usa seu próprio <em>prior</em> $p(\mathbf{x})$ aprendido em milhões de fotos para preencher texturas plausíveis que nunca estiveram no sinal BOLD. Segundo, são necessárias dezenas de horas de fMRI por participante, pois o mapeamento voxel-a-latente não se transfere diretamente entre cérebros distintos. Por fim, qualquer aplicação fora do laboratório esbarra em questões sérias de privacidade neural e consentimento informado.
+      </subsection>
+
+      <example id="exm:9-7-cerebro-prior">
+        <title>O papel do prior generativo na reconstrução por fMRI</title>
+        Suponha que um participante veja a foto de um cachorro marrom sobre grama verde e o decodificador <em>ridge</em> recupere com fidelidade o conceito "cachorro na grama" e a silhueta central, mas perca os detalhes finos do pelo devido à baixa resolução espacial e temporal da fMRI (TR $\approx 2\text{ s}$). Ao receber esse condicionamento, o modelo de difusão desenha pelos nítidos, olhos e folhas individuais. Esses microdetalhes vêm do <em>prior</em> visual aprendido pelo modelo de difusão, e não de uma leitura direta de alta resolução no córtex do voluntário.
+      </example>
+
+      <table id="tbl:9-7-comparacao">
+        <title>Comparação entre as três famílias de modelos generativos</title>
+        <header>
+          <column>Família</column>
+          <column>O que é treinado</column>
+          <column>Perda principal</column>
+          <column>Qualidade típica</column>
+          <column>Amostragem</column>
+          <column>Latente / Verossimilhança</column>
+        </header>
+        <row>
+          <column><strong>VAE</strong></column>
+          <column>Codificador e decodificador</column>
+          <column>Reconstrução + KL (−ELBO)</column>
+          <column>Boa, tende a suavizar</column>
+          <column>Rápida (1 passo)</column>
+          <column>Tem latente; ELBO explícita</column>
+        </row>
+        <row>
+          <column><strong>GAN</strong></column>
+          <column>Gerador e discriminador</column>
+          <column>Jogo minimax adversário</column>
+          <column>Alta nitidez; risco de colapso</column>
+          <column>Rápida (1 passo)</column>
+          <column>Sem codificador/verossimilhança</column>
+        </row>
+        <row>
+          <column><strong>Difusão</strong></column>
+          <column>Rede de remoção de ruído</column>
+          <column>Erro quadrático no ruído</column>
+          <column>Altíssima; cobre modos</column>
+          <column>Lenta (vários passos)</column>
+          <column>Latente (se latente); limite tratável</column>
+        </row>
+      </table>
+
+      <remark id="rem:9-7-armadilha-difusao">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Confundir processo direto e reverso:</strong> o processo direto $q(\mathbf{x}_t \mid \mathbf{x}_{t-1})$ é uma fórmula analítica fixa, sem pesos treináveis; apenas a rede do processo reverso $\boldsymbol{\varepsilon}_{\boldsymbol{\theta}}(\mathbf{x}_t, t)$ é aprendida.</item>
+          <item><strong>Achar que reconstruções cerebrais "leem pixels":</strong> o sinal fMRI decodifica representações latentes comprimidas, e o gerador completa detalhes plausíveis usando seu <em>prior</em>.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-7-3-1">
+        <title>Básico — Difusão direta em dois passos</title>
+        Com $\beta_1 = \beta_2 = 0{,}2$, calcule $\alpha_1$, $\bar{\alpha}_2$, $\mathrm{SNR}_2 = \frac{\bar{\alpha}_2}{1 - \bar{\alpha}_2}$ e o valor de $x_2$ partindo de $x_0 = -2$ com $\varepsilon = 0{,}5$.
+        <hint><title>Ver dica</title>Use $\alpha_t = 1 - \beta_t$, $\bar{\alpha}_2 = \alpha_1 \alpha_2$ e note que $\sqrt{0{,}64} = 0{,}8$ e $\sqrt{0{,}36} = 0{,}6$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Temos $\alpha_1 = \alpha_2 = 1 - 0{,}2 = 0{,}8$, logo $\bar{\alpha}_2 = 0{,}8 \cdot 0{,}8 = 0{,}64$ e $1 - \bar{\alpha}_2 = 0{,}36$.
+          $$\mathrm{SNR}_2 = \frac{0{,}64}{0{,}36} = \frac{16}{9} \approx 1{,}778.$$
+          Substituindo em <ref to="eq:9-7-difusao-fechada"/>:
+          $$x_2 = \sqrt{0{,}64}\cdot(-2) + \sqrt{0{,}36}\cdot 0{,}5 = 0{,}8(-2) + 0{,}6(0{,}5) = -1{,}6 + 0{,}3 = -1{,}3.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-7-3-2">
+        <title>Intermediário — Limites da decodificação visual por fMRI</title>
+        Em um estudo seguindo a abordagem de Takagi &amp; Nishimoto (2023), uma reconstrução por fMRI mostra um relógio de parede redondo com ponteiros às 10h10, embora o estímulo original mostrasse um relógio marcando 3h15. Explique esse resultado com base na arquitetura do pipeline (regressão <em>ridge</em> + difusão latente).
+        <hint><title>Ver dica</title>Pense na separação entre o que a fMRI + <em>ridge</em> consegue informar (categoria e forma aproximada) e o que o <em>prior</em> do modelo generativo completa sozinho.</hint>
+        <solution collapsible="true" collapsed="true">
+          A regressão <em>ridge</em> aplicada aos voxels de fMRI extrai com sucesso a semântica global ("relógio de parede") e a geometria grosseira (círculo na região central), mas não tem resolução para codificar a posição exata dos ponteiros. Ao sintetizar a imagem, o modelo de difusão preenche os detalhes finos usando seu <em>prior</em> aprendido de fotos de treino (em que 10h10 é muito comum), gerando um relógio convincente porém com horário inventado pelo modelo.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-7-3-3">
+        <title>Avançado — Um passo reverso do DDPM à mão</title>
+        No passo $t = 2$ de uma amostragem DDPM 1D, temos $\beta_2 = 0{,}36$, $\alpha_2 = 0{,}64$ e $\bar{\alpha}_2 = 0{,}36$. Se o estado atual é $x_2 = 1{,}4$, a rede prevê $\varepsilon_{\boldsymbol{\theta}}(x_2, 2) = 0{,}8$ e sorteamos $z = -0{,}5$ com $\sigma_2 = \sqrt{\beta_2}$, calcule $x_1$ pela equação <ref to="eq:9-7-ddpm-sample"/>. Por que $z$ é zerado apenas no último passo ($t = 1$)?
+        <hint><title>Ver dica</title>Observe que $\sqrt{0{,}64} = 0{,}8$ e $\sqrt{0{,}36} = 0{,}6$ tornam todas as contas exatas.</hint>
+        <solution collapsible="true" collapsed="true">
+          Temos $\sqrt{\alpha_2} = 0{,}8$, $\sqrt{1 - \bar{\alpha}_2} = \sqrt{0{,}64} = 0{,}8$ e $\sigma_2 = \sqrt{0{,}36} = 0{,}6$. Aplicando <ref to="eq:9-7-ddpm-sample"/>:
+          $$x_1 = \frac{1}{0{,}8}\left(1{,}4 - \frac{0{,}36}{0{,}8} \cdot 0{,}8\right) + 0{,}6 \cdot (-0{,}5) = \frac{1}{0{,}8}(1{,}4 - 0{,}36) - 0{,}3 = \frac{1{,}04}{0{,}8} - 0{,}3 = 1{,}3 - 0{,}3 = 1{,}0.$$
+          No último passo ($t = 1 \to t = 0$), zeramos $z$ para não injetar ruído extra desnecessário na amostra final já limpa $x_0$.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-7-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Discriminativo vs. generativo:</strong> modelos discriminativos aprendem $p(y \mid \mathbf{x})$; modelos generativos aprendem $p(\mathbf{x})$ (ou $p(\mathbf{x} \mid \text{condição})$) para amostrar dados novos.</item>
+        <item><strong>VAE:</strong> aproxima a <em>posterior</em> por $q_{\boldsymbol{\phi}}(\mathbf{z} \mid \mathbf{x}) = \mathcal{N}(\boldsymbol{\mu}, \operatorname{diag}(\boldsymbol{\sigma}^2))$ maximizando a ELBO, $\mathbb{E}_q[\log p_{\boldsymbol{\theta}}(\mathbf{x} \mid \mathbf{z})] - D_{\mathrm{KL}}(q \,\|\, p(\mathbf{z}))$, com $\mathbf{z} = \boldsymbol{\mu} + \boldsymbol{\sigma} \odot \boldsymbol{\varepsilon}$.</item>
+        <item><strong>KL gaussiana fechada:</strong> por dimensão, $D_{\mathrm{KL}}(\mathcal{N}(\mu, \sigma^2) \,\|\, \mathcal{N}(0, 1)) = \frac{1}{2}(\mu^2 + \sigma^2 - \ln \sigma^2 - 1)$, usando $\log \boldsymbol{\sigma}^2$ na saída do codificador.</item>
+        <item><strong>GAN:</strong> jogo minimax entre $G$ e $D$ com discriminador ótimo $D^*(\mathbf{x}) = \frac{p_{\text{dados}}(\mathbf{x})}{p_{\text{dados}}(\mathbf{x}) + p_g(\mathbf{x})}$; na prática, $G$ maximiza $\log D(G(\mathbf{z}))$ para evitar saturação.</item>
+        <item><strong>Difusão (DDPM):</strong> o processo direto fixo gera $\mathbf{x}_t = \sqrt{\bar{\alpha}_t}\mathbf{x}_0 + \sqrt{1 - \bar{\alpha}_t}\boldsymbol{\varepsilon}$; a rede $\boldsymbol{\varepsilon}_{\boldsymbol{\theta}}(\mathbf{x}_t, t)$ aprende a remover o ruído passo a passo.</item>
+        <item><strong>Reconstrução cerebral:</strong> regressões <em>ridge</em> ligam voxels de fMRI ao espaço latente/condicionamento de modelos generativos, exigindo cautela quanto aos detalhes completados pelo <em>prior</em>.</item>
+      </list>
+    </section>
+
+    <section id="sec:9-7-alem">
+      <title>Para ir além</title>
+      Para consolidar os fundamentos teóricos e a implementação prática em PyTorch antes de seguir para o próximo tema (<strong>9.8 LLM</strong>), consulte os materiais selecionados para o Módulo 9:
+      <list marker="dash">
+        <item><strong>Referência teórica:</strong> <em>Deep Learning Book</em> — Ian Goodfellow (base teórica muito sólida, especialmente os capítulos sobre modelos generativos profundos).</item>
+        <item><strong>Aulas recomendadas:</strong> Andrej Karpathy — aulas de LLM e <em>backpropagation</em> no YouTube.</item>
+        <item><strong>Documentação oficial PyTorch:</strong> <link to="https://pytorch.org/docs/stable/index.html">PyTorch Documentation</link> e <link to="https://pytorch.org/tutorials/">PyTorch Tutorials</link> para consultar módulos de redes e geração.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 9 · Deep Learning — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

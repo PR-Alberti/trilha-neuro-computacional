@@ -1,0 +1,931 @@
+<document>
+  <title>Módulo 7 · Estatística e Probabilidade</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-7-3">Voltar ao guia (Tema 7.3)</link></meta-item>
+    <meta-item key="Módulo">Módulo 7 · Estatística e Probabilidade — Encontrando Certezas no Caos Experimental</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-7-3">
+    <title>Introdução à inferência</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Do dado à conclusão: estimar propriedades da população a partir da amostra.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> A neuroimagem e a eletrofisiologia vivem — bem ou mal — de estatística: p-valores, comparações múltiplas em milhares de <em>voxels</em> de ressonância magnética funcional (fMRI) e quantificação de incerteza em medidas biológicas ruidosas. No tema anterior (<mark>Variável aleatória</mark>), você percorreu o caminho direto da probabilidade: partindo de parâmetros conhecidos da população ($\mu$, $\sigma^2$, $p$, $\lambda$), calculou a chance de observar certos resultados experimentais. No laboratório real, porém, você quase sempre caminha na direção oposta.
+
+    Quando você registra o potencial de repouso de $25$ neurônios em uma fatia de córtex ou mede a amplitude do sinal de fMRI em $20$ voluntários, os verdadeiros parâmetros médios da população biológica permanecem ocultos. O que você tem nas mãos é apenas uma amostra finita e ruidosa. A <strong>inferência estatística</strong> (<em>statistical inference</em>) é a ponte matemática que permite sair dessa amostra limitada para estimar propriedades da população inteira — e, igualmente importante, dizer com rigor qual é a margem de incerteza dessa estimativa. Essa mesma base prepara o terreno para os testes de hipóteses do próximo tema e para os modelos Bayesianos que dominam as teorias modernas de percepção e tomada de decisão no cérebro.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>diferenciar população, amostra, parâmetro populacional (fixo e desconhecido) e estatística amostral (aleatória), avaliando a hipótese i.i.d. e os efeitos do viés de amostragem;</item>
+      <item>definir estimador, viés e erro quadrático médio ($\operatorname{EQM}$), demonstrando por que $\bar{X}$ e $s^2$ (com denominador $n - 1$) são estimadores não viesados;</item>
+      <item>calcular e interpretar o erro padrão da média ($\sigma / \sqrt{n}$), distinguindo-o do desvio-padrão dos dados e aplicando a lei da raiz de $n$ no planejamento experimental;</item>
+      <item>construir e interpretar intervalos de confiança para a média com $\sigma$ conhecido (normal) e desconhecido (distribuição $t$ de Student), evitando erros conceituais clássicos;</item>
+      <item>simular amostragem, viés, erro padrão e cobertura de intervalos em Python com <c>numpy</c>, <c>pandas</c> e <c>scipy.stats</c>.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Tema 7.2 (<mark>Variável aleatória</mark>: em especial esperança $\mathbb{E}[aX + b]$, variância $\operatorname{Var}(aX + b)$, variância da soma de variáveis aleatórias independentes e distribuição normal) e Módulo 6 (<mark>Programação em Python</mark>: <c>numpy</c>, <c>pandas</c>, <c>matplotlib</c> e boas práticas de <mark>Visualizações</mark>). Este tema prepara diretamente o próximo passo: <mark>Testes de hipóteses</mark>.
+
+    <section id="sec:7-3-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>População, amostra, parâmetro e estatística</title>
+      <intro>
+        Toda conclusão estatística começa com uma separação clara entre o mundo ideal que queremos conhecer — a população inteira — e o conjunto limitado de observações que conseguimos medir no experimento.
+      </intro>
+
+      Imagine que você queira descobrir a taxa de disparo espontânea média de <em>todos</em> os neurônios piramidais da camada 5 do córtex visual primário (V1) de camundongos adultos. Há milhões dessas células em um único animal, e seria fisicamente impossível gravar todas elas. Na bancada, você consegue registrar, digamos, $40$ neurônios. Esse contraste entre o todo inacessível e a fração medida define o vocabulário fundamental da inferência.
+
+      <definition id="def:7-3-pop-amostra">
+        <title>População, amostra, parâmetro e estatística</title>
+        Em um estudo estatístico:
+        <list marker="dash">
+          <item>a <strong>população</strong> (<em>population</em>) é o conjunto completo de indivíduos, células, ensaios ou medidas sobre os quais desejamos tirar conclusões;</item>
+          <item>uma <strong>amostra</strong> (<em>sample</em>) é o subconjunto finito de elementos efetivamente observados na população, de tamanho $n$;</item>
+          <item>um <strong>parâmetro</strong> (<em>parameter</em>) é uma quantidade numérica que descreve uma propriedade da população — como a média populacional $\mu$, a variância populacional $\sigma^2$ ou uma proporção populacional $p$. O parâmetro é um número <strong>fixo</strong>, porém geralmente <strong>desconhecido</strong>;</item>
+          <item>uma <strong>estatística</strong> (<em>statistic</em>) é qualquer função calculada exclusivamente a partir dos dados da amostra $X_1, \dots, X_n$ (sem depender de parâmetros desconhecidos) — por exemplo, a média amostral $\bar{X} = \frac{1}{n}\sum_{i=1}^n X_i$ ou a variância amostral $s^2$. Como os valores da amostra mudam de experimento para experimento, uma estatística é uma <strong>variável aleatória</strong>.</item>
+        </list>
+        <intuition>
+          Pense no parâmetro $\mu$ como a profundidade real de um lago: ela tem um valor exato e parado lá no fundo, mesmo que você não a conheça. Já a estatística $\bar{X}$ é a média de $n$ medições feitas com uma sonda jogada em pontos sorteados do lago: se outro pesquisador repetir o sorteio dos $n$ pontos amanhã, obterá um valor numérico ligeiramente diferente. Por isso $\mu$ é fixo, enquanto $\bar{X}$ varia aleatoriamente de amostra para amostra.
+        </intuition>
+      </definition>
+
+      Para que possamos usar a matemática da probabilidade para ligar a estatística amostral ao parâmetro populacional, precisamos saber <em>como</em> a amostra foi coletada. O modelo de referência ideal é a amostragem aleatória simples.
+
+      <definition id="def:7-3-aas-iid">
+        <title>Amostra aleatória simples e hipótese i.i.d.</title>
+        Uma <strong>amostra aleatória simples</strong> (<em>simple random sample</em>, AAS) é um procedimento de coleta em que todos os subconjuntos de tamanho $n$ da população têm a mesma probabilidade de serem escolhidos (ou, no sorteio com reposição, cada elemento tem igual probabilidade e é escolhido independentemente dos demais).
+
+        Quando modelamos as observações $X_1, X_2, \dots, X_n$ antes de coletá-las, dizemos que elas são <strong>independentes e identicamente distribuídas</strong> — abreviado como <strong>i.i.d.</strong> — se:
+        <list marker="number">
+          <item><strong>Independência:</strong> o valor observado em $X_i$ não altera a distribuição de $X_j$ para $i \ne j$;</item>
+          <item><strong>Mesma distribuição:</strong> todas as variáveis $X_1, \dots, X_n$ seguem a mesma distribuição da população, com mesma média $\mu$ e mesma variância $\sigma^2$.</item>
+        </list>
+      </definition>
+
+      Em populações muito grandes (como milhões de neurônios corticais), uma amostra aleatória simples sem reposição de $n = 40$ células comporta-se, para todos os fins práticos, como uma amostra i.i.d., pois retirar uma célula quase não altera a composição do restante da população.
+
+      O problema é que, na biologia experimental, nem sempre conseguimos sortear indivíduos de forma perfeitamente aleatória. Quando o mecanismo de coleta favorece sistematicamente certos valores ou subgrupos, surge o <strong>viés de amostragem</strong> (<em>sampling bias</em>).
+
+      <definition id="def:7-3-vies-amostragem">
+        <title>Viés de amostragem</title>
+        Ocorre <strong>viés de amostragem</strong> quando o processo de seleção faz com que certos elementos da população tenham probabilidade sistematicamente maior ou menor de entrar na amostra do que outros, de modo que a distribuição das unidades amostradas difere da distribuição da população-alvo.
+      </definition>
+
+      <example id="exm:7-3-v1-disparo">
+        <title>Taxa de disparo em V1 e o viés de eletrodos extracelulares</title>
+        Um neurofisiologista deseja estudar a taxa de disparo espontânea dos neurônios de uma área cortical (como V1), cuja média verdadeira sobre <em>todos</em> os neurônios da região é um valor fixo desconhecido $\mu$. Em um experimento, ele consegue registrar $n = 40$ neurônios com um microeletrodo extracelular e obtém média amostral $\bar{x} = 8{,}5\text{ Hz}$ e desvio-padrão amostral $s = 3{,}2\text{ Hz}$.
+        <list marker="a">
+          <item>Identifique a população, a amostra, os parâmetros e as estatísticas envolvidos.</item>
+          <item>Por que dizemos que $\bar{X}$ é aleatória, embora tenhamos obtido um único número $\bar{x} = 8{,}5\text{ Hz}$?</item>
+          <item>Que cuidado é preciso ter ao generalizar $\bar{x} = 8{,}5\text{ Hz}$ para <em>todos</em> os neurônios da área?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>A <strong>população</strong> é o conjunto completo de neurônios daquela área cortical; a <strong>amostra</strong> é formada pelos $40$ neurônios registrados. A verdadeira média populacional $\mu$ e o verdadeiro desvio-padrão populacional $\sigma$ são <strong>parâmetros</strong> (fixos e desconhecidos). Os valores calculados na amostra — $\bar{x} = 8{,}5\text{ Hz}$ e $s = 3{,}2\text{ Hz}$ — são realizações de <strong>estatísticas</strong> ($\bar{X}$ e $S$).</item>
+          <item>Antes de realizar o experimento, os $40$ neurônios ainda não foram sorteados, logo suas taxas futuras $X_1, \dots, X_{40}$ são variáveis aleatórias, e $\bar{X} = \frac{1}{40}\sum_{i=1}^{40} X_i$ também é uma variável aleatória. O valor $\bar{x} = 8{,}5\text{ Hz}$ (com $x$ minúsculo) é apenas <em>uma realização observada</em> dessa estatística.</item>
+          <item>Registros extracelulares dependem da detecção de potenciais de ação acima do ruído elétrico de fundo. Por isso, eletrodos extracelulares tendem a captar com mais facilidade neurônios maiores e mais ativos — que geram sinais mais fortes e frequentes —, deixando neurônios silenciosos ou muito pouco ativos sub-representados. Essa tendência introduz um possível <strong>viés de amostragem</strong> positivo: a média amostral de $8{,}5\text{ Hz}$ pode superestimar a média verdadeira $\mu$ de toda a população neuronal da área.</item>
+        </list>
+      </example>
+
+      <example id="exm:7-3-fatia-repouso">
+        <title>Potencial de repouso em fatias corticais e independência</title>
+        Em um protocolo de <em>patch-clamp</em>, você mede o potencial de repouso de $n = 30$ células piramidais distribuídas em fatias de córtex, obtendo média amostral $\bar{x} = -69{,}2\text{ mV}$, sendo que $24$ células apresentaram potencial igual ou inferior a $-67\text{ mV}$.
+        <list marker="a">
+          <item>Calcule a proporção amostral $\hat{p}$ de células com potencial $\le -67\text{ mV}$ e diferencie $\hat{p}$ do parâmetro $p$.</item>
+          <item>Suponha agora um delineamento alternativo em que o pesquisador mede $30$ vezes seguidas o potencial da <em>mesma</em> célula e trata esses $30$ números como uma amostra de tamanho $n = 30$ para inferir o potencial médio das células da região. A hipótese i.i.d. para a população de células continua válida?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>A proporção amostral é $\hat{p} = \frac{24}{30} = 0{,}80$ ($80\%$). Aqui, $\hat{p}$ é uma <strong>estatística</strong> observada nesta amostra específica de $30$ células; já $p$ é o <strong>parâmetro</strong> desconhecido que representa a fração verdadeira de células com potencial $\le -67\text{ mV}$ em toda a população de células piramidais saudáveis sob esse protocolo.</item>
+          <item><strong>Não.</strong> As $30$ medidas repetidas da mesma célula compartilham exatamente as mesmas características individuais daquela célula (tamanho, expressão de canais iônicos, qualidade do selo do eletrodo) e estão fortemente correlacionadas entre si. Elas podem ajudar a estimar o potencial médio <em>daquela única célula</em>, mas não constituem $30$ sorteios independentes da população de células (esse erro é conhecido em biologia experimental como <em>pseudorreplicação</em>).</item>
+        </list>
+      </example>
+
+      <remark id="rem:7-3-armadilha-amostragem">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Confundir $\bar{x}$ com $\mu$:</strong> escrever "a média populacional foi $-69{,}2\text{ mV}$" depois de medir $30$ células está errado. Você mediu a média <em>amostral</em> $\bar{x}$; $\mu$ continua desconhecido.</item>
+          <item><strong>Achar que "mais dados" consertam viés de amostragem:</strong> se um eletrodo só enxerga neurônios disparando acima de $4\text{ Hz}$, gravar $5\,000$ células com o mesmo viés só produzirá uma estimativa muito precisa... do número errado! O tamanho amostral $n$ reduz a variabilidade aleatória, não o viés sistemático de seleção.</item>
+        </list>
+      </remark>
+
+      Vamos conferir esse comportamento no Python. No código abaixo, simulamos uma população sintética de $100\,000$ neurônios com taxa de disparo positiva e assimétrica (usando uma distribuição gama de média teórica $8{,}0\text{ Hz}$). Em seguida, comparamos $10\,000$ amostras aleatórias simples de tamanho $n = 40$ com $10\,000$ amostras enviesadas em que o eletrodo só detecta células com taxa $\ge 4{,}0\text{ Hz}$.
+
+      <code lang="python" id="cod:7-3-amostragem">
+import numpy as np
+
+rng = np.random.default_rng(42)
+
+# População sintética de 100.000 neurônios (taxa média teórica = 2.0 * 4.0 = 8.0 Hz)
+pop_taxas = rng.gamma(shape=2.0, scale=4.0, size=100_000)
+mu_pop = pop_taxas.mean()
+print(f"Parâmetro populacional mu: {mu_pop:.2f} Hz")  # aprox. 8.00 Hz
+
+# 10.000 amostras aleatórias simples (AAS) de tamanho n = 40
+n_amostras = 10_000
+n = 40
+idx_aas = rng.integers(0, len(pop_taxas), size=(n_amostras, n))
+medias_aas = pop_taxas[idx_aas].mean(axis=1)
+
+print(f"Primeiras 3 médias (AAS): {np.round(medias_aas[:3], 2)}")  # variam de amostra para amostra
+print(f"Média das 10.000 médias (AAS): {medias_aas.mean():.2f} Hz")  # aprox. 8.00 Hz
+
+# Amostragem com viés: eletrodo só detecta neurônios com taxa >= 4.0 Hz
+detectaveis = pop_taxas[pop_taxas >= 4.0]
+idx_vies = rng.integers(0, len(detectaveis), size=(n_amostras, n))
+medias_vies = detectaveis[idx_vies].mean(axis=1)
+
+print(f"Média das 10.000 médias (com viés): {medias_vies.mean():.2f} Hz")  # aprox. 10.00 Hz (superestima mu!)
+      </code>
+
+      <exercise id="exr:7-3-1-1">
+        <title>Básico — Parâmetro ou estatística?</title>
+        Classifique cada grandeza abaixo como <strong>parâmetro</strong> ou <strong>estatística</strong> (ou realização de estatística):
+        <list marker="a">
+          <item>a latência média verdadeira $\mu$ de um reflexo auditivo em todos os adultos saudáveis;</item>
+          <item>a latência média $\bar{x} = 104\text{ ms}$ medida em $18$ voluntários de um estudo de EEG;</item>
+          <item>a proporção real $p$ de interneurônios GABAérgicos no neocórtex humano;</item>
+          <item>o desvio-padrão amostral $s = 3{,}4\text{ mV}$ calculado a partir de $25$ registros intracelulares.</item>
+        </list>
+        <hint><title>Ver dica</title>Pergunte-se: essa quantidade depende da população inteira (e é fixa, mesmo que desconhecida) ou pode ser calculada diretamente a partir dos dados da amostra coletada?</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item><strong>Parâmetro:</strong> refere-se a toda a população de adultos saudáveis, sendo um valor fixo e desconhecido.</item>
+            <item><strong>Estatística (realização observada):</strong> é calculada diretamente a partir dos $18$ voluntários da amostra.</item>
+            <item><strong>Parâmetro:</strong> é uma proporção referente à população completa de neurônios do neocórtex humano.</item>
+            <item><strong>Estatística (realização observada):</strong> foi calculada usando apenas os $25$ registros da amostra.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-3-1-2">
+        <title>Básico — Avaliando i.i.d. e viés de amostragem em experimentos</title>
+        Um grupo de pesquisa quer estimar a densidade média de espinhas dendríticas em neurônios piramidais do hipocampo de ratos saudáveis. Avalie se há violação da hipótese i.i.d. ou risco de viés de amostragem em cada estratégia:
+        <list marker="a">
+          <item>sortear $12$ ratos da colônia e, em cada rato, escolher aleatoriamente $1$ neurônio piramidal em posição anatômica padronizada;</item>
+          <item>escolher manualmente apenas os neurônios mais brilhantes na microscopia de fluorescência (que costumam ter árvores dendríticas maiores e mais espessas);</item>
+          <item>analisar $30$ segmentos dendríticos retirados de um único neurônio de um único animal e tratá-los como $n = 30$ observações independentes da população de ratos.</item>
+        </list>
+        <hint><title>Ver dica</title>Verifique duas coisas em cada item: se todos os indivíduos da população têm chance justa de entrar (ausência de viés) e se as observações compartilham fatores comuns que criam dependência entre elas.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Estratégia bem delineada: os $12$ animais são distintos e há apenas $1$ neurônio sorteado por animal, preservando a independência entre observações e reduzindo o viés de seleção.</item>
+            <item>Há <strong>viés de amostragem</strong>: selecionar apenas células mais brilhantes favorece neurônios maiores ou com maior expressão do marcador fluorescente, distorcendo a média amostral em relação ao conjunto real de neurônios piramidais.</item>
+            <item>Há violação grave de <strong>independência</strong> (e de representatividade populacional): todos os $30$ segmentos vêm do mesmo neurônio e do mesmo animal, compartilhando genética, ambiente fisiológico e técnica de preparação. Eles não formam uma amostra i.i.d. de $30$ indivíduos da população.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-3-1-3">
+        <title>Intermediário — Distribuição amostral da média numa população pequena</title>
+        Suponha uma população minúscula de três neurônios com contagens de potenciais de ação $\{2, 4, 6\}$ em $1\text{ s}$.
+        <list marker="a">
+          <item>Calcule a média populacional $\mu$ e a variância populacional $\sigma^2 = \frac{1}{3}\sum_{j=1}^3 (y_j - \mu)^2$.</item>
+          <item>Liste todas as $3^2 = 9$ amostras aleatórias simples $(X_1, X_2)$ de tamanho $n = 2$ sorteadas <em>com reposição</em> e obtenha a distribuição de probabilidade da estatística $\bar{X} = \frac{X_1 + X_2}{2}$.</item>
+          <item>Calcule $\mathbb{E}[\bar{X}]$ e $\operatorname{Var}(\bar{X})$ diretamente pela distribuição encontrada em (b) e compare com $\mu$ e $\sigma^2 / 2$.</item>
+        </list>
+        <hint><title>Ver dica</title>Cada um dos $9$ pares ordenados $(X_1, X_2)$ tem probabilidade $1/9$. Agrupe os pares que dão o mesmo valor de $\bar{X}$ para montar a função de massa de probabilidade de $\bar{X}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>A média populacional é:
+              $$\mu = \frac{2 + 4 + 6}{3} = 4.$$
+              Os desvios em relação a $\mu = 4$ são $-2, 0, +2$, logo a variância populacional vale:
+              $$\sigma^2 = \frac{(-2)^2 + 0^2 + 2^2}{3} = \frac{4 + 0 + 4}{3} = \frac{8}{3}.$$
+            </item>
+            <item>Os $9$ pares equiprováveis (probabilidade $1/9$ cada) e suas respectivas médias $\bar{x}$ são:
+              $(2,2) \to 2$; $(2,4) \to 3$; $(2,6) \to 4$;
+              $(4,2) \to 3$; $(4,4) \to 4$; $(4,6) \to 5$;
+              $(6,2) \to 4$; $(6,4) \to 5$; $(6,6) \to 6$.
+              Agrupando os resultados iguais, obtemos a distribuição de $\bar{X}$:
+              $$P(\bar{X}=2)=\frac{1}{9},\quad P(\bar{X}=3)=\frac{2}{9},\quad P(\bar{X}=4)=\frac{3}{9},\quad P(\bar{X}=5)=\frac{2}{9},\quad P(\bar{X}=6)=\frac{1}{9}.$$
+            </item>
+            <item>Calculando esperança e variância de $\bar{X}$ pela definição:
+              $$\mathbb{E}[\bar{X}] = 2\cdot\frac{1}{9} + 3\cdot\frac{2}{9} + 4\cdot\frac{3}{9} + 5\cdot\frac{2}{9} + 6\cdot\frac{1}{9} = \frac{2 + 6 + 12 + 10 + 6}{9} = \frac{36}{9} = 4 = \mu.$$
+              Para o segundo momento:
+              $$\mathbb{E}[\bar{X}^2] = 4\cdot\frac{1}{9} + 9\cdot\frac{2}{9} + 16\cdot\frac{3}{9} + 25\cdot\frac{2}{9} + 36\cdot\frac{1}{9} = \frac{4 + 18 + 48 + 50 + 36}{9} = \frac{156}{9} = \frac{52}{3}.$$
+              Logo:
+              $$\operatorname{Var}(\bar{X}) = \mathbb{E}[\bar{X}^2] - \bigl(\mathbb{E}[\bar{X}]\bigr)^2 = \frac{52}{3} - 4^2 = \frac{52 - 48}{3} = \frac{4}{3} = \frac{8/3}{2} = \frac{\sigma^2}{2}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-3-1-4">
+        <title>Avançado — Flutuação amostral do potencial de repouso em Python</title>
+        Escreva um código em Python usando <c>rng = np.random.default_rng(42)</c> que:
+        <list marker="a">
+          <item>gere uma população sintética de $50\,000$ células com potenciais de repouso vindos de $\mathcal{N}(-70,\; 4^2)\text{ mV}$;</item>
+          <item>sorteie $5\,000$ amostras aleatórias simples de tamanho $n = 30$ (com reposição, via <c>rng.integers</c>) e calcule a média amostral $\bar{x}$ de cada amostra;</item>
+          <item>imprima a média populacional, a média das $5\,000$ médias amostrais e a proporção de amostras cuja média ficou a mais de $1{,}0\text{ mV}$ de distância de $-70\text{ mV}$ ($|\bar{x} - (-70)| &gt; 1{,}0$).</item>
+        </list>
+        <hint><title>Ver dica</title>Gere uma matriz de índices com formato <c>(5000, 30)</c> usando <c>rng.integers(0, len(pop), size=(5000, 30))</c> e calcule <c>.mean(axis=1)</c>. Para a condição de distância, use <c>np.abs(medias - (-70.0)) &gt; 1.0</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+
+rng = np.random.default_rng(42)
+
+pop_v = rng.normal(loc=-70.0, scale=4.0, size=50_000)
+idx = rng.integers(0, len(pop_v), size=(5_000, 30))
+medias = pop_v[idx].mean(axis=1)
+
+prop_longe = (np.abs(medias - (-70.0)) > 1.0).mean()
+
+print(f"Média da população:    {pop_v.mean():.3f} mV")    # aprox. -70.000 mV
+print(f"Média das 5000 médias: {medias.mean():.3f} mV")   # aprox. -70.000 mV
+print(f"Proporção |xbar+70|>1: {prop_longe:.4f}")         # aprox. 0.17 (varia com a semente)
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:7-3-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Estimadores e viés</title>
+      <intro>
+        Existem várias receitas possíveis para transformar uma amostra em uma estimativa de $\mu$ ou de $\sigma^2$. Precisamos de critérios matemáticos para decidir quais fórmulas acertam o alvo em média e quais erram sistematicamente.
+      </intro>
+
+      Suponha que um arqueiro dispare dezenas de flechas em direção a um alvo. Se as flechas caem espalhadas ao redor do centro exato, sem puxar para nenhum lado, dizemos que o arqueiro não tem viés — embora sua dispersão ainda possa ser grande ou pequena. Se todas as flechas caem bem juntas entre si, porém $15\text{ cm}$ à direita do centro, o disparo é pouco disperso, mas claramente viesado. O mesmo raciocínio governa a escolha de um <strong>estimador</strong> em estatística.
+
+      <definition id="def:7-3-estimador-vies">
+        <title>Estimador, estimativa e viés</title>
+        Seja $\theta$ um parâmetro populacional desconhecido.
+        <list marker="dash">
+          <item>Um <strong>estimador</strong> (<em>estimator</em>), denotado por $\hat{\theta}$, é uma estatística (portanto, uma variável aleatória) usada para aproximar $\theta$ a partir da amostra $X_1, \dots, X_n$.</item>
+          <item>Uma <strong>estimativa</strong> (<em>estimate</em>) é o número concreto obtido quando aplicamos a fórmula de $\hat{\theta}$ a uma amostra específica observada $x_1, \dots, x_n$.</item>
+          <item>O <strong>viés</strong> (<em>bias</em>) do estimador $\hat{\theta}$ é a diferença entre o seu valor esperado e o parâmetro verdadeiro:
+            <equation id="eq:7-3-vies">\operatorname{Viés}(\hat{\theta}) = \mathbb{E}[\hat{\theta}] - \theta.</equation>
+          </item>
+        </list>
+        Dizemos que $\hat{\theta}$ é um <strong>estimador não viesado</strong> (<em>unbiased estimator</em>) de $\theta$ quando $\operatorname{Viés}(\hat{\theta}) = 0$, isto é, $\mathbb{E}[\hat{\theta}] = \theta$ para todo valor possível de $\theta$.
+      </definition>
+
+      Comecemos pelo estimador mais natural para a média populacional $\mu$: a média amostral $\bar{X} = \frac{1}{n}\sum_{i=1}^n X_i$.
+
+      <proposition id="prop:7-3-media-nao-viesada">
+        <title>Não viesamento da média amostral</title>
+        Se $X_1, \dots, X_n$ são variáveis aleatórias identicamente distribuídas com média $\mathbb{E}[X_i] = \mu$, então a média amostral $\bar{X} = \frac{1}{n}\sum_{i=1}^n X_i$ é um estimador não viesado de $\mu$:
+        $$\mathbb{E}[\bar{X}] = \mu \qquad \text{e} \qquad \operatorname{Viés}(\bar{X}) = 0.$$
+      </proposition>
+      <proof of="prop:7-3-media-nao-viesada" collapsible="true" collapsed="true">
+        Pela linearidade da esperança matemática (vista no tema <mark>Variável aleatória</mark>):
+        $$\mathbb{E}[\bar{X}] = \mathbb{E}\!\left[\frac{1}{n}\sum_{i=1}^n X_i\right] = \frac{1}{n}\sum_{i=1}^n \mathbb{E}[X_i] = \frac{1}{n}\sum_{i=1}^n \mu = \frac{n\mu}{n} = \mu.$$
+        Logo, $\operatorname{Viés}(\bar{X}) = \mathbb{E}[\bar{X}] - \mu = \mu - \mu = 0$.
+      </proof>
+
+      Agora surge uma surpresa famosa quando tentamos estimar a variância populacional $\sigma^2$. A fórmula da variância populacional calcula a média dos desvios quadráticos em torno da verdadeira média $\mu$. Como na amostra não conhecemos $\mu$, somos obrigados a substituí-la pela média amostral $\bar{X}$. À primeira vista, parece natural dividir a soma dos quadrados por $n$ — mas isso introduz um viés sistemático para baixo! Para corrigi-lo, dividimos por $n - 1$.
+
+      <definition id="def:7-3-variancia-amostral">
+        <title>Variância amostral com $n - 1$ e versão com $n$</title>
+        Dada uma amostra $X_1, \dots, X_n$ com $n \ge 2$, definimos:
+        <list marker="dash">
+          <item>a <strong>variância amostral não viesada</strong> (com correção de Bessel):
+            <equation id="eq:7-3-s2">s^2 = \frac{1}{n - 1}\sum_{i=1}^n (X_i - \bar{X})^2;</equation>
+          </item>
+          <item>a versão dividida por $n$ (que coincide com o estimador de máxima verossimilhança da normal, como veremos mais adiante no módulo):
+            $$\hat{\sigma}^2_n = \frac{1}{n}\sum_{i=1}^n (X_i - \bar{X})^2.$$
+          </item>
+        </list>
+        <intuition>
+          Os dados de uma amostra sempre ficam um pouco mais próximos de sua <em>própria</em> média amostral $\bar{X}$ do que da verdadeira média populacional $\mu$ (de fato, $\bar{X}$ é exatamente o número $c$ que minimiza $\sum_{i=1}^n (X_i - c)^2$). Se você observar só $n = 1$ neurônio, $X_1 - \bar{X} = 0$, mesmo que $\sigma^2 &gt; 0$! Ao usar $\bar{X}$ no lugar de $\mu$, consumimos $1$ grau de liberdade dos dados e encolhemos a soma de quadrados pelo fator $\frac{n - 1}{n}$. Dividir por $n - 1$ em vez de $n$ desfaz exatamente esse encolhimento.
+        </intuition>
+      </definition>
+
+      <proposition id="prop:7-3-variancia-nao-viesada">
+        <title>Viés da variância com $n$ e não viesamento de $s^2$</title>
+        Se $X_1, \dots, X_n$ são i.i.d. com média $\mu$ e variância $\sigma^2$ ($n \ge 2$), então:
+        $$\mathbb{E}[\hat{\sigma}^2_n] = \frac{n - 1}{n}\sigma^2 \qquad \text{e} \qquad \mathbb{E}[s^2] = \sigma^2.$$
+        Ou seja, a versão com denominador $n$ subestima $\sigma^2$ pelo fator $\frac{n - 1}{n}$ (tem viés $-\frac{\sigma^2}{n}$), enquanto $s^2$ com denominador $n - 1$ é não viesada.
+      </proposition>
+      <proof of="prop:7-3-variancia-nao-viesada" collapsible="true" collapsed="true">
+        Primeiro reescrevemos a soma de quadrados expandindo $(X_i - \bar{X})^2 = X_i^2 - 2\bar{X}X_i + \bar{X}^2$ e somando de $i = 1$ até $n$:
+        $$\sum_{i=1}^n (X_i - \bar{X})^2 = \sum_{i=1}^n X_i^2 - 2\bar{X}\sum_{i=1}^n X_i + n\bar{X}^2 = \sum_{i=1}^n X_i^2 - 2\bar{X}(n\bar{X}) + n\bar{X}^2 = \sum_{i=1}^n X_i^2 - n\bar{X}^2.$$
+        Agora usamos a identidade $\mathbb{E}[Y^2] = \operatorname{Var}(Y) + (\mathbb{E}[Y])^2$ (vista no tema <mark>Variável aleatória</mark>). Para cada observação $X_i$, temos $\mathbb{E}[X_i^2] = \sigma^2 + \mu^2$. Já para $\bar{X}$, sabemos que $\mathbb{E}[\bar{X}] = \mu$ e, pela independência das observações, $\operatorname{Var}(\bar{X}) = \operatorname{Var}\!\left(\frac{1}{n}\sum_{i=1}^n X_i\right) = \frac{1}{n^2}\sum_{i=1}^n \sigma^2 = \frac{\sigma^2}{n}$ (resultado que detalharemos na próxima seção). Portanto:
+        $$\mathbb{E}[\bar{X}^2] = \operatorname{Var}(\bar{X}) + (\mathbb{E}[\bar{X}])^2 = \frac{\sigma^2}{n} + \mu^2.$$
+        Aplicando a esperança na soma de quadrados:
+        $$\mathbb{E}\!\left[\sum_{i=1}^n (X_i - \bar{X})^2\right] = \sum_{i=1}^n (\sigma^2 + \mu^2) - n\left(\frac{\sigma^2}{n} + \mu^2\right) = n\sigma^2 + n\mu^2 - \sigma^2 - n\mu^2 = (n - 1)\sigma^2.$$
+        Dividindo por $n$, obtemos $\mathbb{E}[\hat{\sigma}^2_n] = \frac{n - 1}{n}\sigma^2$. Dividindo por $n - 1$, obtemos $\mathbb{E}[s^2] = \frac{(n - 1)\sigma^2}{n - 1} = \sigma^2$.
+      </proof>
+
+      Note uma sutileza importante: embora $s^2$ seja não viesado para $\sigma^2$, o desvio-padrão amostral $s = \sqrt{s^2}$ ainda tem um pequeno viés negativo para $\sigma$ quando $n$ é muito pequeno (porque a raiz quadrada é uma função côncava, logo $\mathbb{E}[\sqrt{s^2}] \le \sqrt{\mathbb{E}[s^2]} = \sigma$). Esse viés em $s$, porém, desaparece rapidamente à medida que $n$ cresce.
+
+      Além de olhar apenas para o viés, queremos saber o quão longe, em média quadrática, um estimador cai do parâmetro verdadeiro. Essa medida global é o <strong>erro quadrático médio</strong>.
+
+      <definition id="def:7-3-eqm">
+        <title>Erro quadrático médio (EQM)</title>
+        O <strong>erro quadrático médio</strong> (<em>mean squared error</em>, MSE) de um estimador $\hat{\theta}$ de $\theta$ é:
+        <equation id="eq:7-3-eqm">\operatorname{EQM}(\hat{\theta}) = \mathbb{E}\!\left[(\hat{\theta} - \theta)^2\right] = \bigl(\operatorname{Viés}(\hat{\theta})\bigr)^2 + \operatorname{Var}(\hat{\theta}).</equation>
+      </definition>
+
+      A decomposição da <ref to="eq:7-3-eqm"/> mostra algo profundo: não basta ter viés zero. Um estimador não viesado com variância enorme tem $\operatorname{EQM}$ alto (suas estimativas erram muito de uma amostra para outra). Por outro lado, às vezes aceitamos um pequeno viés se ele reduzir drasticamente a variância e baixar o $\operatorname{EQM}$ total — esse equilíbrio é a raiz do célebre <strong>compromisso viés–variância</strong> (<em>bias–variance tradeoff</em>), que reaparecerá como ideia central no Módulo 8 (<mark>Machine Learning</mark>).
+
+      <example id="exm:7-3-variancia-mao">
+        <title>Calculando $\bar{x}$, $\hat{\sigma}^2_n$ e $s^2$ à mão em registros de membrana</title>
+        Em $n = 5$ neurônios corticais, você mediu os seguintes potenciais de repouso (em $\text{mV}$):
+        $$-72,\quad -68,\quad -70,\quad -74,\quad -66.$$
+        Calcule $\bar{x}$, a variância com denominador $n$ ($\hat{\sigma}^2_n$) e a variância amostral não viesada ($s^2$).
+
+        <strong>Solução.</strong>
+        <list marker="number">
+          <item>Média amostral:
+            $$\bar{x} = \frac{-72 + (-68) + (-70) + (-74) + (-66)}{5} = \frac{-350}{5} = -70\text{ mV}.$$
+          </item>
+          <item>Desvios em relação a $\bar{x} = -70$:
+            $$-72 - (-70) = -2,\quad -68 - (-70) = +2,\quad -70 - (-70) = 0,\quad -74 - (-70) = -4,\quad -66 - (-70) = +4.$$
+            Soma dos desvios quadráticos:
+            $$\sum_{i=1}^5 (x_i - \bar{x})^2 = (-2)^2 + 2^2 + 0^2 + (-4)^2 + 4^2 = 4 + 4 + 0 + 16 + 16 = 40\text{ mV}^2.$$
+          </item>
+          <item>Dividindo por $n = 5$: $\hat{\sigma}^2_n = \frac{40}{5} = 8{,}0\text{ mV}^2$ (e $\hat{\sigma}_n = \sqrt{8} \approx 2{,}83\text{ mV}$).</item>
+          <item>Dividindo por $n - 1 = 4$: $s^2 = \frac{40}{4} = 10{,}0\text{ mV}^2$ (e $s = \sqrt{10} \approx 3{,}16\text{ mV}$).</item>
+        </list>
+        Observe que $\frac{\hat{\sigma}^2_n}{s^2} = \frac{8{,}0}{10{,}0} = 0{,}80 = \frac{5 - 1}{5}$, exatamente a razão $\frac{n-1}{n}$ prevista pela <ref to="prop:7-3-variancia-nao-viesada"/>.
+      </example>
+
+      <example id="exm:7-3-eqm-comparacao">
+        <title>Comparando estimadores de taxa de disparo pelo EQM</title>
+        Suponha uma amostra i.i.d. de $n = 10$ neurônios cuja taxa de disparo tem média verdadeira $\mu = 20\text{ Hz}$ e variância $\sigma^2 = 25\text{ Hz}^2$. Compare três estimadores para $\mu$:
+        <list marker="dash">
+          <item>$\hat{\mu}_1 = X_1$ (jogar fora $9$ neurônios e usar só o primeiro);</item>
+          <item>$\hat{\mu}_2 = \bar{X}$ (a média de todos os $10$ neurônios);</item>
+          <item>$\hat{\mu}_3 = 0{,}9\,\bar{X}$ (um estimador "encolhido" em $10\%$). </item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="dash">
+          <item>Para $\hat{\mu}_1 = X_1$: $\mathbb{E}[X_1] = \mu$, logo $\operatorname{Viés}(\hat{\mu}_1) = 0$. Sua variância é $\operatorname{Var}(X_1) = \sigma^2 = 25\text{ Hz}^2$. Assim, $\operatorname{EQM}(\hat{\mu}_1) = 0^2 + 25 = 25\text{ Hz}^2$.</item>
+          <item>Para $\hat{\mu}_2 = \bar{X}$: $\operatorname{Viés}(\hat{\mu}_2) = 0$ e $\operatorname{Var}(\bar{X}) = \frac{\sigma^2}{n} = \frac{25}{10} = 2{,}5\text{ Hz}^2$. Logo, $\operatorname{EQM}(\hat{\mu}_2) = 0^2 + 2{,}5 = 2{,}5\text{ Hz}^2$ — dez vezes menor que $\hat{\mu}_1$, apesar de ambos serem não viesados!</item>
+          <item>Para $\hat{\mu}_3 = 0{,}9\,\bar{X}$: $\mathbb{E}[\hat{\mu}_3] = 0{,}9\,\mathbb{E}[\bar{X}] = 0{,}9 \cdot 20 = 18\text{ Hz}$, portanto $\operatorname{Viés}(\hat{\mu}_3) = 18 - 20 = -2\text{ Hz}$. Sua variância é $\operatorname{Var}(0{,}9\,\bar{X}) = 0{,}9^2 \operatorname{Var}(\bar{X}) = 0{,}81 \cdot 2{,}5 = 2{,}025\text{ Hz}^2$. Somando viés ao quadrado e variância:
+            $$\operatorname{EQM}(\hat{\mu}_3) = (-2)^2 + 2{,}025 = 4 + 2{,}025 = 6{,}025\text{ Hz}^2.$$
+            Para $\mu = 20\text{ Hz}$, o viés ao quadrado ($4$) supera o pequeno ganho em variância, tornando $\bar{X}$ melhor. (Curiosidade: se $\mu$ fosse próximo de $0\text{ Hz}$, o viés de encolher seria mínimo e $\hat{\mu}_3$ venceria $\bar{X}$ em EQM!)
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:7-3-armadilha-ddof">
+        <title>Armadilha comum</title>
+        No Python, <strong>NumPy e pandas usam padrões opostos</strong> para o denominador da variância e do desvio-padrão! O parâmetro que controla o que é subtraído de $n$ chama-se <c>ddof</c> (<em>Delta Degrees of Freedom</em>):
+        <list marker="dash">
+          <item><c>np.var(x)</c> e <c>np.std(x)</c> usam <strong><c>ddof=0</c></strong> por padrão (dividem por $n$).</item>
+          <item><c>serie.var()</c> e <c>serie.std()</c> no <c>pandas</c> usam <strong><c>ddof=1</c></strong> por padrão (dividem por $n - 1$).</item>
+        </list>
+        Veja a diferença no vetor pequeno <c>x = [10, 12, 14]</c>. À mão, temos $\bar{x} = \frac{10 + 12 + 14}{3} = 12$ e a soma dos quadrados dos desvios é $(10 - 12)^2 + (12 - 12)^2 + (14 - 12)^2 = 4 + 0 + 4 = 8$. Com <c>ddof=0</c> (NumPy padrão), dividimos por $n = 3$: $\hat{\sigma}^2_n = \frac{8}{3} \approx 2{,}6667$ (e desvio $\sqrt{8/3} \approx 1{,}6330$). Com <c>ddof=1</c> (pandas padrão ou <c>np.var(x, ddof=1)</c>), dividimos por $n - 1 = 2$: $s^2 = \frac{8}{2} = 4{,}0$ (e $s = 2{,}0$). Sempre explicite <c>ddof=1</c> quando quiser a variância amostral $s^2$ no NumPy!
+      </remark>
+
+      Vamos conferir no código abaixo tanto as contas exatas no vetor <c>[10, 12, 14]</c> quanto uma simulação com $100\,000$ amostras de tamanho $n = 5$ vindas de $\mathcal{N}(0, 1)$ (onde $\sigma^2 = 1$). Como $\frac{n - 1}{n} = \frac{4}{5} = 0{,}8$, esperamos que a média das variâncias com <c>ddof=0</c> fique perto de $0{,}8$, enquanto com <c>ddof=1</c> fique perto de $1{,}0$.
+
+      <code lang="python" id="cod:7-3-ddof-simulacao">
+import numpy as np
+import pandas as pd
+
+# 1. Comparação determinística em um vetor pequeno
+x = np.array([10.0, 12.0, 14.0])
+print(f"NumPy ddof=0 (padrão): {np.var(x):.4f}")          # 2.6667
+print(f"NumPy ddof=1 (s^2):    {np.var(x, ddof=1):.4f}")  # 4.0000
+print(f"Pandas .var() (padrão): {pd.Series(x).var():.4f}") # 4.0000
+
+# 2. Simulação de 100.000 amostras de tamanho n = 5 de N(0, 1)
+rng = np.random.default_rng(42)
+amostras = rng.normal(loc=0.0, scale=1.0, size=(100_000, 5))
+
+var_n = amostras.var(axis=1, ddof=0)
+var_n1 = amostras.var(axis=1, ddof=1)
+
+print(f"Média ddof=0 (n=5): {var_n.mean():.4f}")   # aprox. 0.8000 (teórico: (5-1)/5 = 0.8000)
+print(f"Média ddof=1 (n=5): {var_n1.mean():.4f}")  # aprox. 1.0000 (não viesado: 1.0000)
+      </code>
+
+      <exercise id="exr:7-3-2-1">
+        <title>Básico — Média e variâncias amostrais à mão</title>
+        Quatro ensaios mediram a latência de disparo de um neurônio sensorial após um estímulo tátil (em $\text{ms}$): $12$, $15$, $13$ e $20$. Calcule à mão:
+        <list marker="a">
+          <item>a média amostral $\bar{x}$;</item>
+          <item>a variância com denominador $n$ ($\hat{\sigma}^2_n$);</item>
+          <item>a variância amostral não viesada $s^2$ e o desvio-padrão amostral $s$.</item>
+        </list>
+        <hint><title>Ver dica</title>Encontre $\bar{x}$ somando os quatro valores e dividindo por $4$. Depois calcule os desvios $x_i - \bar{x}$, eleve cada um ao quadrado e some antes de dividir por $4$ e por $3$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>A soma dos quatro valores é $12 + 15 + 13 + 20 = 60\text{ ms}$, logo:
+              $$\bar{x} = \frac{60}{4} = 15\text{ ms}.$$
+            </item>
+            <item>Os desvios em torno de $15$ são $-3$, $0$, $-2$ e $+5$. A soma dos quadrados é:
+              $$(-3)^2 + 0^2 + (-2)^2 + 5^2 = 9 + 0 + 4 + 25 = 38\text{ ms}^2.$$
+              Dividindo por $n = 4$:
+              $$\hat{\sigma}^2_n = \frac{38}{4} = 9{,}5\text{ ms}^2.$$
+            </item>
+            <item>Dividindo por $n - 1 = 3$:
+              $$s^2 = \frac{38}{3} \approx 12{,}67\text{ ms}^2, \qquad s = \sqrt{\frac{38}{3}} \approx 3{,}56\text{ ms}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-3-2-2">
+        <title>Básico — Corrigindo uma saída padrão do NumPy</title>
+        Um colega analisou a taxa de disparo de $n = 10$ neurônios usando <c>np.var(taxas)</c> (sem especificar <c>ddof=1</c>) e relatou uma variância de $14{,}4\text{ Hz}^2$. Qual é o valor correto da variância amostral não viesada $s^2$ e do desvio-padrão amostral $s$?
+        <hint><title>Ver dica</title>Lembre que <c>np.var</c> sem <c>ddof=1</c> dividiu a soma dos quadrados por $n = 10$, enquanto $s^2$ divide por $n - 1 = 9$. Logo, $s^2 = \frac{n}{n-1}\hat{\sigma}^2_n$.</hint>
+        <solution collapsible="true" collapsed="true">
+          A soma dos quadrados dos desvios é $\sum_{i=1}^{10}(x_i - \bar{x})^2 = 10 \cdot 14{,}4 = 144\text{ Hz}^2$. Dividindo por $n - 1 = 9$:
+          $$s^2 = \frac{144}{9} = 16{,}0\text{ Hz}^2.$$
+          Extraindo a raiz quadrada, o desvio-padrão amostral vale:
+          $$s = \sqrt{16{,}0} = 4{,}0\text{ Hz}.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-3-2-3">
+        <title>Intermediário — Viés, variância e EQM de um estimador ponderado</title>
+        Sejam $X_1, X_2, X_3$ três medidas independentes e identicamente distribuídas com média $\mu$ e variância $\sigma^2$. Considere o estimador ponderado que dá peso dobrado à primeira medida:
+        $$\hat{\mu}_w = \frac{1}{2}X_1 + \frac{1}{4}X_2 + \frac{1}{4}X_3.$$
+        <list marker="a">
+          <item>Verifique se $\hat{\mu}_w$ é não viesado para $\mu$.</item>
+          <item>Calcule $\operatorname{Var}(\hat{\mu}_w)$ e $\operatorname{EQM}(\hat{\mu}_w)$ em função de $\sigma^2$.</item>
+          <item>Compare $\operatorname{EQM}(\hat{\mu}_w)$ com $\operatorname{EQM}(\bar{X}) = \operatorname{Var}(\bar{X}) = \frac{\sigma^2}{3}$. Qual dos dois estimadores é melhor?</item>
+        </list>
+        <hint><title>Ver dica</title>Use a linearidade da esperança $\mathbb{E}[aX_1 + bX_2 + cX_3] = (a+b+c)\mu$ e, pela independência, $\operatorname{Var}(aX_1 + bX_2 + cX_3) = (a^2 + b^2 + c^2)\sigma^2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pela linearidade da esperança:
+              $$\mathbb{E}[\hat{\mu}_w] = \frac{1}{2}\mu + \frac{1}{4}\mu + \frac{1}{4}\mu = \left(\frac{1}{2} + \frac{1}{4} + \frac{1}{4}\right)\mu = 1\cdot\mu = \mu.$$
+              Portanto, $\operatorname{Viés}(\hat{\mu}_w) = \mu - \mu = 0$: ele é não viesado!
+            </item>
+            <item>Como $X_1, X_2, X_3$ são independentes e têm variância $\sigma^2$:
+              $$\operatorname{Var}(\hat{\mu}_w) = \left(\frac{1}{2}\right)^2\sigma^2 + \left(\frac{1}{4}\right)^2\sigma^2 + \left(\frac{1}{4}\right)^2\sigma^2 = \left(\frac{1}{4} + \frac{1}{16} + \frac{1}{16}\right)\sigma^2 = \frac{6}{16}\sigma^2 = \frac{3}{8}\sigma^2 = 0{,}375\,\sigma^2.$$
+              Como o viés é zero, $\operatorname{EQM}(\hat{\mu}_w) = 0^2 + \frac{3}{8}\sigma^2 = \frac{3}{8}\sigma^2$.
+            </item>
+            <item>Temos $\operatorname{EQM}(\bar{X}) = \frac{1}{3}\sigma^2 \approx 0{,}333\,\sigma^2 &lt; 0{,}375\,\sigma^2 = \operatorname{EQM}(\hat{\mu}_w)$. Portanto, a média simples $\bar{X}$ é mais precisa (menor variância e menor EQM): quando todas as medidas têm a mesma qualidade (i.i.d.), dar pesos iguais minimiza a variância.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-3-2-4">
+        <title>Avançado — Conferindo viés de $s^2$ e de $s$ em Python</title>
+        Escreva um código em Python com <c>rng = np.random.default_rng(42)</c> que gere $100\,000$ amostras de tamanho $n = 4$ vindas de $\mathcal{N}(10,\; 3^2)$ ($\sigma = 3$, $\sigma^2 = 9$). Calcule e imprima:
+        <list marker="a">
+          <item>a média das variâncias com <c>ddof=0</c> (compare com o valor teórico $\frac{3}{4} \cdot 9 = 6{,}75$);</item>
+          <item>a média das variâncias com <c>ddof=1</c> (compare com $\sigma^2 = 9$);</item>
+          <item>a média dos desvios-padrão amostrais $s$ com <c>ddof=1</c> e observe se $\mathbb{E}[s]$ coincide exatamente com $\sigma = 3$ ou fica ligeiramente abaixo.</item>
+        </list>
+        <hint><title>Ver dica</title>Gere um array de formato <c>(100_000, 4)</c> com <c>rng.normal(loc=10.0, scale=3.0, size=(100_000, 4))</c> e use <c>.var(axis=1, ddof=...)</c> e <c>.std(axis=1, ddof=1)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+
+rng = np.random.default_rng(42)
+amostras = rng.normal(loc=10.0, scale=3.0, size=(100_000, 4))
+
+media_var_0 = amostras.var(axis=1, ddof=0).mean()
+media_var_1 = amostras.var(axis=1, ddof=1).mean()
+media_std_1 = amostras.std(axis=1, ddof=1).mean()
+
+print(f"Média variância ddof=0: {media_var_0:.4f}")  # aprox. 6.7500 (teórico: 3/4 * 9 = 6.75)
+print(f"Média variância ddof=1: {media_var_1:.4f}")  # aprox. 9.0000 (não viesado: 9.00)
+print(f"Média desvio s (ddof=1): {media_std_1:.4f}") # aprox. 2.76 (ligeiramente menor que 3.00!)
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:7-3-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Erro padrão</title>
+      <intro>
+        Saber que a média amostral não tem viés não basta: quanto ela oscila quando repetimos o experimento com $n$ observações? Essa oscilação típica da média é medida pelo erro padrão — que obedece à famosa lei da raiz de $n$.
+      </intro>
+
+      Suponha que você meça o potencial de repouso de $25$ neurônios em um laboratório e outra equipe meça $25$ neurônios diferentes no mesmo tecido. Mesmo sem nenhum viés, as duas médias $\bar{x}_1$ e $\bar{x}_2$ não serão idênticas. Precisamos responder a duas perguntas distintas: primeiro, o quanto os neurônios individuais diferem entre si; segundo, o quanto a <em>média amostral</em> $\bar{X}$ oscila de uma amostra de tamanho $n$ para outra. A segunda pergunta é respondida pela variância e pelo desvio-padrão de $\bar{X}$.
+
+      <proposition id="prop:7-3-var-media">
+        <title>Variância da média amostral</title>
+        Se $X_1, \dots, X_n$ são variáveis aleatórias independentes e identicamente distribuídas com média $\mu$ e variância finita $\sigma^2$, então:
+        <equation id="eq:7-3-var-media">\operatorname{Var}(\bar{X}) = \frac{\sigma^2}{n}.</equation>
+      </proposition>
+      <proof of="prop:7-3-var-media" collapsible="true" collapsed="true">
+        Escrevemos $\bar{X} = \frac{1}{n}\sum_{i=1}^n X_i$. Pelas propriedades vistas no tema <mark>Variável aleatória</mark> — a saber, $\operatorname{Var}(aY) = a^2\operatorname{Var}(Y)$ e a variância da soma de variáveis aleatórias <em>independentes</em> é a soma das variâncias — temos:
+        $$\operatorname{Var}(\bar{X}) = \operatorname{Var}\!\left(\frac{1}{n}\sum_{i=1}^n X_i\right) = \left(\frac{1}{n}\right)^2 \operatorname{Var}\!\left(\sum_{i=1}^n X_i\right) = \frac{1}{n^2}\sum_{i=1}^n \operatorname{Var}(X_i) = \frac{1}{n^2}(n\sigma^2) = \frac{\sigma^2}{n}.$$
+      </proof>
+
+      Extraindo a raiz quadrada de $\operatorname{Var}(\bar{X})$, obtemos o desvio-padrão da média amostral $\bar{X}$, que em estatística recebe um nome próprio: <strong>erro padrão da média</strong>.
+
+      <definition id="def:7-3-erro-padrao">
+        <title>Erro padrão da média (EP)</title>
+        Dada uma amostra i.i.d. de tamanho $n$ com desvio-padrão populacional $\sigma$, o <strong>erro padrão da média</strong> (<em>standard error of the mean</em>, SEM) é o desvio-padrão da distribuição amostral de $\bar{X}$:
+        <equation id="eq:7-3-ep">\operatorname{EP}(\bar{X}) = \sqrt{\operatorname{Var}(\bar{X})} = \frac{\sigma}{\sqrt{n}}.</equation>
+        Na prática, quando $\sigma$ é desconhecido, estimamos o erro padrão substituindo $\sigma$ pelo desvio-padrão amostral $s$:
+        $$\widehat{\operatorname{EP}} = \frac{s}{\sqrt{n}}.$$
+        <intuition>
+          Compare os papéis de $\sigma$ e de $\operatorname{EP}(\bar{X}) = \sigma/\sqrt{n}$:
+          <list marker="dash">
+            <item>O <strong>desvio-padrão</strong> ($\sigma$, estimado por $s$) mede a dispersão <em>dos dados individuais</em> em torno da média. Coletar mais neurônios não torna os neurônios mais parecidos entre si: $s$ continua perto de $\sigma$.</item>
+            <item>O <strong>erro padrão</strong> ($\sigma/\sqrt{n}$, estimado por $s/\sqrt{n}$) mede a <em>incerteza da média amostral</em> como estimativa de $\mu$. À medida que $n$ aumenta, o erro padrão encolhe proporcionalmente a $1/\sqrt{n}$.</item>
+          </list>
+        </intuition>
+      </definition>
+
+      Observe com atenção esse fator $\frac{1}{\sqrt{n}}$, conhecido como a <strong>lei da raiz de $n$</strong>: a precisão da média não melhora linearmente com o número de observações $n$, mas sim com a raiz quadrada $\sqrt{n}$. Para reduzir o erro padrão à metade (dividir por $2$), não basta dobrar $n$ — é preciso multiplicar $n$ por $2^2 = 4$! Para reduzir o erro padrão em $10$ vezes, é preciso $10^2 = 100$ vezes mais dados.
+
+      <example id="exm:7-3-ep-neuronios">
+        <title>Disparo de 25 neurônios: desvio-padrão versus erro padrão</title>
+        Ao registrar a resposta evocada de $n = 25$ neurônios corticais diante de um estímulo visual, você encontra taxa de disparo média $\bar{x} = 42{,}0\text{ Hz}$ e desvio-padrão amostral $s = 10{,}0\text{ Hz}$. Calcule o erro padrão estimado da média e interprete os dois números.
+
+        <strong>Solução.</strong> Aplicando a fórmula do erro padrão estimado:
+        $$\widehat{\operatorname{EP}} = \frac{s}{\sqrt{n}} = \frac{10{,}0}{\sqrt{25}} = \frac{10{,}0}{5} = 2{,}0\text{ Hz}.$$
+        Os dois valores contam histórias diferentes:
+        <list marker="dash">
+          <item>$s = 10{,}0\text{ Hz}$ descreve a <strong>variabilidade biológica entre neurônios individuais</strong>: é completamente normal encontrar neurônios da amostra disparando a $32\text{ Hz}$ ou $52\text{ Hz}$.</item>
+          <item>$\widehat{\operatorname{EP}} = 2{,}0\text{ Hz}$ descreve a <strong>incerteza da média estimada</strong> $\bar{x} = 42{,}0\text{ Hz}$: se repetíssemos o experimento coletando novos grupos de $25$ neurônios, as médias amostrais oscilariam tipicamente em torno de $\mu$ com desvio-padrão próximo de $2{,}0\text{ Hz}$.</item>
+        </list>
+      </example>
+
+      <example id="exm:7-3-ep-erp">
+        <title>Planejando ensaios de potencial evocado em EEG</title>
+        Em um experimento de eletroencefalografia (EEG, amostrado a $500\text{ Hz}$), um pesquisador mede a latência do componente N100 de um potencial evocado auditivo ao longo de ensaios independentes. Em um teste piloto, o erro padrão da latência média foi $\operatorname{EP}_1 = 8\text{ ms}$. Quantas vezes mais ensaios serão necessários para que o erro padrão caia para $\operatorname{EP}_2 = 2\text{ ms}$? Se o piloto usou $n_1 = 25$ ensaios, quantos ensaios $n_2$ serão necessários?
+
+        <strong>Solução.</strong> Como o desvio-padrão individual $\sigma$ entre ensaios não muda, a razão entre os erros padrão depende apenas dos tamanhos amostrais:
+        $$\frac{\operatorname{EP}_1}{\operatorname{EP}_2} = \frac{\sigma / \sqrt{n_1}}{\sigma / \sqrt{n_2}} = \sqrt{\frac{n_2}{n_1}}.$$
+        Queremos reduzir o erro padrão de $8\text{ ms}$ para $2\text{ ms}$, isto é, uma redução por um fator de $\frac{8}{2} = 4$:
+        $$\sqrt{\frac{n_2}{n_1}} = 4 \implies \frac{n_2}{n_1} = 4^2 = 16.$$
+        Logo, são necessários <strong>$16$ vezes mais ensaios</strong>! Se o piloto tinha $n_1 = 25$ ensaios, o protocolo completo exigirá $n_2 = 16 \cdot 25 = 400$ ensaios. É exatamente por causa dessa lei da raiz de $n$ que experimentos de potenciais evocados em EEG costumam acumular centenas de repetições por condição.
+      </example>
+
+      <remark id="rem:7-3-armadilha-ep">
+        <title>Armadilha comum</title>
+        No Módulo 6 (<mark>Visualizações</mark>), vimos a armadilha clássica das <strong>barras de erro</strong> em gráficos científicos — e agora você entende exatamente a matemática por trás dela:
+        <list marker="dash">
+          <item><strong>Trocar desvio-padrão por erro padrão para "limpar" o gráfico:</strong> como $\widehat{\operatorname{EP}} = s/\sqrt{n}$, barras de erro que mostram $\pm \widehat{\operatorname{EP}}$ ficam pequenas automaticamente quando $n$ cresce, mesmo quando os dados individuais são muito heterogêneos. Sempre declare na legenda do gráfico se a barra representa desvio-padrão (DP), erro padrão (EP) ou intervalo de confiança (IC) — e, sempre que possível, mostre os pontos individuais junto com o resumo.</item>
+          <item><strong>Inflar $n$ com medidas correlacionadas:</strong> dividir $s$ por $\sqrt{n}$ só vale quando as $n$ observações são independentes. Se você tem $5$ camundongos e tira $100$ quadros de vídeo de cada um, usar $n = 500$ no denominador cria um erro padrão artificialmente minúsculo.</item>
+        </list>
+      </remark>
+
+      No código abaixo, verificamos numericamente a fórmula $\operatorname{EP}(\bar{X}) = \sigma/\sqrt{n}$ simulando $100\,000$ amostras de uma distribuição normal com $\mu = 42{,}0\text{ Hz}$ e $\sigma = 10{,}0\text{ Hz}$ para $n = 25$ e $n = 100$. Veja que o desvio-padrão típico dentro de uma amostra continua perto de $10{,}0\text{ Hz}$ nos dois casos, enquanto o desvio-padrão <em>das médias amostrais</em> cai exatamente pela metade quando quadruplicamos $n$.
+
+      <code lang="python" id="cod:7-3-erro-padrao">
+import numpy as np
+
+rng = np.random.default_rng(42)
+mu = 42.0
+sigma = 10.0
+n_rep = 100_000
+
+amostras_25 = rng.normal(loc=mu, scale=sigma, size=(n_rep, 25))
+amostras_100 = rng.normal(loc=mu, scale=sigma, size=(n_rep, 100))
+
+medias_25 = amostras_25.mean(axis=1)
+medias_100 = amostras_100.mean(axis=1)
+
+print(f"DP médio individual (n=25):  {amostras_25.std(axis=1, ddof=1).mean():.2f} Hz")   # aprox. 9.90 Hz (perto de 10)
+print(f"DP médio individual (n=100): {amostras_100.std(axis=1, ddof=1).mean():.2f} Hz")  # aprox. 9.97 Hz (perto de 10)
+print(f"EP simulado (n=25):  {medias_25.std(ddof=1):.2f} Hz")    # aprox. 2.00 Hz (teórico: 10 / sqrt(25) = 2.00)
+print(f"EP simulado (n=100): {medias_100.std(ddof=1):.2f} Hz")   # aprox. 1.00 Hz (teórico: 10 / sqrt(100) = 1.00)
+      </code>
+
+      <exercise id="exr:7-3-3-1">
+        <title>Básico — Erro padrão da amplitude de EPSP</title>
+        Em um registro de $n = 36$ sinapses excitatórias, a amplitude média do potencial pós-sináptico excitatório (EPSP) foi $\bar{x} = 2{,}4\text{ mV}$, com desvio-padrão amostral $s = 1{,}8\text{ mV}$.
+        <list marker="a">
+          <item>Calcule o erro padrão estimado da média $\widehat{\operatorname{EP}}$.</item>
+          <item>Explique em uma frase a diferença entre $s = 1{,}8\text{ mV}$ e o valor obtido para $\widehat{\operatorname{EP}}$.</item>
+        </list>
+        <hint><title>Ver dica</title>Use $\widehat{\operatorname{EP}} = \frac{s}{\sqrt{n}}$ com $s = 1{,}8$ e $n = 36$ ($\sqrt{36} = 6$).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Substituindo $s = 1{,}8\text{ mV}$ e $n = 36$:
+              $$\widehat{\operatorname{EP}} = \frac{1{,}8}{\sqrt{36}} = \frac{1{,}8}{6} = 0{,}3\text{ mV}.$$
+            </item>
+            <item>O desvio-padrão $s = 1{,}8\text{ mV}$ mede quanto a amplitude varia de uma sinapse individual para outra, enquanto $\widehat{\operatorname{EP}} = 0{,}3\text{ mV}$ estima a incerteza da média amostral $\bar{x} = 2{,}4\text{ mV}$ em relação à média populacional $\mu$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-3-3-2">
+        <title>Básico — Lei da raiz de $n$ em experimento de fMRI</title>
+        Em uma tarefa cognitiva medida por fMRI ($\text{TR} = 2\text{ s}$), um grupo de $n_1 = 16$ participantes apresentou erro padrão $\operatorname{EP}_1 = 0{,}6\%$ na variação percentual média do sinal BOLD no córtex pré-frontal. Supondo que o desvio-padrão interindividual $\sigma$ seja constante:
+        <list marker="a">
+          <item>qual seria o erro padrão $\operatorname{EP}_2$ com $n_2 = 64$ participantes?</item>
+          <item>quantos participantes $n_3$ seriam necessários para alcançar $\operatorname{EP}_3 = 0{,}15\%$?</item>
+        </list>
+        <hint><title>Ver dica</title>Observe quantas vezes $n$ aumenta de $16$ para $64$ (e tire a raiz quadrada para saber por quanto o EP é dividido). Em (b), veja por quanto $0{,}6\%$ precisa ser dividido para dar $0{,}15\%$ e eleve ao quadrado.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>De $n_1 = 16$ para $n_2 = 64$, o número de participantes cresce por um fator de $\frac{64}{16} = 4$. Pela lei da raiz de $n$, o erro padrão cai por um fator de $\sqrt{4} = 2$:
+              $$\operatorname{EP}_2 = \frac{0{,}6\%}{2} = 0{,}3\%.$$
+            </item>
+            <item>Para ir de $\operatorname{EP}_1 = 0{,}6\%$ até $\operatorname{EP}_3 = 0{,}15\%$, precisamos reduzir o erro padrão por um fator de $\frac{0{,}6}{0{,}15} = 4$. Logo, precisamos multiplicar o tamanho amostral por $4^2 = 16$:
+              $$n_3 = 16 \cdot 16 = 256 \text{ participantes.}$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-3-3-3">
+        <title>Intermediário — Lendo barras de erro enganosas em um artigo</title>
+        Um artigo apresenta um gráfico comparando duas regiões cerebrais, com barras de erro definidas como $\pm \widehat{\operatorname{EP}}$:
+        <list marker="dash">
+          <item>Região A ($n_A = 100$ neurônios): $\bar{x}_A = 15\text{ Hz}$, $\widehat{\operatorname{EP}}_A = 1{,}0\text{ Hz}$;</item>
+          <item>Região B ($n_B = 9$ neurônios): $\bar{x}_B = 15\text{ Hz}$, $\widehat{\operatorname{EP}}_B = 2{,}0\text{ Hz}$.</item>
+        </list>
+        Um leitor conclui que "os neurônios da Região A são duas vezes menos variáveis entre si do que os da Região B". Essa conclusão é verdadeira? Calcule $s_A$ e $s_B$ para justificar.
+        <hint><title>Ver dica</title>Isole $s$ na relação $\widehat{\operatorname{EP}} = \frac{s}{\sqrt{n}}$, isto é, $s = \widehat{\operatorname{EP}} \cdot \sqrt{n}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          A conclusão é <strong>falsa</strong>! Recuperando o desvio-padrão amostral $s = \widehat{\operatorname{EP}} \cdot \sqrt{n}$ de cada região:
+          $$s_A = 1{,}0 \cdot \sqrt{100} = 1{,}0 \cdot 10 = 10{,}0\text{ Hz}, \qquad s_B = 2{,}0 \cdot \sqrt{9} = 2{,}0 \cdot 3 = 6{,}0\text{ Hz}.$$
+          Na verdade, os neurônios da Região A têm <em>maior</em> variabilidade biológica entre si ($10{,}0\text{ Hz}$ contra $6{,}0\text{ Hz}$)! A barra de erro da Região A só apareceu menor no gráfico porque o tamanho amostral $n_A = 100$ era muito maior que $n_B = 9$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-3-3-4">
+        <title>Avançado — Conferindo a lei da raiz de $n$ em ISIs exponenciais</title>
+        Considere os intervalos entre disparos ($\mathrm{ISI}$) de um neurônio idealizado de Poisson com taxa de $20\text{ Hz}$, que seguem distribuição $\text{Exponencial}$ com média $\mu = 50\text{ ms}$ e desvio-padrão $\sigma = 50\text{ ms}$. Escreva um código em Python usando <c>rng = np.random.default_rng(42)</c> que, para cada tamanho amostral em <c>[4, 16, 64, 256]</c>, simule $20\,000$ amostras, compare o erro padrão empírico (desvio-padrão das $20\,000$ médias) com o valor teórico $50 / \sqrt{n}$ e plote um gráfico do erro padrão versus $n$.
+        <hint><title>Ver dica</title>Use <c>rng.exponential(scale=50.0, size=(20_000, n))</c>, calcule as médias com <c>.mean(axis=1)</c> e depois <c>.std(ddof=1)</c>. Crie o gráfico com <c>fig, ax = plt.subplots()</c> e termine com <c>plt.show()</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import matplotlib.pyplot as plt
+import numpy as np
+
+rng = np.random.default_rng(42)
+sigma = 50.0
+ns = np.array([4, 16, 64, 256])
+ep_simulados = []
+ep_teoricos = sigma / np.sqrt(ns)
+
+for n, ep_t in zip(ns, ep_teoricos):
+    amostras = rng.exponential(scale=50.0, size=(20_000, int(n)))
+    ep_s = amostras.mean(axis=1).std(ddof=1)
+    ep_simulados.append(ep_s)
+    print(f"n = {n:3d} | EP teórico = {ep_t:6.3f} ms | EP simulado = {ep_s:6.3f} ms")
+# Esperado:
+# n =   4 | EP teórico = 25.000 ms | EP simulado = aprox. 25.0 ms
+# n =  16 | EP teórico = 12.500 ms | EP simulado = aprox. 12.5 ms
+# n =  64 | EP teórico =  6.250 ms | EP simulado = aprox.  6.25 ms
+# n = 256 | EP teórico =  3.125 ms | EP simulado = aprox.  3.125 ms
+
+fig, ax = plt.subplots()
+ax.plot(ns, ep_teoricos, marker="o", linewidth=2, color="#4F46E5", label="Teórico: 50 / √n")
+ax.scatter(ns, ep_simulados, s=70, zorder=4, color="#E11D48", label="Simulado (20 mil amostras)")
+ax.set_xlabel("Tamanho da amostra (n)")
+ax.set_ylabel("Erro padrão da média (ms)")
+ax.set_title("Lei da raiz de n para ISIs exponenciais")
+ax.legend()
+plt.show()
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:7-3-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Intervalo de confiança</title>
+      <intro>
+        Uma estimativa pontual como $\bar{x} = -68{,}4\text{ mV}$ sozinha não informa quão estreita é a nossa incerteza. Um intervalo de confiança transforma o erro padrão em uma faixa de valores plausíveis para $\mu$, calibrada para acertar o alvo em uma fração conhecida das repetições.
+      </intro>
+
+      Se você disser apenas "a média amostral foi $-68{,}4\text{ mV}$", ninguém sabe se o estudo mediu $3$ células muito barulhentas ou $300$ células muito consistentes. Queremos construir um intervalo em torno de $\bar{x}$, da forma $\bar{x} \pm \text{margem de erro}$, acompanhado de um <strong>nível de confiança</strong> $1 - \alpha$ — tipicamente $95\%$ ($\alpha = 0{,}05$).
+
+      Para determinar quantos erros padrão precisamos somar e subtrair para alcançar $95\%$ de confiança, precisamos conhecer a distribuição de probabilidade da média amostral $\bar{X}$:
+      <list marker="dash">
+        <item>quando os dados individuais vêm de uma população normal $X_i \stackrel{\text{i.i.d.}}{\sim} \mathcal{N}(\mu, \sigma^2)$, uma propriedade notável da distribuição normal garante que $\bar{X} \sim \mathcal{N}(\mu, \sigma^2/n)$ <strong>exatamente</strong> para qualquer tamanho de amostra $n \ge 1$;</item>
+        <item>quando os dados individuais <em>não</em> são normais (como taxas de disparo assimétricas ou ISIs), a distribuição de $\bar{X}$ ainda se aproxima de $\mathcal{N}(\mu, \sigma^2/n)$ para $n$ grande pelo <strong>Teorema Central do Limite (TCL)</strong>, que veremos no tema <mark>Convergências</mark>.</item>
+      </list>
+
+      Comecemos pelo caso idealizado em que o desvio-padrão populacional $\sigma$ já é conhecido de antemão (por exemplo, pela calibração de um instrumento). Padronizando $\bar{X}$ para a normal padrão (como fizemos no tema <mark>Variável aleatória</mark>), temos:
+      $$Z = \frac{\bar{X} - \mu}{\sigma / \sqrt{n}} \sim \mathcal{N}(0, 1).$$
+      Para a normal padrão, $95\%$ da probabilidade central fica entre $-z_{0{,}975}$ e $+z_{0{,}975}$, onde $z_{0{,}975} \approx 1{,}96$ é o quantil de $97{,}5\%$ (deixando $2{,}5\%$ em cada cauda):
+      $$P\!\left(-z_{0{,}975} \le \frac{\bar{X} - \mu}{\sigma / \sqrt{n}} \le z_{0{,}975}\right) = 0{,}95.$$
+      Multiplicando por $\sigma/\sqrt{n}$ e isolando $\mu$ no centro da desigualdade dupla (lembrando o Módulo 1, <mark>Álgebra</mark>), obtemos:
+      $$P\!\left(\bar{X} - z_{0{,}975}\,\frac{\sigma}{\sqrt{n}} \le \mu \le \bar{X} + z_{0{,}975}\,\frac{\sigma}{\sqrt{n}}\right) = 0{,}95.$$
+
+      <definition id="def:7-3-ic-z">
+        <title>Intervalo de confiança para a média com $\sigma$ conhecido</title>
+        Para dados normais (ou $n$ grande via TCL, que veremos em <mark>Convergências</mark>) com $\sigma$ conhecido, o <strong>intervalo de confiança de nível $1 - \alpha$</strong> para $\mu$ é:
+        <equation id="eq:7-3-ic-z">\bar{x} \pm z_{1 - \alpha/2}\,\frac{\sigma}{\sqrt{n}},</equation>
+        onde $z_{1 - \alpha/2}$ satisfaz $P(Z \le z_{1 - \alpha/2}) = 1 - \alpha/2$ para $Z \sim \mathcal{N}(0, 1)$. Para confiança de $95\%$ ($\alpha = 0{,}05$), temos $z_{0{,}975} \approx 1{,}96$.
+      </definition>
+
+      Na imensa maioria dos experimentos biológicos, porém, não conhecemos $\sigma$ — temos apenas a estimativa amostral $s$. Ao trocar a constante $\sigma$ pela variável aleatória $s$ no denominador, formamos a razão:
+      $$T = \frac{\bar{X} - \mu}{s / \sqrt{n}}.$$
+      Como $s$ também varia de uma amostra para outra (e às vezes sai menor que $\sigma$ por puro acaso), a razão $T$ apresenta oscilações extremas com mais frequência do que $Z$. Em 1908, o químico e estatístico William Sealy Gosset — escrevendo sob o pseudônimo <em>"Student"</em> enquanto analisava amostras pequenas na cervejaria Guinness — deduziu a distribuição exata de $T$ quando os dados são normais: a <strong>distribuição $t$ de Student</strong> com $\nu = n - 1$ <strong>graus de liberdade</strong> (<em>degrees of freedom</em>).
+
+      Assim como a normal padrão, a distribuição $t_\nu$ é simétrica e centrada em zero, mas possui caudas mais "largas" (pesadas) quando $\nu = n - 1$ é pequeno. Por isso, seus quantis $t_{n-1;\, 0{,}975}$ são maiores que $1{,}96$ — refletindo honestamente a incerteza extra de termos estimado $\sigma$ a partir de poucos dados. Conforme $n$ cresce, $s$ se aproxima de $\sigma$ e a distribuição $t_{n-1}$ converge para $\mathcal{N}(0, 1)$ (por exemplo, $t_{4;\, 0{,}975} \approx 2{,}776$, $t_{24;\, 0{,}975} \approx 2{,}064$, $t_{99;\, 0{,}975} \approx 1{,}984$ e no limite $1{,}960$).
+
+      <definition id="def:7-3-ic-t">
+        <title>Intervalo de confiança para a média com $\sigma$ desconhecido ($t$ de Student)</title>
+        Para dados normais (ou $n$ grande via TCL, que veremos em <mark>Convergências</mark>) com $\sigma$ desconhecido, o <strong>intervalo de confiança de nível $1 - \alpha$</strong> para $\mu$ é:
+        <equation id="eq:7-3-ic-t">\bar{x} \pm t_{n - 1;\; 1 - \alpha/2}\,\frac{s}{\sqrt{n}},</equation>
+        onde $t_{n - 1;\; 1 - \alpha/2}$ é o quantil de ordem $1 - \alpha/2$ da distribuição $t$ de Student com $\nu = n - 1$ graus de liberdade (obtido em Python por <c>scipy.stats.t.ppf(1 - alpha/2, df=n-1)</c>). Para $95\%$ de confiança e $n = 25$ ($\nu = 24$), temos $t_{24;\, 0{,}975} \approx 2{,}064$.
+      </definition>
+
+      Qual é o significado exato dessa palavra "confiança"? Na estatística clássica (frequentista), $\mu$ é um número fixo e determinístico, enquanto os extremos $\bar{X} \pm t_{n-1;\, 0{,}975}\,\frac{s}{\sqrt{n}}$ são aleatórios antes da coleta. Dizer que o intervalo tem $95\%$ de confiança significa que o <strong>procedimento</strong> de construção cobre o verdadeiro $\mu$ em $95\%$ das repetições independentes do experimento. Uma vez que você coletou os dados e obteve um intervalo numérico específico, esse intervalo específico ou contém $\mu$ ou não contém $\mu$. A <ref to="fig:7-3-cobertura"/> ilustra esse comportamento em $50$ repetições simuladas.
+
+      <figure src="fig/cobertura-ic.svg" alt="Cinquenta intervalos de confiança horizontais de 95 por cento para amostras de tamanho 25 em torno da linha vertical em mu igual a menos 70 mV, com os intervalos que não cobrem mu destacados em vermelho" id="fig:7-3-cobertura">
+        <caption>Simulação de $50$ intervalos de confiança de $95\%$ construídos a partir de amostras independentes de tamanho $n = 25$ de $\mathcal{N}(-70,\; 4^2)\text{ mV}$. A linha vertical tracejada marca o parâmetro fixo $\mu = -70\text{ mV}$; a grande maioria dos intervalos (em azul-índigo) captura $\mu$, enquanto uma pequena fração (em vermelho) deixa $\mu$ de fora por pura flutuação amostral.</caption>
+      </figure>
+
+      <remark id="rem:7-3-armadilha-ic">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>"Há $95\%$ de probabilidade de $\mu$ estar neste intervalo específico":</strong> essa frase é <em>incorreta</em> na interpretação frequentista! Depois que o intervalo numérico foi calculado (digamos, $[-70{,}05;\; -66{,}75]\text{ mV}$), não há mais nada aleatório: o valor verdadeiro $\mu$ é fixo, logo ou está dentro dele ou está fora. A probabilidade de $95\%$ pertence ao <em>método aleatório</em> antes de sortear a amostra. A frase em que tratamos o próprio parâmetro $\mu$ como tendo distribuição de probabilidade ("há $95\%$ de probabilidade de $\mu$ estar neste intervalo") corresponde ao conceito de <strong>intervalo de credibilidade Bayesiano</strong>, que veremos no tema <mark>Inferência Bayesiana</mark>.</item>
+          <item><strong>Usar $z = 1{,}96$ em amostras pequenas com $\sigma$ desconhecido:</strong> se $n = 5$ e você usa $1{,}96$ em vez de $t_{4;\, 0{,}975} \approx 2{,}776$, seus intervalos ficarão estreitos demais e falharão em cobrir $\mu$ em bem mais do que $5\%$ das vezes.</item>
+        </list>
+      </remark>
+
+      <example id="exm:7-3-ic-repouso">
+        <title>IC de $95\%$ para o potencial de repouso de $25$ neurônios</title>
+        Em um experimento de eletrofisiologia com $n = 25$ neurônios, você mede um potencial de repouso médio $\bar{x} = -68{,}4\text{ mV}$ e um desvio-padrão amostral $s = 4{,}0\text{ mV}$. Construa o intervalo de confiança de $95\%$ para a média populacional $\mu$ (supondo $\sigma$ desconhecido e dados aproximadamente normais) e interprete-o.
+
+        <strong>Solução.</strong>
+        <list marker="number">
+          <item>Calculamos o erro padrão estimado:
+            $$\widehat{\operatorname{EP}} = \frac{s}{\sqrt{n}} = \frac{4{,}0}{\sqrt{25}} = \frac{4{,}0}{5} = 0{,}8\text{ mV}.$$
+          </item>
+          <item>Como $\sigma$ é desconhecido, usamos a distribuição $t$ de Student com $\nu = 25 - 1 = 24$ graus de liberdade. Para $95\%$ de confiança, o quantil é $t_{24;\, 0{,}975} \approx 2{,}064$.</item>
+          <item>Calculamos a margem de erro:
+            $$M = t_{24;\, 0{,}975} \cdot \widehat{\operatorname{EP}} \approx 2{,}064 \cdot 0{,}8 = 1{,}6512 \approx 1{,}65\text{ mV}.$$
+          </item>
+          <item>Montamos o intervalo:
+            $$-68{,}4 \pm 1{,}65\text{ mV} \implies \bigl[-68{,}4 - 1{,}65;\; -68{,}4 + 1{,}65\bigr] = \bigl[-70{,}05;\; -66{,}75\bigr]\text{ mV}.$$
+          </item>
+        </list>
+        <em>Interpretação:</em> obtivemos o intervalo de confiança de $95\%$ aproximado $[-70{,}05;\; -66{,}75]\text{ mV}$ por meio de um procedimento que cobre o verdadeiro potencial médio $\mu$ em $95\%$ das repetições experimentais. Note que o valor clássico de livro-texto $-70\text{ mV}$ pertence a esse intervalo.
+      </example>
+
+      <example id="exm:7-3-ic-sigma-conhecido">
+        <title>IC com $\sigma$ conhecido e comparação com amostra pequena</title>
+        Suponha que um equipamento automatizado registre latências sinápticas cujo ruído populacional já foi calibrado em $\sigma = 6{,}0\text{ ms}$.
+        <list marker="a">
+          <item>Em $n = 36$ ensaios de um neurônio sensorial, a latência média observada foi $\bar{x} = 24{,}5\text{ ms}$. Calcule o IC de $95\%$ usando $\sigma$ conhecido ($z_{0{,}975} \approx 1{,}96$).</item>
+          <item>Suponha agora outro protocolo com amostra pequena de $n = 5$ células, em que $\sigma$ é desconhecido e obtivemos $\bar{x} = 24{,}5\text{ ms}$ e $s = 6{,}0\text{ ms}$ (sabendo que $t_{4;\, 0{,}975} \approx 2{,}776$). Qual seria o novo IC de $95\%$?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Com $\sigma = 6{,}0\text{ ms}$ conhecido e $n = 36$:
+            $$\operatorname{EP} = \frac{6{,}0}{\sqrt{36}} = \frac{6{,}0}{6} = 1{,}0\text{ ms}, \qquad M = 1{,}96 \cdot 1{,}0 = 1{,}96\text{ ms}.$$
+            O intervalo de confiança de $95\%$ é $[24{,}5 - 1{,}96;\; 24{,}5 + 1{,}96] = [22{,}54;\; 26{,}46]\text{ ms}$.
+          </item>
+          <item>Com $n = 5$ e $\sigma$ desconhecido:
+            $$\widehat{\operatorname{EP}} = \frac{6{,}0}{\sqrt{5}} \approx \frac{6{,}0}{2{,}2361} \approx 2{,}683\text{ ms}.$$
+            Usando $t_{4;\, 0{,}975} \approx 2{,}776$:
+            $$M \approx 2{,}776 \cdot 2{,}683 \approx 7{,}45\text{ ms}.$$
+            O intervalo passa a ser $[24{,}5 - 7{,}45;\; 24{,}5 + 7{,}45] = [17{,}05;\; 31{,}95]\text{ ms}$ — quase quatro vezes mais largo, refletindo tanto o menor tamanho amostral quanto a cauda mais pesada da distribuição $t_4$.
+          </item>
+        </list>
+      </example>
+
+      No código a seguir, conferimos os quantis exatos e as contas do <ref to="exm:7-3-ic-repouso"/> com <c>scipy.stats.t.ppf</c> e executamos uma simulação de cobertura com $10\,000$ experimentos repetidos de tamanho $n = 25$, verificando empiricamente que a proporção de intervalos que contêm $\mu = -70\text{ mV}$ fica bem próxima de $0{,}95$.
+
+      <code lang="python" id="cod:7-3-cobertura-ic">
+import numpy as np
+from scipy import stats
+
+# 1. Conferindo o Exemplo de potencial de repouso (n = 25)
+t_24 = stats.t.ppf(0.975, df=24)
+ep_ex = 4.0 / np.sqrt(25)
+margem_ex = t_24 * ep_ex
+print(f"Quantil t_(24; 0.975): {t_24:.4f}")                                  # 2.0639
+print(f"IC 95% exemplo: [{-68.4 - margem_ex:.2f}, {-68.4 + margem_ex:.2f}]") # [-70.05, -66.75]
+
+# 2. Simulação de cobertura em 10.000 experimentos (n = 25, N(-70, 4^2))
+rng = np.random.default_rng(42)
+mu_true = -70.0
+amostras = rng.normal(loc=mu_true, scale=4.0, size=(10_000, 25))
+
+medias = amostras.mean(axis=1)
+eps = amostras.std(axis=1, ddof=1) / np.sqrt(25)
+lim_inf = medias - t_24 * eps
+lim_sup = medias + t_24 * eps
+
+cobre = (lim_inf <= mu_true) & (lim_sup >= mu_true)
+print(f"Taxa de cobertura observada (10 mil ICs): {cobre.mean():.4f}")       # aprox. 0.9500 (teórico: 0.95)
+      </code>
+
+      <exercise id="exr:7-3-4-1">
+        <title>Básico — IC de $95\%$ com $\sigma$ conhecido em tempo de reação</title>
+        Em um teste comportamental de atenção visual com $n = 64$ ensaios independentes, o tempo médio de reação foi $\bar{x} = 320\text{ ms}$. Sabe-se por calibração prévia que o desvio-padrão populacional da tarefa é $\sigma = 40\text{ ms}$. Calcule o intervalo de confiança de $95\%$ para o tempo médio de reação verdadeiro $\mu$ usando $z_{0{,}975} = 1{,}96$.
+        <hint><title>Ver dica</title>Calcule primeiro $\operatorname{EP} = \frac{40}{\sqrt{64}}$ e multiplique por $1{,}96$ para achar a margem de erro.</hint>
+        <solution collapsible="true" collapsed="true">
+          Temos $\operatorname{EP} = \frac{40}{\sqrt{64}} = \frac{40}{8} = 5\text{ ms}$. A margem de erro de $95\%$ vale:
+          $$M = 1{,}96 \cdot 5 = 9{,}8\text{ ms}.$$
+          Portanto, o intervalo de confiança de $95\%$ é:
+          $$[320 - 9{,}8;\; 320 + 9{,}8] = [310{,}2;\; 329{,}8]\text{ ms}.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-3-4-2">
+        <title>Básico — IC de $95\%$ com $\sigma$ desconhecido em taxa de disparo</title>
+        Ao estimular $n = 16$ neurônios do córtex somatossensorial, você observa uma taxa média de disparo $\bar{x} = 18{,}5\text{ Hz}$ com desvio-padrão amostral $s = 6{,}0\text{ Hz}$. Sabendo que $t_{15;\, 0{,}975} \approx 2{,}131$, construa o intervalo de confiança de $95\%$ para a taxa média populacional $\mu$.
+        <hint><title>Ver dica</title>Com $n = 16$, os graus de liberdade são $n - 1 = 15$ e $\sqrt{n} = 4$. Aplique $\bar{x} \pm t_{15;\, 0{,}975}\frac{s}{\sqrt{n}}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculamos o erro padrão estimado:
+          $$\widehat{\operatorname{EP}} = \frac{6{,}0}{\sqrt{16}} = \frac{6{,}0}{4} = 1{,}5\text{ Hz}.$$
+          Multiplicando pelo quantil $t_{15;\, 0{,}975} \approx 2{,}131$:
+          $$M \approx 2{,}131 \cdot 1{,}5 = 3{,}1965 \approx 3{,}20\text{ Hz}.$$
+          Logo, o intervalo de confiança de $95\%$ é:
+          $$[18{,}5 - 3{,}20;\; 18{,}5 + 3{,}20] = [15{,}30;\; 21{,}70]\text{ Hz}.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-3-4-3">
+        <title>Intermediário — Interpretação frequentista versus Bayesiana</title>
+        Em um estudo de fMRI sobre resposta motora, um aluno obtém um intervalo de confiança de $95\%$ igual a $[1{,}2\%;\; 2{,}8\%]$ para a variação média do sinal BOLD em certa região e escreve no relatório: <em>"Há $95\%$ de probabilidade de a verdadeira amplitude populacional $\mu$ estar entre $1{,}2\%$ e $2{,}8\%$."</em>
+        <list marker="a">
+          <item>Explique por que essa frase está incorreta sob o ponto de vista frequentista.</item>
+          <item>Reescreva a conclusão de maneira frequentista correta.</item>
+          <item>Que tipo de intervalo (que estudaremos mais à frente neste módulo) permite atribuir uma probabilidade diretamente sobre onde $\mu$ está?</item>
+          <item>Com base no intervalo $[1{,}2\%;\; 2{,}8\%]$, o valor hipotético $\mu = 1{,}0\%$ pertence aos valores plausíveis cobertos ao nível de $95\%$?</item>
+        </list>
+        <hint><title>Ver dica</title>Lembre que, na abordagem frequentista, $\mu$ é uma constante fixa e a aleatoriedade está no processo de construção do intervalo antes da coleta dos dados.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Na visão frequentista, o parâmetro populacional $\mu$ é um número fixo (não é uma variável aleatória). Uma vez calculado o intervalo numérico $[1{,}2\%;\; 2{,}8\%]$, o valor verdadeiro $\mu$ ou pertence a ele ou não pertence — não existe probabilidade de $\mu$ "cair" lá dentro depois que os números já foram fixados.</item>
+            <item>Interpretação correta: "O intervalo $[1{,}2\%;\; 2{,}8\%]$ foi construído por um procedimento que captura o verdadeiro parâmetro populacional $\mu$ em $95\%$ das repetições independentes do experimento."</item>
+            <item>O <strong>intervalo de credibilidade Bayesiano</strong>, que estudaremos no tema <mark>Inferência Bayesiana</mark>.</item>
+            <item>Não: $1{,}0\%$ está fora do intervalo $[1{,}2\%;\; 2{,}8\%]$ (essa relação entre intervalo de confiança e rejeição de hipóteses será formalizada no próximo tema, <mark>Testes de hipóteses</mark>).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-3-4-4">
+        <title>Avançado — Comparando quantis $t$ e cobertura com amostra pequena em Python</title>
+        Escreva um código em Python com <c>rng = np.random.default_rng(42)</c> que:
+        <list marker="a">
+          <item>imprima os quantis $t_{n-1;\, 0{,}975}$ de <c>scipy.stats.t.ppf</c> para $n \in \{5, 15, 25, 100\}$, comparando-os com $z_{0{,}975} \approx 1{,}960$;</item>
+          <item>simule $10\,000$ amostras de tamanho pequeno $n = 5$ vindas de $\mathcal{N}(0, 1)$ e compare a taxa de cobertura empírica usando o quantil $t_{4;\, 0{,}975}$ correto contra o uso ingênuo do quantil normal $1{,}96$.</item>
+        </list>
+        <hint><title>Ver dica</title>Use <c>stats.t.ppf(0.975, df=n - 1)</c> para cada $n$. Na simulação, gere um array <c>(10_000, 5)</c>, calcule <c>medias</c> e <c>eps = amostras.std(axis=1, ddof=1) / np.sqrt(5)</c>, e verifique em quantas amostras <c>0.0</c> fica dentro de <c>[media - crit * ep, media + crit * ep]</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from scipy import stats
+
+for n in [5, 15, 25, 100]:
+    t_crit = stats.t.ppf(0.975, df=n - 1)
+    print(f"n = {n:3d} (gl = {n-1:2d}) -> t_0.975 = {t_crit:.4f}")
+# Saída determinística esperada:
+# n =   5 (gl =  4) -> t_0.975 = 2.7764
+# n =  15 (gl = 14) -> t_0.975 = 2.1448
+# n =  25 (gl = 24) -> t_0.975 = 2.0639
+# n = 100 (gl = 99) -> t_0.975 = 1.9842
+
+rng = np.random.default_rng(42)
+amostras = rng.normal(loc=0.0, scale=1.0, size=(10_000, 5))
+medias = amostras.mean(axis=1)
+eps = amostras.std(axis=1, ddof=1) / np.sqrt(5)
+
+t_4 = stats.t.ppf(0.975, df=4)
+z_975 = stats.norm.ppf(0.975)
+
+cobre_t = (np.abs(medias) <= t_4 * eps).mean()
+cobre_z = (np.abs(medias) <= z_975 * eps).mean()
+
+print(f"Cobertura com t_4 (correto): {cobre_t:.4f}")  # aprox. 0.9500
+print(f"Cobertura com z (ingênuo):   {cobre_z:.4f}")  # menor que 0.95 (subcobertura!)
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:7-3-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Parâmetro versus estatística:</strong> parâmetros ($\mu$, $\sigma^2$, $p$) são características fixas e desconhecidas da população; estatísticas ($\bar{X}$, $s^2$, $\hat{p}$) são funções da amostra e, portanto, variáveis aleatórias.</item>
+        <item><strong>Hipótese i.i.d. e viés de amostragem:</strong> em uma amostra aleatória simples ideal, $X_1, \dots, X_n$ são independentes e identicamente distribuídas; selecionar unidades preferencialmente (viés de amostragem) ou repetir medidas correlacionadas (pseudorreplicação) invalida a inferência direta.</item>
+        <item><strong>Viés de um estimador:</strong> $\operatorname{Viés}(\hat{\theta}) = \mathbb{E}[\hat{\theta}] - \theta$. A média amostral $\bar{X} = \frac{1}{n}\sum_{i=1}^n X_i$ é não viesada ($\mathbb{E}[\bar{X}] = \mu$).</item>
+        <item><strong>Variância amostral e correção de Bessel:</strong> $s^2 = \dfrac{1}{n - 1}\sum_{i=1}^n (X_i - \bar{X})^2$ é não viesada para $\sigma^2$, enquanto $\hat{\sigma}^2_n = \dfrac{1}{n}\sum_{i=1}^n (X_i - \bar{X})^2$ subestima $\sigma^2$ pelo fator $\dfrac{n - 1}{n}$. Em Python, <c>np.var</c> usa <c>ddof=0</c> por padrão, enquanto <c>pandas</c> usa <c>ddof=1</c>.</item>
+        <item><strong>Erro quadrático médio:</strong> $\operatorname{EQM}(\hat{\theta}) = \mathbb{E}[(\hat{\theta} - \theta)^2] = \bigl(\operatorname{Viés}(\hat{\theta})\bigr)^2 + \operatorname{Var}(\hat{\theta})$.</item>
+        <item><strong>Erro padrão e lei da raiz de $n$:</strong> $\operatorname{Var}(\bar{X}) = \dfrac{\sigma^2}{n}$, logo $\operatorname{EP}(\bar{X}) = \dfrac{\sigma}{\sqrt{n}}$ (estimado por $\widehat{\operatorname{EP}} = \dfrac{s}{\sqrt{n}}$). Para reduzir o erro padrão à metade, é preciso $4$ vezes mais dados.</item>
+        <item><strong>Desvio-padrão versus erro padrão:</strong> $s$ mede a variabilidade individual dos dados; $\widehat{\operatorname{EP}}$ mede a incerteza da média amostral.</item>
+        <item><strong>Intervalo de confiança para a média (dados normais ou $n$ grande via TCL):</strong> com $\sigma$ conhecido, $\bar{x} \pm z_{1-\alpha/2}\,\dfrac{\sigma}{\sqrt{n}}$ ($z_{0{,}975} \approx 1{,}96$); com $\sigma$ desconhecido, $\bar{x} \pm t_{n-1;\; 1-\alpha/2}\,\dfrac{s}{\sqrt{n}}$.</item>
+        <item><strong>Interpretação frequentista do IC:</strong> o procedimento cobre o parâmetro fixo $\mu$ em $100(1-\alpha)\%$ das repetições; um intervalo numérico específico não dá "probabilidade de $\mu$ estar ali dentro".</item>
+      </list>
+    </section>
+
+    <section id="sec:7-3-alem">
+      <title>Para ir além</title>
+      Com estimadores, erro padrão e intervalos de confiança no repertório, você está pronto para o próximo tema do Módulo 7, <strong>Testes de hipóteses</strong> — onde responderemos se um efeito observado em neurônios ou em <em>voxels</em> de fMRI pode ser explicado apenas pelo acaso —, seguindo depois para <strong>Convergências</strong> (onde demonstraremos a base do Teorema Central do Limite), <strong>Inferência Bayesiana</strong> e <strong>Inferência não-Bayesiana (Frequentista)</strong>. Tudo isso culminará no projeto final do módulo: montar o design estatístico completo de um experimento de neuroimagem, especificando testes de hipóteses com correção para comparações múltiplas e rodando-os numa simulação no Python.
+
+      Para consolidar os conceitos desta aula, utilize os materiais recomendados do Módulo 7:
+      <list marker="dash">
+        <item><strong>Livro-texto:</strong> <em>Tertuliano — Princípios de Probabilidade</em>. Acompanhar os exercícios do livro: o tema é muito complexo à primeira vista, mas se desmistifica com o tempo e a repetição.</item>
+        <item><strong>Apoio em vídeo:</strong> aulas pontuais no YouTube para desmistificar os temas espinhosos à primeira vista (ex.: <em>StatQuest</em>), especialmente sobre erro padrão, distribuição $t$ e intervalos de confiança.</item>
+        <item><strong>Documentação oficial:</strong> <link to="https://docs.scipy.org/doc/scipy/reference/stats.html">SciPy — Módulo <c>scipy.stats</c></link>, para consultar os métodos da distribuição $t$ de Student (<c>stats.t.ppf</c>, <c>stats.t.cdf</c>) e da normal (<c>stats.norm</c>).</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 7 · Estatística e Probabilidade — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

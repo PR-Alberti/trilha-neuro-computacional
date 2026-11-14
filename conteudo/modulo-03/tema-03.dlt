@@ -1,0 +1,621 @@
+<document>
+  <title>Módulo 3 · Cálculo Multivariável</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-3-3">Voltar ao guia (Tema 3.3)</link></meta-item>
+    <meta-item key="Módulo">Módulo 3 · Cálculo Multivariável — A Complexidade do Mundo Real</meta-item>
+    <meta-item key="Nível">Avançado</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-3-3">
+    <title>Integrais múltiplas</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Somar sobre áreas e volumes: distribuições de probabilidade em várias dimensões.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Muitas grandezas biológicas estão distribuídas por uma superfície ou por um volume: a densidade de neurônios em uma fatia cortical ou a carga elétrica sobre um trecho de membrana celular. Quando essa densidade muda de ponto a ponto, não basta multiplicar um número constante pela área — precisamos somar pedacinho por pedacinho em duas ou três dimensões.
+
+    Em neurociência computacional e <em>machine learning</em>, a mesma ideia descreve variáveis aleatórias conjuntas: a posição $(x, y)$ de um animal em uma arena, as latências de disparo de dois neurônios ou a sensibilidade de um campo receptivo visual. Nesses casos, a probabilidade é um <strong>volume</strong> sob uma superfície de densidade. Dominar integrais múltiplas permite calcular médias espaciais, integrar em coordenadas polares e deduzir o fator $\sqrt{\pi}$ que normaliza toda a estatística gaussiana.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>interpretar integrais duplas e triplas como somas de Riemann sobre áreas e volumes;</item>
+      <item>calcular integrais iteradas em retângulos e caixas pelo teorema de Fubini, usando o caso separável e o valor médio;</item>
+      <item>calcular probabilidades conjuntas como volumes sob funções de densidade;</item>
+      <item>aplicar propriedades de integrais múltiplas e integrar em regiões gerais (tipos I e II), trocando a ordem de integração;</item>
+      <item>fazer mudança de variáveis com o jacobiano, usar coordenadas polares ($dA = r\,dr\,d\theta$) e provar a integral da gaussiana.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> <mark>Integral de Riemann</mark> (Módulo 2, em especial o Teorema Fundamental do Cálculo e a substituição em uma variável); Tema 3.2 (<mark>Diferencial em várias variáveis</mark>, para funções de duas variáveis e derivadas parciais); e <mark>Trigonometria</mark> (Módulo 1).
+
+    <section id="sec:3-3-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Introdução</title>
+      <intro>
+        Integrar em várias variáveis estende a integral definida para o espaço: em vez de somar segmentos $\Delta x$, somamos ladrilhos de área $\Delta A$ ou cubos de volume $\Delta V$.
+      </intro>
+
+      No Módulo 2 (<mark>Integral de Riemann</mark>), você mediu a área sob $y = f(x) \ge 0$ dividindo $[a, b]$ em subintervalos de largura $\Delta x$, somando retângulos $f(x_i^*)\,\Delta x$ e levando $n \to \infty$. Agora considere $z = f(x, y)$ definida em um retângulo $R = [a, b] \times [c, d]$.
+
+      Dividindo $[a, b]$ em $m$ partes de largura $\Delta x = \frac{b - a}{m}$ e $[c, d]$ em $n$ partes de comprimento $\Delta y = \frac{d - c}{n}$, recortamos $R$ em $m \cdot n$ sub-retângulos $R_{ij}$ de área $\Delta A = \Delta x\,\Delta y$. Em cada $R_{ij}$, escolhemos um ponto $(x_i^*, y_j^*)$ e erguemos um prisma de altura $f(x_i^*, y_j^*)$ e volume $f(x_i^*, y_j^*)\,\Delta A$.
+
+      <definition id="def:3-3-integral-dupla">
+        <title>Soma de Riemann dupla e integral dupla em um retângulo</title>
+        Seja $f: R \to \mathbb{R}$ limitada no retângulo $R = [a, b] \times [c, d]$. Com $\Delta A = \Delta x\,\Delta y$ e pontos de amostra $(x_i^*, y_j^*) \in R_{ij}$, definimos a <strong>soma de Riemann dupla</strong> (<em>double Riemann sum</em>):
+        $$S_{m, n} = \sum_{i=1}^{m} \sum_{j=1}^{n} f(x_i^*, y_j^*)\,\Delta A.$$
+        Quando o limite existe para $m, n \to \infty$ e independe dos pontos escolhidos, obtemos a <strong>integral dupla</strong>:
+        $$\iint_R f(x, y)\,dA = \lim_{m, n \to \infty} \sum_{i=1}^{m} \sum_{j=1}^{n} f(x_i^*, y_j^*)\,\Delta A.$$
+        <intuition>
+          Quando $f(x, y) \ge 0$, cada parcela $f(x_i^*, y_j^*)\,\Delta A$ é o volume de uma barra vertical sobre $R_{ij}$. Ao refinar a grade, as barras acompanham a superfície curva e a soma converge para o volume sob o gráfico.
+        </intuition>
+      </definition>
+
+      Na biologia, essa integral lê-se como <strong>densidade vezes área</strong>: se $\rho(x, y)$ é uma densidade superficial (massa/$\text{cm}^2$, carga/$\mu\text{m}^2$ ou células/$\text{mm}^2$), $\iint_R \rho(x, y)\,dA$ dá a massa total, a carga total ou o número total de células. Em 3D, sobre um paralelepípedo $B = [a_1, b_1] \times [a_2, b_2] \times [a_3, b_3]$ (onde $[a_1, b_1]$, $[a_2, b_2]$ e $[a_3, b_3]$ são os intervalos de $x$, $y$ e $z$) dividido em cubinhos $\Delta V = \Delta x\,\Delta y\,\Delta z$, somar uma densidade volumétrica $\rho(x, y, z)$ (como neurônios/$\text{mm}^3$) gera a <strong>integral tripla</strong> $\iiint_B \rho(x, y, z)\,dV$, que calcula "densidade $\times$ volume".
+
+      <example id="exm:3-3-riemann-2x2">
+        <title>Soma de Riemann dupla calculada à mão</title>
+        Estime $\iint_R (1 + x^2 y)\,dA$ em $R = [0, 2] \times [0, 2]$ com uma partição $2 \times 2$, usando os pontos médios de cada subquadrado.
+
+        <strong>Solução.</strong> Com $m = n = 2$, temos $\Delta x = 1$, $\Delta y = 1$ e $\Delta A = 1 \cdot 1 = 1$. Os centros dos quatro subquadrados são $(0{,}5;\, 0{,}5)$, $(1{,}5;\, 0{,}5)$, $(0{,}5;\, 1{,}5)$ e $(1{,}5;\, 1{,}5)$. Avaliamos $f(x, y) = 1 + x^2 y$:
+        <list marker="dash">
+          <item>$f(0{,}5;\, 0{,}5) = 1 + (0{,}5)^2(0{,}5) = 1{,}125$;</item>
+          <item>$f(1{,}5;\, 0{,}5) = 1 + (1{,}5)^2(0{,}5) = 2{,}125$;</item>
+          <item>$f(0{,}5;\, 1{,}5) = 1 + (0{,}5)^2(1{,}5) = 1{,}375$;</item>
+          <item>$f(1{,}5;\, 1{,}5) = 1 + (1{,}5)^2(1{,}5) = 4{,}375$.</item>
+        </list>
+        Logo, $S_{2,2} = (1{,}125 + 2{,}125 + 1{,}375 + 4{,}375)\cdot 1 = 9$. Na seção seguinte veremos que o valor exato é $\frac{28}{3} \approx 9{,}333$.
+      </example>
+
+      <example id="exm:3-3-densidade-tecido">
+        <title>Contagem de neurônios em uma fatia cortical</title>
+        No córtex de mamíferos, a densidade volumétrica neuronal fica na ordem de $10^4$ a $10^5\text{ neurônios/mm}^3$. Considere uma fatia fina $R = [0, 2] \times [0, 2]$ ($\text{mm}$) com densidade superficial modelo $\rho(x, y) = 800 + 100(x + y)\text{ células/mm}^2$. Estime o total de células usando $2 \times 2$ quadrantes e seus centros.
+
+        <strong>Solução.</strong> Cada quadrante tem $\Delta A = 1 \cdot 1 = 1\text{ mm}^2$. Nos quatro centros:
+        <list marker="dash">
+          <item>$\rho(0{,}5;\, 0{,}5) = 800 + 100(1) = 900\text{ células/mm}^2$;</item>
+          <item>$\rho(1{,}5;\, 0{,}5) = 800 + 100(2) = 1\,000\text{ células/mm}^2$;</item>
+          <item>$\rho(0{,}5;\, 1{,}5) = 800 + 100(2) = 1\,000\text{ células/mm}^2$;</item>
+          <item>$\rho(1{,}5;\, 1{,}5) = 800 + 100(3) = 1\,100\text{ células/mm}^2$.</item>
+        </list>
+        Somando e multiplicando por $\Delta A = 1\text{ mm}^2$:
+        $$N \approx (900 + 1\,000 + 1\,000 + 1\,100)\cdot 1 = 4\,000\text{ células}.$$
+      </example>
+
+      <remark id="rem:3-3-armadilha-sinal">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Confundir $\Delta A$ com $\Delta x + \Delta y$:</strong> o elemento de área é o produto $\Delta x\,\Delta y$. Se $\Delta x = 2\text{ mm}$ e $\Delta y = 0{,}5\text{ mm}$, então $\Delta A = 1\text{ mm}^2$.</item>
+          <item><strong>Esquecer o sinal de $f$:</strong> se $f(x, y)$ muda de sinal em $R$, $\iint_R f\,dA$ dá o <em>volume líquido</em> (acima menos abaixo do plano $xy$), e não o volume absoluto.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:3-3-1-1">
+        <title>Básico — Soma de Riemann com cantos extremos</title>
+        Para $f(x, y) = x + 2y$ em $R = [0, 2] \times [0, 2]$ com partição $2 \times 2$ ($\Delta x = \Delta y = 1$), calcule a soma de Riemann usando:
+        <list marker="a">
+          <item>os cantos superiores direitos de cada subquadrado;</item>
+          <item>os cantos inferiores esquerdos de cada subquadrado.</item>
+        </list>
+        <hint><title>Ver dica</title>Cada subquadrado tem $\Delta A = 1$. Liste os quatro cantos correspondentes em cada item antes de somar.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Cantos superiores direitos: $(1, 1)$, $(2, 1)$, $(1, 2)$ e $(2, 2)$, onde $f$ vale $3, 4, 5, 6$. Logo, $S_{\text{sup}} = (3 + 4 + 5 + 6)\cdot 1 = 18$.</item>
+            <item>Cantos inferiores esquerdos: $(0, 0)$, $(1, 0)$, $(0, 1)$ e $(1, 1)$, onde $f$ vale $0, 1, 2, 3$. Logo, $S_{\text{inf}} = (0 + 1 + 2 + 3)\cdot 1 = 6$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-3-1-2">
+        <title>Intermediário — Carga elétrica em uma membrana</title>
+        Um modelo descreve a densidade de carga em um trecho de bicamada lipídica $R = [0, 4] \times [0, 2]$ ($\mu\text{m}$) por $\sigma(x, y) = 2 + 0{,}5\,x y\text{ fC}/\mu\text{m}^2$. Divida $R$ em $2 \times 2$ sub-retângulos iguais e estime a carga total pelos pontos médios.
+        <hint><title>Ver dica</title>Aqui $\Delta x = 2\;\mu\text{m}$ e $\Delta y = 1\;\mu\text{m}$, logo $\Delta A = 2\;\mu\text{m}^2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Cada sub-retângulo tem $\Delta A = 2 \cdot 1 = 2\;\mu\text{m}^2$. Os pontos médios são $(1;\, 0{,}5)$, $(3;\, 0{,}5)$, $(1;\, 1{,}5)$ e $(3;\, 1{,}5)$:
+          <list marker="dash">
+            <item>$\sigma(1;\, 0{,}5) = 2 + 0{,}25 = 2{,}25$;</item>
+            <item>$\sigma(3;\, 0{,}5) = 2 + 0{,}75 = 2{,}75$;</item>
+            <item>$\sigma(1;\, 1{,}5) = 2 + 0{,}75 = 2{,}75$;</item>
+            <item>$\sigma(3;\, 1{,}5) = 2 + 2{,}25 = 4{,}25$.</item>
+          </list>
+          Multiplicando a soma por $\Delta A = 2$: $Q \approx (2{,}25 + 2{,}75 + 2{,}75 + 4{,}25)\cdot 2 = 12 \cdot 2 = 24\text{ fC}$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-3-1-3">
+        <title>Avançado — Soma de Riemann tripla em um bloco cortical</title>
+        Um bloco modelo $B = [0, 2] \times [0, 2] \times [0, 2]$ ($\text{mm}$) tem densidade neuronal $\rho(x, y, z) = 40\,000 + 5\,000\,z\text{ neurônios/mm}^3$. Divida $B$ em $2 \times 2 \times 2 = 8$ cubos de lado $1\text{ mm}$ e estime o total de neurônios usando os centros dos cubos.
+        <hint><title>Ver dica</title>Cada cubo tem $\Delta V = 1\text{ mm}^3$. Há $4$ cubos com centro em $z = 0{,}5$ e $4$ com centro em $z = 1{,}5$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Como $\rho$ só depende de $z$ e $\Delta V = 1\text{ mm}^3$, os $4$ cubos rasos ($z = 0{,}5$) têm $\rho = 40\,000 + 2\,500 = 42\,500/\text{mm}^3$, e os $4$ fundos ($z = 1{,}5$) têm $\rho = 40\,000 + 7\,500 = 47\,500/\text{mm}^3$. Total:
+          $$N \approx 4(42\,500) + 4(47\,500) = 170\,000 + 190\,000 = 360\,000\text{ neurônios}.$$
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:3-3-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Integral dupla e tripla (retângulo e paralelepípedo)</title>
+      <intro>
+        Em vez de somar ladrilhos manualmente, fatiar o sólido como um pão de forma transforma a integral dupla em duas integrais simples do Módulo 2, calculadas uma dentro da outra.
+      </intro>
+
+      Imagine fatiar o sólido paralelamente ao eixo $y$ em cada $x \in [a, b]$. A área da fatia é $A(x) = \int_c^d f(x, y)\,dy$, e somar as fatias ao longo de $x$ dá $\int_a^b A(x)\,dx$. Fatiando paralelamente ao eixo $x$ primeiro, obtemos o mesmo volume.
+
+      <theorem id="thm:3-3-fubini-ret">
+        <title>Teorema de Fubini em retângulos</title>
+        Se $f(x, y)$ é contínua em $R = [a, b] \times [c, d]$, então a integral dupla iguala as duas <strong>integrais iteradas</strong> (<em>iterated integrals</em>):
+        $$\iint_R f(x, y)\,dA = \int_a^b \!\left(\int_c^d f(x, y)\,dy\right)dx = \int_c^d \!\left(\int_a^b f(x, y)\,dx\right)dy.$$
+        <intuition>
+          Na integral de dentro, tratamos a outra variável como constante (como nas derivadas parciais do Tema 3.2). No retângulo, a ordem de integração pode ser trocada livremente.
+        </intuition>
+      </theorem>
+
+      Quando o domínio é um retângulo e o integrando fatora em $g(x)h(y)$, a conta divide-se em duas integrais independentes.
+
+      <proposition id="prop:3-3-separavel">
+        <title>Caso separável em retângulos</title>
+        Se $f(x, y) = g(x)h(y)$ é contínua em $R = [a, b] \times [c, d]$, então:
+        $$\iint_R g(x)h(y)\,dA = \left(\int_a^b g(x)\,dx\right)\left(\int_c^d h(y)\,dy\right).$$
+      </proposition>
+      <proof of="prop:3-3-separavel" collapsible="true" collapsed="true">
+        Pelo <ref to="thm:3-3-fubini-ret"/>, como $g(x)$ é constante em $y$, ele sai da integral interna:
+        $$\int_a^b \!\left(\int_c^d g(x)h(y)\,dy\right)dx = \int_a^b g(x)\!\left(\int_c^d h(y)\,dy\right)dx.$$
+        Como $C = \int_c^d h(y)\,dy$ é constante em $x$, ele sai da integral externa, dando o produto das duas integrais simples.
+      </proof>
+
+      Em três dimensões, em um paralelepípedo (caixa), integramos uma variável por vez em qualquer uma das $6$ ordens possíveis.
+
+      <definition id="def:3-3-tripla-media">
+        <title>Integral tripla em caixa e valor médio</title>
+        Para $f(x, y, z)$ contínua no paralelepípedo $B = [a_1, b_1] \times [a_2, b_2] \times [a_3, b_3]$ (onde $[a_1, b_1]$, $[a_2, b_2]$ e $[a_3, b_3]$ são os intervalos de $x$, $y$ e $z$, respectivamente):
+        $$\iiint_B f(x, y, z)\,dV = \int_{a_1}^{b_1}\!\left(\int_{a_2}^{b_2}\!\left(\int_{a_3}^{b_3} f(x, y, z)\,dz\right)dy\right)dx.$$
+        O <strong>valor médio</strong> de $f$ em um retângulo $R$ ($\text{área}(R) > 0$) ou caixa $B$ ($\text{vol}(B) > 0$) é:
+        $$\bar{f} = \frac{1}{\text{área}(R)}\iint_R f(x, y)\,dA, \qquad \bar{f} = \frac{1}{\text{vol}(B)}\iiint_B f(x, y, z)\,dV.$$
+      </definition>
+
+      Na neurociência computacional, integrais duplas modelam variáveis aleatórias contínuas que variam juntas. Embora probabilidade e estatística sejam aprofundadas no Módulo 7 (<mark>Estatística e Probabilidade</mark>), a ideia geométrica é imediata: probabilidade como volume.
+
+      <definition id="def:3-3-densidade-conjunta">
+        <title>Probabilidade conjunta como volume</title>
+        Para duas grandezas contínuas $(X, Y)$, uma <strong>densidade de probabilidade conjunta</strong> (<em>joint probability density function</em>) é uma função $p(x, y) \ge 0$ com volume total unitário, $\iint_{\mathbb{R}^2} p(x, y)\,dA = 1$. A probabilidade de $(X, Y)$ cair em uma região $D$ é o volume sob $p$ acima de $D$:
+        $$P\bigl((X, Y) \in D\bigr) = \iint_D p(x, y)\,dA.$$
+        <intuition>
+          Imagine $p(x, y)$ como um monte de areia de volume total $1$ sobre o plano: a probabilidade de cair na região $D$ é a fração da areia que está acima de $D$.
+        </intuition>
+      </definition>
+
+      A <ref to="fig:3-3-densidade"/> mostra a gaussiana circular padrão $p(x, y) = \frac{1}{2\pi}e^{-(x^2+y^2)/2}$ ($\sigma = 1$). À esquerda, sobre $[-1, 1]^2$, a <ref to="prop:3-3-separavel"/> transforma a probabilidade no produto $\left(\int_{-1}^1 \frac{1}{\sqrt{2\pi}}e^{-x^2/2}\,dx\right)^2 \approx 46{,}6\%$. À direita, os discos de raios $1\sigma$ e $2\sigma$ serão calculados no Subtema 4 em coordenadas polares.
+
+      <figure src="fig/densidade-conjunta.svg" alt="Dois painéis da densidade gaussiana circular padrão: à esquerda, o quadrado de -1 a 1 com probabilidade aproximada de 46,6 por cento; à direita, círculos de raios 1 e 2 sigma com aproximadamente 39,3 e 86,5 por cento da massa" id="fig:3-3-densidade">
+        <caption>Probabilidade conjunta sob $p(x, y) = \frac{1}{2\pi}e^{-(x^2+y^2)/2}$. À esquerda, o retângulo $[-1, 1]^2$ concentra cerca de $46{,}6\%$ da massa; à direita, os discos de raios $1\sigma$ e $2\sigma$ concentram cerca de $39{,}3\%$ e $86{,}5\%$.</caption>
+      </figure>
+
+      <example id="exm:3-3-iterada-tripla">
+        <title>Fubini nas duas ordens e uma integral tripla</title>
+        <list marker="a">
+          <item>Calcule $\iint_R (1 + x^2 y)\,dA$ em $R = [0, 2] \times [0, 2]$ (do <ref to="exm:3-3-riemann-2x2"/>) nas duas ordens.</item>
+          <item>Calcule $\iiint_B (x + 2y + 3z)\,dV$ em $B = [0, 1] \times [0, 2] \times [0, 1]$ e ache $\bar{f}$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item><strong>Ordem $dy\,dx$:</strong> $\int_0^2 (1 + x^2 y)\,dy = \left[y + x^2 \frac{y^2}{2}\right]_0^2 = 2 + 2x^2$. Depois:
+            $$\int_0^2 (2 + 2x^2)\,dx = \left[2x + \frac{2x^3}{3}\right]_0^2 = 4 + \frac{16}{3} = \frac{28}{3} \approx 9{,}333.$$
+            <strong>Ordem $dx\,dy$:</strong> $\int_0^2 (1 + x^2 y)\,dx = \left[x + \frac{x^3}{3}y\right]_0^2 = 2 + \frac{8}{3}y$, e $\int_0^2 \left(2 + \frac{8}{3}y\right)dy = \left[2y + \frac{4}{3}y^2\right]_0^2 = 4 + \frac{16}{3} = \frac{28}{3}$.
+          </item>
+          <item>Integrando na ordem $dz\,dy\,dx$:
+            $$\int_0^1 (x + 2y + 3z)\,dz = \left[xz + 2yz + \frac{3}{2}z^2\right]_0^1 = x + 2y + \frac{3}{2},$$
+            $$\int_0^2 \left(x + 2y + \frac{3}{2}\right)dy = \left[xy + y^2 + \frac{3}{2}y\right]_0^2 = 2x + 7, \qquad \int_0^1 (2x + 7)\,dx = \left[x^2 + 7x\right]_0^1 = 8.$$
+            Como $\text{vol}(B) = 1 \cdot 2 \cdot 1 = 2$, o valor médio é $\bar{f} = \frac{8}{2} = 4$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:3-3-prob-conjunta">
+        <title>Normalização e probabilidade conjunta na biologia</title>
+        <list marker="a">
+          <item>A posição $(X, Y)$ de um roedor na arena $[0, 1]^2$ ($\text{m}$) tem densidade $p(x, y) = c\,(x + y)$ (e $0$ fora). Ache $c$ e $P(0 \le X \le 0{,}5,\; 0 \le Y \le 0{,}5)$.</item>
+          <item>As latências de disparo $X, Y \ge 0$ ($\text{s}$) de dois neurônios independentes têm densidade $p(x, y) = \lambda_1\lambda_2\,e^{-\lambda_1 x - \lambda_2 y}$ ($\lambda_1, \lambda_2 > 0$). Calcule $P(0 \le X \le a,\; 0 \le Y \le b)$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Pela normalização:
+            $$1 = \int_0^1 \!\int_0^1 c(x + y)\,dy\,dx = c\int_0^1 \left(x + \frac{1}{2}\right)dx = c\left[\frac{x^2}{2} + \frac{x}{2}\right]_0^1 = c \implies c = 1.$$
+            No quadrante $[0;\, 0{,}5]^2$:
+            $$P = \int_0^{1/2}\!\int_0^{1/2} (x + y)\,dy\,dx = \int_0^{1/2} \left(\frac{x}{2} + \frac{1}{8}\right)dx = \left[\frac{x^2}{4} + \frac{x}{8}\right]_0^{1/2} = \frac{1}{16} + \frac{1}{16} = \frac{1}{8} = 0{,}125.$$
+          </item>
+          <item>Pela <ref to="prop:3-3-separavel"/> em $[0, a] \times [0, b]$:
+            $$P(0 \le X \le a,\; 0 \le Y \le b) = \left(\int_0^a \lambda_1 e^{-\lambda_1 x}\,dx\right)\left(\int_0^b \lambda_2 e^{-\lambda_2 y}\,dy\right) = (1 - e^{-\lambda_1 a})(1 - e^{-\lambda_2 b}).$$
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:3-3-armadilha-densidade">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Achar que a densidade não pode passar de $1$:</strong> a <em>probabilidade</em> (volume) nunca passa de $1$, mas a <em>densidade</em> $p(x, y)$ pode! Uma distribuição uniforme no quadrado $[0;\, 0{,}5]^2$ (área $0{,}25$) tem altura constante $p(x, y) = 4 > 1$, pois $4 \cdot 0{,}25 = 1$.</item>
+          <item><strong>Separar integrais fora de retângulos:</strong> a <ref to="prop:3-3-separavel"/> exige limites constantes; em triângulos ou discos, as integrais não se separam em um produto.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:3-3-2-1">
+        <title>Básico — Caso separável e valor médio</title>
+        Para $f(x, y) = 6x^2 y - 2y$ no retângulo $R = [0, 2] \times [1, 3]$:
+        <list marker="a">
+          <item>fatore $f(x, y)$ como $g(x)h(y)$ e calcule $\iint_R f(x, y)\,dA$;</item>
+          <item>determine o valor médio $\bar{f}$ em $R$.</item>
+        </list>
+        <hint><title>Ver dica</title>Coloque $y$ em evidência e use a <ref to="prop:3-3-separavel"/>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como $f(x, y) = (6x^2 - 2)y$ em um retângulo:
+              $$\iint_R f\,dA = \left(\int_0^2 (6x^2 - 2)\,dx\right)\left(\int_1^3 y\,dy\right) = \left[2x^3 - 2x\right]_0^2 \cdot \left[\frac{y^2}{2}\right]_1^3 = 12 \cdot 4 = 48.$$
+            </item>
+            <item>Como $\text{área}(R) = (2 - 0)(3 - 1) = 4$, temos $\bar{f} = \frac{48}{4} = 12$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-3-2-2">
+        <title>Intermediário — Densidade conjunta e altura maior que $1$</title>
+        Na arena $R = [0, 2] \times [0, 1]$ ($\text{m}$), um animal segue a densidade $p(x, y) = k\,x y^2$ em $R$ (e $0$ fora).
+        <list marker="a">
+          <item>Encontre $k$ pela normalização.</item>
+          <item>Calcule $P(0 \le X \le 1,\; 0 \le Y \le 1)$ e avalie $p(2, 1)$, explicando por que $p(2, 1) > 1$ é válido.</item>
+        </list>
+        <hint><title>Ver dica</title>Use o caso separável em $[0, 2] \times [0, 1]$ para igualar o volume total a $1$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$$1 = k\left(\int_0^2 x\,dx\right)\left(\int_0^1 y^2\,dy\right) = k \cdot \left[\frac{x^2}{2}\right]_0^2 \cdot \left[\frac{y^3}{3}\right]_0^1 = k \cdot 2 \cdot \frac{1}{3} = \frac{2k}{3} \implies k = \frac{3}{2}.$$</item>
+            <item>$$P(0 \le X \le 1,\; 0 \le Y \le 1) = \frac{3}{2}\left(\int_0^1 x\,dx\right)\left(\int_0^1 y^2\,dy\right) = \frac{3}{2}\cdot\frac{1}{2}\cdot\frac{1}{3} = \frac{1}{4} = 0{,}25.$$
+              Em $(2, 1)$, $p(2, 1) = \frac{3}{2}(2)(1)^2 = 3 > 1$, o que é válido porque $p$ é uma <em>densidade</em> (probabilidade/$\text{m}^2$), cujo volume total sobre $R$ continua igual a $1$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-3-2-3">
+        <title>Avançado — Contagem de sinapses em um bloco 3D</title>
+        Um bloco cortical modelo $B = [0, 2] \times [0, 1] \times [0, 1]$ ($\text{mm}$) tem densidade sináptica $\rho(x, y, z) = 10^8(1 + 3x y^2 z)\text{ sinapses/mm}^3$. Calcule o número exato de sinapses em $B$.
+        <hint><title>Ver dica</title>Integre na ordem $dz\,dy\,dx$ deixando $10^8$ em evidência.</hint>
+        <solution collapsible="true" collapsed="true">
+          Integrando de dentro para fora:
+          $$\int_0^1 (1 + 3x y^2 z)\,dz = \left[z + \frac{3}{2}x y^2 z^2\right]_0^1 = 1 + \frac{3}{2}x y^2,$$
+          $$\int_0^1 \left(1 + \frac{3}{2}x y^2\right)dy = \left[y + \frac{1}{2}x y^3\right]_0^1 = 1 + \frac{1}{2}x,$$
+          $$\int_0^2 \left(1 + \frac{1}{2}x\right)dx = \left[x + \frac{x^2}{4}\right]_0^2 = 3.$$
+          Multiplicando por $10^8$, obtemos $3 \times 10^8$ sinapses.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:3-3-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Propriedades de integrais múltiplas</title>
+      <intro>
+        Regiões biológicas reais raramente são retângulos. Nesta seção reunimos as propriedades gerais da integral dupla e aprendemos a integrar sobre regiões limitadas por curvas.
+      </intro>
+
+      As propriedades abaixo estendem diretamente a integral do Módulo 2 e servem tanto para quebrar domínios complexos quanto para obter estimativas rápidas.
+
+      <proposition id="prop:3-3-propriedades">
+        <title>Propriedades fundamentais das integrais múltiplas</title>
+        Sejam $f$ e $g$ integráveis em $D$ e $a, b \in \mathbb{R}$. Valem:
+        <list marker="number">
+          <item><strong>Linearidade:</strong> $\iint_D [af + bg]\,dA = a\iint_D f\,dA + b\iint_D g\,dA$.</item>
+          <item><strong>Monotonicidade:</strong> se $f \le g$ em $D$, então $\iint_D f\,dA \le \iint_D g\,dA$.</item>
+          <item><strong>Aditividade:</strong> se $D = D_1 \cup D_2$ (com sobreposição no máximo na fronteira), $\iint_D f\,dA = \iint_{D_1} f\,dA + \iint_{D_2} f\,dA$.</item>
+          <item><strong>Cotas:</strong> se $m \le f(x, y) \le M$ em $D$, então $m \cdot \text{área}(D) \le \iint_D f\,dA \le M \cdot \text{área}(D)$.</item>
+          <item><strong>Área e volume:</strong> $\text{área}(D) = \iint_D 1\,dA$ e $\text{vol}(E) = \iiint_E 1\,dV$, onde $E$ é uma região sólida qualquer de $\mathbb{R}^3$ (análoga à região plana $D$).</item>
+        </list>
+        <intuition>
+          Um sólido de base $D$ e altura constante $1$ tem volume numericamente igual à área de $D$; e qualquer superfície entre alturas $m$ e $M$ fica prensada entre os dois prismas correspondentes.
+        </intuition>
+      </proposition>
+
+      Para integrar em uma região curva ou triangular $D$, descrevemos $D$ fatiando-a verticalmente (Tipo I) ou horizontalmente (Tipo II).
+
+      <definition id="def:3-3-regioes-gerais">
+        <title>Regiões do Tipo I e do Tipo II</title>
+        <list marker="dash">
+          <item><strong>Tipo I (faixas verticais):</strong> $D = \{(x, y) : a \le x \le b,\; g_1(x) \le y \le g_2(x)\}$, logo:
+            $$\iint_D f(x, y)\,dA = \int_a^b \!\left(\int_{g_1(x)}^{g_2(x)} f(x, y)\,dy\right)dx.$$
+          </item>
+          <item><strong>Tipo II (faixas horizontais):</strong> $D = \{(x, y) : c \le y \le d,\; h_1(y) \le x \le h_2(y)\}$, logo:
+            $$\iint_D f(x, y)\,dA = \int_c^d \!\left(\int_{h_1(y)}^{h_2(y)} f(x, y)\,dx\right)dy.$$
+          </item>
+        </list>
+        <intuition>
+          Esboce $D$ no plano. No Tipo I, uma seta vertical entrando por baixo e saindo por cima vai de $y = g_1(x)$ a $y = g_2(x)$, enquanto $x$ varre $[a, b]$. No Tipo II, uma seta horizontal da esquerda para a direita vai de $x = h_1(y)$ a $x = h_2(y)$, enquanto $y$ varre $[c, d]$.
+        </intuition>
+      </definition>
+
+      <example id="exm:3-3-troca-ordem">
+        <title>Triângulos e troca da ordem de integração</title>
+        <list marker="a">
+          <item>No triângulo $D$ de vértices $(0, 0)$, $(1, 0)$ e $(1, 1)$, calcule $\iint_D 6x^2 y\,dA$ como Tipo I e como Tipo II.</item>
+          <item>Calcule $\int_0^1 \!\left(\int_x^1 e^{y^2}\,dy\right)dx$ invertendo a ordem de integração.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>$D$ é limitado abaixo por $y = 0$, à direita por $x = 1$ e acima por $y = x$.
+            <list marker="dash">
+              <item><strong>Tipo I ($0 \le x \le 1$, $0 \le y \le x$):</strong> $\int_0^1 \left[3x^2 y^2\right]_0^x dx = \int_0^1 3x^4\,dx = \frac{3}{5}$.</item>
+              <item><strong>Tipo II ($0 \le y \le 1$, $y \le x \le 1$):</strong> $\int_0^1 \left[2x^3 y\right]_y^1 dy = \int_0^1 (2y - 2y^4)\,dy = \left[y^2 - \frac{2y^5}{5}\right]_0^1 = \frac{3}{5}$.</item>
+            </list>
+          </item>
+          <item>Como $\int e^{y^2}\,dy$ não tem primitiva elementar, esboçamos a região: $0 \le x \le 1$ e $x \le y \le 1$ descrevem o triângulo superior esquerdo de $[0, 1]^2$ (vértices $(0, 0)$, $(0, 1)$ e $(1, 1)$). Passando para o Tipo II ($0 \le y \le 1$, $0 \le x \le y$):
+            $$\int_0^1 \!\left(\int_0^y e^{y^2}\,dx\right)dy = \int_0^1 y\,e^{y^2}\,dy = \left[\frac{1}{2}e^{y^2}\right]_0^1 = \frac{e - 1}{2}$$
+            (usando a substituição $u = y^2$, $du = 2y\,dy$).
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:3-3-latencia-e-mapa">
+        <title>Ordem de disparo neuronal e média em um mapa cortical</title>
+        <list marker="a">
+          <item>Para os dois neurônios do <ref to="exm:3-3-prob-conjunta"/> com $p(x, y) = \lambda_1\lambda_2 e^{-\lambda_1 x - \lambda_2 y}$ ($x, y \ge 0$), calcule a probabilidade de o neurônio $1$ disparar antes do $2$, $P(X < Y)$.</item>
+          <item>Calcule o valor médio de $Z = f(x, y) = 12(1 - x - y)$ no triângulo $D = \{(x, y) : x \ge 0,\; y \ge 0,\; x + y \le 1\}$ ($\text{mm}$).</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>A condição $X < Y$ dá $0 \le x < \infty$ e $x < y < \infty$. Integrando primeiro em $y$ (como limite impróprio quando o extremo superior tende a $\infty$):
+            $$P(X < Y) = \int_0^\infty \lambda_1 e^{-\lambda_1 x}\!\left(\int_x^\infty \lambda_2 e^{-\lambda_2 y}\,dy\right)dx = \int_0^\infty \lambda_1 e^{-\lambda_1 x} \bigl[-e^{-\lambda_2 y}\bigr]_x^\infty dx = \lambda_1 \int_0^\infty e^{-(\lambda_1 + \lambda_2)x}\,dx = \frac{\lambda_1}{\lambda_1 + \lambda_2}.$$
+          </item>
+          <item>Em $D$ ($0 \le x \le 1$, $0 \le y \le 1 - x$), a área é $\text{área}(D) = \frac{1 \cdot 1}{2} = \frac{1}{2}\text{ mm}^2$. A integral dupla vale:
+            $$\int_0^1 \!\left(\int_0^{1-x} 12\bigl[(1 - x) - y\bigr]\,dy\right)dx = 12\int_0^1 \left[(1 - x)y - \frac{y^2}{2}\right]_0^{1-x} dx = 6\int_0^1 (1 - x)^2\,dx = 6\left[-\frac{(1 - x)^3}{3}\right]_0^1 = 2.$$
+            Portanto, $\bar{f} = \frac{2}{1/2} = 4$ (dentro das cotas $0 \le \bar{f} \le 12$ da <ref to="prop:3-3-propriedades"/>).
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:3-3-armadilha-limites">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Inverter $dx$ e $dy$ mantendo os limites:</strong> os limites da integral <em>externa</em> precisam ser constantes numéricas; sempre redesenhe a região antes de inverter a ordem.</item>
+          <item><strong>Separar produtos fora de retângulos:</strong> no triângulo $0 \le x \le 1$, $0 \le y \le x$, vale $\iint_D x y\,dA = \int_0^1 \frac{x^3}{2}\,dx = \frac{1}{8}$, diferente de $\left(\int_0^1 x\,dx\right)\left(\int_0^1 y\,dy\right) = \frac{1}{4}$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:3-3-3-1">
+        <title>Básico — Área e integral sob parábola</title>
+        Seja $D$ a região limitada por $y = x^2$, $y = 0$ e $x = 2$.
+        <list marker="a">
+          <item>Calcule $\text{área}(D) = \iint_D 1\,dA$.</item>
+          <item>Calcule $\iint_D (x + 2y)\,dA$.</item>
+        </list>
+        <hint><title>Ver dica</title>Use Tipo I: $0 \le x \le 2$ e $0 \le y \le x^2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$\text{área}(D) = \int_0^2 \int_0^{x^2} 1\,dy\,dx = \int_0^2 x^2\,dx = \left[\frac{x^3}{3}\right]_0^2 = \frac{8}{3}$.</item>
+            <item>$\int_0^2 \int_0^{x^2} (x + 2y)\,dy\,dx = \int_0^2 \left[xy + y^2\right]_0^{x^2} dx = \int_0^2 (x^3 + x^4)\,dx = \left[\frac{x^4}{4} + \frac{x^5}{5}\right]_0^2 = 4 + \frac{32}{5} = \frac{52}{5} = 10{,}4$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-3-3-2">
+        <title>Intermediário — Invertendo a ordem para integrar</title>
+        Calcule $\int_0^4 \!\left(\int_{\sqrt{y}}^2 \frac{1}{x^3 + 1}\,dx\right)dy$ invertendo a ordem de integração.
+        <hint><title>Ver dica</title>A região $0 \le y \le 4$, $\sqrt{y} \le x \le 2$ é a mesma do exercício anterior ($0 \le x \le 2$, $0 \le y \le x^2$).</hint>
+        <solution collapsible="true" collapsed="true">
+          Passando para a ordem $dy\,dx$ ($0 \le x \le 2$, $0 \le y \le x^2$):
+          $$\int_0^2 \!\left(\int_0^{x^2} \frac{1}{x^3 + 1}\,dy\right)dx = \int_0^2 \frac{x^2}{x^3 + 1}\,dx.$$
+          Com $u = x^3 + 1$ ($du = 3x^2\,dx$), quando $x = 0 \implies u = 1$ e $x = 2 \implies u = 9$:
+          $$\int_1^9 \frac{1}{3u}\,du = \frac{1}{3}\bigl[\ln u\bigr]_1^9 = \frac{\ln 9}{3} = \frac{2\ln 3}{3}.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-3-3-3">
+        <title>Avançado — Janela temporal entre disparos neuronais</title>
+        Dois neurônios independentes têm latências $X, Y \ge 0$ ($\text{s}$) com taxas $\lambda_1 = 1\text{ s}^{-1}$ e $\lambda_2 = 2\text{ s}^{-1}$, logo $p(x, y) = 2e^{-x - 2y}$.
+        <list marker="a">
+          <item>Calcule $P(Y \ge X + 1)$ (neurônio $1$ dispara pelo menos $1\text{ s}$ antes do $2$).</item>
+          <item>Compare com $P(X < Y)$ pela fórmula do <ref to="exm:3-3-latencia-e-mapa"/>.</item>
+        </list>
+        <hint><title>Ver dica</title>Para $x \ge 0$, integre $y$ de $x + 1$ até $\infty$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$$P(Y \ge X + 1) = \int_0^\infty e^{-x}\!\left(\int_{x+1}^\infty 2e^{-2y}\,dy\right)dx = \int_0^\infty e^{-x}\,e^{-2(x+1)}\,dx = e^{-2}\int_0^\infty e^{-3x}\,dx = \frac{e^{-2}}{3} \approx 0{,}045.$$</item>
+            <item>Pelo <ref to="exm:3-3-latencia-e-mapa"/>, $P(X < Y) = \frac{1}{1 + 2} = \frac{1}{3} \approx 0{,}333$. Como $\{Y \ge X + 1\}$ está contido em $\{X < Y\}$ e $p \ge 0$, a aditividade garante $\frac{e^{-2}}{3} < \frac{1}{3}$.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:3-3-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Mudança de variáveis</title>
+      <intro>
+        Domínios circulares e campos receptivos redondos simplificam drasticamente em coordenadas polares — basta multiplicar pela distorção de área medida pelo jacobiano.
+      </intro>
+
+      Na substituição em 1D (Módulo 2), trocar $x = g(u)$ multiplica o diferencial por $g'(u)$. Em 2D, uma mudança $(x, y) = \bigl(x(u, v),\, y(u, v)\bigr)$ deforma um pequeno retângulo $\Delta u \times \Delta v$ em um paralelogramo curvo cuja área escala pelo módulo do <strong>determinante jacobiano</strong>.
+
+      <theorem id="thm:3-3-jacobiano">
+        <title>Mudança de variáveis e determinante jacobiano</title>
+        Se $x = x(u, v)$ e $y = y(u, v)$ têm derivadas parciais contínuas e levam bijetivamente uma região $S$ do plano $uv$ em $D$ no plano $xy$ (exceto possivelmente na fronteira), então:
+        $$\iint_D f(x, y)\,dA = \iint_S f\bigl(x(u, v),\, y(u, v)\bigr) \left|\frac{\partial(x, y)}{\partial(u, v)}\right| du\,dv,$$
+        com o <strong>determinante jacobiano</strong> (<em>Jacobian determinant</em>) dado por:
+        $$\frac{\partial(x, y)}{\partial(u, v)} = \det \begin{pmatrix} \dfrac{\partial x}{\partial u} & \dfrac{\partial x}{\partial v} \\[8pt] \dfrac{\partial y}{\partial u} & \dfrac{\partial y}{\partial v} \end{pmatrix} = \frac{\partial x}{\partial u}\frac{\partial y}{\partial v} - \frac{\partial x}{\partial v}\frac{\partial y}{\partial u}.$$
+        <intuition>
+          No caso linear $x = 2u$, $y = 3v$, esticamos a largura por $2$ e a altura por $3$, multiplicando áreas por $2 \cdot 3 = 6$ — exatamente o que dá $x_u y_v - x_v y_u = 6$.
+        </intuition>
+      </theorem>
+
+      Aqui usamos o determinante $2 \times 2$, $\det \begin{pmatrix} a & b \\ c & d \end{pmatrix} = ad - bc$, apenas como fórmula pronta com derivadas parciais do Tema 3.2; matrizes e determinantes serão estudados em profundidade no Módulo 5 (<mark>Álgebra Linear</mark>).
+
+      Para discos e anéis, usamos <strong>coordenadas polares</strong>: $x = r\cos\theta$, $y = r\sin\theta$ ($r \ge 0$, $0 \le \theta \le 2\pi$), onde $x^2 + y^2 = r^2$.
+
+      <proposition id="prop:3-3-polares">
+        <title>Integral dupla em coordenadas polares</title>
+        Em coordenadas polares ($x = r\cos\theta$, $y = r\sin\theta$), o elemento de área vale:
+        $$dA = r\,dr\,d\theta.$$
+        Em um setor polar $r_1 \le r \le r_2$, $\theta_1 \le \theta \le \theta_2$:
+        $$\iint_D f(x, y)\,dA = \int_{\theta_1}^{\theta_2}\!\int_{r_1}^{r_2} f(r\cos\theta,\, r\sin\theta)\,r\,dr\,d\theta.$$
+        <intuition>
+          Um setor entre $r$ e $r + \Delta r$ e entre $\theta$ e $\theta + \Delta\theta$ tem lado radial $\Delta r$ e arco $r\,\Delta\theta$ (Trigonometria, Módulo 1). Longe da origem ($r$ grande), o mesmo $\Delta\theta$ abre um arco mais largo, dando área $\Delta A \approx r\,\Delta r\,\Delta\theta$.
+        </intuition>
+      </proposition>
+      <proof of="prop:3-3-polares" collapsible="true" collapsed="true">
+        Temos $x_r = \cos\theta$, $x_\theta = -r\sin\theta$, $y_r = \sin\theta$ e $y_\theta = r\cos\theta$. Pelo <ref to="thm:3-3-jacobiano"/>:
+        $$\frac{\partial(x, y)}{\partial(r, \theta)} = (\cos\theta)(r\cos\theta) - (-r\sin\theta)(\sin\theta) = r(\cos^2\theta + \sin^2\theta) = r.$$
+        Como $r \ge 0$, $|r| = r$ e $dA = r\,dr\,d\theta$.
+      </proof>
+
+      Com polares, provamos agora o valor exato da integral da curva gaussiana — impossível por primitivas elementares em 1D, mas imediata em 2D.
+
+      <theorem id="thm:3-3-gaussiana">
+        <title>Integral da gaussiana e normalização da curva normal</title>
+        Vale a identidade:
+        $$\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}.$$
+        Logo, para quaisquer $\mu \in \mathbb{R}$ e $\sigma > 0$, a distribuição normal tem área total $1$:
+        $$\int_{-\infty}^{\infty} \frac{1}{\sqrt{2\pi}\,\sigma} e^{-\frac{(x - \mu)^2}{2\sigma^2}}\,dx = 1.$$
+      </theorem>
+      <proof of="thm:3-3-gaussiana" collapsible="true" collapsed="true">
+        Tratamos aqui integrais impróprias em $\mathbb{R}^2$ de forma intuitiva (passando ao limite de discos grandes), sem o rigor formal completo. Seja $I = \int_{-\infty}^{\infty} e^{-x^2}\,dx > 0$. Como o nome da variável não muda a integral, $I = \int_{-\infty}^{\infty} e^{-y^2}\,dy$. Multiplicando ambas pelo caso separável (<ref to="prop:3-3-separavel"/>) e mudando para polares:
+        $$I^2 = \iint_{\mathbb{R}^2} e^{-(x^2 + y^2)}\,dA = \int_0^{2\pi}\!\left(\int_0^{\infty} e^{-r^2}\,r\,dr\right)d\theta.$$
+        Com $u = r^2$ ($r\,dr = \frac{du}{2}$), a integral interna dá $\frac{1}{2}\bigl[-e^{-u}\bigr]_0^\infty = \frac{1}{2}$. Integrando em $\theta$ de $0$ a $2\pi$:
+        $$I^2 = 2\pi \cdot \frac{1}{2} = \pi \implies I = \sqrt{\pi}.$$
+        Para a curva normal, a substituição 1D $w = \frac{x - \mu}{\sqrt{2}\,\sigma}$ ($dx = \sqrt{2}\,\sigma\,dw$) dá:
+        $$\int_{-\infty}^{\infty} \frac{1}{\sqrt{2\pi}\,\sigma} e^{-\frac{(x - \mu)^2}{2\sigma^2}}\,dx = \frac{\sqrt{2}\,\sigma}{\sqrt{2\pi}\,\sigma} \int_{-\infty}^{\infty} e^{-w^2}\,dw = \frac{\sqrt{\pi}}{\sqrt{\pi}} = 1.$$
+      </proof>
+
+      <example id="exm:3-3-linear-e-anel">
+        <title>Área da elipse e integral em um anel polar</title>
+        <list marker="a">
+          <item>Use $x = 2u$, $y = 3v$ para calcular a área da elipse $E = \left\{(x, y) : \frac{x^2}{4} + \frac{y^2}{9} \le 1\right\}$.</item>
+          <item>Calcule $\iint_D (x^2 + y^2)\,dA$ no anel $D = \{(x, y) : 1 \le x^2 + y^2 \le 4\}$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>A troca leva $E$ no disco unitário $S = \{u^2 + v^2 \le 1\}$ (de área $\pi$), com jacobiano $|2 \cdot 3 - 0 \cdot 0| = 6$. Logo, $\text{área}(E) = \iint_S 6\,du\,dv = 6\pi$.</item>
+          <item>Em polares, $1 \le r \le 2$ e $0 \le \theta \le 2\pi$:
+            $$\iint_D (x^2 + y^2)\,dA = \int_0^{2\pi}\!\left(\int_1^2 r^2 \cdot r\,dr\right)d\theta = 2\pi\left[\frac{r^4}{4}\right]_1^2 = 2\pi\cdot\frac{15}{4} = \frac{15\pi}{2}.$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:3-3-campo-receptivo">
+        <title>Campo receptivo visual gaussiano</title>
+        Um campo receptivo circular tem sensibilidade $f(x, y) = A\,\exp\!\left(-\frac{x^2 + y^2}{2\sigma^2}\right)$ ($A, \sigma > 0$).
+        <list marker="a">
+          <item>Calcule a resposta total $T = \iint_{\mathbb{R}^2} f(x, y)\,dA$ em polares.</item>
+          <item>Qual fração de $T$ está dentro dos discos de raios $R = \sigma$ e $R = 2\sigma$?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Em polares, com $u = \frac{r^2}{2\sigma^2}$ ($r\,dr = \sigma^2\,du$):
+            $$T = \int_0^{2\pi}\!\left(\int_0^\infty A\,e^{-\frac{r^2}{2\sigma^2}}\,r\,dr\right)d\theta = 2\pi A\sigma^2 \int_0^\infty e^{-u}\,du = 2\pi\sigma^2 A.$$
+            Com $A = \frac{1}{2\pi\sigma^2}$, obtemos $T = 1$, a densidade gaussiana 2D da <ref to="fig:3-3-densidade"/>.
+          </item>
+          <item>Integrando até $r = R$ ($u$ de $0$ a $\frac{R^2}{2\sigma^2}$), temos $T(R) = 2\pi\sigma^2 A\left(1 - e^{-\frac{R^2}{2\sigma^2}}\right)$, logo a fração é $1 - e^{-\frac{R^2}{2\sigma^2}}$:
+            <list marker="dash">
+              <item>para $R = \sigma$: $1 - e^{-1/2} \approx 0{,}393$ ($39{,}3\%$);</item>
+              <item>para $R = 2\sigma$: $1 - e^{-2} \approx 0{,}865$ ($86{,}5\%$).</item>
+            </list>
+            Esses valores correspondem aos dois círculos do painel direito na <ref to="fig:3-3-densidade"/>.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:3-3-armadilha-polares">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Esquecer o fator $r$ em polares:</strong> nunca escreva $dA = dr\,d\theta$. Lembre pelas unidades: $dr$ tem dimensão de comprimento e $d\theta$ é adimensional, então falta $r$ para dar área.</item>
+          <item><strong>Esquecer o módulo no jacobiano:</strong> trocar $u$ e $v$ inverte o sinal do determinante; sem $|\cdot|$, áreas sairiam negativas.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:3-3-4-1">
+        <title>Básico — Integral em quadrante de disco</title>
+        Calcule $\iint_D \sqrt{x^2 + y^2}\,dA$ na parte de $x^2 + y^2 \le 9$ com $x \ge 0$ e $y \ge 0$.
+        <hint><title>Ver dica</title>Em polares, $0 \le r \le 3$, $0 \le \theta \le \frac{\pi}{2}$ e $\sqrt{x^2 + y^2}\,dA = r \cdot r\,dr\,d\theta$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Tanto a região circular quanto o integrando $\sqrt{x^2 + y^2} = r$ têm simetria radial, tornando naturais as coordenadas polares. Como $x^2 + y^2 \le 9$ no primeiro quadrante ($x \ge 0$, $y \ge 0$), os limites são $0 \le r \le 3$ e $0 \le \theta \le \frac{\pi}{2}$, e o elemento de área $dA = r\,dr\,d\theta$ introduz o fator jacobiano $r$, resultando no integrando $r \cdot r = r^2$:
+          $$\int_0^{\pi/2}\!\left(\int_0^3 r^2\,dr\right)d\theta = \frac{\pi}{2}\left[\frac{r^3}{3}\right]_0^3 = \frac{\pi}{2}\cdot 9 = \frac{9\pi}{2}.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-3-4-2">
+        <title>Intermediário — Mudança linear em um losango</title>
+        Use $x = \frac{u + v}{2}$, $y = \frac{u - v}{2}$ (isto é, $u = x + y$, $v = x - y$) para calcular $\iint_D (x + y)^2\,dA$ em $D = \{(x, y) : |x| + |y| \le 1\}$, que no plano $uv$ vira o quadrado $S = [-1, 1]^2$.
+        <hint><title>Ver dica</title>Calcule o determinante jacobiano $\frac{\partial(x,y)}{\partial(u,v)}$ e lembre de tomar o valor absoluto antes de integrar $u^2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Em coordenadas $(x, y)$, o losango inclinado $D$ exigiria dividir a região em dois pedaços, mas a mudança linear $u = x + y$, $v = x - y$ transforma $D$ no quadrado $S = [-1, 1]^2$ ($-1 \le u \le 1$, $-1 \le v \le 1$) e simplifica $(x + y)^2$ para $u^2$. Para compensar a distorção de área na troca de variáveis (<ref to="thm:3-3-jacobiano"/>), calculamos o módulo do determinante jacobiano $\left|\frac{\partial(x, y)}{\partial(u, v)}\right|$:
+          Com $x_u = x_v = y_u = \frac{1}{2}$ e $y_v = -\frac{1}{2}$:
+          $$\frac{\partial(x, y)}{\partial(u, v)} = \left(\frac{1}{2}\right)\left(-\frac{1}{2}\right) - \left(\frac{1}{2}\right)\left(\frac{1}{2}\right) = -\frac{1}{2} \implies \left|\frac{\partial(x, y)}{\partial(u, v)}\right| = \frac{1}{2}.$$
+          Atenção: o fator correto é $\left|\frac{\partial(x,y)}{\partial(u,v)}\right| = \frac{1}{2}$, que é o inverso de $\left|\frac{\partial(u,v)}{\partial(x,y)}\right| = |-2| = 2$ — nunca use o jacobiano da transformação inversa no lugar. Pelo caso separável em $S = [-1, 1]^2$:
+          $$\iint_D (x + y)^2\,dA = \frac{1}{2}\left(\int_{-1}^{1} u^2\,du\right)\left(\int_{-1}^{1} dv\right) = \frac{1}{2} \cdot \frac{2}{3} \cdot 2 = \frac{2}{3}.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-3-4-3">
+        <title>Intermediário — Centro excitatório de um campo receptivo</title>
+        No disco central $D = \{x^2 + y^2 \le 1\}$ ($\text{mm}$) de uma célula ganglionar da retina, a sensibilidade é $s(x, y) = 4 e^{-(x^2 + y^2)}$. Calcule $E = \iint_D s(x, y)\,dA$.
+        <hint><title>Ver dica</title>Passe para polares ($0 \le r \le 1$, $0 \le \theta \le 2\pi$) e substitua $u = r^2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Como tanto o domínio circular quanto o expoente $-(x^2 + y^2) = -r^2$ dependem apenas do raio, usamos coordenadas polares: o disco unitário completo dá $0 \le r \le 1$ e $0 \le \theta \le 2\pi$, enquanto o elemento de área $dA = r\,dr\,d\theta$ fornece o fator jacobiano $r$ que viabiliza a substituição $u = r^2$ ($r\,dr = \frac{du}{2}$, $u \in [0, 1]$):
+          $$E = \int_0^{2\pi}\!\left(\int_0^1 4e^{-r^2}\,r\,dr\right)d\theta = 2\pi \cdot 2\int_0^1 e^{-u}\,du = 4\pi(1 - e^{-1}) \approx 7{,}94.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-3-4-4">
+        <title>Avançado — Raio de 50% da massa gaussiana 2D</title>
+        Para $p(x, y) = c\,e^{-\frac{x^2 + y^2}{2\sigma^2}}$ ($\sigma > 0$):
+        <list marker="a">
+          <item>determine $c$ para que $\iint_{\mathbb{R}^2} p\,dA = 1$;</item>
+          <item>ache o raio $R$ (em função de $\sigma$) tal que $P(X^2 + Y^2 \le R^2) = 0{,}5$.</item>
+        </list>
+        <hint><title>Ver dica</title>Use as fórmulas do <ref to="exm:3-3-campo-receptivo"/> e resolva $1 - e^{-\frac{R^2}{2\sigma^2}} = \frac{1}{2}$ usando $\ln$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pela simetria circular em $x^2 + y^2 = r^2$, integramos em coordenadas polares sobre todo o plano ($0 \le r < \infty$, $0 \le \theta \le 2\pi$), usando $dA = r\,dr\,d\theta$ com o fator jacobiano $r$ exatamente como no <ref to="exm:3-3-campo-receptivo"/>: $\iint_{\mathbb{R}^2} p\,dA = 2\pi\sigma^2 c = 1 \implies c = \frac{1}{2\pi\sigma^2}$.</item>
+            <item>A condição $X^2 + Y^2 \le R^2$ representa o disco de raio $R$ ($0 \le r \le R$, $0 \le \theta \le 2\pi$), e a integral em polares com $dA = r\,dr\,d\theta$ (pelo <ref to="exm:3-3-campo-receptivo"/>, com $c = \frac{1}{2\pi\sigma^2}$) resulta na fração $1 - e^{-\frac{R^2}{2\sigma^2}}$. Igualando essa fração no disco de raio $R$ a $\frac{1}{2}$:
+              $$1 - e^{-\frac{R^2}{2\sigma^2}} = \frac{1}{2} \implies e^{-\frac{R^2}{2\sigma^2}} = \frac{1}{2} \implies -\frac{R^2}{2\sigma^2} = -\ln 2 \implies R = \sigma\sqrt{2\ln 2} \approx 1{,}177\,\sigma.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:3-3-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Soma de Riemann dupla:</strong> $\iint_R f\,dA = \lim_{m,n\to\infty}\sum_{i,j} f(x_i^*, y_j^*)\,\Delta A$ ($\Delta A = \Delta x\,\Delta y$); para $f \ge 0$, mede volume ou "densidade $\times$ área" (e $\iiint_B \rho\,dV$ mede "densidade $\times$ volume" em 3D).</item>
+        <item><strong>Teorema de Fubini em retângulos:</strong> $\iint_{[a,b]\times[c,d]} f\,dA = \int_a^b\!\left(\int_c^d f\,dy\right)dx = \int_c^d\!\left(\int_a^b f\,dx\right)dy$.</item>
+        <item><strong>Caso separável:</strong> em retângulos, $\iint_R g(x)h(y)\,dA = \left(\int_a^b g(x)\,dx\right)\left(\int_c^d h(y)\,dy\right)$.</item>
+        <item><strong>Probabilidade como volume:</strong> se $p(x, y) \ge 0$ e $\iint_{\mathbb{R}^2} p\,dA = 1$, então $P\bigl((X, Y) \in D\bigr) = \iint_D p\,dA$ ($p$ pode exceder $1$; o volume não).</item>
+        <item><strong>Propriedades e regiões gerais:</strong> linearidade, monotonicidade, aditividade, cotas $m\,\text{área}(D) \le \iint_D f\,dA \le M\,\text{área}(D)$ e $\text{área}(D) = \iint_D 1\,dA$; regiões gerais descrevem-se nos tipos I e II, permitindo trocar a ordem de integração.</item>
+        <item><strong>Mudança de variáveis e jacobiano:</strong> $\iint_D f\,dA = \iint_S f(x(u, v), y(u, v))\left|\frac{\partial(x, y)}{\partial(u, v)}\right| du\,dv$, onde $\frac{\partial(x, y)}{\partial(u, v)} = x_u y_v - x_v y_u$.</item>
+        <item><strong>Coordenadas polares:</strong> $x = r\cos\theta$, $y = r\sin\theta$, $x^2 + y^2 = r^2$ e $dA = r\,dr\,d\theta$.</item>
+        <item><strong>Integral da gaussiana:</strong> passar $I^2 = \iint_{\mathbb{R}^2} e^{-(x^2+y^2)}\,dA$ para polares prova $\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}$ e normaliza a curva normal $\int_{-\infty}^{\infty} \frac{1}{\sqrt{2\pi}\sigma}e^{-\frac{(x-\mu)^2}{2\sigma^2}}\,dx = 1$.</item>
+      </list>
+    </section>
+
+    <section id="sec:3-3-alem">
+      <title>Para ir além</title>
+      Com este tema você conclui o Módulo 3! Antes de partir para o projeto final do módulo — avaliar um mapa simplificado de ativação cortical $Z = f(x, y)$ e encontrar a coordenada exata do pico de ativação local — e avançar para o <strong>Módulo 4 (Otimização)</strong>, começando pelo Tema <strong>4.1 — Espaço de variáveis</strong>, consulte os materiais do módulo:
+      <list marker="dash">
+        <item><strong>Livro-texto recomendado:</strong> Diomara Pinto — <em>Cálculo Diferencial e Integral de Funções de Várias Variáveis</em>, especialmente os capítulos sobre integrais duplas, triplas, troca da ordem e mudança de variáveis.</item>
+        <item><strong>Apoio visual pontual:</strong> recorra ao YouTube para dúvidas visuais e geométricas pontuais, como enxergar regiões dos tipos I e II e o elemento de área $r\,dr\,d\theta$ em coordenadas polares.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 3 · Cálculo Multivariável — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

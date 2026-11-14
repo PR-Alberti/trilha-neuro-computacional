@@ -1,0 +1,961 @@
+<document>
+  <title>Módulo 2 · Cálculo Real</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-2-1">Voltar ao guia (Tema 2.1)</link></meta-item>
+    <meta-item key="Módulo">Módulo 2 · Cálculo Real — Taxas de Variação e Acúmulo</meta-item>
+    <meta-item key="Nível">Básico</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-2-1">
+    <title>Limite</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Formaliza a ideia de “chegar perto”: é a fundação sobre a qual derivadas e integrais são definidas.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> A dinâmica do potencial de membrana de um neurônio é descrita por derivadas — o célebre modelo de Hodgkin e Huxley (1952) é um sistema de equações diferenciais —, enquanto integrais somam correntes sinápticas ao longo do tempo e áreas sob a curva de resposta hemodinâmica medida pelo fMRI. Para definir tanto uma taxa instantânea de variação quanto uma soma contínua, porém, a matemática precisa resolver antes uma pergunta fundamental: o que significa uma grandeza “chegar arbitrariamente perto” de um valor sem precisar atingi-lo?
+
+    Essa ideia aparece o tempo todo na biologia quantitativa. Quando você mede a velocidade de uma reação enzimática em concentrações cada vez maiores de substrato, ela não explode indefinidamente: aproxima-se de um teto de saturação ($V_{\max}$). Quando calcula a velocidade de subida de um potencial de ação em janelas de tempo cada vez menores, os intervalos encolhem rumo a zero sem poder valer zero (pois não se divide por zero). O conceito de <strong>limite</strong> dá rigor a essas aproximações, abre caminho direto para a <mark>Derivada</mark> no próximo tema e sustenta todo o Cálculo Real.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>interpretar $\lim_{x \to a} f(x) = L$ graficamente e por tabelas numéricas, distinguindo o limite em $a$ do valor $f(a)$;</item>
+      <item>compreender a definição formal $\varepsilon$-$\delta$ como um jogo de tolerâncias e aplicá-la em funções lineares e quadráticas simples;</item>
+      <item>calcular limites usando propriedades algébricas, fatoração, racionalização e técnicas para limites no infinito (como saturação enzimática);</item>
+      <item>avaliar limites laterais e verificar se uma função é contínua em um ponto, classificando descontinuidades;</item>
+      <item>calcular limites de funções compostas e aplicar o Teorema do Sanduíche, incluindo $\lim_{x \to 0} \dfrac{\operatorname{sen}(x)}{x} = 1$.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Este é o primeiro tema do Módulo 2 (<strong>Cálculo Real</strong>), dando sequência à <strong>Geometria Analítica</strong> (Tema 1.5), último tema do Módulo 1 (Pré-Cálculo). Retomaremos diretamente três ferramentas do Módulo 1: a vizinhança modular $|x - a| < r \iff a - r < x < a + r$ e fatoração algébrica (<strong>Álgebra</strong>, 1.1); composição de funções, função sigmoide e comportamento assintótico (<strong>Funções</strong>, 1.3); e ângulos em radianos e funções trigonométricas no círculo unitário (<strong>Trigonometria</strong>, 1.4).
+
+    <section id="sec:2-1-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Introdução</title>
+      <intro>
+        O limite descreve o comportamento de uma função na vizinhança de um ponto, mesmo quando ela falha exatamente naquele ponto.
+      </intro>
+
+      Imagine que você filma um potencial de ação subindo e quer saber a velocidade exata da voltagem no instante $t = 2\text{ ms}$. Com dois quadros separados por $1\text{ ms}$, você calcula a taxa média $\Delta V / \Delta t$. Com quadros separados por $0{,}1\text{ ms}$ ou $0{,}01\text{ ms}$, a estimativa fica cada vez mais fiel — mas você nunca pode tomar $\Delta t = 0$, porque $0/0$ não faz sentido aritmético. O limite é a ferramenta matemática que captura para qual número a razão converge quando $t$ chega cada vez mais perto de $2$, sem jamais precisar colocar $t = 2$.
+
+      <definition id="def:2-1-limite-intuitivo">
+        <title>Noção intuitiva de limite</title>
+        Seja $f$ uma função definida em um intervalo aberto em torno de $a$, exceto possivelmente no próprio ponto $a$. Escrevemos:
+        $$\lim_{x \to a} f(x) = L$$
+        (lê-se: “o limite de $f(x)$, quando $x$ tende a $a$, é $L$”) quando os valores de $f(x)$ ficam arbitrariamente próximos do número real $L$ à medida que $x$ se aproxima de $a$ tanto pela esquerda ($x < a$) quanto pela direita ($x > a$), mantendo sempre $x \ne a$.
+        <intuition>
+          Para descobrir $\lim_{x \to a} f(x)$, cubra o ponto $x = a$ com o dedo no gráfico e observe para qual altura $y = L$ a curva aponta quando você vem pelos dois lados. O que acontece <em>em</em> $x = a$ — se há um ponto ali, se está deslocado ou se há um buraco — não altera o limite.
+        </intuition>
+      </definition>
+
+      <example id="exm:2-1-buraco">
+        <title>Um gráfico com um buraco em $x = 1$</title>
+        Investigue o comportamento da função $f(x) = \dfrac{x^2 - 1}{x - 1}$ quando $x$ se aproxima de $1$.
+
+        <strong>Solução.</strong> Se tentarmos substituir $x = 1$ diretamente, obtemos $\frac{1^2 - 1}{1 - 1} = \frac{0}{0}$, uma expressão indefinida. Portanto, $1$ não pertence ao domínio de $f$: o gráfico tem um “buraco” exatamente em $x = 1$.
+
+        Contudo, para qualquer $x \ne 1$, podemos fatorar o numerador como diferença de quadrados e cancelar $x - 1 \ne 0$:
+        $$f(x) = \frac{(x - 1)(x + 1)}{x - 1} = x + 1 \qquad (x \ne 1).$$
+        A <ref to="tbl:2-1-buraco"/> confirma numericamente o que acontece dos dois lados de $1$:
+
+        <table id="tbl:2-1-buraco">
+          <title>Aproximação numérica de $f(x) = (x^2 - 1)/(x - 1)$ perto de $x = 1$</title>
+          <header>
+            <column align="right">$x$ (esquerda)</column>
+            <column align="right">$f(x)$</column>
+            <column align="right">$x$ (direita)</column>
+            <column align="right">$f(x)$</column>
+          </header>
+          <row><column align="right">$0{,}9$</column><column align="right">$1{,}9$</column><column align="right">$1{,}1$</column><column align="right">$2{,}1$</column></row>
+          <row><column align="right">$0{,}99$</column><column align="right">$1{,}99$</column><column align="right">$1{,}01$</column><column align="right">$2{,}01$</column></row>
+          <row><column align="right">$0{,}999$</column><column align="right">$1{,}999$</column><column align="right">$1{,}001$</column><column align="right">$2{,}001$</column></row>
+          <caption>À medida que $x$ se aproxima de $1$ por ambos os lados, $f(x)$ aproxima-se de $2$.</caption>
+        </table>
+
+        Logo, mesmo que $f(1)$ não exista, concluímos que:
+        $$\lim_{x \to 1} \frac{x^2 - 1}{x - 1} = 2.$$
+      </example>
+
+      <example id="exm:2-1-taxa-potencial">
+        <title>Taxa de despolarização em janelas de tempo decrescentes</title>
+        Durante o início de um estímulo excitatório, o potencial de membrana de um modelo neuronal (em $\text{mV}$) varia entre $t = 0$ e $t = 3\text{ ms}$ segundo:
+        $$V(t) = -70 + 5t^2.$$
+        Em $t = 2\text{ ms}$, o potencial é $V(2) = -70 + 5(2)^2 = -50\text{ mV}$. A taxa média de variação do potencial entre $t = 2\text{ ms}$ e um instante próximo $t \ne 2$ é:
+        $$m(t) = \frac{V(t) - V(2)}{t - 2} = \frac{(-70 + 5t^2) - (-50)}{t - 2} = \frac{5t^2 - 20}{t - 2}.$$
+        Estime o limite $\lim_{t \to 2} m(t)$, que representa a taxa instantânea de subida em $t = 2\text{ ms}$.
+
+        <strong>Solução.</strong> Para $t \ne 2$, fatoramos $5t^2 - 20 = 5(t^2 - 4) = 5(t - 2)(t + 2)$, simplificando a razão para:
+        $$m(t) = \frac{5(t - 2)(t + 2)}{t - 2} = 5(t + 2) \qquad (t \ne 2).$$
+        Calculando para instantes cada vez mais próximos de $2\text{ ms}$ (antes e depois), montamos a <ref to="tbl:2-1-taxa-potencial"/>:
+
+        <table id="tbl:2-1-taxa-potencial">
+          <title>Taxa média de variação $m(t)$ do potencial de membrana perto de $t = 2\text{ ms}$</title>
+          <header>
+            <column align="right">$t$ ($\text{ms}$)</column>
+            <column align="right">$V(t)$ ($\text{mV}$)</column>
+            <column align="right">$m(t)$ ($\text{mV/ms}$)</column>
+          </header>
+          <row><column align="right">$1{,}5$</column><column align="right">$-58{,}75$</column><column align="right">$17{,}5$</column></row>
+          <row><column align="right">$1{,}9$</column><column align="right">$-51{,}95$</column><column align="right">$19{,}5$</column></row>
+          <row><column align="right">$1{,}99$</column><column align="right">$-50{,}1995$</column><column align="right">$19{,}95$</column></row>
+          <row><column align="right">$2{,}01$</column><column align="right">$-49{,}7995$</column><column align="right">$20{,}05$</column></row>
+          <row><column align="right">$2{,}1$</column><column align="right">$-47{,}95$</column><column align="right">$20{,}5$</column></row>
+          <row><column align="right">$2{,}5$</column><column align="right">$-38{,}75$</column><column align="right">$22{,}5$</column></row>
+          <caption>Quanto menor a janela $|t - 2|$, mais próxima de $20\text{ mV/ms}$ fica a taxa média.</caption>
+        </table>
+
+        Quando $t \to 2$, $5(t + 2)$ aproxima-se de $5(2 + 2) = 20$. Assim, $\lim_{t \to 2} m(t) = 20\text{ mV/ms}$. Esse limite de um quociente de diferenças é exatamente o que chamaremos de <strong>derivada</strong> $V'(2)$ no Tema 2.2.
+      </example>
+
+      <remark id="rem:2-1-armadilha-subst">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Achar que $\lim_{x \to a} f(x)$ é sempre igual a $f(a)$:</strong> isso só vale para funções <em>contínuas</em> (que veremos no Subtema 4). Se definirmos $g(x) = x + 1$ para $x \ne 1$ e $g(1) = 10$, continuamos tendo $\lim_{x \to 1} g(x) = 2$, mesmo com $g(1) = 10$.</item>
+          <item><strong>Concluir que o limite não existe só porque $f(a)$ não existe:</strong> como vimos em $\frac{x^2 - 1}{x - 1}$ em $x = 1$, o limite pode existir perfeitamente mesmo quando há um buraco no domínio.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:2-1-1-1">
+        <title>Básico — Tabela numérica para função com buraco</title>
+        Considere a função $f(x) = \dfrac{x^2 - 9}{x - 3}$, indefinida em $x = 3$. Calcule $f(x)$ para $x = 2{,}9$; $2{,}99$; $3{,}01$ e $3{,}1$. A partir dos valores obtidos (e da simplificação algébrica para $x \ne 3$), determine $\lim_{x \to 3} f(x)$.
+        <hint><title>Ver dica</title>Fatore $x^2 - 9$ como $(x - 3)(x + 3)$ para simplificar a conta nos quatro pontos e verificar o padrão.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para $x \ne 3$, temos $f(x) = \dfrac{(x - 3)(x + 3)}{x - 3} = x + 3$. Substituindo os quatro valores:
+          <list marker="dash">
+            <item>$f(2{,}9) = 2{,}9 + 3 = 5{,}9$;</item>
+            <item>$f(2{,}99) = 2{,}99 + 3 = 5{,}99$;</item>
+            <item>$f(3{,}01) = 3{,}01 + 3 = 6{,}01$;</item>
+            <item>$f(3{,}1) = 3{,}1 + 3 = 6{,}1$.</item>
+          </list>
+          Tanto pela esquerda quanto pela direita de $3$, os valores de $f(x)$ se aproximam de $6$. Portanto, $\lim_{x \to 3} f(x) = 6$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-1-1-2">
+        <title>Intermediário — Ponto isolado deslocado</title>
+        Seja a função definida por:
+        $$h(x) = \begin{cases} 2x + 3, & \text{se } x \ne 4, \\ 0, & \text{se } x = 4. \end{cases}$$
+        Determine $\lim_{x \to 4} h(x)$ e compare esse resultado com $h(4)$. Por que eles não precisam ser iguais?
+        <hint><title>Ver dica</title>Na definição de limite quando $x \to 4$, consideramos apenas valores $x \ne 4$. Qual expressão define $h(x)$ quando $x \ne 4$?</hint>
+        <solution collapsible="true" collapsed="true">
+          Para calcular $\lim_{x \to 4} h(x)$, olhamos apenas para $x$ próximo de $4$ com $x \ne 4$. Nessa vizinhança, vale sempre a regra $h(x) = 2x + 3$. Quando $x$ se aproxima de $4$ por ambos os lados, $2x + 3$ aproxima-se de $2(4) + 3 = 11$.
+
+          Logo, $\lim_{x \to 4} h(x) = 11$, ao passo que $h(4) = 0$. Eles não precisam ser iguais porque o limite depende exclusivamente do comportamento da função <em>ao redor</em> de $x = 4$, ignorando o valor isolado atribuído exatamente em $x = 4$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-1-1-3">
+        <title>Avançado — Taxa instantânea de crescimento bacteriano</title>
+        A população de uma colônia bacteriana em meio nutritivo cresce segundo $N(t) = 100 + 20t^2$ células, com $t$ medido em horas ($t \ge 0$).
+        <list marker="a">
+          <item>Escreva a expressão da taxa média de crescimento $r(t) = \dfrac{N(t) - N(3)}{t - 3}$ e simplifique-a para $t \ne 3$.</item>
+          <item>Calcule $r(2{,}9)$ e $r(3{,}1)$ (em $\text{células/h}$).</item>
+          <item>Determine $\lim_{t \to 3} r(t)$ e interprete o número obtido biologicamente.</item>
+        </list>
+        <hint><title>Ver dica</title>Calcule primeiro $N(3) = 100 + 20 \cdot 9 = 280$. Em seguida, coloque $20$ em evidência no numerador de $r(t)$ e use a diferença de quadrados $t^2 - 9 = (t - 3)(t + 3)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Temos $N(3) = 100 + 20(3)^2 = 100 + 180 = 280$ células. Assim:
+              $$r(t) = \frac{(100 + 20t^2) - 280}{t - 3} = \frac{20t^2 - 180}{t - 3} = \frac{20(t^2 - 9)}{t - 3}.$$
+              Para $t \ne 3$, fatoramos $t^2 - 9 = (t - 3)(t + 3)$ e cancelamos $t - 3$:
+              $$r(t) = 20(t + 3) \qquad (t \ne 3).$$
+            </item>
+            <item>Substituindo $t = 2{,}9$ e $t = 3{,}1$:
+              $$r(2{,}9) = 20(2{,}9 + 3) = 20(5{,}9) = 118\text{ células/h},$$
+              $$r(3{,}1) = 20(3{,}1 + 3) = 20(6{,}1) = 122\text{ células/h}.$$
+            </item>
+            <item>Quando $t \to 3$, $20(t + 3)$ tende a $20(3 + 3) = 120$. Portanto, $\lim_{t \to 3} r(t) = 120\text{ células/h}$. Biologicamente, essa é a velocidade instantânea de proliferação da colônia exatamente às $3\text{ h}$.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:2-1-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Definição formal</title>
+      <intro>
+        A definição $\varepsilon$-$\delta$ traduz “chegar arbitrariamente perto” em uma regra exata de tolerância, usando as vizinhanças modulares da Álgebra.
+      </intro>
+
+      Na <strong>Álgebra (Tema 1.1)</strong>, você aprendeu que a desigualdade $|x - a| < r \iff a - r < x < a + r$ descreve todos os números a uma distância menor que $r$ do centro $a$. Para transformar a noção intuitiva de limite em uma definição à prova de ambiguidades, precisamos controlar duas vizinhanças ao mesmo tempo: uma na saída e outra na entrada.
+
+      Pense em uma analogia de laboratório. Suponha que uma bomba de perfusão aplica uma concentração de fármaco $x$ (em torno do ajuste nominal $a$) e produz uma resposta celular $f(x)$ cujo alvo é $L$. O protocolo exige que o erro na resposta fique dentro de uma tolerância $\pm \varepsilon$ (ou seja, $|f(x) - L| < \varepsilon$). A pergunta do experimentador é: qual precisão $\delta$ você precisa garantir na dosagem de entrada ($0 < |x - a| < \delta$) para assegurar que a resposta nunca saia da tolerância $\varepsilon$? Se você conseguir responder com um $\delta > 0$ adequado para <em>qualquer</em> tolerância $\varepsilon > 0$ exigida, por menor que ela seja, então o limite é de fato $L$.
+
+      <definition id="def:2-1-epsilon-delta">
+        <title>Definição formal de limite ($\varepsilon$-$\delta$)</title>
+        Seja $f$ definida em um intervalo aberto contendo $a$, exceto possivelmente no próprio ponto $a$. Dizemos que $\lim_{x \to a} f(x) = L$ se:
+        $$\text{para todo } \varepsilon > 0, \text{ existe } \delta > 0 \text{ tal que } 0 < |x - a| < \delta \implies |f(x) - L| < \varepsilon.$$
+        <intuition>
+          Leia a definição como um desafio em quatro partes:
+          <list marker="number">
+            <item><strong>“Para todo $\varepsilon > 0$”</strong>: um desafiante escolhe qualquer margem de tolerância $\varepsilon$ na saída (eixo vertical), formando a faixa $(L - \varepsilon,\, L + \varepsilon)$.</item>
+            <item><strong>“Existe $\delta > 0$”</strong>: você responde escolhendo um raio de precisão $\delta$ na entrada (eixo horizontal), formando a faixa $(a - \delta,\, a + \delta)$.</item>
+            <item><strong>“$0 < |x - a| < \delta$”</strong>: a parte $|x - a| < \delta$ mantém $x$ dentro da sua faixa; a condição $0 < |x - a|$ garante $x \ne a$, excluindo o próprio ponto $a$.</item>
+            <item><strong>“$\implies |f(x) - L| < \varepsilon$”</strong>: todo ponto do gráfico nessa janela perfurada fica obrigatoriamente preso dentro do retângulo $[a-\delta, a+\delta] \times [L-\varepsilon, L+\varepsilon]$.</item>
+          </list>
+        </intuition>
+      </definition>
+
+      Uma consequência essencial dessa definição é que um limite, quando existe, é único: a função não pode se aproximar ao mesmo tempo de dois alvos distintos.
+
+      <theorem id="thm:2-1-unicidade">
+        <title>Unicidade do limite</title>
+        Se $\lim_{x \to a} f(x) = L_1$ e $\lim_{x \to a} f(x) = L_2$, então $L_1 = L_2$.
+        <intuition>
+          Se $L_1 \ne L_2$, bastaria escolher uma tolerância $\varepsilon$ menor que a metade da distância entre $L_1$ e $L_2$: as duas faixas $(L_1 - \varepsilon, L_1 + \varepsilon)$ e $(L_2 - \varepsilon, L_2 + \varepsilon)$ não se tocariam, tornando impossível que $f(x)$ caísse dentro de ambas ao mesmo tempo perto de $a$.
+        </intuition>
+      </theorem>
+
+      A <ref to="fig:2-1-epsilon-delta"/> ilustra esse jogo geométrico para a função linear $f(x) = 3x + 1$ perto de $a = 2$ (onde $L = 7$): para a tolerância $\varepsilon = 0{,}6$ na saída (faixa horizontal $[6{,}4;\; 7{,}6]$), a escolha $\delta = 0{,}2$ (faixa vertical $[1{,}8;\; 2{,}2]$) aprisiona todo o trecho da reta dentro do retângulo tracejado.
+
+      <figure src="fig/epsilon-delta.svg" alt="Gráfico da reta f(x) = 3x + 1 perto de a = 2 com faixa horizontal de L - epsilon = 6,4 até L + epsilon = 7,6, faixa vertical de a - delta = 1,8 até a + delta = 2,2 e o segmento da curva contido no retângulo" id="fig:2-1-epsilon-delta">
+        <caption>Ilustração da definição $\varepsilon$-$\delta$ para $\lim_{x \to 2}(3x + 1) = 7$ com $\varepsilon = 0{,}6$ e $\delta = \varepsilon/3 = 0{,}2$ (no modelo de disparo neuronal do exemplo a seguir, corrente $x$ em $\text{nA}$ e frequência $f(x)$ em $\text{Hz}$). Qualquer $x \ne 2$ na faixa $(1{,}8;\; 2{,}2)$ produz $f(x)$ dentro da faixa $(6{,}4;\; 7{,}6)$. A bolinha vazia lembra que o valor de $f$ no próprio ponto $x = a$ não entra na definição (aqui $f(2) = 7$ existe, mas é irrelevante para o limite).</caption>
+      </figure>
+
+      <example id="exm:2-1-ed-linear">
+        <title>Prova $\varepsilon$-$\delta$ para uma função linear: controle de disparo neuronal</title>
+        Perto do ponto de operação de um registro intracelular, a frequência de disparo $f(x)$ (em $\text{Hz}$) de um neurônio varia linearmente com a corrente elétrica injetada $x$ (em $\text{nA}$) segundo $f(x) = 3x + 1$ (taxa basal espontânea de $1\text{ Hz}$ e ganho de $3\text{ Hz/nA}$). Para o ajuste nominal $a = 2\text{ nA}$, o alvo esperado é $L = 7\text{ Hz}$. Prove pela definição formal que $\lim_{x \to 2} (3x + 1) = 7$ e interprete biologicamente $\varepsilon$ e $\delta$.
+
+        <strong>Solução.</strong> Fazemos o rascunho de trás para frente para descobrir qual $\delta$ funciona dado um $\varepsilon > 0$ qualquer:
+        $$|f(x) - L| = |(3x + 1) - 7| = |3x - 6| = 3|x - 2|.$$
+        Queremos que $3|x - 2| < \varepsilon$, o que equivale a $|x - 2| < \dfrac{\varepsilon}{3}$. Isso sugere escolher $\delta = \dfrac{\varepsilon}{3}$.
+
+        <em>Demonstração formal:</em> Seja $\varepsilon > 0$ arbitrário. Escolha $\delta = \dfrac{\varepsilon}{3} > 0$. Então, sempre que $0 < |x - 2| < \delta$, temos:
+        $$|(3x + 1) - 7| = |3x - 6| = 3|x - 2| < 3\delta = 3 \cdot \frac{\varepsilon}{3} = \varepsilon.$$
+        Como a implicação vale para todo $\varepsilon > 0$, está provado que $\lim_{x \to 2} (3x + 1) = 7$.
+
+        <em>Interpretação biológica:</em> Nesse modelo, $\varepsilon$ representa a tolerância máxima admitida para o desvio da frequência de disparo (em $\text{Hz}$) em torno do alvo de $7\text{ Hz}$, enquanto $\delta = \varepsilon/3$ é a precisão necessária no controle da corrente injetada (em $\text{nA}$) em torno de $2\text{ nA}$. Por exemplo, se o protocolo exige um erro inferior a $\varepsilon = 0{,}6\text{ Hz}$ (mantendo o disparo na faixa de $6{,}4\text{ Hz}$ a $7{,}6\text{ Hz}$), o estimulador deve manter a corrente dentro de $\delta = 0{,}6 / 3 = 0{,}2\text{ nA}$ de distância do ajuste nominal — ou seja, no intervalo $(1{,}8;\; 2{,}2)\text{ nA}$, exatamente como mostra a <ref to="fig:2-1-epsilon-delta"/>.
+      </example>
+
+      <example id="exm:2-1-ed-quadratica">
+        <title>Prova $\varepsilon$-$\delta$ para $x^2$ limitando o fator variável</title>
+        Prove pela definição formal que $\lim_{x \to 3} x^2 = 9$.
+
+        <strong>Solução.</strong> Começamos analisando $|f(x) - L|$:
+        $$|x^2 - 9| = |(x - 3)(x + 3)| = |x - 3| \cdot |x + 3|.$$
+        Diferentemente da reta, o fator $|x + 3|$ varia com $x$, e não podemos colocar $x$ dentro da fórmula de $\delta$. O truque é impor primeiro uma trava provisória ao tamanho de $\delta$: exigimos que $\delta \le 1$.
+
+        Se $|x - 3| < 1$, então pela vizinhança modular $-1 < x - 3 < 1$, logo $2 < x < 4$. Somando $3$ aos três membros, obtemos $5 < x + 3 < 7$, e portanto $|x + 3| < 7$. Assim, dentro dessa vizinhança de raio $1$:
+        $$|x^2 - 9| = |x - 3| \cdot |x + 3| < 7\,|x - 3|.$$
+        Para garantir $7|x - 3| < \varepsilon$, basta pedir também $|x - 3| < \dfrac{\varepsilon}{7}$. Para cumprir as duas exigências ao mesmo tempo ($\le 1$ e $\le \varepsilon/7$), tomamos o menor dos dois valores!
+
+        <em>Demonstração formal:</em> Dado $\varepsilon > 0$, escolha $\delta = \min\!\left(1,\, \dfrac{\varepsilon}{7}\right) > 0$. Suponha $0 < |x - 3| < \delta$. Como $\delta \le 1$, vale $|x - 3| < 1$, donde $2 < x < 4$ e $|x + 3| < 7$. Como também $\delta \le \dfrac{\varepsilon}{7}$, vale $|x - 3| < \dfrac{\varepsilon}{7}$. Multiplicando as estimativas:
+        $$|x^2 - 9| = |x - 3| \cdot |x + 3| < \frac{\varepsilon}{7} \cdot 7 = \varepsilon.$$
+        Logo, $\lim_{x \to 3} x^2 = 9$.
+      </example>
+
+      <remark id="rem:2-1-armadilha-ed">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Inverter a dependência entre $\varepsilon$ e $\delta$:</strong> o desafiante escolhe $\varepsilon$ primeiro, e você encontra $\delta$ em função de $\varepsilon$ — nunca o contrário.</item>
+          <item><strong>Deixar $x$ na expressão de $\delta$:</strong> escrever “$\delta = \varepsilon / |x + 3|$” está errado, porque $\delta$ deve ser um número fixo positivo que depende só de $\varepsilon$ (e de $a$), válido para todos os $x$ da vizinhança simultaneamente.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:2-1-2-1">
+        <title>Básico — Encontrando $\delta$ para uma tolerância dada</title>
+        Considere $\lim_{x \to 3} (5x - 2) = 13$.
+        <list marker="a">
+          <item>Determine um valor numérico de $\delta > 0$ que garanta $|(5x - 2) - 13| < 0{,}05$ sempre que $0 < |x - 3| < \delta$.</item>
+          <item>Dê uma fórmula para $\delta$ em função de um $\varepsilon > 0$ genérico e complete a verificação formal.</item>
+        </list>
+        <hint><title>Ver dica</title>Simplifique $|(5x - 2) - 13|$ colocando $5$ em evidência para fazê-lo aparecer como múltiplo de $|x - 3|$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Calculando a diferença na saída:
+              $$|(5x - 2) - 13| = |5x - 15| = 5|x - 3|.$$
+              Queremos $5|x - 3| < 0{,}05$, o que dá $|x - 3| < \dfrac{0{,}05}{5} = 0{,}01$. Portanto, $\delta = 0{,}01$ (ou qualquer $0 < \delta \le 0{,}01$) satisfaz a exigência.
+            </item>
+            <item>Para um $\varepsilon > 0$ qualquer, escolhemos $\delta = \dfrac{\varepsilon}{5} > 0$. Se $0 < |x - 3| < \delta$, então:
+              $$|(5x - 2) - 13| = 5|x - 3| < 5\delta = 5 \cdot \frac{\varepsilon}{5} = \varepsilon.$$
+              Isso prova que $\lim_{x \to 3}(5x - 2) = 13$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-1-2-2">
+        <title>Intermediário — Precisão de dosagem em bioensaio</title>
+        Perto do ponto de operação de um ensaio de fluorescência, a intensidade luminosa $F$ (em unidades arbitrárias, u.a.) depende da concentração de ligante $c$ (em $\mu\text{M}$) segundo $F(c) = 4c + 20$. Para a concentração nominal $c_0 = 5\;\mu\text{M}$, a leitura esperada é $F_0 = 40\text{ u.a.}$ Se o protocolo exige que a leitura não desvie mais que $\varepsilon = 0{,}2\text{ u.a.}$ do alvo ($|F(c) - 40| < 0{,}2$), qual é a tolerância máxima $\delta$ (em $\mu\text{M}$) na concentração preparada $c$? Escreva o intervalo aberto aceitável para $c$.
+        <hint><title>Ver dica</title>Substitua $F(c) = 4c + 20$ em $|F(c) - 40| < 0{,}2$, fature $4$ e traduza $|c - 5| < \delta$ para intervalo usando $5 - \delta < c < 5 + \delta$.</hint>
+        <solution collapsible="true" collapsed="true">
+          A condição de tolerância na saída é:
+          $$|(4c + 20) - 40| < 0{,}2 \iff |4c - 20| < 0{,}2 \iff 4|c - 5| < 0{,}2.$$
+          Dividindo ambos os lados por $4 > 0$:
+          $$|c - 5| < \frac{0{,}2}{4} = 0{,}05.$$
+          Logo, a imprecisão máxima permitida na concentração é $\delta = 0{,}05\;\mu\text{M}$. Abrindo a vizinhança modular, $5 - 0{,}05 < c < 5 + 0{,}05$, ou seja, a concentração preparada deve ficar no intervalo $(4{,}95;\; 5{,}05)\;\mu\text{M}$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-1-2-3">
+        <title>Avançado — Prova $\varepsilon$-$\delta$ de $\lim_{x \to 4} x^2 = 16$</title>
+        Prove formalmente, usando a definição $\varepsilon$-$\delta$, que $\lim_{x \to 4} x^2 = 16$ limitando $|x + 4|$ em uma vizinhança de raio $1$ ao redor de $4$. Em seguida, calcule o valor de $\delta$ obtido por essa fórmula quando $\varepsilon = 0{,}18$.
+        <hint><title>Ver dica</title>Imponha primeiro $\delta \le 1$. De $|x - 4| < 1$, encontre o intervalo de $x$ e depois o limite superior para $|x + 4|$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Fatoramos $|x^2 - 16| = |x - 4|\,|x + 4|$. Impondo inicialmente $\delta \le 1$, temos $|x - 4| < 1 \implies 3 < x < 5$. Somando $4$ aos três membros, segue $7 < x + 4 < 9$, e portanto $|x + 4| < 9$.
+
+          Assim, para um $\varepsilon > 0$ dado, escolhemos $\delta = \min\!\left(1,\, \dfrac{\varepsilon}{9}\right) > 0$. Se $0 < |x - 4| < \delta$, então valem simultaneamente $|x - 4| < 1$ (logo $|x + 4| < 9$) e $|x - 4| < \dfrac{\varepsilon}{9}$. Multiplicando:
+          $$|x^2 - 16| = |x - 4| \cdot |x + 4| < \frac{\varepsilon}{9} \cdot 9 = \varepsilon,$$
+          o que prova que $\lim_{x \to 4} x^2 = 16$.
+
+          Quando $\varepsilon = 0{,}18$, obtemos $\delta = \min\!\left(1,\, \dfrac{0{,}18}{9}\right) = \min(1,\, 0{,}02) = 0{,}02$.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:2-1-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Propriedades</title>
+      <intro>
+        As leis operatórias dos limites transformam cálculos complicados em álgebra direta e revelam o significado matemático da saturação no infinito.
+      </intro>
+
+      Não precisamos montar uma prova $\varepsilon$-$\delta$ para cada expressão nova. O limite comporta-se de maneira totalmente previsível diante das operações aritméticas básicas: se dois sinais convergem para alvos finitos, sua soma, diferença, produto e quociente (quando o denominador não tende a zero) convergem para os resultados correspondentes.
+
+      <theorem id="thm:2-1-leis-limites">
+        <title>Propriedades algébricas dos limites</title>
+        Suponha que $\lim_{x \to a} f(x) = L$ e $\lim_{x \to a} g(x) = M$ existam (finitos) e seja $c \in \mathbb{R}$ uma constante. Então:
+        <list marker="number">
+          <item><strong>Soma e diferença:</strong> $\lim_{x \to a} [f(x) \pm g(x)] = L \pm M$.</item>
+          <item><strong>Múltiplo constante:</strong> $\lim_{x \to a} [c \cdot f(x)] = c \cdot L$.</item>
+          <item><strong>Produto:</strong> $\lim_{x \to a} [f(x) \cdot g(x)] = L \cdot M$.</item>
+          <item><strong>Quociente:</strong> $\lim_{x \to a} \dfrac{f(x)}{g(x)} = \dfrac{L}{M}$, desde que $M \ne 0$.</item>
+          <item><strong>Potência e raiz:</strong> $\lim_{x \to a} [f(x)]^n = L^n$ ($n \in \mathbb{Z}^+$) e $\lim_{x \to a} \sqrt[n]{f(x)} = \sqrt[n]{L}$ (exigindo $L > 0$ se $n$ for par).</item>
+        </list>
+      </theorem>
+      <proof of="thm:2-1-leis-limites" collapsible="true" collapsed="true">
+        Mostramos a propriedade da soma para ilustrar o método $\varepsilon$-$\delta$. Dado $\varepsilon > 0$, como $\lim_{x \to a} f(x) = L$, existe $\delta_1 > 0$ tal que $0 < |x - a| < \delta_1 \implies |f(x) - L| < \varepsilon/2$. Da mesma forma, existe $\delta_2 > 0$ tal que $0 < |x - a| < \delta_2 \implies |g(x) - M| < \varepsilon/2$.
+
+        Escolhendo $\delta = \min(\delta_1, \delta_2) > 0$, para $0 < |x - a| < \delta$ valem ambas as estimativas. Pela desigualdade triangular ($|u + v| \le |u| + |v|$):
+        $$|(f(x) + g(x)) - (L + M)| = |(f(x) - L) + (g(x) - M)| \le |f(x) - L| + |g(x) - M| < \frac{\varepsilon}{2} + \frac{\varepsilon}{2} = \varepsilon.$$
+        Logo, $\lim_{x \to a} [f(x) + g(x)] = L + M$. As demais propriedades seguem por argumentos análogos.
+      </proof>
+
+      Como $\lim_{x \to a} c = c$ e $\lim_{x \to a} x = a$, a aplicação repetida do <ref to="thm:2-1-leis-limites"/> garante a <strong>propriedade da substituição direta</strong>: para todo polinômio $p(x)$, vale $\lim_{x \to a} p(x) = p(a)$, e para toda função racional $p(x)/q(x)$ com $q(a) \ne 0$, vale $\lim_{x \to a} \dfrac{p(x)}{q(x)} = \dfrac{p(a)}{q(a)}$.
+
+      E quando a substituição direta resulta em $0/0$? Esse símbolo indica uma <strong>indeterminação</strong>: ele apenas avisa que numerador e denominador estão ambos indo a zero, e o limite ainda pode existir (ou não). Para resolver indeterminações $0/0$, usamos duas ferramentas algébricas principais:
+      <list marker="dash">
+        <item><strong>Fatoração:</strong> fatorar polinômios para cancelar o fator $(x - a)$ comum ao numerador e ao denominador;</item>
+        <item><strong>Racionalização:</strong> quando há raízes quadradas (como $\sqrt{x + b} - c$), multiplicar numerador e denominador pelo conjugado ($\sqrt{x + b} + c$) usando $(u - v)(u + v) = u^2 - v^2$.</item>
+      </list>
+
+      <subsection id="sub:2-1-3-infinito">
+        <title>Limites no infinito, limites infinitos e saturação</title>
+        Em biologia, estamos frequentemente interessados no comportamento de longo prazo ($t \to +\infty$) ou em concentrações saturantes ($[S] \to +\infty$). Quando $x$ cresce sem fronteira, seu inverso encolhe rumo a zero:
+        $$\lim_{x \to +\infty} \frac{1}{x^r} = 0 \quad (\text{para todo } r > 0) \qquad \text{e} \qquad \lim_{x \to -\infty} \frac{1}{x^n} = 0 \quad (\text{para todo } n \text{ inteiro positivo}).$$
+        Se $\lim_{x \to +\infty} f(x) = L$ (ou quando $x \to -\infty$), a reta horizontal $y = L$ é chamada de <strong>assíntota horizontal</strong> (<em>horizontal asymptote</em>). Para calcular limites de quocientes de polinômios quando $x \to \pm\infty$ (indeterminação $\infty/\infty$), dividimos o numerador e o denominador pela maior potência de $x$ presente no denominador.
+
+        Também podemos ter o comportamento oposto — chamado de <strong>limite infinito</strong> — quando o denominador vai a $0$ e o numerador vai a uma constante diferente de zero. Por exemplo, em $f(x) = \dfrac{1}{x^2}$, à medida que $x \to 0$, $x^2$ é positivo e cada vez menor, fazendo $1/x^2$ crescer acima de qualquer cota; escrevemos $\lim_{x \to 0} \dfrac{1}{x^2} = +\infty$, e a reta vertical $x = 0$ é uma <strong>assíntota vertical</strong> (<em>vertical asymptote</em>). Lembre-se de que $+\infty$ não é um número real: essa notação apenas descreve que a função diverge positivamente sem limite.
+      </subsection>
+
+      <example id="exm:2-1-indet-fator-rac">
+        <title>Resolvendo indeterminações $0/0$ por fatoração e racionalização</title>
+        Calcule os dois limites abaixo:
+        <list marker="a">
+          <item>$\lim_{x \to 2} \dfrac{x^2 - 5x + 6}{x - 2}$</item>
+          <item>$\lim_{x \to 0} \dfrac{\sqrt{x + 9} - 3}{x}$</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Substituindo $x = 2$, obtemos $\frac{4 - 10 + 6}{2 - 2} = \frac{0}{0}$. Fatoramos o polinômio do numerador como $(x - 2)(x - 3)$ e, como $x \ne 2$ no limite, cancelamos $(x - 2)$:
+            $$\lim_{x \to 2} \frac{x^2 - 5x + 6}{x - 2} = \lim_{x \to 2} \frac{(x - 2)(x - 3)}{x - 2} = \lim_{x \to 2} (x - 3) = 2 - 3 = -1.$$
+          </item>
+          <item>Substituindo $x = 0$, obtemos $\frac{\sqrt{9} - 3}{0} = \frac{0}{0}$. Multiplicamos numerador e denominador pelo conjugado $\sqrt{x + 9} + 3$ (que é diferente de zero perto de $x = 0$):
+            $$\frac{\sqrt{x + 9} - 3}{x} \cdot \frac{\sqrt{x + 9} + 3}{\sqrt{x + 9} + 3} = \frac{(x + 9) - 9}{x\left(\sqrt{x + 9} + 3\right)} = \frac{x}{x\left(\sqrt{x + 9} + 3\right)}.$$
+            Para $x \ne 0$, cancelamos $x$ e aplicamos as propriedades dos limites:
+            $$\lim_{x \to 0} \frac{1}{\sqrt{x + 9} + 3} = \frac{1}{\sqrt{0 + 9} + 3} = \frac{1}{3 + 3} = \frac{1}{6}.$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:2-1-michaelis-menten">
+        <title>Cinética de Michaelis–Menten e saturação enzimática</title>
+        Na bioquímica e na neurofisiologia (captação de neurotransmissores por transportadores ou catálise enzimática), a velocidade inicial de reação $v$ em função da concentração de substrato $[S] \ge 0$ obedece à equação de Michaelis–Menten:
+        $$v([S]) = \frac{V_{\max} \cdot [S]}{K_m + [S]},$$
+        onde $V_{\max} > 0$ é a velocidade máxima e $K_m > 0$ é a constante de Michaelis. Considere uma enzima com $V_{\max} = 120\;\mu\text{mol/(L}\cdot\text{min)}$ e $K_m = 2{,}0\text{ mmol/L}$.
+        <list marker="a">
+          <item>Calcule a velocidade quando $[S] = K_m = 2{,}0\text{ mmol/L}$.</item>
+          <item>Calcule $\lim_{[S] \to +\infty} v([S])$ e interprete a assíntota horizontal biologicamente.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Substituindo $[S] = K_m = 2{,}0\text{ mmol/L}$:
+            $$v(2{,}0) = \frac{120 \cdot 2{,}0}{2{,}0 + 2{,}0} = \frac{240}{4{,}0} = 60\;\mu\text{mol/(L}\cdot\text{min)} = \frac{V_{\max}}{2}.$$
+            Em geral, $v(K_m) = \frac{V_{\max} K_m}{K_m + K_m} = \frac{V_{\max}}{2}$: por definição, $K_m$ é a concentração de substrato na qual a reação atinge metade da velocidade máxima.
+          </item>
+          <item>Quando $[S] \to +\infty$, numerador e denominador tendem a $+\infty$ (indeterminação $\infty/\infty$). Dividindo ambos por $[S] > 0$:
+            $$\lim_{[S] \to +\infty} \frac{120\,[S]}{2{,}0 + [S]} = \lim_{[S] \to +\infty} \frac{120}{\dfrac{2{,}0}{[S]} + 1} = \frac{120}{0 + 1} = 120\;\mu\text{mol/(L}\cdot\text{min)} = V_{\max}.$$
+            Biologicamente, a assíntota horizontal $v = V_{\max}$ expressa a <strong>saturação</strong> da enzima: com substrato abundante, todos os sítios catalíticos permanecem ocupados o tempo todo, de modo que aumentar ainda mais $[S]$ não acelera a reação além de $V_{\max}$.
+          </item>
+        </list>
+
+        A <ref to="fig:2-1-michaelis-menten"/> mostra a curva hiperbólica aproximando-se da assíntota horizontal $V_{\max} = 120$ e passando pelo ponto característico $(K_m, V_{\max}/2) = (2{,}0;\; 60)$.
+      </example>
+
+      <figure src="fig/michaelis-menten.svg" alt="Curva de Michaelis-Menten v([S]) = 120[S]/(2,0 + [S]) crescendo de zero e aproximando-se da linha tracejada horizontal V_max = 120, com destaque para o ponto (2,0; 60)" id="fig:2-1-michaelis-menten">
+        <caption>Cinética de Michaelis–Menten para $V_{\max} = 120\;\mu\text{mol/(L}\cdot\text{min)}$ e $K_m = 2{,}0\text{ mmol/L}$. O limite no infinito define o patamar de saturação $V_{\max}$, e em $[S] = K_m$ a velocidade vale exatamente $V_{\max}/2$.</caption>
+      </figure>
+
+      <remark id="rem:2-1-armadilha-indet">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Escrever “$0/0 = 1$” ou “$0/0 = 0$”:</strong> $0/0$ não é um número! Assim como $\infty/\infty$ e $\infty - \infty$, trata-se de uma indeterminação. Por exemplo, $\lim_{x \to \infty} \frac{3x + 1}{x}$ e $\lim_{x \to \infty} \frac{x + 1}{x}$ são ambos do tipo $\infty/\infty$, mas valem respectivamente $3$ e $1$.</item>
+          <item><strong>Aplicar a lei do quociente quando o denominador tende a zero:</strong> a regra $\lim (f/g) = (\lim f)/(\lim g)$ exige $\lim g(x) \ne 0$. Quando $\lim g(x) = 0$, você precisa primeiro fatorar, racionalizar ou analisar o comportamento infinito.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:2-1-3-1">
+        <title>Básico — Substituição direta e fatoração</title>
+        Calcule os limites abaixo:
+        <list marker="a">
+          <item>$\lim_{x \to -1} \left(2x^3 - 4x + 5\right)$</item>
+          <item>$\lim_{x \to 5} \dfrac{x^2 - 25}{x - 5}$</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), trata-se de um polinômio, então use substituição direta. Em (b), substitua para confirmar a forma $0/0$ e fatore $x^2 - 25$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como $2x^3 - 4x + 5$ é um polinômio, aplicamos substituição direta:
+              $$\lim_{x \to -1} \left(2x^3 - 4x + 5\right) = 2(-1)^3 - 4(-1) + 5 = -2 + 4 + 5 = 7.$$
+            </item>
+            <item>Em $x = 5$, temos $0/0$. Fatorando $x^2 - 25 = (x - 5)(x + 5)$ e cancelando $x - 5$ (pois $x \ne 5$):
+              $$\lim_{x \to 5} \frac{x^2 - 25}{x - 5} = \lim_{x \to 5} (x + 5) = 5 + 5 = 10.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-1-3-2">
+        <title>Intermediário — Racionalização e limite no infinito</title>
+        Calcule os dois limites:
+        <list marker="a">
+          <item>$\lim_{x \to 0} \dfrac{\sqrt{x + 4} - 2}{x}$</item>
+          <item>$\lim_{x \to +\infty} \dfrac{6x^2 + 3x}{2x^2 + 5}$</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), multiplique numerador e denominador pelo conjugado $\sqrt{x + 4} + 2$. Em (b), divida numerador e denominador por $x^2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Multiplicando pelo conjugado $\sqrt{x + 4} + 2$:
+              $$\frac{\sqrt{x + 4} - 2}{x} \cdot \frac{\sqrt{x + 4} + 2}{\sqrt{x + 4} + 2} = \frac{(x + 4) - 4}{x(\sqrt{x + 4} + 2)} = \frac{x}{x(\sqrt{x + 4} + 2)} = \frac{1}{\sqrt{x + 4} + 2} \quad (x \ne 0).$$
+              Tomando o limite quando $x \to 0$:
+              $$\lim_{x \to 0} \frac{1}{\sqrt{x + 4} + 2} = \frac{1}{\sqrt{4} + 2} = \frac{1}{4} = 0{,}25.$$
+            </item>
+            <item>Dividindo numerador e denominador por $x^2$ (a maior potência do denominador):
+              $$\lim_{x \to +\infty} \frac{6 + \dfrac{3}{x}}{2 + \dfrac{5}{x^2}} = \frac{6 + 0}{2 + 0} = \frac{6}{2} = 3.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-1-3-3">
+        <title>Avançado — Saturação de receptores pós-sinápticos</title>
+        A condutância sináptica média $g$ (em $\text{nS}$) provocada pela ligação de um neurotransmissor em concentração $[T]$ (em $\text{mmol/L}$) na fenda sináptica é modelada por:
+        $$g([T]) = \frac{18\,[T]}{0{,}5 + [T]}, \qquad [T] \ge 0.$$
+        <list marker="a">
+          <item>Calcule $g(0{,}5)$ e compare com a condutância máxima possível.</item>
+          <item>Determine $\lim_{[T] \to +\infty} g([T])$ e explique o significado fisiológico desse valor.</item>
+          <item>Calcule $\lim_{[T] \to 0^+} \dfrac{g([T])}{[T]}$ para justificar por que, em concentrações muito baixas ($[T] \ll 0{,}5\text{ mmol/L}$), a resposta é aproximadamente linear: $g([T]) \approx 36\,[T]$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (b), divida numerador e denominador por $[T]$. Em (c), simplifique $[T]$ antes de fazer $[T] \to 0^+$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Substituindo $[T] = 0{,}5\text{ mmol/L}$:
+              $$g(0{,}5) = \frac{18 \cdot 0{,}5}{0{,}5 + 0{,}5} = \frac{9}{1} = 9\text{ nS}.$$
+              Esse valor é exatamente a metade da condutância máxima ($18\text{ nS}$), logo $K_d = 0{,}5\text{ mmol/L}$ é a concentração de meia ativação dos receptores.
+            </item>
+            <item>Dividindo numerador e denominador por $[T] > 0$:
+              $$\lim_{[T] \to +\infty} \frac{18\,[T]}{0{,}5 + [T]} = \lim_{[T] \to +\infty} \frac{18}{\dfrac{0{,}5}{[T]} + 1} = \frac{18}{0 + 1} = 18\text{ nS}.$$
+              Fisiologicamente, $18\text{ nS}$ corresponde à saturação completa: todos os receptores pós-sinápticos disponíveis naquela sinapse estão ocupados e abertos.
+            </item>
+            <item>Para $[T] > 0$, temos $\dfrac{g([T])}{[T]} = \dfrac{18}{0{,}5 + [T]}$. Logo:
+              $$\lim_{[T] \to 0^+} \frac{g([T])}{[T]} = \frac{18}{0{,}5 + 0} = 36\text{ nS/(mmol/L)}.$$
+              Quando $[T]$ é muito menor que $0{,}5$, o denominador $0{,}5 + [T]$ quase não difere de $0{,}5$, fazendo $g([T]) \approx 36\,[T]$ (regime linear de baixa ocupação).
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:2-1-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Limites laterais</title>
+      <intro>
+        Quando uma função dá um salto ao cruzar um limiar, aproximar-se pela esquerda e pela direita leva a destinos diferentes — e é assim que definimos continuidade e rupturas.
+      </intro>
+
+      Até aqui, exigimos que $f(x)$ tendesse ao mesmo valor $L$ independentemente do lado pelo qual $x$ se aproxima de $a$. Mas pense no disparo de um neurônio idealizado: abaixo do limiar $V_{\text{lim}} = -55\text{ mV}$, a resposta é $0$ (silêncio); no limiar ou acima dele, a resposta salta instantaneamente para $1$ (disparo). Se você se aproxima de $-55\text{ mV}$ vindo de potenciais mais negativos, só enxerga zeros; se vem de potenciais mais positivos, só enxerga uns. Para capturar essa diferença, definimos os <strong>limites laterais</strong>.
+
+      <definition id="def:2-1-limites-laterais">
+        <title>Limites à esquerda e à direita</title>
+        <list marker="dash">
+          <item>Escrevemos $\lim_{x \to a^-} f(x) = L_1$ (<strong>limite à esquerda</strong>) quando $f(x)$ se aproxima de $L_1$ à medida que $x$ se aproxima de $a$ por valores estritamente menores que $a$ ($x < a$).</item>
+          <item>Escrevemos $\lim_{x \to a^+} f(x) = L_2$ (<strong>limite à direita</strong>) quando $f(x)$ se aproxima de $L_2$ à medida que $x$ se aproxima de $a$ por valores estritamente maiores que $a$ ($x > a$).</item>
+        </list>
+      </definition>
+
+      <theorem id="thm:2-1-laterais-bilateral">
+        <title>Existência do limite bilateral pelos limites laterais</title>
+        O limite bilateral $\lim_{x \to a} f(x)$ existe e vale $L$ se, e somente se, ambos os limites laterais existem e são iguais a $L$:
+        $$\lim_{x \to a} f(x) = L \iff \lim_{x \to a^-} f(x) = L \quad \text{e} \quad \lim_{x \to a^+} f(x) = L.$$
+      </theorem>
+
+      <example id="exm:2-1-heaviside">
+        <title>Disparo tudo-ou-nada e a função degrau de Heaviside</title>
+        Em modelos clássicos de limiar neuronal (como o neurônio binário de McCulloch–Pitts, precursor das redes neurais artificiais), o disparo é descrito pela <strong>função degrau de Heaviside</strong>:
+        $$H(u) = \begin{cases} 0, & \text{se } u < 0, \\ 1, & \text{se } u \ge 0. \end{cases}$$
+        Tomando o limiar $V_{\text{lim}} = -55\text{ mV}$, definimos a resposta $y(V) = H(V - V_{\text{lim}}) = H(V + 55)$:
+        $$y(V) = \begin{cases} 0, & \text{se } V < -55\text{ mV}, \\ 1, & \text{se } V \ge -55\text{ mV}. \end{cases}$$
+        Analise os limites laterais e o limite bilateral em $V = -55\text{ mV}$.
+
+        <strong>Solução.</strong>
+        <list marker="dash">
+          <item><strong>Pela esquerda ($V \to -55^-$):</strong> para todo $V < -55$, temos $y(V) = 0$ constante. Logo:
+            $$\lim_{V \to -55^-} H(V - V_{\text{lim}}) = 0.$$
+          </item>
+          <item><strong>Pela direita ($V \to -55^+$):</strong> para todo $V > -55$, temos $y(V) = 1$ constante. Logo:
+            $$\lim_{V \to -55^+} H(V - V_{\text{lim}}) = 1.$$
+          </item>
+        </list>
+        Como $\lim_{V \to -55^-} y(V) = 0 \ne 1 = \lim_{V \to -55^+} y(V)$, pelo <ref to="thm:2-1-laterais-bilateral"/> o limite bilateral $\lim_{V \to -55} H(V - V_{\text{lim}})$ <strong>não existe</strong>. A <ref to="fig:2-1-degrau"/> mostra o salto entre a bolinha vazia em $(-55, 0)$ e a bolinha cheia em $(-55, 1)$ (que indica $H(0) = 1$).
+      </example>
+
+      <figure src="fig/degrau.svg" alt="Gráfico da função degrau H(V - V_lim) com V_lim = -55 mV: ramo horizontal em y = 0 até -55 com bolinha vazia, e ramo horizontal em y = 1 a partir de -55 com bolinha cheia" id="fig:2-1-degrau">
+        <caption>Função degrau de disparo $H(V - V_{\text{lim}})$ com $V_{\text{lim}} = -55\text{ mV}$ e $H(0) = 1$. Os limites laterais existem ($0$ à esquerda e $1$ à direita), mas diferem, impedindo a existência do limite bilateral no limiar.</caption>
+      </figure>
+
+      <example id="exm:2-1-modulo-partes">
+        <title>Limites laterais com módulo e função por partes</title>
+        Analise a existência dos seguintes limites:
+        <list marker="a">
+          <item>$\lim_{x \to 0} \dfrac{|x|}{x}$</item>
+          <item>$\lim_{x \to 2} g(x)$, onde $g(x) = \begin{cases} x^2 + 1, & \text{se } x < 2, \\ 7 - x, & \text{se } x \ge 2. \end{cases}$</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Lembrando que $|x| = -x$ quando $x < 0$ e $|x| = x$ quando $x > 0$:
+            $$\lim_{x \to 0^-} \frac{|x|}{x} = \lim_{x \to 0^-} \frac{-x}{x} = -1, \qquad \lim_{x \to 0^+} \frac{|x|}{x} = \lim_{x \to 0^+} \frac{x}{x} = 1.$$
+            Como $-1 \ne 1$, $\lim_{x \to 0} \dfrac{|x|}{x}$ não existe.
+          </item>
+          <item>Calculamos os dois lados usando a expressão válida em cada região:
+            $$\lim_{x \to 2^-} g(x) = \lim_{x \to 2^-} (x^2 + 1) = 2^2 + 1 = 5,$$
+            $$\lim_{x \to 2^+} g(x) = \lim_{x \to 2^+} (7 - x) = 7 - 2 = 5.$$
+            Como ambos os limites laterais existem e valem $5$, concluímos que $\lim_{x \to 2} g(x) = 5$.
+          </item>
+        </list>
+      </example>
+
+      <subsection id="sub:2-1-4-continuidade">
+        <title>Continuidade em um ponto e tipos de descontinuidade</title>
+        No <ref to="exm:2-1-modulo-partes"/>(b), além de os limites laterais serem iguais a $5$, o próprio valor da função no ponto é $g(2) = 7 - 2 = 5$. Quando o valor previsto pelo limite coincide com o valor real da função no ponto, dizemos que a função é <strong>contínua</strong> ali — isto é, seu gráfico não tem buraco, salto nem explosão ao infinito.
+
+        <definition id="def:2-1-continuidade">
+          <title>Continuidade em um ponto</title>
+          Uma função $f$ é <strong>contínua em $a$</strong> se satisfaz simultaneamente três condições:
+          <list marker="number">
+            <item>$f(a)$ está definida ($a$ pertence ao domínio de $f$);</item>
+            <item>$\lim_{x \to a} f(x)$ existe (logo os limites laterais são finitos e iguais);</item>
+            <item>$\lim_{x \to a} f(x) = f(a)$.</item>
+          </list>
+          Se qualquer uma dessas três condições falhar, dizemos que $f$ é <strong>descontínua em $a$</strong>.
+        </definition>
+
+        Felizmente, quase todas as funções elementares que usamos para modelar fenômenos biológicos suaves são contínuas em todo o conjunto $\mathbb{R}$ (sem precisar provar aqui): todos os polinômios, as exponenciais $e^x$ e $a^x$ ($a > 0$), as funções $\operatorname{sen}(x)$ e $\cos(x)$, bem como o sigmoide logístico $\sigma(x) = \dfrac{1}{1 + e^{-x}}$ (visto em <strong>Funções</strong>, 1.3). Somas, diferenças, produtos e quocientes de funções contínuas também são contínuos em todo ponto onde o denominador não se anula; por isso, $\tan x = \dfrac{\operatorname{sen} x}{\cos x}$ é contínua em todos os pontos onde $\cos x \ne 0$.
+
+        Quando uma função falha em ser contínua em $a$, classificamos a descontinuidade em um de três tipos:
+        <list marker="dash">
+          <item><strong>Descontinuidade removível</strong> (<em>removable discontinuity</em>): o limite $\lim_{x \to a} f(x)$ existe e é finito, mas $f(a)$ não existe ou $f(a) \ne \lim_{x \to a} f(x)$ (como $\frac{x^2 - 1}{x - 1}$ em $x = 1$). Basta “tampar o buraco” redefinindo $f(a)$ para que ela se torne contínua.</item>
+          <item><strong>Descontinuidade de salto</strong> (<em>jump discontinuity</em>): ambos os limites laterais existem e são finitos, mas são diferentes (como $H(V - V_{\text{lim}})$ em $V = -55\text{ mV}$ e $|x|/x$ em $x = 0$).</item>
+          <item><strong>Descontinuidade infinita</strong> (<em>infinite discontinuity</em>): pelo menos um dos limites laterais diverge para $+\infty$ ou $-\infty$ (como $1/x^2$ em $x = 0$).</item>
+        </list>
+
+        Guarde bem a ideia de continuidade: no Tema 2.2 (<strong>Derivada</strong>), veremos que toda função derivável precisa primeiro ser contínua — funções com salto como o degrau não têm derivada no limiar, razão pela qual modelos de aprendizado em redes neurais costumam substituir o degrau por um sigmoide suave!
+      </subsection>
+
+      <remark id="rem:2-1-armadilha-laterais">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Olhar apenas para um lado em funções definidas por partes:</strong> se $f(x)$ muda de fórmula em $x = a$, calcular somente a fórmula de $x \ge a$ dá o limite à direita, mas não garante que o limite bilateral exista — é obrigatório conferir o limite à esquerda também.</item>
+          <item><strong>Confundir existir $f(a)$ com ser contínua em $a$:</strong> em $H(V - V_{\text{lim}})$, o valor $H(0) = 1$ está perfeitamente definido no limiar, mas $H$ é descontínua ali porque os limites laterais não coincidem.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:2-1-4-1">
+        <title>Básico — Limites laterais e descontinuidade em função por partes</title>
+        Considere a função:
+        $$f(x) = \begin{cases} 2x + 1, & \text{se } x < 3, \\ 10, & \text{se } x = 3, \\ x^2 - 2, & \text{se } x > 3. \end{cases}$$
+        Calcule $\lim_{x \to 3^-} f(x)$ e $\lim_{x \to 3^+} f(x)$. O limite $\lim_{x \to 3} f(x)$ existe? A função $f$ é contínua em $x = 3$? Se não for, classifique a descontinuidade.
+        <hint><title>Ver dica</title>Para os limites laterais, use $2x + 1$ quando $x < 3$ e $x^2 - 2$ quando $x > 3$. Depois compare o limite obtido com $f(3) = 10$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculando os limites laterais:
+          $$\lim_{x \to 3^-} f(x) = \lim_{x \to 3^-} (2x + 1) = 2(3) + 1 = 7,$$
+          $$\lim_{x \to 3^+} f(x) = \lim_{x \to 3^+} (x^2 - 2) = 3^2 - 2 = 7.$$
+          Como os dois limites laterais existem e são iguais a $7$, o limite bilateral existe e vale $\lim_{x \to 3} f(x) = 7$.
+
+          Entretanto, $f(3) = 10 \ne 7 = \lim_{x \to 3} f(x)$, falhando a terceira condição de continuidade. Portanto, $f$ <strong>não</strong> é contínua em $x = 3$; como o limite existe finito, trata-se de uma <strong>descontinuidade removível</strong>.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-1-4-2">
+        <title>Intermediário — Ajustando um parâmetro para garantir continuidade</title>
+        Determine o valor da constante $k \in \mathbb{R}$ que torna a função abaixo contínua em $x = 2$ (e portanto em todo $\mathbb{R}$):
+        $$g(x) = \begin{cases} kx - 4, & \text{se } x \le 2, \\ x^2 + k, & \text{se } x > 2. \end{cases}$$
+        <hint><title>Ver dica</title>Iguale o limite à esquerda (que também é $g(2)$) ao limite à direita em $x = 2$ e resolva a equação para $k$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Em $x = 2$, cada ramo é um polinômio. Calculamos os limites laterais e o valor no ponto:
+          $$\lim_{x \to 2^-} g(x) = g(2) = 2k - 4, \qquad \lim_{x \to 2^+} g(x) = 2^2 + k = 4 + k.$$
+          Para que $g$ seja contínua em $x = 2$, precisamos de $\lim_{x \to 2^-} g(x) = \lim_{x \to 2^+} g(x) = g(2)$:
+          $$2k - 4 = 4 + k \implies 2k - k = 4 + 4 \implies k = 8.$$
+          <em>Conferência:</em> com $k = 8$, temos $g(2) = 8(2) - 4 = 12$ à esquerda e $2^2 + 8 = 12$ à direita, tornando $g$ contínua em todo $\mathbb{R}$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-1-4-3">
+        <title>Avançado — Abertura abrupta versus suave de canais de sódio</title>
+        Em um modelo simplificado de membrana, um canal de sódio fica fechado abaixo do limiar de ativação $V_{\text{at}} = -40\text{ mV}$ e abre instantaneamente em $-40\text{ mV}$ com condutância $g_{\text{Na}} = 10\text{ nS}$ e potencial de reversão $E_{\text{Na}} = +55\text{ mV}$:
+        $$I(V) = \begin{cases} 0, & \text{se } V < -40\text{ mV}, \\ 10\,(V - 55), & \text{se } V \ge -40\text{ mV} \quad (\text{em pA, pois }\text{nS}\cdot\text{mV} = \text{pA}). \end{cases}$$
+        <list marker="a">
+          <item>Calcule $\lim_{V \to -40^-} I(V)$ e $\lim_{V \to -40^+} I(V)$ e classifique a descontinuidade de $I(V)$ em $V = -40\text{ mV}$.</item>
+          <item>Modelos biofísicos mais realistas (como Hodgkin–Huxley) suavizam essa transição multiplicando por uma curva sigmoide de ativação: $I_{\text{suave}}(V) = \dfrac{10\,(V - 55)}{1 + e^{-(V + 40)/5}}$. A função $I_{\text{suave}}$ é contínua em $V = -40\text{ mV}$? Calcule $I_{\text{suave}}(-40)$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), avalie os dois ramos em $V = -40$. Em (b), verifique que o denominador $1 + e^{-(V+40)/5}$ nunca se anula e calcule $e^0 = 1$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pela esquerda ($V < -40$), $I(V) = 0$, logo $\lim_{V \to -40^-} I(V) = 0\text{ pA}$. Pela direita ($V \ge -40$):
+              $$\lim_{V \to -40^+} I(V) = 10\,(-40 - 55) = 10(-95) = -950\text{ pA}$$
+              (o sinal negativo indica corrente de entrada de íons $\text{Na}^+$ na célula). Como os dois limites laterais existem e são diferentes ($0 \ne -950$), trata-se de uma <strong>descontinuidade de salto</strong>.
+            </item>
+            <item>O numerador $10(V - 55)$ e o denominador $1 + e^{-(V + 40)/5}$ são funções contínuas em todo $\mathbb{R}$, e como $e^{-(V + 40)/5} > 0$ sempre, o denominador é estritamente maior que $1$ (nunca zera). Portanto, $I_{\text{suave}}$ é contínua em todo $\mathbb{R}$, inclusive em $V = -40\text{ mV}$. Substituindo $V = -40$:
+              $$I_{\text{suave}}(-40) = \frac{10(-40 - 55)}{1 + e^{-(-40 + 40)/5}} = \frac{-950}{1 + e^0} = \frac{-950}{2} = -475\text{ pA}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:2-1-5">
+      <eyebrow>Subtema 5</eyebrow>
+      <title>Limites de funções compostas</title>
+      <intro>
+        Quando uma variável biológica passa por duas funções encadeadas — como potencial de membrana entrando em um sigmoide de disparo —, o limite entra para dentro da função externa se ela for contínua.
+      </intro>
+
+      Em modelos de neurociência computacional, sinais costumam percorrer cadeias de composição de funções (vistas em <strong>Funções</strong>, 1.3): primeiro calculamos uma variável interna $u = g(x)$ (por exemplo, a soma ponderada de entradas sinápticas ou a evolução do potencial $V(t)$) e depois aplicamos uma função de ativação externa $f(u)$ para obter a taxa de disparo. Se a variável interna $g(x)$ converge para $L$, basta aplicar $f$ a $L$? O teorema a seguir diz exatamente quando isso é válido.
+
+      <theorem id="thm:2-1-composta">
+        <title>Limite de função composta</title>
+        Se $\lim_{x \to a} g(x) = L$ e a função externa $f$ é <strong>contínua em $L$</strong>, então o limite pode passar para dentro de $f$:
+        $$\lim_{x \to a} f(g(x)) = f\!\left(\lim_{x \to a} g(x)\right) = f(L).$$
+        O mesmo resultado vale para limites laterais ($x \to a^-$, $x \to a^+$) e limites no infinito ($x \to +\infty$, $x \to -\infty$).
+        <intuition>
+          Como $f$ é contínua em $L$, ela não dá saltos perto de $L$: se você mantiver a entrada $u = g(x)$ bem próxima de $L$, a saída $f(g(x))$ ficará automaticamente bem próxima de $f(L)$.
+        </intuition>
+      </theorem>
+
+      Mas atenção: a hipótese de <strong>continuidade de $f$ em $L$</strong> é indispensável! Veja um contraexemplo simples usando o degrau de Heaviside $H(u)$, que é descontínuo em $u = 0$. Considere as duas sequências contínuas $V_1(t) = -55 - \dfrac{1}{t}$ e $V_2(t) = -55 + \dfrac{1}{t}$ para $t > 0$. Ambas têm o mesmo limite no infinito:
+      $$\lim_{t \to +\infty} V_1(t) = -55\text{ mV} \qquad \text{e} \qquad \lim_{t \to +\infty} V_2(t) = -55\text{ mV}.$$
+      Se aplicarmos o degrau neuronal $f(V) = H(V + 55)$ (onde $H(0) = 1$), obtemos resultados opostos:
+      <list marker="dash">
+        <item>Como $V_1(t) < -55$ para todo $t > 0$, temos $H(V_1(t) + 55) = 0$ sempre, logo $\lim_{t \to +\infty} H(V_1(t) + 55) = 0 \ne H(0)$;</item>
+        <item>Como $V_2(t) > -55$ para todo $t > 0$, temos $H(V_2(t) + 55) = 1$ sempre, logo $\lim_{t \to +\infty} H(V_2(t) + 55) = 1 = H(0)$.</item>
+      </list>
+      Como a função externa $H$ dá um salto em $0$, o limite da composta depende do lado pelo qual a função interna se aproxima do limiar!
+
+      <example id="exm:2-1-composta-algebrica">
+        <title>Aplicando o teorema da composta a exponenciais, raízes e sigmoides</title>
+        Calcule os limites abaixo:
+        <list marker="a">
+          <item>$\lim_{x \to 0} e^{\operatorname{sen}(x)}$</item>
+          <item>$\lim_{x \to 4} \sqrt{x^2 + 9}$</item>
+          <item>$\lim_{x \to 1} \sigma\!\left(\dfrac{x^2 - 1}{x - 1}\right)$, onde $\sigma(u) = \dfrac{1}{1 + e^{-u}}$</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Na função interna $g(x) = \operatorname{sen}(x)$, a continuidade do seno dá $\lim_{x \to 0} \operatorname{sen}(x) = \operatorname{sen}(0) = 0$. Como a exponencial $f(u) = e^u$ é contínua em $u = 0$:
+            $$\lim_{x \to 0} e^{\operatorname{sen}(x)} = e^{\lim_{x \to 0} \operatorname{sen}(x)} = e^0 = 1.$$
+          </item>
+          <item>Para a função interna, $\lim_{x \to 4} (x^2 + 9) = 4^2 + 9 = 25 > 0$. Como $\sqrt{u}$ é contínua para $u > 0$:
+            $$\lim_{x \to 4} \sqrt{x^2 + 9} = \sqrt{25} = 5.$$
+          </item>
+          <item>Calculamos primeiro o limite da função interna (visto no <ref to="exm:2-1-buraco"/>):
+            $$\lim_{x \to 1} \frac{x^2 - 1}{x - 1} = \lim_{x \to 1} (x + 1) = 2.$$
+            Como o sigmoide $\sigma(u)$ é contínuo em todo $\mathbb{R}$ (em particular em $u = 2$), o limite passa para dentro de $\sigma$:
+            $$\lim_{x \to 1} \sigma\!\left(\frac{x^2 - 1}{x - 1}\right) = \sigma(2) = \frac{1}{1 + e^{-2}} \approx 0{,}881.$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:2-1-taxa-estacionaria">
+        <title>Taxa de disparo estacionária com membrana exponencial e sigmoide</title>
+        Após receber uma corrente excitatória constante a partir de $t = 0$, o potencial de membrana de um neurônio (em $\text{mV}$) relaxa exponencialmente segundo:
+        $$V(t) = -70 + 20\left(1 - e^{-t/\tau}\right), \qquad \tau = 10\text{ ms},\; t \ge 0.$$
+        Sua taxa de disparo instantânea (em $\text{Hz}$) é dada pela composição $r(t) = f(V(t))$, onde $f$ é a curva sigmoide:
+        $$f(V) = \frac{100}{1 + e^{-(V + 55)/5}}.$$
+        Determine o comportamento de longo prazo da taxa de disparo, $\lim_{t \to +\infty} r(t)$.
+
+        <strong>Solução.</strong> Primeiro calculamos o limite do potencial de membrana $V(t)$ quando $t \to +\infty$. Como $\tau = 10 > 0$, o expoente $-t/10$ vai para $-\infty$, logo $e^{-t/10} = \dfrac{1}{e^{t/10}} \to 0$. Assim:
+        $$\lim_{t \to +\infty} V(t) = -70 + 20(1 - 0) = -50\text{ mV}.$$
+        Em seguida, observamos que $f(V)$ é contínua em todo $\mathbb{R}$ (pois é formada por exponencial e quociente cujo denominador $1 + e^{-(V+55)/5}$ é sempre maior que $1$). Pelo <ref to="thm:2-1-composta"/>:
+        $$\lim_{t \to +\infty} r(t) = f\!\left(\lim_{t \to +\infty} V(t)\right) = f(-50) = \frac{100}{1 + e^{-(-50 + 55)/5}} = \frac{100}{1 + e^{-1}}.$$
+        Usando $e^{-1} \approx 0{,}3679$, obtemos:
+        $$\lim_{t \to +\infty} r(t) \approx \frac{100}{1 + 0{,}3679} \approx 73{,}1\text{ Hz}.$$
+        Ou seja, à medida que a membrana estabiliza em $-50\text{ mV}$, a frequência de disparos estabiliza em cerca de $73{,}1\text{ Hz}$.
+      </example>
+
+      <remark id="rem:2-1-armadilha-composta">
+        <title>Armadilha comum</title>
+        Nunca passe o limite para dentro de uma função externa $f$ sem conferir antes se $f$ é <strong>contínua</strong> no valor limite $L = \lim_{x \to a} g(x)$. Se $f$ tiver um salto ou um buraco exatamente em $L$ (como $H(u)$ em $u = 0$), $\lim f(g(x))$ pode ser diferente de $f(L)$ ou até nem existir.
+      </remark>
+
+      <exercise id="exr:2-1-5-1">
+        <title>Básico — Limites de compostas contínuas</title>
+        Usando a continuidade das funções elementares ($\cos$ em $\mathbb{R}$ e $\ln$ em $(0, +\infty)$), calcule:
+        <list marker="a">
+          <item>$\lim_{x \to 0} \cos(x^2 + \pi)$</item>
+          <item>$\lim_{x \to 3} \ln\!\left(\dfrac{x^2 - 9}{x - 3} - 5\right)$</item>
+        </list>
+        <hint><title>Ver dica</title>Calcule primeiro o limite da expressão dentro dos parênteses (em (b), fatore $x^2 - 9$ para cancelar $x - 3$) e depois aplique a função externa.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>O polinômio interno $x^2 + \pi$ tende a $0^2 + \pi = \pi$ quando $x \to 0$. Como o cosseno é contínuo em $\pi$:
+              $$\lim_{x \to 0} \cos(x^2 + \pi) = \cos(\pi) = -1.$$
+            </item>
+            <item>Para $x \ne 3$, simplificamos o argumento do logaritmo:
+              $$\frac{x^2 - 9}{x - 3} - 5 = \frac{(x - 3)(x + 3)}{x - 3} - 5 = (x + 3) - 5 = x - 2.$$
+              Quando $x \to 3$, temos $\lim_{x \to 3} (x - 2) = 3 - 2 = 1 > 0$. Como $\ln$ é contínua em $u = 1$:
+              $$\lim_{x \to 3} \ln\!\left(\frac{x^2 - 9}{x - 3} - 5\right) = \ln(1) = 0.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-1-5-2">
+        <title>Intermediário — Quando a função externa falha em ser contínua</title>
+        Seja $H(u)$ a função degrau de Heaviside ($H(u) = 0$ para $u < 0$ e $H(u) = 1$ para $u \ge 0$). Considere $g_1(x) = -x^2$ e $g_2(x) = x$. Calcule $\lim_{x \to 0} H(g_1(x))$ e analise $\lim_{x \to 0} H(g_2(x))$. Por que não podemos simplesmente responder $H(0) = 1$ nos dois casos?
+        <hint><title>Ver dica</title>Observe o sinal de $g_1(x) = -x^2$ para $x \ne 0$. Para $g_2(x) = x$, avalie os limites laterais $x \to 0^-$ e $x \to 0^+$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Em ambos os casos, o limite interno é $0$: $\lim_{x \to 0} g_1(x) = 0$ e $\lim_{x \to 0} g_2(x) = 0$.
+          <list marker="dash">
+            <item>Para $g_1(x) = -x^2$: sempre que $x \ne 0$, temos $x^2 > 0$, portanto $-x^2 < 0$. Isso significa que $H(-x^2) = 0$ para todo $x \ne 0$, donde:
+              $$\lim_{x \to 0} H(-x^2) = 0 \ne H(0) = 1.$$
+            </item>
+            <item>Para $g_2(x) = x$: quando $x < 0$, $H(x) = 0$, logo $\lim_{x \to 0^-} H(x) = 0$; quando $x > 0$, $H(x) = 1$, logo $\lim_{x \to 0^+} H(x) = 1$. Como os limites laterais diferem, $\lim_{x \to 0} H(x)$ <strong>não existe</strong>.</item>
+          </list>
+          Não podemos usar $H(\lim g(x)) = H(0) = 1$ porque a função externa $H$ possui uma descontinuidade de salto exatamente em $u = 0$, violando a hipótese do <ref to="thm:2-1-composta"/>.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-1-5-3">
+        <title>Avançado — Equilíbrio de canais após inibição sináptica</title>
+        Após um pulso inibitório, o potencial de membrana evolui para $t \ge 0$ (em $\text{ms}$) segundo:
+        $$V(t) = -80 + 10\left(1 - e^{-t/5}\right)\text{ mV},$$
+        e a fração de canais abertos de um determinado subtipo segue a curva de Boltzmann:
+        $$P(V) = \frac{1}{1 + e^{-(V + 70)/10}}.$$
+        Determine o potencial estacionário $\lim_{t \to +\infty} V(t)$ e o limite da fração de canais abertos $\lim_{t \to +\infty} P(V(t))$.
+        <hint><title>Ver dica</title>Note que $\lim_{t \to +\infty} e^{-t/5} = 0$. Depois use a continuidade de $P(V)$ para calcular $P(V_\infty)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Quando $t \to +\infty$, o termo exponencial $e^{-t/5} \to 0$. Assim, o potencial estacionário é:
+          $$V_\infty = \lim_{t \to +\infty} V(t) = -80 + 10(1 - 0) = -70\text{ mV}.$$
+          Como $1 + e^{-(V + 70)/10} > 1$ para todo $V \in \mathbb{R}$, a função $P(V)$ é contínua em $V = -70\text{ mV}$. Aplicando o <ref to="thm:2-1-composta"/>:
+          $$\lim_{t \to +\infty} P(V(t)) = P(-70) = \frac{1}{1 + e^{-(-70 + 70)/10}} = \frac{1}{1 + e^0} = \frac{1}{1 + 1} = \frac{1}{2} = 0{,}5.$$
+          Portanto, no equilíbrio de $-70\text{ mV}$, metade dos canais desse subtipo permanece aberta.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:2-1-6">
+      <eyebrow>Subtema 6</eyebrow>
+      <title>Teorema do sanduíche/confronto</title>
+      <intro>
+        Quando uma função oscila sem parar, prendê-la entre um teto e um piso que se fecham no mesmo alvo força o limite a convergir.
+      </intro>
+
+      Algumas funções em neurociência e análise não permitem aplicar diretamente a lei do produto porque um de seus fatores oscila indefinidamente — pense em um potencial oscilatório amortecido que oscila para cima e para baixo enquanto sua amplitude decai a zero. Mesmo sem saber calcular o limite do fator oscilante isolado, se conseguirmos espremer a função entre duas envoltórias mais simples que convergem para o mesmo número $L$, a função do meio não terá para onde fugir.
+
+      <theorem id="thm:2-1-sanduiche">
+        <title>Teorema do Confronto (Teorema do Sanduíche)</title>
+        Sejam $g$, $f$ e $h$ funções definidas em um intervalo aberto contendo $a$ (exceto possivelmente em $a$). Se:
+        <list marker="number">
+          <item>$g(x) \le f(x) \le h(x)$ para todo $x \ne a$ nesse intervalo, e</item>
+          <item>$\lim_{x \to a} g(x) = \lim_{x \to a} h(x) = L$,</item>
+        </list>
+        então $\lim_{x \to a} f(x) = L$. O mesmo enunciado permanece válido quando $x \to a^-$, $x \to a^+$ ou $x \to \pm\infty$ (bastando que as desigualdades valham para $x$ suficientemente grande).
+        <intuition>
+          Imagine $g(x)$ como o piso e $h(x)$ como o teto de um corredor que vai afunilando até a altura $L$. Se $f(x)$ caminha sempre entre o piso e o teto, no afunilamento ela é inevitavelmente esmagada contra a altura $L$. Esse resultado também é conhecido em inglês como teorema do aperto (<em>squeeze theorem</em>).
+        </intuition>
+      </theorem>
+      <proof of="thm:2-1-sanduiche" collapsible="true" collapsed="true">
+        Seja $\varepsilon > 0$. Como $\lim_{x \to a} g(x) = L$, existe $\delta_1 > 0$ tal que $0 < |x - a| < \delta_1 \implies |g(x) - L| < \varepsilon$, isto é, $L - \varepsilon < g(x) < L + \varepsilon$. Analogamente, como $\lim_{x \to a} h(x) = L$, existe $\delta_2 > 0$ tal que $0 < |x - a| < \delta_2 \implies L - \varepsilon < h(x) < L + \varepsilon$.
+
+        Seja $r > 0$ o raio do intervalo em que vale $g(x) \le f(x) \le h(x)$, e defina $\delta = \min(\delta_1, \delta_2, r) > 0$. Para qualquer $x$ com $0 < |x - a| < \delta$, valem simultaneamente:
+        $$L - \varepsilon < g(x) \le f(x) \le h(x) < L + \varepsilon.$$
+        Logo $L - \varepsilon < f(x) < L + \varepsilon$, ou seja, $|f(x) - L| < \varepsilon$. Isso demonstra que $\lim_{x \to a} f(x) = L$.
+      </proof>
+
+      A aplicação mais célebre do Teorema do Sanduíche no Cálculo é o <strong>limite trigonométrico fundamental</strong>, que será peça indispensável no Tema 2.2 (<strong>Derivada</strong>) para calcular a derivada da função seno.
+
+      <theorem id="thm:2-1-sen-x-sobre-x">
+        <title>Limite trigonométrico fundamental</title>
+        Com o ângulo $x$ medido em <strong>radianos</strong>, vale:
+        $$\lim_{x \to 0} \frac{\operatorname{sen}(x)}{x} = 1.$$
+      </theorem>
+      <proof of="thm:2-1-sen-x-sobre-x" collapsible="true" collapsed="true">
+        Considere o círculo unitário (de raio $1$) da <strong>Trigonometria (Tema 1.4)</strong> e suponha primeiro $0 < x < \dfrac{\pi}{2}$ radianos. Sejam $O = (0, 0)$ a origem, $A = (1, 0)$, $P = (\cos x,\, \operatorname{sen} x)$ sobre a circunferência e $T = (1, \tan x)$ a interseção da semirreta $OP$ com a reta vertical tangente em $A$.
+
+        Comparando as áreas do triângulo $\triangle OAP$, do setor circular $OAP$ e do triângulo $\triangle OAT$ (o primeiro está contido no setor, que está contido no segundo):
+        <list marker="dash">
+          <item>Área de $\triangle OAP = \dfrac{1}{2} \cdot \text{base } OA \cdot \text{altura } \operatorname{sen} x = \dfrac{\operatorname{sen} x}{2}$;</item>
+          <item>Área do setor $OAP$ (com $x$ em radianos) $= \dfrac{1}{2} \cdot 1^2 \cdot x = \dfrac{x}{2}$;</item>
+          <item>Área de $\triangle OAT = \dfrac{1}{2} \cdot 1 \cdot \tan x = \dfrac{\operatorname{sen} x}{2\cos x}$.</item>
+        </list>
+        Portanto:
+        $$\frac{\operatorname{sen} x}{2} \le \frac{x}{2} \le \frac{\operatorname{sen} x}{2\cos x}.$$
+        Multiplicando os três termos por $\dfrac{2}{\operatorname{sen} x} > 0$ (pois $\operatorname{sen} x > 0$ em $(0, \pi/2)$), obtemos $1 \le \dfrac{x}{\operatorname{sen} x} \le \dfrac{1}{\cos x}$. Invertendo essas frações positivas (o que inverte as desigualdades):
+        $$\cos x \le \frac{\operatorname{sen} x}{x} \le 1.$$
+        Para $-\dfrac{\pi}{2} < x < 0$, como $\cos(-x) = \cos x$ e $\dfrac{\operatorname{sen}(-x)}{-x} = \dfrac{-\operatorname{sen} x}{-x} = \dfrac{\operatorname{sen} x}{x}$, a mesma dupla desigualdade continua valendo para todo $0 < |x| < \dfrac{\pi}{2}$.
+
+        Finalmente, como $\lim_{x \to 0} \cos x = \cos(0) = 1$ (pela continuidade do cosseno) e $\lim_{x \to 0} 1 = 1$, o Teorema do Sanduíche garante que $\lim_{x \to 0} \dfrac{\operatorname{sen}(x)}{x} = 1$.
+      </proof>
+
+      <example id="exm:2-1-x2-sen">
+        <title>Oscilação esmagada perto de zero</title>
+        Calcule $\lim_{x \to 0} x^2 \operatorname{sen}\!\left(\dfrac{1}{x}\right)$.
+
+        <strong>Solução.</strong> Quando $x \to 0$, $1/x$ cresce em módulo sem limite e $\operatorname{sen}(1/x)$ oscila infinitas vezes entre $-1$ e $1$, não possuindo limite. Assim, não podemos quebrar o limite como produto dos limites.
+
+        Em vez disso, usamos o fato de que o seno é sempre limitado: para todo $x \ne 0$,
+        $$-1 \le \operatorname{sen}\!\left(\frac{1}{x}\right) \le 1.$$
+        Como $x^2 > 0$ para $x \ne 0$, multiplicamos os três membros por $x^2$ preservando o sentido das desigualdades:
+        $$-x^2 \le x^2 \operatorname{sen}\!\left(\frac{1}{x}\right) \le x^2.$$
+        Como $\lim_{x \to 0} (-x^2) = 0$ e $\lim_{x \to 0} x^2 = 0$, o <ref to="thm:2-1-sanduiche"/> garante que:
+        $$\lim_{x \to 0} x^2 \operatorname{sen}\!\left(\frac{1}{x}\right) = 0.$$
+      </example>
+
+      <example id="exm:2-1-adaptacao-amortecida">
+        <title>Resposta adaptativa neuronal com oscilação amortecida</title>
+        Após a apresentação de um estímulo contínuo, um circuito neuronal com retroalimentação negativa exibe adaptação da taxa de disparo (em $\text{Hz}$) na forma de uma oscilação amortecida:
+        $$r(t) = r_\infty + A\,e^{-t/\tau}\cos(\omega t), \qquad t \ge 0,$$
+        com taxa estacionária $r_\infty = 30\text{ Hz}$, amplitude inicial $A = 20\text{ Hz}$, constante de tempo $\tau = 50\text{ ms}$ e frequência angular $\omega = 0{,}2\text{ rad/ms}$. Use o Teorema do Sanduíche para encontrar $\lim_{t \to +\infty} r(t)$.
+
+        <strong>Solução.</strong> Como o cosseno oscila entre $-1$ e $1$, não existe $\lim_{t \to +\infty} \cos(\omega t)$. Entretanto, sabemos que $-1 \le \cos(0{,}2 t) \le 1$ para todo $t \ge 0$. Multiplicando essa desigualdade por $A\,e^{-t/\tau} = 20\,e^{-t/50} > 0$:
+        $$-20\,e^{-t/50} \le 20\,e^{-t/50}\cos(0{,}2 t) \le 20\,e^{-t/50}.$$
+        Somando $r_\infty = 30$ aos três membros, prendemos $r(t)$ entre duas envoltórias exponenciais:
+        $$30 - 20\,e^{-t/50} \le r(t) \le 30 + 20\,e^{-t/50}.$$
+        Quando $t \to +\infty$, temos $e^{-t/50} \to 0$, logo tanto o piso quanto o teto convergem para $30$:
+        $$\lim_{t \to +\infty} \left(30 - 20\,e^{-t/50}\right) = 30 \qquad \text{e} \qquad \lim_{t \to +\infty} \left(30 + 20\,e^{-t/50}\right) = 30.$$
+        Pelo Teorema do Sanduíche no infinito, concluímos que $\lim_{t \to +\infty} r(t) = 30\text{ Hz}$.
+      </example>
+
+      <remark id="rem:2-1-armadilha-radianos">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Usar $\lim_{x \to 0} \frac{\operatorname{sen}(x)}{x} = 1$ com $x$ em graus:</strong> na demonstração geométrica, a área do setor circular $\frac{1}{2} r^2 x$ só vale quando $x$ está em <strong>radianos</strong>. Se o ângulo estiver em graus ($x^\circ = \frac{\pi}{180} x_{\text{rad}}$), o limite vale $\frac{\pi}{180} \approx 0{,}01745$, e não $1$.</item>
+          <item><strong>Quebrar o produto quando um fator oscila:</strong> em $\lim_{x \to 0} x^2 \operatorname{sen}(1/x)$, é proibido escrever $(\lim x^2) \cdot (\lim \operatorname{sen}(1/x))$, porque o segundo limite não existe.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:2-1-6-1">
+        <title>Básico — Sanduíche em torno de zero</title>
+        Calcule $\lim_{x \to 0} |x| \cos\!\left(\dfrac{1}{x}\right)$ justificando cada desigualdade pelo Teorema do Sanduíche.
+        <hint><title>Ver dica</title>Use $-1 \le \cos(1/x) \le 1$ para $x \ne 0$ e multiplique os três lados por $|x| > 0$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para todo $x \ne 0$, o cosseno satisfaz $-1 \le \cos(1/x) \le 1$. Como $|x| > 0$ para $x \ne 0$, multiplicamos a desigualdade por $|x|$ mantendo o sentido:
+          $$-|x| \le |x| \cos\!\left(\frac{1}{x}\right) \le |x|.$$
+          Quando $x \to 0$, tanto o piso $-|x|$ quanto o teto $|x|$ tendem a $0$. Pelo Teorema do Sanduíche:
+          $$\lim_{x \to 0} |x| \cos\!\left(\frac{1}{x}\right) = 0.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-1-6-2">
+        <title>Intermediário — Limites derivados de $\operatorname{sen}(x)/x$</title>
+        Usando o limite fundamental $\lim_{u \to 0} \dfrac{\operatorname{sen}(u)}{u} = 1$ (com ângulos em radianos), calcule:
+        <list marker="a">
+          <item>$\lim_{x \to 0} \dfrac{\operatorname{sen}(5x)}{x}$</item>
+          <item>$\lim_{x \to 0} \dfrac{\operatorname{sen}(3x)}{\operatorname{sen}(2x)}$</item>
+        </list>
+        <hint><title>Ver dica</title>Multiplique e divida por $5$ em (a) para fazer aparecer $\dfrac{\operatorname{sen}(5x)}{5x}$. Em (b), divida numerador e denominador por $x$ e ajuste os coeficientes $3$ e $2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Multiplicamos numerador e denominador por $5$:
+              $$\lim_{x \to 0} \frac{\operatorname{sen}(5x)}{x} = \lim_{x \to 0} 5 \cdot \frac{\operatorname{sen}(5x)}{5x}.$$
+              Chamando $u = 5x$, quando $x \to 0$ temos $u \to 0$. Pelo limite fundamental:
+              $$5 \cdot \lim_{u \to 0} \frac{\operatorname{sen}(u)}{u} = 5 \cdot 1 = 5.$$
+            </item>
+            <item>Dividimos numerador e denominador por $x \ne 0$ e ajustamos os fatores $3$ e $2$:
+              $$\frac{\operatorname{sen}(3x)}{\operatorname{sen}(2x)} = \frac{\dfrac{\operatorname{sen}(3x)}{x}}{\dfrac{\operatorname{sen}(2x)}{x}} = \frac{3 \cdot \dfrac{\operatorname{sen}(3x)}{3x}}{2 \cdot \dfrac{\operatorname{sen}(2x)}{2x}}.$$
+              Como $\lim_{x \to 0} \dfrac{\operatorname{sen}(3x)}{3x} = 1$ e $\lim_{x \to 0} \dfrac{\operatorname{sen}(2x)}{2x} = 1 \ne 0$, pela lei do quociente:
+              $$\lim_{x \to 0} \frac{\operatorname{sen}(3x)}{\operatorname{sen}(2x)} = \frac{3 \cdot 1}{2 \cdot 1} = \frac{3}{2} = 1{,}5.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-1-6-3">
+        <title>Avançado — Ressonância elétrica sub-limiar na membrana</title>
+        Após um pulso breve de corrente, o potencial de membrana de um neurônio com ressonância sub-limiar oscila em torno do repouso ($-70\text{ mV}$) segundo:
+        $$V(t) = -70 + 8\,e^{-t/20}\operatorname{sen}(0{,}1\,t)\text{ mV}, \qquad t \ge 0\text{ em ms}.$$
+        <list marker="a">
+          <item>Encontre duas funções envoltórias $g(t)$ e $h(t)$ tais que $g(t) \le V(t) \le h(t)$ para todo $t \ge 0$.</item>
+          <item>Use o Teorema do Sanduíche para provar que $\lim_{t \to +\infty} V(t) = -70\text{ mV}$.</item>
+          <item>Mostre que, para todo instante $t \ge 20\ln(4)\text{ ms}$ (onde $e^{-t/20} \le 0{,}25$), o desvio $|V(t) - (-70)|$ nunca ultrapassa $2\text{ mV}$.</item>
+        </list>
+        <hint><title>Ver dica</title>Use $-1 \le \operatorname{sen}(0{,}1 t) \le 1$, multiplique por $8 e^{-t/20} > 0$ e some $-70$. Em (c), observe que $8 \cdot 0{,}25 = 2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como $-1 \le \operatorname{sen}(0{,}1 t) \le 1$ e $8\,e^{-t/20} > 0$ para todo $t \ge 0$:
+              $$-8\,e^{-t/20} \le 8\,e^{-t/20}\operatorname{sen}(0{,}1 t) \le 8\,e^{-t/20}.$$
+              Somando $-70$ aos três membros, obtemos $g(t) = -70 - 8\,e^{-t/20}$ e $h(t) = -70 + 8\,e^{-t/20}$, com $g(t) \le V(t) \le h(t)$.
+            </item>
+            <item>Quando $t \to +\infty$, temos $e^{-t/20} \to 0$. Logo:
+              $$\lim_{t \to +\infty} g(t) = -70 - 8(0) = -70\text{ mV}, \qquad \lim_{t \to +\infty} h(t) = -70 + 8(0) = -70\text{ mV}.$$
+              Pelo Teorema do Sanduíche no infinito, $\lim_{t \to +\infty} V(t) = -70\text{ mV}$.
+            </item>
+            <item>Se $t \ge 20\ln(4)$, então $-t/20 \le -\ln(4) = \ln(1/4)$, donde $e^{-t/20} \le \frac{1}{4} = 0{,}25$. Como $|\operatorname{sen}(0{,}1 t)| \le 1$, temos:
+              $$|V(t) - (-70)| = 8\,e^{-t/20}\,|\operatorname{sen}(0{,}1 t)| \le 8\,e^{-t/20} \le 8 \cdot 0{,}25 = 2\text{ mV}.$$
+              Portanto, após $t = 20\ln(4)\text{ ms}$ ($\approx 27{,}7\text{ ms}$), as oscilações ficam permanentemente confinadas a $\pm 2\text{ mV}$ ao redor do repouso.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:2-1-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Noção intuitiva e independência de $f(a)$:</strong> $\lim_{x \to a} f(x) = L$ descreve o valor de que $f(x)$ se aproxima quando $x$ tende a $a$ por ambos os lados com $x \ne a$; o limite pode existir mesmo que $f(a)$ não exista ou tenha outro valor.</item>
+        <item><strong>Definição formal ($\varepsilon$-$\delta$):</strong> $\lim_{x \to a} f(x) = L$ significa que, para todo $\varepsilon > 0$, existe $\delta > 0$ tal que $0 < |x - a| < \delta \implies |f(x) - L| < \varepsilon$. Quando existe, o limite é único.</item>
+        <item><strong>Propriedades e indeterminação $0/0$:</strong> o limite distribui sobre soma, diferença, produto e quociente (desde que o limite do denominador seja $\ne 0$). Em $0/0$, tente fatorar ou racionalizar pelo conjugado.</item>
+        <item><strong>Limites no infinito e saturação:</strong> $\lim_{x \to +\infty} \dfrac{1}{x^r} = 0$ para $r > 0$ e $\lim_{x \to -\infty} \dfrac{1}{x^n} = 0$ para $n$ inteiro positivo. Na cinética de Michaelis–Menten, $\lim_{[S] \to +\infty} \dfrac{V_{\max}[S]}{K_m + [S]} = V_{\max}$ define a assíntota horizontal de saturação.</item>
+        <item><strong>Limites laterais e continuidade:</strong> $\lim_{x \to a} f(x) = L \iff \lim_{x \to a^-} f(x) = \lim_{x \to a^+} f(x) = L$. Uma função é contínua em $a$ quando $f(a)$ existe, o limite existe e $\lim_{x \to a} f(x) = f(a)$; caso contrário, há descontinuidade removível, de salto (como o degrau de Heaviside) ou infinita.</item>
+        <item><strong>Limites de funções compostas:</strong> se $\lim_{x \to a} g(x) = L$ e $f$ é contínua em $L$, então $\lim_{x \to a} f(g(x)) = f(L)$.</item>
+        <item><strong>Teorema do Sanduíche e limite fundamental:</strong> se $g(x) \le f(x) \le h(x)$ perto de $a$ e $\lim_{x \to a} g(x) = \lim_{x \to a} h(x) = L$, então $\lim_{x \to a} f(x) = L$. Com $x$ em radianos, $\lim_{x \to 0} \dfrac{\operatorname{sen}(x)}{x} = 1$.</item>
+      </list>
+    </section>
+
+    <section id="sec:2-1-alem">
+      <title>Para ir além</title>
+      Este tema lançou a base conceitual para todo o Módulo 2 (<strong>Cálculo Real</strong>). No próximo tema — <strong>Derivada</strong> (Tema 2.2) —, você usará diretamente a continuidade, o limite fundamental $\lim_{h \to 0} \frac{\operatorname{sen}(h)}{h} = 1$ e a ideia de limite do quociente de diferenças que introduzimos no <ref to="exm:2-1-taxa-potencial"/>; tudo isso culminará no projeto final do módulo, em que você deduzirá analiticamente a taxa instantânea de variação do potencial de membrana para uma função polinomial do tempo.
+
+      Para aprofundar a teoria e praticar mais problemas aplicados às ciências da vida, consulte a bibliografia recomendada para o Módulo 2:
+      <list marker="dash">
+        <item><strong>Livro base:</strong> Guidorizzi — <em>Um Curso de Cálculo, vol. 1</em>, referência rigorosa em português para definição $\varepsilon$-$\delta$, propriedades, continuidade e limites trigonométricos.</item>
+        <item><strong>Livro complementar:</strong> Anton, Bivens e Davis — <em>Cálculo</em>, com ótima visualização gráfica de limites laterais, assíntotas e comportamento no infinito.</item>
+        <item><strong>Livro complementar e prática dirigida:</strong> James Stewart — <em>Cálculo</em>. Em cada subseção, selecione os exercícios de modelagem focados em Biologia (geralmente ao final dos capítulos) para treinar problemas de saturação, taxas de variação e equilíbrio fisiológico.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 2 · Cálculo Real — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

@@ -1,0 +1,1105 @@
+<document>
+  <title>Módulo 3 · Cálculo Multivariável</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-3-2">Voltar ao guia (Tema 3.2)</link></meta-item>
+    <meta-item key="Módulo">Módulo 3 · Cálculo Multivariável — A Complexidade do Mundo Real</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-3-2">
+    <title>Diferencial em várias variáveis</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Gradiente e regra da cadeia multivariável — o coração matemático do backpropagation.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> A atividade cerebral depende de múltiplas variáveis simultâneas: a ativação em $(x, y)$ do córtex, a corrente iônica $I(g, V, E)$ ou a concentração de um morfógeno são funções escalares de várias entradas que devolvem um único número real.
+
+    Para descobrir para onde uma resposta cresce ou como reduzir o erro de um modelo neural, reunimos todas as taxas de variação parciais no vetor <strong>gradiente</strong> e propagamos variações por funções compostas. Esses dois pilares sustentam a retropropagação (<em>backpropagation</em>), os modelos de codificação neural, a busca por picos corticais no projeto deste módulo e o Módulo 4 (<mark>Otimização</mark>).
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>interpretar funções de várias variáveis via superfícies, curvas de nível e derivadas parciais;</item>
+      <item>distinguir continuidade, existência de parciais e diferenciabilidade, usando aproximação linear;</item>
+      <item>calcular e interpretar o gradiente $\nabla f$ em 2D e 3D (maior crescimento e ortogonalidade às curvas de nível);</item>
+      <item>calcular derivadas de ordem superior, verificar Schwarz e montar a Hessiana $2 \times 2$;</item>
+      <item>calcular derivadas direcionais $D_{\mathbf{u}} f = \nabla f \cdot \mathbf{u}$ e justificar os extremos do gradiente;</item>
+      <item>aplicar a regra da cadeia multivariável em trajetórias, árvores e passadas direta e reversa (<em>forward</em>/<em>backward</em>).</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Tema 3.1 (<mark>Funções vetoriais</mark>: vetores, norma, produto escalar, curvas $\mathbf{r}(t)$ e velocidade $\mathbf{r}'(t)$); <mark>Limite</mark> e <mark>Derivada</mark> (Módulo 2); e <mark>Funções</mark> e <mark>Geometria Analítica</mark> (Módulo 1).
+
+    <section id="sec:3-2-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Introdução</title>
+      <intro>
+        Quando uma grandeza depende de várias entradas ao mesmo tempo, o gráfico vira uma paisagem — e derivar significa fatiá-la ao longo de um eixo por vez.
+      </intro>
+
+      No Tema 3.1, $\mathbf{r}: I \subset \mathbb{R} \to \mathbb{R}^n$ recebia um número e devolvia um vetor. Agora fazemos o inverso: funções escalares $f: D \subset \mathbb{R}^n \to \mathbb{R}$ recebem $n$ coordenadas (como posição $(x, y)$ num mapa cortical ou $(g, V, E)$ num canal iônico) e devolvem um único número real.
+
+      <definition id="def:3-2-funcao-varias">
+        <title>Função real de várias variáveis, domínio e imagem</title>
+        Uma <strong>função de $n$ variáveis reais</strong> é uma regra $f: D \subset \mathbb{R}^n \to \mathbb{R}$ que associa a cada vetor $\mathbf{x} = (x_1, x_2, \dots, x_n)$ de um conjunto $D$ um único número real $f(x_1, x_2, \dots, x_n)$.
+        <list marker="dash">
+          <item>O conjunto $D$ das entradas permitidas é o <strong>domínio</strong> (<em>domain</em>) de $f$.</item>
+          <item>O conjunto $\text{Im}(f) = \{f(\mathbf{x}) : \mathbf{x} \in D\} \subset \mathbb{R}$ é a <strong>imagem</strong> (<em>range</em>) de $f$.</item>
+          <item>Para $n = 2$, escrevemos $z = f(x, y)$; os pontos $(x, y, f(x, y))$ em $\mathbb{R}^3$ formam o <strong>gráfico</strong> (uma <strong>superfície</strong> sobre o plano $xy$).</item>
+        </list>
+        <intuition>
+          Pense numa folha esticada sobre o plano $(x, y)$, com altura $z = f(x, y)$. Para $n \ge 3$, o gráfico não cabe em 3D, mas a álgebra é idêntica.
+        </intuition>
+      </definition>
+
+      Para visualizar superfícies no plano, fatiamos $z = f(x, y)$ em alturas constantes:
+
+      <definition id="def:3-2-curvas-nivel">
+        <title>Curvas de nível e mapa de contorno</title>
+        Dada uma função $f: D \subset \mathbb{R}^2 \to \mathbb{R}$ e uma constante $c \in \mathbb{R}$, a <strong>curva de nível</strong> (<em>level curve</em>) de altura $c$ é o conjunto de pontos do domínio onde a função assume o valor $c$:
+        $$\{(x, y) \in D : f(x, y) = c\}.$$
+        O desenho conjunto de várias curvas de nível para valores igualmente espaçados de $c$ chama-se <strong>mapa de contorno</strong> (<em>contour map</em>).
+        <intuition>
+          Como em um mapa topográfico: curvas próximas indicam terreno íngreme; curvas afastadas, relevo suave.
+        </intuition>
+      </definition>
+
+      Para medir a variação de $f(x, y)$ em $(a, b)$, congelamos uma variável e derivamos na outra. Fixando $y = b$, a inclinação da curva $g(x) = f(x, b)$ (corte pelo plano $y = b$) é a <strong>derivada parcial</strong> em $x$.
+
+      <definition id="def:3-2-derivada-parcial">
+        <title>Derivadas parciais</title>
+        Seja $f: D \subset \mathbb{R}^2 \to \mathbb{R}$ definida em uma vizinhança de $(a, b)$. As <strong>derivadas parciais</strong> (<em>partial derivatives</em>) de $f$ em $(a, b)$ em relação a $x$ e a $y$ são definidas pelos limites:
+        $$\frac{\partial f}{\partial x}(a, b) = \lim_{h \to 0} \frac{f(a + h, b) - f(a, b)}{h}, \qquad \frac{\partial f}{\partial y}(a, b) = \lim_{h \to 0} \frac{f(a, b + h) - f(a, b)}{h},$$
+        sempre que esses limites existirem.
+
+        Usamos como equivalentes as notações $\frac{\partial f}{\partial x}(a, b)$ e $f_x(a, b)$ (e analogamente $\frac{\partial f}{\partial y}$ e $f_y$). Para $f(x, y, z)$, definem-se $f_x$, $f_y$ e $f_z$ fixando as outras duas variáveis.
+        <intuition>
+          Na prática, trate as variáveis congeladas como constantes numéricas e aplique as regras de derivação do Módulo 2.
+        </intuition>
+      </definition>
+
+      <example id="exm:3-2-mecanico-parciais">
+        <title>Cálculo mecânico de derivadas parciais e curvas de nível</title>
+        <list marker="a">
+          <item>Para $f(x, y) = 3x^2 y - y^3 + 5x$, determine $f_x(x, y)$ e $f_y(x, y)$ e avalie ambas em $(1, 2)$.</item>
+          <item>Para $h(x, y) = x e^{2y}$, calcule $\frac{\partial h}{\partial x}$ e $\frac{\partial h}{\partial y}$.</item>
+          <item>Identifique as curvas de nível de $q(x, y) = x^2 + 4y^2$ para $c = 4$ e $c = 16$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Tratando $y$ como constante ($-y^3$ zera e $3y$ atua como coeficiente de $x^2$):
+            $$f_x(x, y) = 6xy + 5.$$
+            Tratando $x$ como constante ($5x$ zera):
+            $$f_y(x, y) = 3x^2 - 3y^2.$$
+            Em $(1, 2)$: $f_x(1, 2) = 6(1)(2) + 5 = 17$ e $f_y(1, 2) = 3(1)^2 - 3(2)^2 = 3 - 12 = -9$.
+          </item>
+          <item>Com $y$ constante, $e^{2y}$ multiplica $x$:
+            $$\frac{\partial h}{\partial x} = e^{2y}.$$
+            Com $x$ constante e regra da cadeia em $e^{2y}$:
+            $$\frac{\partial h}{\partial y} = x \cdot 2e^{2y} = 2x e^{2y}.$$
+          </item>
+          <item>Igualamos $q(x, y) = c$:
+            <list marker="dash">
+              <item>para $c = 4$: $x^2 + 4y^2 = 4 \iff \frac{x^2}{4} + \frac{y^2}{1} = 1$, uma <strong>elipse</strong> de semieixos $2$ (em $x$) e $1$ (em $y$);</item>
+              <item>para $c = 16$: $x^2 + 4y^2 = 16 \iff \frac{x^2}{16} + \frac{y^2}{4} = 1$, uma elipse concêntrica de semieixos $4$ e $2$.</item>
+            </list>
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:3-2-mapa-corrente">
+        <title>Mapa de ativação cortical e corrente iônica em 3 variáveis</title>
+        <list marker="a">
+          <item>Um mapa simplificado de ativação cortical ($\text{u.a.}$) em função da posição $(x, y)$ em milímetros é modelado por:
+            $$Z(x, y) = 4\exp\!\left(-\frac{(x - 2)^2 + (y - 1)^2}{8}\right).$$
+            Determine domínio, imagem, forma das curvas de nível $Z(x, y) = c$ ($0 < c < 4$), $Z_x(0, -1)$ e $Z_y(0, -1)$.
+          </item>
+          <item>Pela lei de Ohm em um canal iônico, $I(g, V, E) = g(V - E)$ (com $g > 0$). Calcule $\frac{\partial I}{\partial g}$, $\frac{\partial I}{\partial V}$ e $\frac{\partial I}{\partial E}$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>O domínio é $D = \mathbb{R}^2$. Como o expoente $-\frac{(x-2)^2 + (y-1)^2}{8}$ é $\le 0$ e atinge o máximo $0$ só em $(2, 1)$, $\exp(\dots) \in (0, 1]$, logo a imagem é $(0, 4]$.
+
+            Para $0 < c < 4$, $Z(x, y) = c$ equivale a:
+            $$\exp\!\left(-\frac{(x - 2)^2 + (y - 1)^2}{8}\right) = \frac{c}{4} \iff (x - 2)^2 + (y - 1)^2 = 8\ln\!\left(\frac{4}{c}\right).$$
+            Como $8\ln(4/c) > 0$, cada curva de nível é uma <strong>circunferência</strong> centrada no pico $(2, 1)$ de raio $\sqrt{8\ln(4/c)}$.
+
+            Mantendo $y$ fixo e aplicando a regra da cadeia:
+            $$Z_x(x, y) = 4\exp\!\left(-\frac{(x - 2)^2 + (y - 1)^2}{8}\right) \cdot \left(-\frac{2(x - 2)}{8}\right) = \frac{2 - x}{4}\,Z(x, y).$$
+            Analogamente, mantendo $x$ fixo:
+            $$Z_y(x, y) = \frac{1 - y}{4}\,Z(x, y).$$
+            Em $(0, -1)$, $(0 - 2)^2 + (-1 - 1)^2 = 8$, logo $Z(0, -1) = 4e^{-8/8} = 4e^{-1} \approx 1{,}47\text{ u.a.}$ e:
+            $$Z_x(0, -1) = \frac{2 - 0}{4}\cdot 4e^{-1} = 2e^{-1} \approx 0{,}74\text{ u.a./mm},$$
+            $$Z_y(0, -1) = \frac{1 - (-1)}{4}\cdot 4e^{-1} = 2e^{-1} \approx 0{,}74\text{ u.a./mm}.$$
+            Ambas são positivas: mover-se em $+x$ ou $+y$ aproxima $(0, -1)$ do pico $(2, 1)$.
+          </item>
+          <item>Escrevendo $I(g, V, E) = gV - gE$ e congelando duas variáveis por vez:
+            $$\frac{\partial I}{\partial g} = V - E, \qquad \frac{\partial I}{\partial V} = g, \qquad \frac{\partial I}{\partial E} = -g.$$
+            Biofisicamente: aumentar $g$ amplia $I$ proporcionalmente à força motriz $(V - E)$; a inclinação corrente–voltagem é $g$; e aumentar $E$ reduz $(V - E)$, dando taxa $-g$.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:3-2-armadilha-parcial">
+        <title>Armadilha comum</title>
+        Ao calcular $\frac{\partial}{\partial x}(x^2 y + y^3)$, não derive $y^3$ como $3y^2$ nem zere $x^2 y$: termos só com $y$ somem ($0$), enquanto fatores em $y$ multiplicando $x$ permanecem como coeficientes ($2xy$).
+      </remark>
+
+      <exercise id="exr:3-2-1-1">
+        <title>Básico — Derivadas parciais em 2 e 3 variáveis</title>
+        Calcule as derivadas parciais indicadas:
+        <list marker="a">
+          <item>$f_x(x, y)$ e $f_y(x, y)$ para $f(x, y) = 2x^3 - 4xy^2 + 7y$;</item>
+          <item>$g_x$, $g_y$ e $g_z$ para $g(x, y, z) = x e^{yz} + z^2$, avaliadas no ponto $(1, 0, 2)$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em cada derivada parcial, imagine substituir mentalmente todas as outras letras por números fixos antes de derivar.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Congelando $y$ para derivar em $x$ e depois $x$ para derivar em $y$:
+              $$f_x(x, y) = 6x^2 - 4y^2 + 0 = 6x^2 - 4y^2, \qquad f_y(x, y) = 0 - 8xy + 7 = -8xy + 7.$$
+            </item>
+            <item>Pela regra da cadeia em $e^{yz}$:
+              $$g_x(x, y, z) = e^{yz}, \qquad g_y(x, y, z) = x z e^{yz}, \qquad g_z(x, y, z) = x y e^{yz} + 2z.$$
+              Em $(1, 0, 2)$ ($yz = 0$, $e^0 = 1$):
+              $$g_x(1, 0, 2) = 1, \qquad g_y(1, 0, 2) = 1 \cdot 2 \cdot 1 = 2, \qquad g_z(1, 0, 2) = 1 \cdot 0 \cdot 1 + 2(2) = 4.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-2-1-2">
+        <title>Intermediário — Campo receptivo bidimensional de um neurônio visual</title>
+        A resposta evocada acima da linha de base (em $\text{Hz}$) de um neurônio visual a um ponto de luz na posição $(x, y)$ da retina (em graus de ângulo visual) é modelada por
+        $$R(x, y) = 20\exp\!\left(-\frac{x^2}{2} - \frac{y^2}{8}\right).$$
+        <list marker="a">
+          <item>Mostre que as curvas de nível $R(x, y) = c$ (para $0 < c < 20$) são elipses alongadas na direção $y$.</item>
+          <item>Calcule $R_x(1, 2)$ e $R_y(1, 2)$, interpretando os sinais e magnitudes.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), divida por $20$ e aplique $\ln$ nos dois lados. Em (b), note que em $(1, 2)$ o expoente vale $-\frac{1}{2} - \frac{4}{8} = -1$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Dividindo $R(x, y) = c$ por $20$ e aplicando $\ln$:
+              $$-\frac{x^2}{2} - \frac{y^2}{8} = \ln\!\left(\frac{c}{20}\right) \implies \frac{x^2}{2} + \frac{y^2}{8} = \ln\!\left(\frac{20}{c}\right).$$
+              Como $0 < c < 20$, $k = \ln(20/c) > 0$, dando a elipse $\frac{x^2}{2k} + \frac{y^2}{8k} = 1$, cujo semieixo em $y$ ($\sqrt{8k} = 2\sqrt{2k}$) é o dobro do semieixo em $x$ ($\sqrt{2k}$).
+            </item>
+            <item>Derivando parcialmente:
+              $$R_x(x, y) = -x\,R(x, y), \qquad R_y(x, y) = -\frac{y}{4}\,R(x, y).$$
+              Em $(1, 2)$, $R(1, 2) = 20 e^{-\frac{1}{2} - \frac{4}{8}} = 20e^{-1} \approx 7{,}36\text{ Hz}$, logo:
+              $$R_x(1, 2) = -1 \cdot 20e^{-1} = -20e^{-1} \approx -7{,}36\text{ Hz/grau},$$
+              $$R_y(1, 2) = -\frac{2}{4} \cdot 20e^{-1} = -10e^{-1} \approx -3{,}68\text{ Hz/grau}.$$
+              Ambas são negativas (afastar o estímulo de $(0, 0)$ em $+x$ ou $+y$ reduz a resposta), e a queda em $x$ é duas vezes mais rápida que em $y$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-2-1-3">
+        <title>Avançado — Derivadas parciais diretamente pela definição por limite</title>
+        Para $f(x, y) = x^2 y + 3y$, calcule $f_x(1, 2)$ e $f_y(1, 2)$ usando diretamente os limites da <ref to="def:3-2-derivada-parcial"/> e confira os resultados pelas regras de derivação.
+        <hint><title>Ver dica</title>Substitua $(a, b) = (1, 2)$ em $f(1 + h, 2)$ e $f(1, 2 + h)$, expanda os polinômios e simplifique $h$ antes de fazer $h \to 0$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Temos $f(1, 2) = 1^2 \cdot 2 + 3 \cdot 2 = 8$.
+
+          Com $f(1 + h, 2) = (1 + h)^2 \cdot 2 + 6 = 8 + 4h + 2h^2$:
+          $$f_x(1, 2) = \lim_{h \to 0} \frac{(8 + 4h + 2h^2) - 8}{h} = \lim_{h \to 0} (4 + 2h) = 4.$$
+          Com $f(1, 2 + h) = 1^2(2 + h) + 3(2 + h) = 8 + 4h$:
+          $$f_y(1, 2) = \lim_{h \to 0} \frac{(8 + 4h) - 8}{h} = \lim_{h \to 0} 4 = 4.$$
+          <em>Conferência:</em> $f_x = 2xy \implies f_x(1, 2) = 4$, e $f_y = x^2 + 3 \implies f_y(1, 2) = 4$.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:3-2-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Diferenciabilidade e continuidade</title>
+      <intro>
+        No plano, existem infinitas direções de aproximação a um ponto — e olhar só para os eixos $x$ e $y$ não garante continuidade.
+      </intro>
+
+      Na reta real (Módulo 2), havia apenas dois lados de aproximação; em $\mathbb{R}^2$, podemos chegar a $(a, b)$ por retas, parábolas ou espirais. O limite só existe se $f(x, y)$ convergir ao <em>mesmo</em> valor $L$ ao longo de todos os caminhos.
+
+      <definition id="def:3-2-limite-continuidade">
+        <title>Limite e continuidade em $\mathbb{R}^2$</title>
+        Seja $f: D \subset \mathbb{R}^2 \to \mathbb{R}$ definida em uma vizinhança de $(a, b)$ (exceto possivelmente no próprio $(a, b)$).
+        <list marker="number">
+          <item>Dizemos que $\lim_{(x, y) \to (a, b)} f(x, y) = L$ quando $f(x, y)$ fica arbitrariamente próxima de $L$ sempre que $0 < \sqrt{(x - a)^2 + (y - b)^2} < \delta$ implica $|f(x, y) - L| < \varepsilon$, independentemente da trajetória.</item>
+          <item>Dizemos que $f$ é <strong>contínua</strong> em $(a, b) \in D$ quando $\lim_{(x, y) \to (a, b)} f(x, y) = f(a, b)$.</item>
+        </list>
+        <intuition>
+          Dois caminhos até $(a, b)$ com limites distintos já provam que o limite não existe e que $f$ é descontínua ali.
+        </intuition>
+      </definition>
+
+      Como $f_x(a, b)$ testa só o caminho horizontal e $f_y(a, b)$ só o vertical, ambas podem existir mesmo com $f$ descontínua no ponto:
+
+      <example id="exm:3-2-contraexemplo-limite">
+        <title>Derivadas parciais existem, mas a função não é contínua</title>
+        Considere a função definida em $\mathbb{R}^2$ por:
+        $$f(x, y) = \begin{cases} \dfrac{xy}{x^2 + y^2}, & \text{se } (x, y) \ne (0, 0), \\[6pt] 0, & \text{se } (x, y) = (0, 0). \end{cases}$$
+        <list marker="a">
+          <item>Mostre que $\lim_{(x, y) \to (0, 0)} f(x, y)$ não existe (logo $f$ não é contínua em $(0, 0)$).</item>
+          <item>Calcule as derivadas parciais $f_x(0, 0)$ e $f_y(0, 0)$ pela definição.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Ao longo das retas $y = mx$ ($x \ne 0$):
+            $$f(x, mx) = \frac{x(mx)}{x^2 + (mx)^2} = \frac{mx^2}{x^2(1 + m^2)} = \frac{m}{1 + m^2}.$$
+            Por $y = 0$ ($m = 0$), o limite é $0$; por $y = x$ ($m = 1$), vale $\frac{1}{2}$ (e por $y = -x$, $-\frac{1}{2}$). Logo, $\lim_{(x, y) \to (0, 0)} f(x, y)$ <strong>não existe</strong> e $f$ é descontínua em $(0, 0)$.
+          </item>
+          <item>Pela <ref to="def:3-2-derivada-parcial"/>, em $y = 0$ temos $f(h, 0) = 0$ para todo $h$, e em $x = 0$ temos $f(0, h) = 0$:
+            $$f_x(0, 0) = \lim_{h \to 0} \frac{f(h, 0) - f(0, 0)}{h} = 0, \qquad f_y(0, 0) = \lim_{h \to 0} \frac{f(0, h) - f(0, 0)}{h} = 0.$$
+            Ambas existem e valem $0$, mesmo com a superfície rasgada na origem.
+          </item>
+        </list>
+      </example>
+
+      Em 1D, uma função derivável parecia uma reta tangente sob zoom. Em 2D, $z = f(x, y)$ é <strong>diferenciável</strong> em $(a, b)$ quando se aproxima de um <strong>plano tangente</strong> com erro menor que o passo $\sqrt{h^2 + k^2}$:
+
+      <definition id="def:3-2-diferenciabilidade">
+        <title>Diferenciabilidade e aproximação linear (plano tangente)</title>
+        Seja $f: D \subset \mathbb{R}^2 \to \mathbb{R}$ definida em uma vizinhança de $(a, b)$ onde existam $f_x(a, b)$ e $f_y(a, b)$. Dizemos que $f$ é <strong>diferenciável</strong> (<em>differentiable</em>) em $(a, b)$ quando:
+        $$\lim_{(h, k) \to (0, 0)} \frac{f(a + h, b + k) - \bigl[f(a, b) + f_x(a, b)\,h + f_y(a, b)\,k\bigr]}{\sqrt{h^2 + k^2}} = 0.$$
+        Nesse caso,
+        $$L(x, y) = f(a, b) + f_x(a, b)(x - a) + f_y(a, b)(y - b)$$
+        é a <strong>aproximação linear</strong> (<em>linear approximation</em>) de $f$ em $(a, b)$, cujo gráfico é o <strong>plano tangente</strong> em $(a, b, f(a, b))$. Para pequenos incrementos $h = \Delta x$ e $k = \Delta y$:
+        $$f(a + h, b + k) \approx f(a, b) + f_x(a, b)\,h + f_y(a, b)\,k.$$
+      </definition>
+
+      Dois teoremas organizam a prática:
+
+      <theorem id="thm:3-2-dif-cont">
+        <title>Diferenciabilidade implica continuidade</title>
+        Se $f$ é diferenciável em $(a, b)$, então $f$ é contínua em $(a, b)$.
+      </theorem>
+      <proof of="thm:3-2-dif-cont" collapsible="true" collapsed="true">
+        Escreva o quociente da <ref to="def:3-2-diferenciabilidade"/> como $\varepsilon(h, k)$, onde $\lim_{(h, k) \to (0, 0)} \varepsilon(h, k) = 0$. Isolando $f(a + h, b + k) - f(a, b)$:
+        $$f(a + h, b + k) - f(a, b) = f_x(a, b)\,h + f_y(a, b)\,k + \sqrt{h^2 + k^2}\,\varepsilon(h, k).$$
+        Quando $(h, k) \to (0, 0)$, o lado direito tende a $0$, logo $\lim_{(h, k) \to (0, 0)} f(a + h, b + k) = f(a, b)$, provando a continuidade.
+      </proof>
+
+      <theorem id="thm:3-2-parciais-continuas">
+        <title>Condição suficiente para diferenciabilidade</title>
+        Se as derivadas parciais $f_x$ e $f_y$ existem em uma vizinhança aberta de $(a, b)$ e são <strong>contínuas</strong> em $(a, b)$, então $f$ é diferenciável em $(a, b)$ (o mesmo vale para $n \ge 3$ variáveis).
+      </theorem>
+
+      Assim, combinações usuais de polinômios, exponenciais, logaritmos e funções trigonométricas em seus domínios têm parciais contínuas e são automaticamente diferenciáveis.
+
+      <example id="exm:3-2-aprox-corrente">
+        <title>Aproximação linear da corrente iônica em torno de um ponto de operação</title>
+        Considere um canal iônico com potencial de reversão fixo $E = -70\text{ mV}$. Com condutância $g$ em $\text{nS}$ e potencial $V$ em $\text{mV}$, a corrente em $\text{pA}$ é:
+        $$I(g, V) = g(V + 70),$$
+        já que $1\text{ nS} \cdot 1\text{ mV} = 10^{-9}\text{ S} \cdot 10^{-3}\text{ V} = 10^{-12}\text{ A} = 1\text{ pA}$.
+        <list marker="a">
+          <item>Escreva a aproximação linear de $I(g, V)$ em torno de $(g_0, V_0) = (10\text{ nS},\, -50\text{ mV})$.</item>
+          <item>Estime a corrente para $\Delta g = 1\text{ nS}$ ($g = 11\text{ nS}$) e $\Delta V = 2\text{ mV}$ ($V = -48\text{ mV}$), comparando com o valor exato.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Em $(10, -50)$, $I(10, -50) = 10(-50 + 70) = 200\text{ pA}$, e as parciais são:
+            $$I_g(g, V) = V + 70 \implies I_g(10, -50) = 20\text{ pA/nS},$$
+            $$I_V(g, V) = g \implies I_V(10, -50) = 10\text{ pA/mV}.$$
+            Como $I_g$ e $I_V$ são contínuas, $I$ é diferenciável (<ref to="thm:3-2-parciais-continuas"/>), com aproximação linear:
+            $$L(g, V) = 200 + 20(g - 10) + 10(V + 50).$$
+          </item>
+          <item>Para $\Delta g = 1$ e $\Delta V = 2$:
+            $$\Delta I_{\text{lin}} = 20(1) + 10(2) = 20 + 20 = 40\text{ pA},$$
+            dando $I_{\text{aprox}}(11, -48) = 200 + 40 = 240\text{ pA}$. O valor exato é:
+            $$I(11, -48) = 11(-48 + 70) = 11 \cdot 22 = 242\text{ pA},$$
+            com $\Delta I_{\text{exato}} = 42\text{ pA}$ — erro de apenas $2\text{ pA}$ ($\Delta g \cdot \Delta V$).
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:3-2-armadilha-cont">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Existir $f_x$ e $f_y$ não garante continuidade nem diferenciabilidade:</strong> pelo <ref to="exm:3-2-contraexemplo-limite"/>, é preciso que as parciais sejam <em>contínuas</em> na vizinhança (<ref to="thm:3-2-parciais-continuas"/>).</item>
+          <item><strong>Testar só retas não prova existência de limite:</strong> retas diferentes com limites distintos provam que o limite <em>não</em> existe; valores iguais em várias retas não descartam divergência em curvas como $y = x^2$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:3-2-2-1">
+        <title>Básico — Plano tangente e estimativa linear</title>
+        Para $f(x, y) = x^2 + 3xy - y^2$:
+        <list marker="a">
+          <item>encontre a aproximação linear $L(x, y)$ de $f$ em torno do ponto $(2, 1)$;</item>
+          <item>use $L(x, y)$ para estimar $f(2{,}1;\, 0{,}9)$ e compare com o valor exato.</item>
+        </list>
+        <hint><title>Ver dica</title>Calcule $f(2, 1)$, $f_x(2, 1)$ e $f_y(2, 1)$, e use $h = 0{,}1$ e $k = -0{,}1$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Temos $f(2, 1) = 4 + 6 - 1 = 9$ e:
+              $$f_x(x, y) = 2x + 3y \implies f_x(2, 1) = 4 + 3 = 7,$$
+              $$f_y(x, y) = 3x - 2y \implies f_y(2, 1) = 6 - 2 = 4.$$
+              Logo:
+              $$L(x, y) = 9 + 7(x - 2) + 4(y - 1).$$
+            </item>
+            <item>Com $h = 0{,}1$ e $k = -0{,}1$:
+              $$L(2{,}1;\, 0{,}9) = 9 + 7(0{,}1) + 4(-0{,}1) = 9 + 0{,}7 - 0{,}4 = 9{,}3.$$
+              O valor exato é $f(2{,}1;\, 0{,}9) = 2{,}1^2 + 3(2{,}1)(0{,}9) - 0{,}9^2 = 4{,}41 + 5{,}67 - 0{,}81 = 9{,}27$ (diferença de $0{,}03$).
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-2-2-2">
+        <title>Intermediário — Existência e inexistência de limites em $\mathbb{R}^2$</title>
+        Analise os dois limites abaixo na origem $(0, 0)$:
+        <list marker="a">
+          <item>Mostre que $\lim_{(x, y) \to (0, 0)} \dfrac{x^2 - y^2}{x^2 + y^2}$ não existe.</item>
+          <item>Mostre que $\lim_{(x, y) \to (0, 0)} \dfrac{x^2 y}{x^2 + y^2} = 0$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), teste os caminhos pelos eixos ($y = 0$ e $x = 0$). Em (b), observe que $0 \le \frac{x^2}{x^2 + y^2} \le 1$ para $(x, y) \ne (0, 0)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pelo eixo $x$ ($y = 0$, $x \ne 0$), a fração vale $\frac{x^2}{x^2} = 1$; pelo eixo $y$ ($x = 0$, $y \ne 0$), vale $\frac{-y^2}{y^2} = -1$. Como $1 \ne -1$, o limite não existe.
+            </item>
+            <item>Para $(x, y) \ne (0, 0)$, $0 \le \frac{x^2}{x^2 + y^2} \le 1$, logo:
+              $$0 \le \left|\frac{x^2 y}{x^2 + y^2}\right| = \frac{x^2}{x^2 + y^2}|y| \le |y|.$$
+              Como $\lim_{(x, y)\to(0,0)} |y| = 0$, pelo teorema do confronto o limite é $0$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-2-2-3">
+        <title>Avançado — Aproximação linear do mapa de ativação cortical</title>
+        Retome o mapa de ativação cortical $Z(x, y) = 4\exp\!\left(-\frac{(x - 2)^2 + (y - 1)^2}{8}\right)$ do <ref to="exm:3-2-mapa-corrente"/>.
+        <list marker="a">
+          <item>Justifique brevemente por que $Z$ é diferenciável em todo ponto de $\mathbb{R}^2$.</item>
+          <item>Use os valores já obtidos em $(0, -1)\text{ mm}$ ($Z(0, -1) = 4e^{-1}$, $Z_x(0, -1) = Z_y(0, -1) = 2e^{-1}$) para estimar $Z(0{,}2;\, -0{,}8)$ por aproximação linear, expressando o resultado como múltiplo exato de $e^{-1}$ e em decimal aproximado.</item>
+        </list>
+        <hint><title>Ver dica</title>Use o <ref to="thm:3-2-parciais-continuas"/> para (a) e faça $h = 0{,}2$, $k = 0{,}2$ em (b).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$Z_x(x, y) = \frac{2 - x}{4}Z(x, y)$ e $Z_y(x, y) = \frac{1 - y}{4}Z(x, y)$ são contínuas em todo $\mathbb{R}^2$, logo $Z$ é diferenciável pelo <ref to="thm:3-2-parciais-continuas"/>.
+            </item>
+            <item>Com $h = 0{,}2$ e $k = 0{,}2$ em torno de $(0, -1)$:
+              $$\begin{aligned}
+              Z(0{,}2;\, -0{,}8) &\approx Z(0, -1) + Z_x(0, -1)\,h + Z_y(0, -1)\,k \\
+              &= 4e^{-1} + 2e^{-1}(0{,}2) + 2e^{-1}(0{,}2) \\
+              &= (4 + 0{,}4 + 0{,}4)e^{-1} = 4{,}8e^{-1}.
+              \end{aligned}$$
+              Com $e^{-1} \approx 0{,}3679$, temos $Z(0{,}2;\, -0{,}8) \approx 1{,}77\text{ u.a.}$ (valor exato: $4e^{-0{,}81} \approx 1{,}78\text{ u.a.}$).
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:3-2-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Gradiente</title>
+      <intro>
+        Reunir as derivadas parciais em um vetor transforma a aproximação linear em um produto escalar e aponta sempre para o topo da colina.
+      </intro>
+
+      Na aproximação linear $f(a + h, b + k) - f(a, b) \approx f_x(a, b)\,h + f_y(a, b)\,k$, escrevendo $\mathbf{h} = (h, k)$, o lado direito é o produto escalar entre $\mathbf{h}$ e o vetor <strong>gradiente</strong> $(f_x(a, b), f_y(a, b))$:
+
+      <definition id="def:3-2-gradiente">
+        <title>Vetor gradiente</title>
+        Seja $f$ uma função cujas derivadas parciais existem no ponto $\mathbf{a}$.
+        <list marker="dash">
+          <item>Em $\mathbb{R}^2$, o <strong>gradiente</strong> (<em>gradient</em>) de $f$ em $(x, y)$ é o vetor:
+            $$\nabla f(x, y) = \left(\frac{\partial f}{\partial x}(x, y),\; \frac{\partial f}{\partial y}(x, y)\right) = \bigl(f_x(x, y),\, f_y(x, y)\bigr).$$
+          </item>
+          <item>Em $\mathbb{R}^3$, $\nabla f(x, y, z) = \left(\frac{\partial f}{\partial x},\, \frac{\partial f}{\partial y},\, \frac{\partial f}{\partial z}\right) = (f_x, f_y, f_z)$.</item>
+          <item>Em $\mathbb{R}^n$, $\nabla f(\mathbf{x}) = \left(\frac{\partial f}{\partial x_1},\, \dots,\, \frac{\partial f}{\partial x_n}\right)$.</item>
+        </list>
+        Em qualquer dimensão, a aproximação linear para um pequeno passo $\mathbf{h}$ fica:
+        $$f(\mathbf{a} + \mathbf{h}) \approx f(\mathbf{a}) + \nabla f(\mathbf{a}) \cdot \mathbf{h}.$$
+        <intuition>
+          O operador $\nabla$ ("nabla") associa a cada ponto $\mathbf{x}$ do domínio um vetor no próprio domínio, formando um campo vetorial (Tema 3.1).
+        </intuition>
+      </definition>
+
+      As propriedades geométricas centrais do gradiente serão provadas no Subtema 5 (<ref to="sec:3-2-5"/>):
+
+      <proposition id="prop:3-2-propriedades-gradiente">
+        <title>Propriedades geométricas do gradiente</title>
+        Seja $f$ diferenciável em $\mathbf{a} \in \mathbb{R}^2$ (ou $\mathbb{R}^3$), com $\nabla f(\mathbf{a}) \ne \mathbf{0}$. Então:
+        <list marker="number">
+          <item><strong>Direção de maior subida:</strong> $\nabla f(\mathbf{a})$ aponta para onde $f$ cresce mais rápido a partir de $\mathbf{a}$.</item>
+          <item><strong>Taxa máxima de crescimento:</strong> a taxa máxima nessa direção é $\|\nabla f(\mathbf{a})\|$.</item>
+          <item><strong>Direção de maior descida:</strong> $-\nabla f(\mathbf{a})$ aponta para onde $f$ decresce mais rápido.</item>
+          <item><strong>Ortogonalidade às curvas de nível:</strong> $\nabla f(\mathbf{a})$ é perpendicular à curva (ou superfície) de nível que passa por $\mathbf{a}$.</item>
+        </list>
+        Nos pontos de plano tangente horizontal (picos, vales e selas), vale $\nabla f(\mathbf{a}) = \mathbf{0}$.
+      </proposition>
+
+      A propriedade 3 baseia o <strong>gradiente descendente</strong> (<em>gradient descent</em>): para minimizar um custo $J(\mathbf{w})$, atualizamos os parâmetros contra o gradiente, $\mathbf{w}_{\text{novo}} = \mathbf{w} - \eta\,\nabla J(\mathbf{w})$, com taxa de aprendizado $\eta > 0$ — tema central do Módulo 4 (<mark>Otimização</mark>).
+
+      A <ref to="fig:3-2-gradiente-ativacao"/> mostra essas propriedades no mapa do <ref to="exm:3-2-mapa-corrente"/>: curvas de nível azuis, o pico $(2, 1)$ onde $\nabla Z = \mathbf{0}$, e setas de $\nabla Z$ perpendiculares às curvas apontando ao pico.
+
+      <figure src="fig/gradiente-ativacao.svg" alt="Mapa de curvas de nível circulares do mapa de ativação cortical Z(x,y) centrado no pico (2, 1) mm, com setas do campo gradiente em uma grade 8 por 8 apontando radialmente em direção ao pico e perpendiculares às curvas de nível." id="fig:3-2-gradiente-ativacao">
+        <caption>Curvas de nível de $Z(x, y) = 4\exp\!\left(-\frac{(x - 2)^2 + (y - 1)^2}{8}\right)$ e campo gradiente $\nabla Z(x, y)$. Fora do pico $(2, 1)$, o gradiente é perpendicular às curvas de nível e aponta rumo ao máximo.</caption>
+      </figure>
+
+      <example id="exm:3-2-gradiente-cortical">
+        <title>O gradiente do mapa de ativação cortical aponta para o pico</title>
+        Para o mapa de ativação $Z(x, y) = 4\exp\!\left(-\frac{(x - 2)^2 + (y - 1)^2}{8}\right)$:
+        <list marker="a">
+          <item>escreva $\nabla Z(x, y)$ e mostre que, para $(x, y) \ne (2, 1)$, ele aponta para $(2, 1)$; </item>
+          <item>avalie $\nabla Z$ e $\|\nabla Z\|$ em $(0, -1)\text{ mm}$ e no pico $(2, 1)\text{ mm}$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Reunindo as parciais do <ref to="exm:3-2-mapa-corrente"/>:
+            $$\nabla Z(x, y) = \left(\frac{2 - x}{4}\,Z(x, y),\; \frac{1 - y}{4}\,Z(x, y)\right) = \frac{Z(x, y)}{4}\,(2 - x,\; 1 - y).$$
+            Como $(2 - x, 1 - y) = (2, 1) - (x, y)$ vai de $(x, y)$ até $(2, 1)$ e $\frac{Z(x, y)}{4} > 0$, $\nabla Z(x, y)$ aponta radialmente ao pico $(2, 1)$, perpendicular às circunferências de nível.
+          </item>
+          <item>Em $(0, -1)$, $Z(0, -1) = 4e^{-1}$, logo:
+            $$\nabla Z(0, -1) = \frac{4e^{-1}}{4}\,(2 - 0,\; 1 - (-1)) = (2e^{-1},\, 2e^{-1})\text{ u.a./mm},$$
+            $$\|\nabla Z(0, -1)\| = \sqrt{(2e^{-1})^2 + (2e^{-1})^2} = 2\sqrt{2}\,e^{-1} \approx 1{,}04\text{ u.a./mm}.$$
+            No pico $(2, 1)$, $\nabla Z(2, 1) = (0, 0) = \mathbf{0}$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:3-2-quimiotaxia">
+        <title>Guiamento axonal por gradiente químico (quimiotaxia)</title>
+        Cones de crescimento (<em>growth cones</em>) axonais navegam no tecido seguindo gradientes químicos (<em>chemotaxis</em>). Para a concentração-modelo em torno da origem $(0, 0)$ ($x, y$ em $\text{mm}$, $C$ em $\text{nmol/L}$):
+        $$C(x, y) = 10\exp\!\left(-\frac{x^2 + y^2}{4}\right).$$
+        <list marker="a">
+          <item>Calcule o gradiente $\nabla C(x, y)$.</item>
+          <item>Em $(2, 0)\text{ mm}$, para onde aponta um cone atraído pela molécula? E um repelido?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Pela regra da cadeia:
+            $$\frac{\partial C}{\partial x} = 10\exp\!\left(-\frac{x^2 + y^2}{4}\right)\cdot\left(-\frac{2x}{4}\right) = -\frac{x}{2}\,C(x, y), \qquad \frac{\partial C}{\partial y} = -\frac{y}{2}\,C(x, y).$$
+            Portanto,
+            $$\nabla C(x, y) = -\frac{C(x, y)}{2}\,(x, y).$$
+          </item>
+          <item>Em $(2, 0)$, $C(2, 0) = 10e^{-1}\text{ nmol/L}$ e:
+            $$\nabla C(2, 0) = -\frac{10e^{-1}}{2}\,(2, 0) = (-10e^{-1},\; 0)\text{ nmol/(L}\cdot\text{mm)}.$$
+            Pela <ref to="prop:3-2-propriedades-gradiente"/>, o cone atraído segue $+\nabla C(2, 0)$, direção $(-1, 0)$ rumo à fonte na origem (taxa $10e^{-1} \approx 3{,}68\text{ nmol/(L}\cdot\text{mm)}$); o cone repelido segue $-\nabla C(2, 0) = (10e^{-1}, 0)$, na direção $(1, 0)$.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:3-2-armadilha-gradiente">
+        <title>Armadilha comum</title>
+        <strong>Não confunda $\nabla f(a, b)$ com um vetor no gráfico 3D.</strong> Para $f: \mathbb{R}^2 \to \mathbb{R}$, o gradiente $\nabla f(a, b) = (f_x(a, b), f_y(a, b))$ mora no plano do domínio $\mathbb{R}^2$ (<ref to="fig:3-2-gradiente-ativacao"/>) e é perpendicular à curva de nível — nunca tangente a ela.
+      </remark>
+
+      <exercise id="exr:3-2-3-1">
+        <title>Básico — Cálculo mecânico de gradientes em 2D e 3D</title>
+        Calcule o campo gradiente $\nabla f$ e avalie-o no ponto indicado:
+        <list marker="a">
+          <item>$f(x, y) = x^2 y - 3y^2 + 4x$, em $(1, 2)$; </item>
+          <item>$g(x, y, z) = x^2 + 2yz - e^{x - z}$, em $(1, 3, 1)$.</item>
+        </list>
+        <hint><title>Ver dica</title>Calcule cada derivada parcial separadamente e monte o vetor com $2$ componentes em (a) e $3$ componentes em (b). Note que em $(1, 3, 1)$, $x - z = 0$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Com $f_x = 2xy + 4$ e $f_y = x^2 - 6y$:
+              $$\nabla f(x, y) = (2xy + 4,\; x^2 - 6y), \qquad \nabla f(1, 2) = \bigl(2(1)(2) + 4,\; 1^2 - 6(2)\bigr) = (8, -11).$$
+            </item>
+            <item>Com $g_x = 2x - e^{x - z}$, $g_y = 2z$ e $g_z = 2y + e^{x - z}$ (pois $\frac{\partial}{\partial z}(-e^{x - z}) = +e^{x - z}$):
+              $$\nabla g(x, y, z) = \bigl(2x - e^{x - z},\; 2z,\; 2y + e^{x - z}\bigr).$$
+              Em $(1, 3, 1)$ ($e^0 = 1$):
+              $$\nabla g(1, 3, 1) = (2(1) - 1,\; 2(1),\; 2(3) + 1) = (1, 2, 7).$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-2-3-2">
+        <title>Intermediário — Um passo de gradiente descendente em uma função de custo</title>
+        Suponha que o erro quadrático ao ajustar dois parâmetros $\mathbf{w} = (w_1, w_2)$ de um modelo de disparo neural seja dado por:
+        $$J(w_1, w_2) = (w_1 - 3)^2 + 2(w_2 + 1)^2.$$
+        <list marker="a">
+          <item>Calcule $\nabla J(w_1, w_2)$ e avalie $J$ e $\nabla J$ no ponto inicial $\mathbf{w} = (1, 1)$.</item>
+          <item>Aplique um passo de gradiente descendente $\mathbf{w}_{\text{novo}} = \mathbf{w} - \eta\,\nabla J(\mathbf{w})$ com taxa de aprendizado $\eta = 0{,}25$ e verifique que o erro diminuiu, isto é, $J(\mathbf{w}_{\text{novo}}) < J(\mathbf{w})$.</item>
+        </list>
+        <hint><title>Ver dica</title>Subtraia $0{,}25\,\nabla J(1, 1)$ de $(1, 1)$ componente a componente e substitua as novas coordenadas em $J$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$$\nabla J(w_1, w_2) = \bigl(2(w_1 - 3),\; 4(w_2 + 1)\bigr).$$
+              Em $\mathbf{w} = (1, 1)$:
+              $$J(1, 1) = (1 - 3)^2 + 2(1 + 1)^2 = 4 + 8 = 12, \qquad \nabla J(1, 1) = \bigl(2(-2),\; 4(2)\bigr) = (-4, 8).$$
+            </item>
+            <item>Com $\eta = 0{,}25$:
+              $$\mathbf{w}_{\text{novo}} = (1, 1) - 0{,}25(-4, 8) = (2, -1),$$
+              $$J(2, -1) = (2 - 3)^2 + 2(-1 + 1)^2 = 1 + 0 = 1 < 12.$$
+              Um passo contra o gradiente reduziu o erro de $12$ para $1$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-2-3-3">
+        <title>Avançado — Gradiente tridimensional de um sinal químico no tecido</title>
+        Uma glia libera um fator trófico cuja concentração estacionária no tecido em torno da origem $(0, 0, 0)$ é modelada (em $\mu\text{M}$, com $x, y, z$ em $\text{mm}$) por:
+        $$C(x, y, z) = \frac{100}{1 + x^2 + y^2 + z^2}.$$
+        <list marker="a">
+          <item>Calcule o gradiente tridimensional $\nabla C(x, y, z)$.</item>
+          <item>Avalie $\nabla C$ e a taxa máxima $\|\nabla C\|$ no ponto $P = (1, 2, 2)\text{ mm}$, confirmando que $\nabla C(P)$ aponta exatamente para a origem.</item>
+        </list>
+        <hint><title>Ver dica</title>Escreva $C = 100(1 + x^2 + y^2 + z^2)^{-1}$ e use a regra da cadeia em cada variável. Note que em $P = (1, 2, 2)$, $1 + 1^2 + 2^2 + 2^2 = 10$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pela regra da cadeia em $100(1 + x^2 + y^2 + z^2)^{-1}$:
+              $$\frac{\partial C}{\partial x} = -100(1 + x^2 + y^2 + z^2)^{-2}\cdot(2x) = -\frac{200x}{(1 + x^2 + y^2 + z^2)^2}.$$
+              Por simetria em $y$ e $z$:
+              $$\nabla C(x, y, z) = -\frac{200}{(1 + x^2 + y^2 + z^2)^2}\,(x, y, z).$$
+            </item>
+            <item>Em $P = (1, 2, 2)$, $1 + 1 + 4 + 4 = 10$, logo:
+              $$\nabla C(1, 2, 2) = -\frac{200}{100}\,(1, 2, 2) = (-2, -4, -4)\;\mu\text{M/mm}.$$
+              Como $\nabla C(P) = 2(-1, -2, -2) = 2\bigl((0, 0, 0) - P\bigr)$, ele aponta para a origem, com taxa máxima:
+              $$\|\nabla C(1, 2, 2)\| = \sqrt{(-2)^2 + (-4)^2 + (-4)^2} = \sqrt{36} = 6\;\mu\text{M/mm}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:3-2-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Derivadas parciais</title>
+      <intro>
+        Além de compor o gradiente, derivadas parciais medem a sensibilidade de uma resposta a cada parâmetro e definem as curvaturas de segunda ordem.
+      </intro>
+
+      Como $f_x$ e $f_y$ também são funções de $(x, y)$, podemos derivá-las novamente para obter quatro <strong>derivadas parciais de segunda ordem</strong>. Além disso, em modelos fisiológicos, as parciais de primeira ordem atuam como <strong>sensibilidades</strong> à variação isolada de cada parâmetro.
+
+      <definition id="def:3-2-ordem-superior">
+        <title>Derivadas parciais de segunda ordem e tabela Hessiana</title>
+        Dada uma função $f(x, y)$, definimos suas quatro derivadas parciais de segunda ordem:
+        <list marker="dash">
+          <item>$f_{xx} = \dfrac{\partial}{\partial x}\!\left(\dfrac{\partial f}{\partial x}\right) = \dfrac{\partial^2 f}{\partial x^2}$ (deriva em $x$ duas vezes);</item>
+          <item>$f_{xy} = \dfrac{\partial}{\partial y}\!\left(\dfrac{\partial f}{\partial x}\right) = \dfrac{\partial^2 f}{\partial y \partial x}$ (deriva primeiro em $x$, depois em $y$);</item>
+          <item>$f_{yx} = \dfrac{\partial}{\partial x}\!\left(\dfrac{\partial f}{\partial y}\right) = \dfrac{\partial^2 f}{\partial x \partial y}$ (deriva primeiro em $y$, depois em $x$);</item>
+          <item>$f_{yy} = \dfrac{\partial}{\partial y}\!\left(\dfrac{\partial f}{\partial y}\right) = \dfrac{\partial^2 f}{\partial y^2}$ (deriva em $y$ duas vezes).</item>
+        </list>
+        Organizando-as em uma tabela $2 \times 2$ obtemos a <strong>matriz Hessiana</strong> (<em>Hessian matrix</em>) de $f$:
+        $$\mathbf{H}_f(x, y) = \begin{pmatrix} f_{xx}(x, y) & f_{xy}(x, y) \\ f_{yx}(x, y) & f_{yy}(x, y) \end{pmatrix}.$$
+        <intuition>
+          Assim como $f''(x)$ mede a concavidade em 1D, a tabela $\mathbf{H}_f$ reúne as curvaturas em 2D; ela será usada no Tema 4.2 (<mark>Minimização e maximização</mark>) e estudada como matriz no Módulo 5.
+        </intuition>
+      </definition>
+
+      Para quase toda função usada na ciência, a ordem de derivação nas mistas não altera o resultado:
+
+      <theorem id="thm:3-2-schwarz">
+        <title>Teorema de Schwarz (ou de Clairaut)</title>
+        Se $f(x, y)$ possui derivadas parciais mistas $f_{xy}$ e $f_{yx}$ definidas em uma vizinhança aberta de $(a, b)$ e contínuas em $(a, b)$, então:
+        $$f_{xy}(a, b) = f_{yx}(a, b).$$
+      </theorem>
+
+      Logo, quando as derivadas segundas são contínuas, a Hessiana $\mathbf{H}_f$ é simétrica.
+
+      <example id="exm:3-2-schwarz-hessiana">
+        <title>Derivadas de segunda ordem, verificação de Schwarz e tabela Hessiana</title>
+        Para $f(x, y) = x^3 y^2 + \sin(2x) + e^{3y}$:
+        <list marker="a">
+          <item>calcule $f_x$, $f_y$ e as quatro derivadas parciais de segunda ordem, verificando que $f_{xy} = f_{yx}$; </item>
+          <item>monte a tabela Hessiana $\mathbf{H}_f(0, 0)$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Primeiras parciais:
+            $$f_x(x, y) = 3x^2 y^2 + 2\cos(2x), \qquad f_y(x, y) = 2x^3 y + 3e^{3y}.$$
+            Derivando $f_x$ em $x$ e em $y$:
+            $$f_{xx}(x, y) = 6xy^2 - 4\sin(2x), \qquad f_{xy}(x, y) = \frac{\partial}{\partial y}\bigl(3x^2 y^2 + 2\cos(2x)\bigr) = 6x^2 y.$$
+            Derivando $f_y$ em $x$ e em $y$:
+            $$f_{yx}(x, y) = \frac{\partial}{\partial x}\bigl(2x^3 y + 3e^{3y}\bigr) = 6x^2 y, \qquad f_{yy}(x, y) = 2x^3 + 9e^{3y}.$$
+            Como $f_{xy} = f_{yx} = 6x^2 y$, o <ref to="thm:3-2-schwarz"/> fica verificado.
+          </item>
+          <item>Em $(0, 0)$: $f_{xx}(0, 0) = 0$, $f_{xy}(0, 0) = f_{yx}(0, 0) = 0$ e $f_{yy}(0, 0) = 9e^0 = 9$. Assim:
+            $$\mathbf{H}_f(0, 0) = \begin{pmatrix} 0 & 0 \\ 0 & 9 \end{pmatrix}.$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:3-2-nernst-sensibilidade">
+        <title>Sensibilidade do potencial de equilíbrio de Nernst para o potássio</title>
+        O potencial de equilíbrio de um íon pela equação de Nernst é:
+        $$E(c_{\text{ext}}, c_{\text{int}}) = \frac{RT}{zF}\ln\!\left(\frac{c_{\text{ext}}}{c_{\text{int}}}\right),$$
+        onde $c_{\text{ext}}, c_{\text{int}} > 0$ são as concentrações extracelular e intracelular. A $37\,^\circ\text{C}$, $\frac{RT}{F} \approx 26{,}7\text{ mV}$. Para o potássio ($\text{K}^+$, $z = 1$), considere $c_{\text{ext}} = 5\text{ mM}$ e $c_{\text{int}} = 140\text{ mM}$.
+        <list marker="a">
+          <item>Calcule $E_K$ nessas condições.</item>
+          <item>Calcule as sensibilidades $\dfrac{\partial E}{\partial c_{\text{ext}}}$ e $\dfrac{\partial E}{\partial c_{\text{int}}}$ em $(5, 140)\text{ mM}$ e interprete os sinais e magnitudes.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Com $\frac{RT}{zF} = 26{,}7\text{ mV}$ e $\frac{c_{\text{ext}}}{c_{\text{int}}} = \frac{5}{140} = \frac{1}{28}$:
+            $$E_K = 26{,}7\ln\!\left(\frac{1}{28}\right) = -26{,}7\ln(28) \approx -26{,}7 \cdot 3{,}332 \approx -89\text{ mV}.$$
+          </item>
+          <item>Como $\ln(c_{\text{ext}}/c_{\text{int}}) = \ln c_{\text{ext}} - \ln c_{\text{int}}$:
+            $$E(c_{\text{ext}}, c_{\text{int}}) = \frac{RT}{zF}\bigl(\ln c_{\text{ext}} - \ln c_{\text{int}}\bigr),$$
+            $$\frac{\partial E}{\partial c_{\text{ext}}} = \frac{RT}{zF}\cdot\frac{1}{c_{\text{ext}}}, \qquad \frac{\partial E}{\partial c_{\text{int}}} = -\frac{RT}{zF}\cdot\frac{1}{c_{\text{int}}}.$$
+            Em $(5, 140)\text{ mM}$:
+            $$\frac{\partial E}{\partial c_{\text{ext}}}\Big|_{(5, 140)} = \frac{26{,}7}{5} = +5{,}34\text{ mV/mM}, \qquad \frac{\partial E}{\partial c_{\text{int}}}\Big|_{(5, 140)} = -\frac{26{,}7}{140} \approx -0{,}191\text{ mV/mM}.$$
+            Aumentar o $\text{K}^+$ externo despolariza $E_K$ ($+5{,}34\text{ mV/mM}$), enquanto aumentar o interno o hiperpolariza ($-0{,}191\text{ mV/mM}$). Como $c_{\text{ext}}$ é $28$ vezes menor que $c_{\text{int}}$, a sensibilidade a $c_{\text{ext}}$ é $28$ vezes maior — explicando o forte impacto da hipercalemia na excitabilidade.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:3-2-armadilha-ordem">
+        <title>Armadilha comum</title>
+        Atenção à ordem nas notações mistas: em $f_{xy}$, lê-se da esquerda para a direita (primeiro $x$, depois $y$); em $\frac{\partial^2 f}{\partial y\,\partial x} = \frac{\partial}{\partial y}\!\left(\frac{\partial f}{\partial x}\right)$, o operador mais próximo de $f$ atua primeiro (primeiro $x$, depois $y$). Quando as parciais segundas são contínuas (<ref to="thm:3-2-schwarz"/>), ambas coincidem.
+      </remark>
+
+      <exercise id="exr:3-2-4-1">
+        <title>Básico — Gradientes em 2D/3D, derivadas segundas e Hessiana</title>
+        <list marker="a">
+          <item>Calcule $\nabla f(x, y)$ para $f(x, y) = x^2 e^y + 3xy^2$ — etapa preparatória para as derivadas segundas do item (b) — e $\nabla g(x, y, z)$ para $g(x, y, z) = \ln(x + 2y) + z^3 y$ ($x + 2y > 0$).</item>
+          <item>Calcule $f_{xx}, f_{xy}, f_{yx}$ e $f_{yy}$, confira o teorema de Schwarz e escreva $\mathbf{H}_f(1, 0)$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em $\ln(x + 2y)$, não esqueça o fator $2$ da regra da cadeia ao derivar em relação a $y$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Para $f$: $f_x = 2xe^y + 3y^2$ e $f_y = x^2 e^y + 6xy$, logo:
+              $$\nabla f(x, y) = (2xe^y + 3y^2,\; x^2 e^y + 6xy).$$
+              Para $g$:
+              $$\nabla g(x, y, z) = \left(\frac{1}{x + 2y},\; \frac{2}{x + 2y} + z^3,\; 3z^2 y\right).$$
+            </item>
+            <item>Derivando $f_x$ e $f_y$ novamente:
+              $$f_{xx} = 2e^y, \qquad f_{xy} = 2xe^y + 6y,$$
+              $$f_{yx} = 2xe^y + 6y, \qquad f_{yy} = x^2 e^y + 6x.$$
+              Como $f_{xy} = f_{yx}$, confirma-se Schwarz. Em $(1, 0)$ ($e^0 = 1$): $f_{xx}(1, 0) = 2$, $f_{xy}(1, 0) = f_{yx}(1, 0) = 2$ e $f_{yy}(1, 0) = 1 + 6 = 7$. Portanto:
+              $$\mathbf{H}_f(1, 0) = \begin{pmatrix} 2 & 2 \\ 2 & 7 \end{pmatrix}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-2-4-2">
+        <title>Intermediário — Sensibilidade do potencial de Nernst do sódio ($\text{Na}^+$)</title>
+        Para o íon sódio ($\text{Na}^+$, $z = +1$) a $37\,^\circ\text{C}$ ($\frac{RT}{F} \approx 26{,}7\text{ mV}$), considere concentrações típicas $c_{\text{ext}} = 145\text{ mM}$ e $c_{\text{int}} = 15\text{ mM}$.
+        <list marker="a">
+          <item>Calcule as sensibilidades $\dfrac{\partial E}{\partial c_{\text{ext}}}$ e $\dfrac{\partial E}{\partial c_{\text{int}}}$ no ponto $(145, 15)\text{ mM}$.</item>
+          <item>Se $c_{\text{int}}$ aumentar em $\Delta c_{\text{int}} = 3\text{ mM}$ (mantendo $c_{\text{ext}} = 145\text{ mM}$), estime $\Delta E_{\text{Na}}$ e explique o sinal biofísico.</item>
+          <item>Calcule a segunda derivada $\dfrac{\partial^2 E}{\partial c_{\text{int}}^2}$ e interprete seu sinal: a sensibilidade a $c_{\text{int}}$ fica mais forte ou mais fraca conforme $c_{\text{int}}$ cresce?</item>
+        </list>
+        <hint><title>Ver dica</title>Use as fórmulas das parciais do <ref to="exm:3-2-nernst-sensibilidade"/> e lembre que $\frac{d}{dc}(c^{-1}) = -c^{-2}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pelas fórmulas do <ref to="exm:3-2-nernst-sensibilidade"/> ($z = 1$):
+              $$\frac{\partial E}{\partial c_{\text{ext}}}\Big|_{(145, 15)} = \frac{26{,}7}{145} \approx +0{,}184\text{ mV/mM}, \qquad \frac{\partial E}{\partial c_{\text{int}}}\Big|_{(145, 15)} = -\frac{26{,}7}{15} = -1{,}78\text{ mV/mM}.$$
+            </item>
+            <item>Com $\Delta c_{\text{ext}} = 0$ e $\Delta c_{\text{int}} = 3\text{ mM}$:
+              $$\Delta E_{\text{Na}} \approx (-1{,}78\text{ mV/mM}) \cdot 3\text{ mM} = -5{,}34\text{ mV}.$$
+              É negativa porque mais $\text{Na}^+$ interno reduz o gradiente químico de entrada e baixa $E_{\text{Na}}$.
+            </item>
+            <item>Derivando $\frac{\partial E}{\partial c_{\text{int}}} = -26{,}7\,c_{\text{int}}^{-1}$ novamente em $c_{\text{int}}$:
+              $$\frac{\partial^2 E}{\partial c_{\text{int}}^2} = \frac{26{,}7}{c_{\text{int}}^2} > 0.$$
+              Sendo positiva, a derivada primeira fica menos negativa ao crescer $c_{\text{int}}$: a magnitude da sensibilidade diminui.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-2-4-3">
+        <title>Avançado — Hessiana do mapa gaussiano e derivadas de um campo em 3D</title>
+        <list marker="a">
+          <item>Para o mapa de ativação $Z(x, y) = 4\exp\!\left(-\frac{(x - 2)^2 + (y - 1)^2}{8}\right)$, parta de $Z_x = \frac{2 - x}{4}Z$ e $Z_y = \frac{1 - y}{4}Z$ para calcular $Z_{xx}$, $Z_{xy}$ e $Z_{yy}$. Monte $\mathbf{H}_Z(2, 1)$ no pico e interprete os sinais da diagonal.</item>
+          <item>Para praticar gradientes em 3D, calcule $\nabla \phi(x, y, z)$ para $\phi(x, y, z) = x e^{-y} + \sin(xz)$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), use a regra do produto em $\frac{\partial}{\partial x}\!\left(\frac{2 - x}{4}Z\right)$ e substitua $Z_x = \frac{2 - x}{4}Z$ no segundo termo.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pela regra do produto em $Z_x = \frac{2 - x}{4}Z$:
+              $$Z_{xx} = -\frac{1}{4}Z + \frac{2 - x}{4}Z_x = \left(-\frac{1}{4} + \frac{(2 - x)^2}{16}\right)Z = \frac{(x - 2)^2 - 4}{16}Z.$$
+              Para $Z_{xy}$ e $Z_{yy}$:
+              $$Z_{xy} = \frac{2 - x}{4}Z_y = \frac{(2 - x)(1 - y)}{16}Z = \frac{(x - 2)(y - 1)}{16}Z, \qquad Z_{yy} = \frac{(y - 1)^2 - 4}{16}Z.$$
+              No pico $(2, 1)$ ($Z(2, 1) = 4$):
+              $$Z_{xx}(2, 1) = \frac{-4}{16}\cdot 4 = -1, \qquad Z_{xy}(2, 1) = 0, \qquad Z_{yy}(2, 1) = \frac{-4}{16}\cdot 4 = -1.$$
+              Assim, $\mathbf{H}_Z(2, 1) = \begin{pmatrix} -1 & 0 \\ 0 & -1 \end{pmatrix}$. As entradas diagonais negativas refletem concavidade para baixo em qualquer corte vertical pelo pico.
+            </item>
+            <item>Derivando $\phi(x, y, z) = x e^{-y} + \sin(xz)$ em cada variável:
+              $$\nabla \phi(x, y, z) = \bigl(e^{-y} + z\cos(xz),\; -x e^{-y},\; x\cos(xz)\bigr).$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:3-2-5">
+      <eyebrow>Subtema 5</eyebrow>
+      <title>Derivada direcional</title>
+      <intro>
+        A derivada direcional mede a taxa de variação em qualquer direção unitária do mapa — e prova por que o gradiente é a direção de subida máxima.
+      </intro>
+
+      Em vez de andar apenas nos sentidos $+x$ ou $+y$, queremos a taxa de variação <em>por unidade de distância</em> ao longo de uma direção unitária qualquer $\mathbf{u}$ ($\|\mathbf{u}\| = 1$):
+
+      <definition id="def:3-2-derivada-direcional">
+        <title>Derivada direcional</title>
+        Seja $f$ definida em uma vizinhança de $\mathbf{a} \in \mathbb{R}^2$ (ou $\mathbb{R}^3$) e seja $\mathbf{u}$ um <strong>vetor unitário</strong> ($\|\mathbf{u}\| = 1$). A <strong>derivada direcional</strong> (<em>directional derivative</em>) de $f$ em $\mathbf{a}$ na direção e sentido de $\mathbf{u}$ é:
+        $$D_{\mathbf{u}} f(\mathbf{a}) = \lim_{h \to 0} \frac{f(\mathbf{a} + h\mathbf{u}) - f(\mathbf{a})}{h},$$
+        quando o limite existe.
+        <intuition>
+          Para $\mathbf{u} = (1, 0)$ temos $D_{\mathbf{e}_1}f(\mathbf{a}) = f_x(\mathbf{a})$ e para $\mathbf{u} = (0, 1)$ temos $D_{\mathbf{e}_2}f(\mathbf{a}) = f_y(\mathbf{a})$; $D_{\mathbf{u}}f$ generaliza as parciais para qualquer direção de norma $1$.
+        </intuition>
+      </definition>
+
+      Quando $f$ é diferenciável, o plano tangente reduz esse limite a um produto escalar:
+
+      <theorem id="thm:3-2-formula-direcional">
+        <title>Cálculo da derivada direcional pelo gradiente</title>
+        Se $f$ é diferenciável em $\mathbf{a}$, então $f$ possui derivada direcional em toda direção unitária $\mathbf{u}$ ($\|\mathbf{u}\| = 1$), dada por:
+        $$D_{\mathbf{u}} f(\mathbf{a}) = \nabla f(\mathbf{a}) \cdot \mathbf{u}.$$
+        Em $\mathbb{R}^2$, com $\mathbf{u} = (u_1, u_2)$, isso equivale a $D_{\mathbf{u}} f(\mathbf{a}) = f_x(\mathbf{a})\,u_1 + f_y(\mathbf{a})\,u_2$.
+      </theorem>
+      <proof of="thm:3-2-formula-direcional" collapsible="true" collapsed="true">
+        Para $\mathbf{h} = h\mathbf{u}$ ($\|h\mathbf{u}\| = |h|$), a <ref to="def:3-2-diferenciabilidade"/> dá:
+        $$f(\mathbf{a} + h\mathbf{u}) - f(\mathbf{a}) = \nabla f(\mathbf{a}) \cdot (h\mathbf{u}) + |h|\,\varepsilon(h\mathbf{u}),$$
+        com $\varepsilon(h\mathbf{u}) \to 0$ quando $h \to 0$. Dividindo por $h \ne 0$:
+        $$\frac{f(\mathbf{a} + h\mathbf{u}) - f(\mathbf{a})}{h} = \nabla f(\mathbf{a}) \cdot \mathbf{u} + \frac{|h|}{h}\,\varepsilon(h\mathbf{u}).$$
+        Como $\left|\frac{|h|}{h}\,\varepsilon(h\mathbf{u})\right| = |\varepsilon(h\mathbf{u})| \to 0$, o limite é $\nabla f(\mathbf{a}) \cdot \mathbf{u}$.
+      </proof>
+
+      Juntando o <ref to="thm:3-2-formula-direcional"/> ao produto escalar geométrico (Tema 3.1), demonstramos a <ref to="prop:3-2-propriedades-gradiente"/>:
+
+      <corollary id="cor:3-2-direcoes-extremas">
+        <title>Direções de maior subida, maior descida e variação nula</title>
+        Seja $f$ diferenciável em $\mathbf{a}$ com $\nabla f(\mathbf{a}) \ne \mathbf{0}$, e seja $\theta \in [0, \pi]$ o ângulo entre $\nabla f(\mathbf{a})$ e a direção unitária $\mathbf{u}$. Então:
+        $$D_{\mathbf{u}} f(\mathbf{a}) = \|\nabla f(\mathbf{a})\|\cos\theta.$$
+        Em particular:
+        <list marker="number">
+          <item>o valor máximo de $D_{\mathbf{u}} f(\mathbf{a})$ é $\|\nabla f(\mathbf{a})\|$ e ocorre quando $\mathbf{u} = \dfrac{\nabla f(\mathbf{a})}{\|\nabla f(\mathbf{a})\|}$ ($\theta = 0$);</item>
+          <item>o valor mínimo de $D_{\mathbf{u}} f(\mathbf{a})$ é $-\|\nabla f(\mathbf{a})\|$ e ocorre quando $\mathbf{u} = -\dfrac{\nabla f(\mathbf{a})}{\|\nabla f(\mathbf{a})\|}$ ($\theta = \pi$);</item>
+          <item>$D_{\mathbf{u}} f(\mathbf{a}) = 0$ quando $\mathbf{u}$ é perpendicular a $\nabla f(\mathbf{a})$ ($\theta = \frac{\pi}{2}$), isto é, na direção tangente à curva de nível em $\mathbf{a}$.</item>
+        </list>
+      </corollary>
+      <proof of="cor:3-2-direcoes-extremas" collapsible="true" collapsed="true">
+        Pelo <ref to="thm:3-2-formula-direcional"/> e usando $\|\mathbf{u}\| = 1$:
+        $$D_{\mathbf{u}} f(\mathbf{a}) = \nabla f(\mathbf{a}) \cdot \mathbf{u} = \|\nabla f(\mathbf{a})\|\,\|\mathbf{u}\|\cos\theta = \|\nabla f(\mathbf{a})\|\cos\theta.$$
+        Como $-1 \le \cos\theta \le 1$, o máximo $+\|\nabla f(\mathbf{a})\|$ ocorre em $\theta = 0$ ($\mathbf{u}$ paralelo a $\nabla f(\mathbf{a})$) e o mínimo $-\|\nabla f(\mathbf{a})\|$ em $\theta = \pi$ (sentido oposto). Em uma curva de nível, $f$ é constante ($D_{\mathbf{u}}f = 0$), logo $\cos\theta = 0$ ($\theta = \frac{\pi}{2}$), provando a ortogonalidade da <ref to="prop:3-2-propriedades-gradiente"/>.
+      </proof>
+
+      <example id="exm:3-2-direcional-3d">
+        <title>Derivada direcional em 3D e direção de máximo crescimento</title>
+        Considere $f(x, y, z) = x^2 y - y z^2 + 3x$ no ponto $P = (1, 2, -1)$.
+        <list marker="a">
+          <item>Calcule a derivada direcional de $f$ em $P$ na direção do vetor $\mathbf{v} = (2, -1, 2)$.</item>
+          <item>Qual é a taxa máxima de crescimento de $f$ em $P$ e em que direção unitária ela ocorre?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Normalizando $\mathbf{v}$:
+            $$\|\mathbf{v}\| = \sqrt{2^2 + (-1)^2 + 2^2} = \sqrt{4 + 1 + 4} = \sqrt{9} = 3 \implies \mathbf{u} = \frac{\mathbf{v}}{3} = \left(\frac{2}{3},\; -\frac{1}{3},\; \frac{2}{3}\right).$$
+            O gradiente é $\nabla f(x, y, z) = (2xy + 3,\; x^2 - z^2,\; -2yz)$, e em $P = (1, 2, -1)$:
+            $$\nabla f(1, 2, -1) = \bigl(2(1)(2) + 3,\; 1^2 - (-1)^2,\; -2(2)(-1)\bigr) = (7, 0, 4).$$
+            Pelo <ref to="thm:3-2-formula-direcional"/>:
+            $$D_{\mathbf{u}} f(1, 2, -1) = (7, 0, 4) \cdot \left(\frac{2}{3},\; -\frac{1}{3},\; \frac{2}{3}\right) = \frac{14}{3} + 0 + \frac{8}{3} = \frac{22}{3} \approx 7{,}33.$$
+          </item>
+          <item>Pelo <ref to="cor:3-2-direcoes-extremas"/>, a taxa máxima é:
+            $$\|\nabla f(1, 2, -1)\| = \sqrt{7^2 + 0^2 + 4^2} = \sqrt{49 + 16} = \sqrt{65} \approx 8{,}06,$$
+            na direção unitária $\hat{\mathbf{d}} = \dfrac{\nabla f(P)}{\|\nabla f(P)\|} = \dfrac{1}{\sqrt{65}}(7, 0, 4)$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:3-2-eletrodo-cortical">
+        <title>Sonda exploratória sobre o mapa de ativação cortical</title>
+        Uma sonda move-se sobre o mapa $Z(x, y) = 4\exp\!\left(-\frac{(x - 2)^2 + (y - 1)^2}{8}\right)$ partindo de $(0, -1)\text{ mm}$, onde $\nabla Z(0, -1) = (2e^{-1}, 2e^{-1})\text{ u.a./mm}$ (<ref to="exm:3-2-gradiente-cortical"/>).
+        <list marker="a">
+          <item>Se a sonda avançar na direção de $\mathbf{v} = (3, 4)$, qual é a taxa $D_{\mathbf{u}} Z(0, -1)$?</item>
+          <item>Se seguir na direção $\mathbf{w} = (-1, 1)$, qual será a taxa instantânea?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Com $\|\mathbf{v}\| = \sqrt{3^2 + 4^2} = 5$, temos $\mathbf{u} = (0{,}6;\, 0{,}8)$ e:
+            $$D_{\mathbf{u}} Z(0, -1) = (2e^{-1},\, 2e^{-1}) \cdot (0{,}6;\, 0{,}8) = 2e^{-1}(0{,}6 + 0{,}8) = 2{,}8e^{-1} \approx 1{,}03\text{ u.a./mm}.$$
+            Como $\|\nabla Z(0, -1)\| = 2\sqrt{2}\,e^{-1} \approx 1{,}04\text{ u.a./mm}$, $(3, 4)$ está próximo da direção ótima $(1, 1)$.
+          </item>
+          <item>Para $\mathbf{w} = (-1, 1)$, $\mathbf{u}_\perp = \left(-\frac{1}{\sqrt{2}},\, \frac{1}{\sqrt{2}}\right)$, logo:
+            $$D_{\mathbf{u}_\perp} Z(0, -1) = (2e^{-1},\, 2e^{-1}) \cdot \left(-\frac{1}{\sqrt{2}},\, \frac{1}{\sqrt{2}}\right) = 0\text{ u.a./mm},$$
+            pois essa direção é tangente à curva de nível.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:3-2-armadilha-normalizar">
+        <title>Armadilha comum</title>
+        <strong>Esquecer de normalizar o vetor direção $\mathbf{u}$.</strong> Na direção de $\mathbf{v} = (3, 4)$ ($\|\mathbf{v}\| = 5$), fazer $\nabla f \cdot \mathbf{v}$ multiplicaria a resposta por $5$. Sempre divida pela norma ($\mathbf{u} = \mathbf{v}/\|\mathbf{v}\|$) antes do produto escalar.
+      </remark>
+
+      <exercise id="exr:3-2-5-1">
+        <title>Básico — Derivada direcional em 2D com vetor não unitário</title>
+        Seja $f(x, y) = x^2 y + 2y^3$. Calcule a derivada direcional de $f$ no ponto $(2, 1)$ na direção de $\mathbf{v} = (5, 12)$ e determine a taxa máxima de crescimento de $f$ nesse ponto.
+        <hint><title>Ver dica</title>Lembre que $(5, 12, 13)$ formam um triângulo retângulo pitagórico ($5^2 + 12^2 = 169 = 13^2$), então normalize $\mathbf{v}$ dividindo por $13$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Normalizando $\mathbf{v}$:
+          $$\|\mathbf{v}\| = \sqrt{5^2 + 12^2} = \sqrt{25 + 144} = \sqrt{169} = 13 \implies \mathbf{u} = \left(\frac{5}{13},\; \frac{12}{13}\right).$$
+          O gradiente é $\nabla f(x, y) = (2xy,\; x^2 + 6y^2)$, logo em $(2, 1)$:
+          $$\nabla f(2, 1) = \bigl(2(2)(1),\; 2^2 + 6(1)^2\bigr) = (4, 10).$$
+          Pelo <ref to="thm:3-2-formula-direcional"/>:
+          $$D_{\mathbf{u}} f(2, 1) = (4, 10) \cdot \left(\frac{5}{13},\; \frac{12}{13}\right) = \frac{20 + 120}{13} = \frac{140}{13} \approx 10{,}769.$$
+          A taxa máxima de crescimento em $(2, 1)$ é $\|\nabla f(2, 1)\| = \sqrt{4^2 + 10^2} = \sqrt{116} = 2\sqrt{29} \approx 10{,}770$. Note que $\frac{140}{13} \approx 10{,}769$ é estritamente menor que $\sqrt{116} \approx 10{,}770$ (pois $\frac{140^2}{13^2} = \frac{19\,600}{169} < 116$): eles parecem iguais só porque o ângulo entre $(5, 12)$ e $(4, 10)$ é muito pequeno (menos de $1^\circ$).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-2-5-2">
+        <title>Intermediário — Bactéria nadando em um gradiente de glicose</title>
+        Em uma placa de cultura, a concentração de glicose (em $\text{mmol/L}$, com $x, y$ em $\text{mm}$) é modelada por $G(x, y) = 8 - 0{,}5x^2 - y^2$. No ponto $(2, 1)\text{ mm}$, uma bactéria move-se na direção do vetor $\mathbf{v} = (-4, 3)$.
+        <list marker="a">
+          <item>Qual é a taxa de variação espacial da concentração de glicose percebida por unidade de distância nessa direção?</item>
+          <item>Em que direção unitária a bactéria deveria nadar a partir de $(2, 1)$ para encontrar o aumento mais rápido de glicose, e qual seria essa taxa máxima?</item>
+        </list>
+        <hint><title>Ver dica</title>Calcule $\nabla G(2, 1)$ e normalize $\mathbf{v} = (-4, 3)$ antes de aplicar $D_{\mathbf{u}} G = \nabla G \cdot \mathbf{u}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Com $\nabla G(x, y) = (-x, -2y)$, temos $\nabla G(2, 1) = (-2, -2)$. Normalizando $\mathbf{v} = (-4, 3)$:
+              $$\|\mathbf{v}\| = \sqrt{(-4)^2 + 3^2} = 5 \implies \mathbf{u} = (-0{,}8;\; 0{,}6),$$
+              $$D_{\mathbf{u}} G(2, 1) = (-2, -2) \cdot (-0{,}8;\; 0{,}6) = 1{,}6 - 1{,}2 = +0{,}4\text{ mmol/(L}\cdot\text{mm)}.$$
+              Como é positiva, a concentração sobe ao longo do trajeto.
+            </item>
+            <item>A taxa máxima é:
+              $$\|\nabla G(2, 1)\| = \sqrt{(-2)^2 + (-2)^2} = \sqrt{8} = 2\sqrt{2} \approx 2{,}83\text{ mmol/(L}\cdot\text{mm)},$$
+              na direção unitária $\hat{\mathbf{d}} = \dfrac{(-2, -2)}{2\sqrt{2}} = \left(-\dfrac{1}{\sqrt{2}},\; -\dfrac{1}{\sqrt{2}}\right)$ (rumo à origem $(0, 0)$).
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-2-5-3">
+        <title>Avançado — Derivada direcional em 3D e direção de variação nula</title>
+        Considere $h(x, y, z) = x e^y + y z^2$ no ponto $P = (2, 0, 1)$.
+        <list marker="a">
+          <item>Calcule o gradiente $\nabla h(P)$.</item>
+          <item>Calcule $D_{\mathbf{u}} h(P)$ na direção de $\mathbf{v} = (1, -2, 2)$.</item>
+          <item>Encontre um vetor unitário $\mathbf{w} = (w_1, w_2, 0)$ contido no plano $xy$ ao longo do qual $D_{\mathbf{w}} h(P) = 0$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (c), imponha $\nabla h(P) \cdot (w_1, w_2, 0) = 0$ junto com a condição de norma unitária $w_1^2 + w_2^2 = 1$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Com $\nabla h(x, y, z) = (e^y,\; x e^y + z^2,\; 2yz)$, em $P = (2, 0, 1)$ ($e^0 = 1$):
+              $$\nabla h(2, 0, 1) = (1,\; 2 \cdot 1 + 1^2,\; 2 \cdot 0 \cdot 1) = (1, 3, 0).$$
+            </item>
+            <item>Com $\|\mathbf{v}\| = \sqrt{1 + 4 + 4} = 3$, temos $\mathbf{u} = \left(\frac{1}{3}, -\frac{2}{3}, \frac{2}{3}\right)$ e:
+              $$D_{\mathbf{u}} h(P) = (1, 3, 0) \cdot \left(\frac{1}{3},\; -\frac{2}{3},\; \frac{2}{3}\right) = \frac{1}{3} - \frac{6}{3} + 0 = -\frac{5}{3}.$$
+            </item>
+            <item>De $(1, 3, 0) \cdot (w_1, w_2, 0) = 0$ vem $w_1 + 3w_2 = 0 \implies w_1 = -3w_2$. Normalizando $(-3, 1, 0)$ (norma $\sqrt{10}$), obtemos $\mathbf{w} = \left(-\dfrac{3}{\sqrt{10}},\; \dfrac{1}{\sqrt{10}},\; 0\right)$ (ou o seu oposto).
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:3-2-6">
+      <eyebrow>Subtema 6</eyebrow>
+      <title>Regra da cadeia</title>
+      <intro>
+        Quando as entradas de uma função dependem do tempo ou de parâmetros internos, as variações somam-se pelos vários caminhos — a base exata do backpropagation.
+      </intro>
+
+      Se $z = f(x, y)$ depende de duas variáveis que variam com $t$ ao longo de uma trajetória $\mathbf{r}(t) = (x(t), y(t))$, um passo $\Delta t$ produz $\Delta x \approx x'(t)\,\Delta t$ e $\Delta y \approx y'(t)\,\Delta t$. Pela aproximação linear:
+      $$\Delta z \approx f_x\,\Delta x + f_y\,\Delta y \approx \left(f_x\frac{dx}{dt} + f_y\frac{dy}{dt}\right)\Delta t.$$
+      Dividindo por $\Delta t$ e tomando o limite, obtemos a <strong>regra da cadeia multivariável</strong>:
+
+      <theorem id="thm:3-2-cadeia-trajetoria">
+        <title>Regra da cadeia ao longo de uma trajetória (Caso 1)</title>
+        Seja $z = f(x, y)$ diferenciável e $\mathbf{r}(t) = (x(t), y(t))$ derivável (velocidade $\mathbf{r}'(t) = (x'(t), y'(t))$). Então $z(t) = f(\mathbf{r}(t))$ é derivável e:
+        $$\frac{dz}{dt} = \frac{\partial f}{\partial x}\frac{dx}{dt} + \frac{\partial f}{\partial y}\frac{dy}{dt} = \nabla f(\mathbf{r}(t)) \cdot \mathbf{r}'(t).$$
+        A fórmula $\frac{df}{dt} = \nabla f(\mathbf{r}(t)) \cdot \mathbf{r}'(t)$ vale igualmente em $\mathbb{R}^3$ e $\mathbb{R}^n$.
+        <intuition>
+          $D_{\mathbf{u}} f = \nabla f \cdot \mathbf{u}$ mede a variação <em>por distância</em> ($\|\mathbf{u}\| = 1$); $\frac{dz}{dt} = \nabla f \cdot \mathbf{r}'(t)$ mede a variação <em>por tempo</em>, proporcional à rapidez $\|\mathbf{r}'(t)\|$.
+        </intuition>
+      </theorem>
+
+      Quando $x = x(s, t)$ e $y = y(s, t)$ dependem de dois parâmetros, aplicamos o Caso 1 congelando um parâmetro por vez:
+
+      <theorem id="thm:3-2-cadeia-duas-var">
+        <title>Regra da cadeia com duas variáveis independentes (Caso 2)</title>
+        Seja $z = f(x, y)$ diferenciável, onde $x = x(s, t)$ e $y = y(s, t)$ possuem derivadas parciais em relação a $s$ e $t$. Então:
+        $$\frac{\partial z}{\partial s} = \frac{\partial f}{\partial x}\frac{\partial x}{\partial s} + \frac{\partial f}{\partial y}\frac{\partial y}{\partial s}, \qquad \frac{\partial z}{\partial t} = \frac{\partial f}{\partial x}\frac{\partial x}{\partial t} + \frac{\partial f}{\partial y}\frac{\partial y}{\partial t}.$$
+      </theorem>
+
+      Para expressões maiores, o <strong>diagrama de árvore</strong> evita erros (aqui, para o Caso 2):
+
+      <code lang="text" numbered="false" lines="false">
+             ┌── (∂z/∂x) ──▶ x ──┬── (∂x/∂s) ──▶ s
+             │                   └── (∂x/∂t) ──▶ t
+        z ───┤
+             │                   ┌── (∂y/∂s) ──▶ s
+             └── (∂z/∂y) ──▶ y ──┴── (∂y/∂t) ──▶ t
+      </code>
+
+      Para achar a derivada de $z$ em relação a uma ponta (como $s$), <strong>multiplique</strong> as parciais ao longo de cada caminho e <strong>some</strong> os diferentes caminhos.
+
+      <strong>A ponte direta para o backpropagation.</strong> Considere uma cadeia onde $(w_1, w_2)$ alimentam $u = w_1 x_1 + w_2 x_2$ (entradas fixas $x_1, x_2$), seguindo para $v = h(u)$ e o erro $L = \ell(v)$:
+      $$(w_1, w_2) \;\longmapsto\; u = w_1 x_1 + w_2 x_2 \;\longmapsto\; v = h(u) \;\longmapsto\; L = \ell(v).$$
+      Para obter $\nabla_{\mathbf{w}} L = \left(\frac{\partial L}{\partial w_1},\, \frac{\partial L}{\partial w_2}\right)$, dividimos o cálculo em <strong>duas passadas</strong>:
+      <list marker="number">
+        <item><strong>Passada direta (<em>forward pass</em>):</strong> calculamos e guardamos $u$, $v$ e $L$, das entradas até a saída.</item>
+        <item><strong>Passada reversa (<em>backward pass</em>):</strong> voltamos da saída multiplicando as derivadas locais:
+          $$\frac{\partial L}{\partial v}, \qquad \frac{\partial L}{\partial u} = \frac{\partial L}{\partial v}\cdot\frac{dv}{du},$$
+          e <strong>reaproveitamos</strong> $\frac{\partial L}{\partial u}$ para todos os parâmetros:
+          $$\frac{\partial L}{\partial w_1} = \frac{\partial L}{\partial u}\cdot\frac{\partial u}{\partial w_1}, \qquad \frac{\partial L}{\partial w_2} = \frac{\partial L}{\partial u}\cdot\frac{\partial u}{\partial w_2}.$$
+        </item>
+      </list>
+      Com milhões de pesos ligados a $u$, calculamos $\frac{\partial L}{\partial u}$ <em>uma só vez</em> e o reaproveitamos — exatamente como faz a retropropagação (<em>backpropagation</em>) no Módulo 9 (<mark>Deep Learning</mark>).
+
+      <example id="exm:3-2-forward-backward">
+        <title>Passada direta e passada reversa passo a passo</title>
+        Considere a cadeia de funções
+        $$u = w_1 x_1 + w_2 x_2, \qquad v = e^u, \qquad L = (v - y)^2,$$
+        com entradas fixas $x_1 = 2$, $x_2 = -3$, alvo $y = 5$ e parâmetros atuais $w_1 = 3$, $w_2 = 2$.
+        <list marker="a">
+          <item>Execute a passada direta para encontrar $u$, $v$ e $L$.</item>
+          <item>Execute a passada reversa para calcular $\dfrac{\partial L}{\partial v}$, $\dfrac{\partial L}{\partial u}$, $\dfrac{\partial L}{\partial w_1}$ e $\dfrac{\partial L}{\partial w_2}$.</item>
+          <item>Confira as respostas derivando diretamente a expressão fechada $L(w_1, w_2) = (e^{2w_1 - 3w_2} - 5)^2$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item><strong>Passada direta (<em>forward pass</em>):</strong>
+            $$u = 3(2) + 2(-3) = 6 - 6 = 0, \qquad v = e^0 = 1, \qquad L = (1 - 5)^2 = (-4)^2 = 16.$$
+          </item>
+          <item><strong>Passada reversa (<em>backward pass</em>):</strong> partindo de $L = (v - 5)^2$:
+            $$\frac{\partial L}{\partial v} = 2(v - y) = 2(1 - 5) = -8.$$
+            Usando $\frac{dv}{du} = e^u = e^0 = 1$:
+            $$\frac{\partial L}{\partial u} = \frac{\partial L}{\partial v}\cdot\frac{dv}{du} = (-8)\cdot 1 = -8.$$
+            Reaproveitando $\frac{\partial L}{\partial u} = -8$ (com $\frac{\partial u}{\partial w_1} = x_1 = 2$ e $\frac{\partial u}{\partial w_2} = x_2 = -3$):
+            $$\frac{\partial L}{\partial w_1} = \frac{\partial L}{\partial u}\cdot\frac{\partial u}{\partial w_1} = (-8)\cdot 2 = -16, \qquad \frac{\partial L}{\partial w_2} = \frac{\partial L}{\partial u}\cdot\frac{\partial u}{\partial w_2} = (-8)\cdot(-3) = 24.$$
+          </item>
+          <item><strong>Conferência direta:</strong> derivando $L(w_1, w_2) = (e^{2w_1 - 3w_2} - 5)^2$:
+            $$\frac{\partial L}{\partial w_1} = 2(e^{2w_1 - 3w_2} - 5)\cdot e^{2w_1 - 3w_2}\cdot 2, \qquad \frac{\partial L}{\partial w_2} = 2(e^{2w_1 - 3w_2} - 5)\cdot e^{2w_1 - 3w_2}\cdot(-3).$$
+            Em $(3, 2)$ ($2w_1 - 3w_2 = 0$, $e^0 = 1$):
+            $$\frac{\partial L}{\partial w_1} = 2(1 - 5)\cdot 1 \cdot 2 = -16, \qquad \frac{\partial L}{\partial w_2} = 2(1 - 5)\cdot 1 \cdot(-3) = 24.$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:3-2-corrente-temporal">
+        <title>Taxa temporal de variação de uma corrente sináptica</title>
+        Durante um evento sináptico, $I(g, V) = g(V - E)$ ($\text{pA}$) tem $E = -70\text{ mV}$, enquanto $g(t) = 2t + 4$ ($\text{nS}$) e $V(t) = -60 + 5t^2$ ($\text{mV}$) variam em $t \in [0, 3]\text{ ms}$. Calcule $\dfrac{dI}{dt}$ em $t = 2\text{ ms}$ pelo <ref to="thm:3-2-cadeia-trajetoria"/> e confira por substituição direta.
+
+        <strong>Solução.</strong>
+        Em $t = 2\text{ ms}$:
+        $$g(2) = 2(2) + 4 = 8\text{ nS}, \qquad g'(t) = 2 \implies g'(2) = 2\text{ nS/ms},$$
+        $$V(2) = -60 + 5(2)^2 = -40\text{ mV}, \qquad V'(t) = 10t \implies V'(2) = 20\text{ mV/ms}.$$
+        Como $\frac{\partial I}{\partial g} = V + 70$ e $\frac{\partial I}{\partial V} = g$:
+        $$\frac{\partial I}{\partial g}\Big|_{t=2} = -40 + 70 = 30\text{ pA/nS}, \qquad \frac{\partial I}{\partial V}\Big|_{t=2} = 8\text{ pA/mV}.$$
+        Pelo <ref to="thm:3-2-cadeia-trajetoria"/>:
+        $$\frac{dI}{dt}\Big|_{t=2} = \frac{\partial I}{\partial g}\,g'(2) + \frac{\partial I}{\partial V}\,V'(2) = 30 \cdot 2 + 8 \cdot 20 = 60 + 160 = 220\text{ pA/ms}.$$
+        <em>Conferência direta:</em> $I(t) = (2t + 4)(5t^2 + 10) = 10t^3 + 20t^2 + 20t + 40 \implies I'(t) = 30t^2 + 40t + 20 \implies I'(2) = 220\text{ pA/ms}$.
+      </example>
+
+      <remark id="rem:3-2-armadilha-cadeia">
+        <title>Armadilha comum</title>
+        Na árvore da regra da cadeia, <strong>multiplique</strong> ao longo de cada ramo e <strong>some</strong> entre ramos distintos — não omita nenhum caminho quando duas variáveis dependem do mesmo parâmetro nem some fatores dentro de um mesmo ramo.
+      </remark>
+
+      <exercise id="exr:3-2-6-1">
+        <title>Básico — Regra da cadeia nos Casos 1 e 2</title>
+        <list marker="a">
+          <item>Sejam $f(x, y) = x^2 y + 3y$ e $\mathbf{r}(t) = (t^2, 2t + 1)$. Calcule $\dfrac{df}{dt}$ em $t = 1$ usando $\nabla f(\mathbf{r}(t)) \cdot \mathbf{r}'(t)$.</item>
+          <item>Sejam $z = x e^y$, com $x(s, t) = s^2 + t$ e $y(s, t) = s - 2t$. Calcule $\dfrac{\partial z}{\partial s}$ e $\dfrac{\partial z}{\partial t}$ no ponto $(s, t) = (2, 1)$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), encontre primeiro $\mathbf{r}(1)$ e $\mathbf{r}'(1)$. Em (b), ache os valores intermediários $(x, y)$ em $(s, t) = (2, 1)$ antes de substituir nas derivadas parciais.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Em $t = 1$, $\mathbf{r}(1) = (1, 3)$ e $\mathbf{r}'(t) = (2t, 2) \implies \mathbf{r}'(1) = (2, 2)$. Com $\nabla f(x, y) = (2xy,\; x^2 + 3)$, temos $\nabla f(1, 3) = (6, 4)$ e:
+              $$\frac{df}{dt}\Big|_{t=1} = \nabla f(1, 3) \cdot \mathbf{r}'(1) = (6, 4) \cdot (2, 2) = 12 + 8 = 20.$$
+            </item>
+            <item>Em $(s, t) = (2, 1)$, temos $x = 5$ e $y = 0$, logo:
+              $$z_x = e^y = 1, \qquad z_y = x e^y = 5, \qquad x_s = 2s = 4, \qquad x_t = 1, \qquad y_s = 1, \qquad y_t = -2.$$
+              Pelo <ref to="thm:3-2-cadeia-duas-var"/>:
+              $$\frac{\partial z}{\partial s} = z_x x_s + z_y y_s = 1 \cdot 4 + 5 \cdot 1 = 9, \qquad \frac{\partial z}{\partial t} = z_x x_t + z_y y_t = 1 \cdot 1 + 5 \cdot (-2) = -9.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-2-6-2">
+        <title>Intermediário — Ativação cortical medida ao longo de uma trajetória</title>
+        Uma sonda atravessa o mapa de ativação cortical $Z(x, y) = 4\exp\!\left(-\frac{(x - 2)^2 + (y - 1)^2}{8}\right)$ segundo a trajetória $\mathbf{r}(t) = (t,\, t - 1)\text{ mm}$, para $t \in [0, 4]\text{ s}$.
+        <list marker="a">
+          <item>Use o <ref to="thm:3-2-cadeia-trajetoria"/> para calcular a taxa temporal $\dfrac{dZ}{dt}$ em $t = 0\text{ s}$, quando a sonda passa por $(0, -1)\text{ mm}$.</item>
+          <item>Verifique em que ponto está a sonda em $t = 2\text{ s}$ e calcule $\dfrac{dZ}{dt}$ nesse instante, explicando o resultado.</item>
+        </list>
+        <hint><title>Ver dica</title>A velocidade $\mathbf{r}'(t) = (1, 1)\text{ mm/s}$ é constante. Use o gradiente $\nabla Z$ já obtido no <ref to="exm:3-2-gradiente-cortical"/>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Com $\mathbf{r}'(t) = (1, 1)\text{ mm/s}$, em $t = 0\text{ s}$ temos $\mathbf{r}(0) = (0, -1)\text{ mm}$ e $\nabla Z(0, -1) = (2e^{-1}, 2e^{-1})\text{ u.a./mm}$. Logo:
+              $$\frac{dZ}{dt}\Big|_{t=0} = \nabla Z(0, -1) \cdot \mathbf{r}'(0) = (2e^{-1}, 2e^{-1}) \cdot (1, 1) = 4e^{-1} \approx 1{,}47\text{ u.a./s}.$$
+            </item>
+            <item>Em $t = 2\text{ s}$, $\mathbf{r}(2) = (2, 1)\text{ mm}$ é o pico de ativação ($\nabla Z(2, 1) = (0, 0)$), donde:
+              $$\frac{dZ}{dt}\Big|_{t=2} = (0, 0) \cdot (1, 1) = 0\text{ u.a./s},$$
+              pois ali a sonda atinge o máximo da trajetória antes de decrescer para $t > 2\text{ s}$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:3-2-6-3">
+        <title>Avançado — Passada direta e reversa com reaproveitamento de derivadas</title>
+        Considere a cadeia computacional:
+        $$u = w_1 x_1 + w_2 x_2, \qquad v = u^2 + 1, \qquad L = \frac{1}{2}(v - y)^2,$$
+        com entradas fixas $x_1 = 3$, $x_2 = -1$, alvo $y = 9$ e parâmetros $w_1 = 1$, $w_2 = 1$.
+        <list marker="a">
+          <item>Execute a passada direta para calcular $u$, $v$ e $L$.</item>
+          <item>Execute a passada reversa calculando $\dfrac{\partial L}{\partial v}$, $\dfrac{\partial L}{\partial u}$ e, reaproveitando $\dfrac{\partial L}{\partial u}$, obtenha $\dfrac{\partial L}{\partial w_1}$ e $\dfrac{\partial L}{\partial w_2}$.</item>
+          <item>Confira $\dfrac{\partial L}{\partial w_1}$ e $\dfrac{\partial L}{\partial w_2}$ derivando diretamente $L(w_1, w_2) = \frac{1}{2}\bigl((3w_1 - w_2)^2 - 8\bigr)^2$.</item>
+        </list>
+        <hint><title>Ver dica</title>Na derivada de $L = \frac{1}{2}(v - y)^2$ em relação a $v$, o fator $2$ cancela com $\frac{1}{2}$, restando simplesmente $v - y$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item><strong>Passada direta:</strong>
+              $$u = 1(3) + 1(-1) = 2, \qquad v = 2^2 + 1 = 5, \qquad L = \frac{1}{2}(5 - 9)^2 = \frac{16}{2} = 8.$$
+            </item>
+            <item><strong>Passada reversa:</strong>
+              $$\frac{\partial L}{\partial v} = v - y = 5 - 9 = -4, \qquad \frac{\partial L}{\partial u} = \frac{\partial L}{\partial v}\cdot\frac{dv}{du} = (-4)\cdot(2u) = (-4)\cdot 4 = -16.$$
+              Reaproveitando $\frac{\partial L}{\partial u} = -16$:
+              $$\frac{\partial L}{\partial w_1} = \frac{\partial L}{\partial u}\cdot\frac{\partial u}{\partial w_1} = (-16)(3) = -48, \qquad \frac{\partial L}{\partial w_2} = \frac{\partial L}{\partial u}\cdot\frac{\partial u}{\partial w_2} = (-16)(-1) = 16.$$
+            </item>
+            <item><strong>Conferência direta:</strong> de $L(w_1, w_2) = \frac{1}{2}\bigl((3w_1 - w_2)^2 - 8\bigr)^2$:
+              $$\frac{\partial L}{\partial w_1} = \bigl((3w_1 - w_2)^2 - 8\bigr)\cdot 2(3w_1 - w_2)\cdot 3, \qquad \frac{\partial L}{\partial w_2} = \bigl((3w_1 - w_2)^2 - 8\bigr)\cdot 2(3w_1 - w_2)\cdot(-1).$$
+              Em $(1, 1)$ ($3w_1 - w_2 = 2$), obtemos $(4 - 8)\cdot 4 \cdot 3 = -48$ e $(-4)\cdot 4 \cdot (-1) = 16$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:3-2-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Derivadas parciais:</strong> $\dfrac{\partial f}{\partial x}(a, b) = f_x(a, b) = \lim_{h \to 0} \dfrac{f(a + h, b) - f(a, b)}{h}$ ($y$ fixo); medem inclinações ao longo dos eixos e sensibilidade.</item>
+        <item><strong>Diferenciabilidade e plano tangente:</strong> existir $f_x, f_y$ <em>não</em> basta; parciais contínuas na vizinhança garantem diferenciabilidade (e continuidade), dando $f(a + h, b + k) \approx f(a, b) + f_x(a, b)\,h + f_y(a, b)\,k$.</item>
+        <item><strong>Gradiente:</strong> $\nabla f = \left(\dfrac{\partial f}{\partial x},\, \dfrac{\partial f}{\partial y}\right)$ (ou $\left(\dfrac{\partial f}{\partial x},\, \dfrac{\partial f}{\partial y},\, \dfrac{\partial f}{\partial z}\right)$) mora no domínio e escreve a aproximação linear como $f(\mathbf{a} + \mathbf{h}) \approx f(\mathbf{a}) + \nabla f(\mathbf{a}) \cdot \mathbf{h}$.</item>
+        <item><strong>Schwarz e Hessiana:</strong> com parciais segundas contínuas, $f_{xy} = f_{yx}$; a tabela $\mathbf{H}_f = \begin{pmatrix} f_{xx} & f_{xy} \\ f_{yx} & f_{yy} \end{pmatrix}$ organiza as curvaturas para o Módulo 4.</item>
+        <item><strong>Derivada direcional:</strong> para $\|\mathbf{u}\| = 1$, $D_{\mathbf{u}} f = \nabla f \cdot \mathbf{u} = \|\nabla f\|\cos\theta$; o máximo é $\|\nabla f\|$ na direção de $\nabla f$, o mínimo é $-\|\nabla f\|$ em $-\nabla f$, e $\nabla f$ é perpendicular às curvas de nível.</item>
+        <item><strong>Regra da cadeia:</strong> $\dfrac{dz}{dt} = \nabla f \cdot \mathbf{r}'(t)$ em trajetórias $\mathbf{r}(t)$; e $\dfrac{\partial z}{\partial s} = f_x\dfrac{\partial x}{\partial s} + f_y\dfrac{\partial y}{\partial s}$ (análoga para $t$) quando $x(s, t)$ e $y(s, t)$ têm dois parâmetros.</item>
+        <item><strong>Forward e backward pass:</strong> guardar intermediários na passada direta e propagar derivadas locais da saída para a entrada na reversa reaproveita contas — a base do <em>backpropagation</em>.</item>
+      </list>
+    </section>
+
+    <section id="sec:3-2-alem">
+      <title>Para ir além</title>
+      Antes de avançar para o Tema <strong>3.3 — Integrais múltiplas</strong> e o <strong>Módulo 4 (Otimização)</strong>, consulte os materiais recomendados:
+      <list marker="dash">
+        <item><strong>Livro-texto:</strong> Diomara Pinto — <em>Cálculo Diferencial e Integral de Funções de Várias Variáveis</em> (limites, parciais, diferenciabilidade, gradiente e cadeia).</item>
+        <item><strong>Apoio visual:</strong> buscas pontuais no YouTube para visualizar superfícies 3D, planos tangentes e o gradiente perpendicular às curvas de nível.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 3 · Cálculo Multivariável — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

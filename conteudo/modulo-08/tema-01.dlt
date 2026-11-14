@@ -1,0 +1,933 @@
+<document>
+  <title>Módulo 8 · Machine Learning</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-8-1">Voltar ao guia (Tema 8.1)</link></meta-item>
+    <meta-item key="Módulo">Módulo 8 · Machine Learning — Criando a Inteligência Clássica</meta-item>
+    <meta-item key="Nível">Básico</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-8-1">
+    <title>Introdução</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      O vocabulário de ML: treino, teste, viés e variância.
+    </box>
+
+    <strong>Por que isso importa.</strong> Grande parte dos problemas modernos em neurociência computacional divide-se em duas perguntas complementares. Na primeira — chamada de codificação neural (<em>encoding</em>) — queremos prever a resposta de um neurônio ou de um voxel de ressonância magnética funcional (fMRI) a partir de características do estímulo apresentado, o que é um problema de regressão (como nos modelos de regressão <em>ridge</em>, que serão o foco do Tema 8.6). Na segunda — chamada de decodificação neural (<em>decoding</em>) — queremos ler o estado mental ou identificar qual estímulo o sujeito viu a partir do padrão simultâneo de atividade de muitos neurônios ou voxels, tarefa conhecida como análise de padrões multivariados (<em>MVPA</em>) e resolvida com classificadores.
+
+    Antes de treinar qualquer algoritmo, porém, você precisa dominar o vocabulário conceitual que separa ciência sólida de autoengano computacional. Um modelo pode acertar quase $100\%$ das amostras que acabou de ver no computador do laboratório e falhar miseravelmente no paciente seguinte ou em uma nova sessão experimental. Entender a diferença entre erro de treino e erro de teste, saber por que existe um ruído irredutível nos dados biológicos e enxergar o equilíbrio entre viés e variância é a base comum de todas as próximas onze aulas deste módulo.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>distinguir predição de inferência, aprendizado supervisionado (regressão e classificação) de não supervisionado, e modelos paramétricos de não paramétricos;</item>
+      <item>organizar dados neurais na matriz $\mathbf{X} \in \mathbb{R}^{n \times p}$ e no vetor $\mathbf{y} \in \mathbb{R}^n$, operando a interface <c>fit</c>/<c>predict</c>/<c>score</c> do <c>scikit-learn</c>;</item>
+      <item>calcular e interpretar o erro quadrático médio ($\mathrm{MSE}$) de treino e de teste, explicando por que o erro de treino é sistematicamente otimista;</item>
+      <item>decompor o erro esperado de previsão em variância, viés ao quadrado e ruído irredutível ($\sigma^2$);</item>
+      <item>diagnosticar subajuste (<em>underfitting</em>) e sobreajuste (<em>overfitting</em>) na curva em U do erro de teste.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Álgebra de vetores e matrizes do Módulo 5 (Tema 5.1, Vetores, matrizes e operações); manipulação de arrays em NumPy e conceitos de classes e métodos do Módulo 6 (Bibliotecas e Orientação a objetos); esperança, variância e ideias básicas de estimação do Módulo 7 (Variável aleatória, Introdução à inferência e o tema imediatamente anterior, Tema 7.7 — Inferência não-Bayesiana (Frequentista)).
+
+    <section id="sec:8-1-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>O que é aprender a partir de dados</title>
+      <intro>
+        Aprender com dados significa estimar uma relação sistemática $f$ escondida sob o ruído biológico inevitável $\varepsilon$ — escolhendo entre explicar o mecanismo ou maximizar a precisão de novas previsões.
+      </intro>
+
+      Imagine registrar a taxa de disparo de um neurônio do córtex visual primário (V1) enquanto você apresenta grades luminosas de diferentes contrastes. Mesmo quando o estímulo é idêntico, o número de potenciais de ação varia de um ensaio (<em>trial</em>) para outro. Ainda assim, existe uma tendência média clara: quanto maior o contraste, mais rápido o neurônio tende a disparar, até saturar em contrastes altos.
+
+      Em Aprendizado de Máquina (<em>Machine Learning</em>, ML), representamos esse cenário supondo que a resposta observada $y$ resulta de uma função verdadeira desconhecida $f(\mathbf{x})$ somada a um termo aleatório $\varepsilon$.
+
+      <definition id="def:8-1-modelo-gerador">
+        <title>Modelo gerador de dados e ruído irredutível</title>
+        Suponha que observamos variáveis preditoras $\mathbf{x} = (x_1, \dots, x_p)^\top \in \mathbb{R}^p$ e uma variável resposta $y \in \mathbb{R}$ relacionadas por:
+        <equation id="eq:8-1-modelo-verdadeiro">y = f(\mathbf{x}) + \varepsilon</equation>
+        onde $f$ é uma função fixa e desconhecida que captura a informação sistemática que $\mathbf{x}$ fornece sobre $y$, e $\varepsilon$ é um erro aleatório independente de $\mathbf{x}$, com $\mathbb{E}[\varepsilon] = 0$ e $\operatorname{Var}(\varepsilon) = \sigma^2$.
+
+        Chamamos $\hat{f}$ o <strong>modelo ajustado</strong> (estimado a partir dos dados) e $\hat{y} = \hat{f}(\mathbf{x})$ a <strong>previsão</strong> gerada para a entrada $\mathbf{x}$. O termo $\varepsilon$ (e sua variância $\sigma^2$) recebe o nome de <strong>ruído irredutível</strong>.
+        <intuition>
+          Mesmo que alguém lhe entregasse a fórmula exata de $f$, você ainda erraria previsões individuais por causa de $\varepsilon$. Em neurobiologia, $\varepsilon$ reúne fatores não medidos (estado de atenção do animal, fase das oscilações de fundo, abertura estocástica de canais iônicos) e ruído instrumental do eletrodo ou do aparelho de fMRI.
+        </intuition>
+      </definition>
+
+      Ao tentar estimar $f$, pesquisadores costumam ter um de dois objetivos principais:
+      <list marker="dash">
+        <item><strong>Predição (<em>prediction</em>):</strong> o foco está em obter $\hat{y} = \hat{f}(\mathbf{x})$ o mais próximo possível de $y$ em novas amostras. A forma interna de $\hat{f}$ pode até funcionar como uma "caixa-preta", contanto que acerte bem na prática — por exemplo, um decodificador de interface cérebro-computador que traduz sinais corticais em movimento de um cursor.</item>
+        <item><strong>Inferência (<em>inference</em>):</strong> o foco está em compreender <em>como</em> $y$ muda em função de cada variável $x_j$: quais regiões cerebrais contribuem de fato, se o efeito é positivo ou negativo e qual sua magnitude. Aqui, modelos transparentes e interpretáveis costumam valer mais do que pequenos ganhos de acurácia.</item>
+      </list>
+
+      Os problemas de ML também se organizam pela disponibilidade de rótulos e pelo tipo de resposta que queremos modelar.
+
+      <definition id="def:8-1-paradigmas">
+        <title>Aprendizado supervisionado e não supervisionado</title>
+        <list marker="number">
+          <item><strong>Aprendizado supervisionado (<em>supervised learning</em>):</strong> dispomos de um conjunto de pares $(\mathbf{x}_i, y_i)$ em que cada entrada $\mathbf{x}_i$ vem acompanhada da resposta observada $y_i$ (o "supervisor"). Subdivide-se conforme a natureza de $y$:
+            <list marker="dash">
+              <item><strong>Regressão:</strong> a resposta $y \in \mathbb{R}$ é quantitativa e contínua (por exemplo, taxa de disparo em $\text{Hz}$, potencial de membrana em $\text{mV}$ ou escore em um teste cognitivo).</item>
+              <item><strong>Classificação:</strong> a resposta $y$ é qualitativa ou categórica. Na <strong>classificação binária</strong>, adotamos $y \in \{0, 1\}$ e o modelo estima a probabilidade $\hat{p}(\mathbf{x}) = \Pr(y = 1 \mid \mathbf{x})$. Na <strong>classificação multiclasse</strong>, as categorias são indexadas por $1, \dots, K$, onde $K$ denota o número de classes.</item>
+            </list>
+          </item>
+          <item><strong>Aprendizado não supervisionado (<em>unsupervised learning</em>):</strong> observamos apenas as variáveis de entrada $\mathbf{x}_i$, sem nenhuma variável resposta $y_i$. O objetivo é descobrir estrutura nos próprios dados, como no <strong>agrupamento</strong> (<em>clustering</em>, formar grupos de amostras semelhantes) e na <strong>redução de dimensionalidade</strong> (resumir muitas variáveis correlacionadas em poucos eixos principais, tema que veremos no Tema 8.9).</item>
+        </list>
+      </definition>
+
+      Na neurociência computacional, essa taxonomia aparece diretamente nos três tipos de análise mais comuns da literatura:
+      <list marker="dash">
+        <item><strong>Codificação neural (<em>encoding</em>) — regressão:</strong> como formalizado por Kay et al. (2008), Naselaris et al. (2011) e Huth et al. (2016), partimos das características de um estímulo $\mathbf{x}$ (bordas de uma imagem, palavras de uma narrativa) e prevemos a resposta contínua $y$ de um voxel de fMRI ou a taxa de disparo de um neurônio.</item>
+        <item><strong>Decodificação neural (<em>decoding</em> / MVPA) — classificação:</strong> inaugurada em neuroimagem por Haxby et al. (2001), inverte a direção. Partimos do padrão de atividade $\mathbf{x}$ medido simultaneamente em dezenas ou milhares de voxels no córtex temporal ventral e classificamos qual categoria de estímulo ($y$: rosto, casa, ferramenta etc.) o participante estava vendo.</item>
+        <item><strong>Descoberta de tipos celulares — não supervisionado:</strong> medimos propriedades morfológicas e eletrofisiológicas (potencial de repouso, resistência de entrada, largura do potencial de ação, frequência máxima) de centenas de interneurônios sem saber previamente a quantos subtipos pertencem, usando algoritmos de agrupamento para revelar famílias naturais de neurônios.</item>
+      </list>
+
+      Por fim, os algoritmos que produzem $\hat{f}$ dividem-se em duas grandes estratégias de modelagem:
+      <list marker="dash">
+        <item><strong>Modelos paramétricos:</strong> reduzem o problema a estimar um número fixo e finito de parâmetros $\boldsymbol{\beta}$ após assumir uma forma funcional específica para $f$ (por exemplo, a regressão linear e polinomial do Tema 8.2 e a regressão logística do Tema 8.3).</item>
+        <item><strong>Modelos não paramétricos:</strong> não impõem uma fórmula rígida prévia para $f$, deixando que a complexidade da curva ou fronteira se adapte ao número de amostras disponíveis (por exemplo, $K$ vizinhos mais próximos no Tema 8.3, árvores de decisão no Tema 8.8 e modelos aditivos generalizados, GAMs, no Tema 8.10).</item>
+      </list>
+
+      <example id="exm:8-1-encoding-v1">
+        <title>Codificação neural e ruído irredutível em V1</title>
+        Um modelo de <em>encoding</em> para um neurônio de V1 descreve sua taxa de disparo esperada (em $\text{Hz}$) em função do contraste $c \in [0, 1]$ pela curva saturante:
+        $$f(c) = 12 + 60 \cdot \frac{c^2}{c^2 + 0{,}5^2}.$$
+        Em dois ensaios independentes realizados com exatamente o mesmo contraste $c = 0{,}5$, o eletrodo registrou $y^{(1)} = 48\text{ Hz}$ e $y^{(2)} = 39\text{ Hz}$.
+        <list marker="a">
+          <item>Calcule a resposta sistemática esperada $f(0{,}5)$.</item>
+          <item>Determine o valor realizado do ruído $\varepsilon$ em cada um dos dois ensaios.</item>
+          <item>Um modelo ideal $\hat{f} = f$ conseguiria prever a diferença entre $48\text{ Hz}$ e $39\text{ Hz}$?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Substituímos $c = 0{,}5$ na expressão de $f(c)$:
+            $$f(0{,}5) = 12 + 60 \cdot \frac{0{,}5^2}{0{,}5^2 + 0{,}5^2} = 12 + 60 \cdot \frac{0{,}25}{0{,}50} = 12 + 30 = 42\text{ Hz}.$$
+          </item>
+          <item>Como $y = f(c) + \varepsilon$, temos $\varepsilon = y - f(c)$. Logo:
+            $$\varepsilon^{(1)} = 48 - 42 = +6\text{ Hz}, \qquad \varepsilon^{(2)} = 39 - 42 = -3\text{ Hz}.$$
+          </item>
+          <item>Não. Em ambos os ensaios a entrada $c = 0{,}5$ é exatamente a mesma, então qualquer função determinística $\hat{f}(c)$ produz exatamente o mesmo número para os dois ensaios. A diferença entre $+6\text{ Hz}$ e $-3\text{ Hz}$ vem da variabilidade estocástica intrínseca $\varepsilon$ do circuito neural, que faz parte do erro irredutível.</item>
+        </list>
+      </example>
+
+      <example id="exm:8-1-decoding-mvpa">
+        <title>Decodificação de rostos e casas em fMRI (MVPA)</title>
+        Em um experimento simplificado de decodificação no córtex temporal ventral, medimos a ativação normalizada de $p = 3$ voxels $\mathbf{x} = (x_1, x_2, x_3)^\top$ enquanto o participante observa imagens de rostos ($y = 1$) ou casas ($y = 0$). Suponha que um classificador linear treinado calcule o escore $z(\mathbf{x}) = 0{,}8x_1 - 0{,}5x_2 + 0{,}2x_3$ e converta esse escore na probabilidade estimada de "rosto":
+        $$\hat{p}(\mathbf{x}) = \frac{1}{1 + e^{-z(\mathbf{x})}},$$
+        prevendo a classe $1$ ("rosto") quando $\hat{p}(\mathbf{x}) \ge 0{,}5$ e a classe $0$ ("casa") caso contrário. Classifique as duas novas amostras $\mathbf{x}^{(A)} = (2{,}0;\; 1{,}0;\; 0{,}5)^\top$ e $\mathbf{x}^{(B)} = (0{,}5;\; 2{,}0;\; 1{,}0)^\top$.
+
+        <strong>Solução.</strong> Observe primeiro que $\hat{p}(\mathbf{x}) \ge 0{,}5$ equivale a $\frac{1}{1 + e^{-z(\mathbf{x})}} \ge \frac{1}{2}$, isto é, $e^{-z(\mathbf{x})} \le 1$, o que acontece exatamente quando $z(\mathbf{x}) \ge 0$.
+        <list marker="a">
+          <item>Para $\mathbf{x}^{(A)} = (2{,}0;\; 1{,}0;\; 0{,}5)^\top$:
+            $$z(\mathbf{x}^{(A)}) = 0{,}8(2{,}0) - 0{,}5(1{,}0) + 0{,}2(0{,}5) = 1{,}6 - 0{,}5 + 0{,}1 = 1{,}2 > 0.$$
+            Como $z(\mathbf{x}^{(A)}) > 0$, temos $e^{-1{,}2} < 1$ e portanto $\hat{p}(\mathbf{x}^{(A)}) > 0{,}5$. O classificador prevê $\hat{y} = 1$ ("rosto").
+          </item>
+          <item>Para $\mathbf{x}^{(B)} = (0{,}5;\; 2{,}0;\; 1{,}0)^\top$:
+            $$z(\mathbf{x}^{(B)}) = 0{,}8(0{,}5) - 0{,}5(2{,}0) + 0{,}2(1{,}0) = 0{,}4 - 1{,}0 + 0{,}2 = -0{,}4 < 0.$$
+            Como $z(\mathbf{x}^{(B)}) < 0$, temos $e^{0{,}4} > 1$ e portanto $\hat{p}(\mathbf{x}^{(B)}) < 0{,}5$. O classificador prevê $\hat{y} = 0$ ("casa").
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:8-1-armadilha-ruido">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Achar que o ruído irredutível pode ser eliminado com um modelo melhor:</strong> nenhum algoritmo — nem redes neurais profundas do Módulo 9 — consegue reduzir o erro esperado abaixo da variância $\sigma^2$ do termo $\varepsilon$ (a menos que você passe a medir novas variáveis explicativas que antes estavam escondidas dentro de $\varepsilon$).</item>
+          <item><strong>Confundir predição com inferência:</strong> um modelo que decodifica muito bem se um sujeito está sonolento a partir do eletroencefalograma (EEG) pode estar usando artefatos musculares de piscamento, e não necessariamente o mecanismo cortical do sono.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-1-1-1">
+        <title>Básico — Classificando cenários de pesquisa em neurociência</title>
+        Classifique cada estudo abaixo como <em>supervisionado — regressão</em>, <em>supervisionado — classificação</em> ou <em>não supervisionado</em>, justificando brevemente:
+        <list marker="a">
+          <item>Prever a idade biológica de um paciente (em anos) a partir da espessura cortical medida em $68$ regiões por ressonância estrutural.</item>
+          <item>Identificar automaticamente, a partir de biomarcadores no líquor e de testes cognitivos, se um voluntário pertence ao grupo controle, comprometimento cognitivo leve ou doença de Alzheimer.</item>
+          <item>Analisar perfis de expressão gênica de $10\,000$ células hipocampais, sem rótulos prévios, para descobrir subpopulações celulares distintas.</item>
+          <item>Estimar o potencial de membrana (em $\text{mV}$) de um neurônio em cultura a partir da concentração extracelular de potássio.</item>
+        </list>
+        <hint><title>Ver dica</title>Pergunte-se primeiro se há uma resposta $y$ conhecida nos dados de treino (supervisionado ou não). Se houver, verifique se $y$ é um número contínuo (regressão) ou uma categoria discreta (classificação).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item><strong>Supervisionado — regressão:</strong> há uma variável resposta conhecida (idade biológica), e ela é numérica contínua.</item>
+            <item><strong>Supervisionado — classificação:</strong> há rótulos clínicos conhecidos pertencentes a $K = 3$ categorias discretas.</item>
+            <item><strong>Não supervisionado:</strong> não existe variável resposta $y$; busca-se agrupar células por similaridade (<em>clustering</em>) ou reduzir dimensionalidade.</item>
+            <item><strong>Supervisionado — regressão:</strong> a variável resposta é o potencial de membrana em $\text{mV}$, uma grandeza contínua.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-1-1-2">
+        <title>Básico — Piso imposto pelo ruído irredutível</title>
+        Em um experimento de controle motor, a taxa de disparo de um neurônio do córtex motor obedece exatamente a $y = 25 + 10x + \varepsilon$, onde $x$ é a velocidade da mão (em $\text{m/s}$) e $\varepsilon$ tem $\mathbb{E}[\varepsilon] = 0$ e $\operatorname{Var}(\varepsilon) = \sigma^2 = 16\text{ Hz}^2$. Suponha que você disponha do modelo perfeito $\hat{f}(x) = 25 + 10x$. Qual é o valor esperado do erro quadrático $(y - \hat{f}(x))^2$ para novas medições feitas em $x = 2\text{ m/s}$? Por que ele não é nulo?
+        <hint><title>Ver dica</title>Substitua $y = f(x) + \varepsilon$ e $\hat{f}(x) = f(x)$ na expressão $(y - \hat{f}(x))^2$ e use o fato de que $\operatorname{Var}(\varepsilon) = \mathbb{E}[\varepsilon^2] - (\mathbb{E}[\varepsilon])^2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para $x = 2\text{ m/s}$, temos $f(2) = 25 + 10(2) = 45\text{ Hz}$ e $\hat{f}(2) = 45\text{ Hz}$. Logo, o erro em uma medição nova é:
+          $$y - \hat{f}(2) = (f(2) + \varepsilon) - f(2) = \varepsilon.$$
+          Tomando a esperança do quadrado:
+          $$\mathbb{E}\!\left[(y - \hat{f}(2))^2\right] = \mathbb{E}[\varepsilon^2] = \operatorname{Var}(\varepsilon) + (\mathbb{E}[\varepsilon])^2 = 16 + 0^2 = 16\text{ Hz}^2.$$
+          O erro esperado não é nulo porque o modelo perfeito recupera apenas $f(x)$, mas não consegue antecipar as flutuações aleatórias $\varepsilon$ específicas de cada ensaio.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-1-1-3">
+        <title>Intermediário — Predição versus inferência</title>
+        Dois laboratórios analisam o mesmo banco de dados de EEG com $64$ canais e escores de atenção sustentada:
+        <list marker="dash">
+          <item><strong>Estudo 1:</strong> quer construir um sistema de alerta em tempo real para detectar quedas de atenção em controladores de tráfego aéreo.</item>
+          <item><strong>Estudo 2:</strong> quer testar a hipótese fisiológica de que a potência na banda alfa frontal está negativamente associada à atenção sustentada.</item>
+        </list>
+        Identifique qual estudo prioriza predição e qual prioriza inferência, e indique em qual deles um modelo não paramétrico tipo "caixa-preta" seria mais aceitável.
+        <hint><title>Ver dica</title>Avalie em qual estudo o pesquisador precisa interpretar parâmetros individuais (como o sinal de um coeficiente ligado à banda alfa frontal) e em qual apenas a taxa de acerto importa.</hint>
+        <solution collapsible="true" collapsed="true">
+          O <strong>Estudo 1</strong> prioriza <strong>predição</strong>: o objetivo operacional é emitir o alerta com o menor erro possível em novos instantes de tempo. Nesse contexto, um modelo mais flexível (mesmo pouco interpretável, tipo caixa-preta) é aceitável se melhorar o desempenho preditivo e for validado corretamente.
+
+          O <strong>Estudo 2</strong> prioriza <strong>inferência</strong>: ele precisa estimar e testar a relação específica entre a potência alfa frontal e o escore de atenção. Um modelo paramétrico interpretável (como uma regressão linear com parâmetros explícitos) permite ler diretamente o sinal e a incerteza da associação, o que uma caixa-preta não entrega diretamente.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-1-1-4">
+        <title>Avançado — Erro de forma paramétrica e erro irredutível</title>
+        Suponha que a resposta verdadeira de uma população neuronal siga $y = 5 + 3x^2 + \varepsilon$, com $\mathbb{E}[\varepsilon] = 0$ e $\operatorname{Var}(\varepsilon) = 4$. Um pesquisador, desconhecendo a curvatura quadrática, adota um modelo paramétrico linear e obtém, em $x = 2$, a previsão $\hat{f}(2) = 14$.
+        <list marker="a">
+          <item>Calcule o valor verdadeiro $f(2)$ e o desvio sistemático $\hat{f}(2) - f(2)$ devido à escolha rígida do modelo linear.</item>
+          <item>Calcule o erro quadrático médio esperado $\mathbb{E}[(y - \hat{f}(2))^2]$ em $x = 2$, separando a parcela que vem da aproximação errada de $f$ e a parcela irredutível.</item>
+        </list>
+        <hint><title>Ver dica</title>Escreva $y - \hat{f}(2) = (f(2) - \hat{f}(2)) + \varepsilon$ e expanda o quadrado antes de tomar a esperança, usando $\mathbb{E}[\varepsilon] = 0$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Para $x = 2$, a função verdadeira vale:
+              $$f(2) = 5 + 3(2)^2 = 5 + 12 = 17.$$
+              O desvio sistemático do modelo linear nesse ponto é:
+              $$\hat{f}(2) - f(2) = 14 - 17 = -3.$$
+            </item>
+            <item>Como $y = f(2) + \varepsilon$ e vimos no item (a) que $\hat{f}(2) - f(2) = -3$, temos:
+              $$y - \hat{f}(2) = (f(2) - \hat{f}(2)) + \varepsilon = -(\hat{f}(2) - f(2)) + \varepsilon = -(-3) + \varepsilon = 3 + \varepsilon.$$
+              Elevando ao quadrado e tomando a esperança:
+              $$\mathbb{E}\!\left[(3 + \varepsilon)^2\right] = \mathbb{E}[9 + 6\varepsilon + \varepsilon^2] = 9 + 6\mathbb{E}[\varepsilon] + \mathbb{E}[\varepsilon^2] = 9 + 0 + 4 = 13.$$
+              Desse total de $13$, a parcela $9 = (-3)^2$ deve-se à incapacidade do modelo linear de capturar a curva quadrática (viés estrutural), e a parcela $4 = \sigma^2$ é o ruído irredutível.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-1-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Dados, notação e a interface do scikit-learn</title>
+      <intro>
+        Antes de rodar qualquer algoritmo em Python, precisamos fixar uma notação única para tabelas de dados — linhas são amostras, colunas são variáveis — e entender como essa matriz conversa com os objetos do <c>scikit-learn</c>.
+      </intro>
+
+      Como vimos no Tema 5.1 (Vetores, matrizes e operações), tabelas retangulares de números são representadas naturalmente por matrizes. Em todo o Módulo 8, adotaremos exatamente a mesma convenção para organizar dados experimentais e traduzi-los para o código.
+
+      <definition id="def:8-1-notacao-dados">
+        <title>Notação padrão de dados do Módulo 8</title>
+        Considere um conjunto de dados com $n$ <strong>amostras</strong> (ensaios/<em>trials</em>, sujeitos ou instantes de tempo) e $p$ <strong>variáveis</strong> (preditores ou <em>features</em>: neurônios, voxels, canais de EEG):
+        <list marker="dash">
+          <item>A <strong>matriz de dados</strong> é $\mathbf{X} \in \mathbb{R}^{n \times p}$, na qual a linha $i$ ($i = 1, \dots, n$) representa a amostra $i$ e a coluna $j$ ($j = 1, \dots, p$) representa a variável $j$.</item>
+          <item>A entrada $x_{ij}$ é o valor da variável $j$ na amostra $i$.</item>
+          <item>Representamos a amostra $i$ como um vetor coluna $\mathbf{x}_i = (x_{i1}, x_{i2}, \dots, x_{ip})^\top \in \mathbb{R}^p$, de modo que a linha $i$ de $\mathbf{X}$ é o vetor linha $\mathbf{x}_i^\top$.</item>
+          <item>O <strong>vetor resposta</strong> é $\mathbf{y} = (y_1, \dots, y_n)^\top \in \mathbb{R}^n$, contendo os alvos observados $y_i$ de cada amostra.</item>
+          <item>Em modelos paramétricos lineares, os <strong>coeficientes</strong> são $\boldsymbol{\beta} = (\beta_0, \beta_1, \dots, \beta_p)$, onde $\beta_0$ é o intercepto, e suas estimativas a partir dos dados são denotadas por $\hat{\boldsymbol{\beta}}$. Note que $\boldsymbol{\beta}$ possui $p + 1$ componentes (o intercepto mais os $p$ coeficientes das variáveis); no <c>scikit-learn</c>, o intercepto fica guardado separadamente em <c>modelo.intercept_</c> e os $p$ coeficientes em <c>modelo.coef_</c>, razão pela qual a previsão se escreve como $\hat{y}_i = \hat{\beta}_0 + \mathbf{x}_i^\top \hat{\boldsymbol{\beta}}_{1:p}$ (sem tentar multiplicar $\mathbf{X}$, de $p$ colunas, por um vetor de $p + 1$ entradas).</item>
+        </list>
+        <intuition>
+          Pense em uma planilha científica: cada participante ou ensaio experimental ocupa uma linha horizontal, e cada medição feita nele ocupa uma coluna vertical. A última coluna destacada à parte é a resposta $\mathbf{y}$ que você deseja prever.
+        </intuition>
+      </definition>
+
+      Para tornar essa convenção concreta, imagine um registro eletrofisiológico com $n = 120$ ensaios nos quais apresentamos estímulos visuais e medimos as taxas de disparo (em $\text{Hz}$) de $p = 50$ neurônios simultaneamente. Cada ensaio gera um vetor de $50$ taxas de disparo e um rótulo indicando qual estímulo foi exibido. Nesse caso, a matriz $\mathbf{X}$ tem $120$ linhas e $50$ colunas ($\mathbf{X} \in \mathbb{R}^{120 \times 50}$), e o vetor $\mathbf{y}$ tem $120$ entradas ($\mathbf{y} \in \mathbb{R}^{120}$). Em NumPy, isso corresponde exatamente aos formatos (<em>shapes</em>) <c>X.shape == (120, 50)</c> e <c>y.shape == (120,)</c>.
+
+      No ecossistema Python (apresentado no Módulo 6 em Bibliotecas e Orientação a objetos), a biblioteca <c>scikit-learn</c> padroniza quase todos os modelos por meio de objetos chamados <strong>estimadores</strong>. Todos eles compartilham três métodos principais:
+      <list marker="number">
+        <item><c>estimador.fit(X, y)</c>: ajusta o modelo aos dados de treino (ou apenas <c>estimador.fit(X)</c> no aprendizado não supervisionado), aprendendo e guardando internamente parâmetros como $\hat{\boldsymbol{\beta}}$.</item>
+        <item><c>estimador.predict(X)</c>: usa os parâmetros aprendidos em <c>fit</c> para gerar o vetor de previsões $\hat{\mathbf{y}}$ para novas linhas em <c>X</c>.</item>
+        <item><c>estimador.score(X, y)</c>: compara as previsões do modelo com os valores reais <c>y</c>, retornando uma métrica padrão (por padrão, acurácia em classificação e coeficiente $R^2$ em regressão).</item>
+      </list>
+
+      <example id="exm:8-1-matriz-neuronal">
+        <title>Lendo uma matriz neural $\mathbf{X}$ e o vetor $\mathbf{y}$</title>
+        Um experimento auditivo registra $n = 4$ ensaios com $p = 3$ neurônios (taxas de disparo em $\text{Hz}$) e o rótulo do estímulo ($0$ para som grave, $1$ para som agudo):
+        $$\mathbf{X} = \begin{pmatrix} 12 & 45 & 8 \\ 15 & 40 & 10 \\ 42 & 12 & 35 \\ 38 & 18 & 30 \end{pmatrix}, \qquad \mathbf{y} = \begin{pmatrix} 0 \\ 0 \\ 1 \\ 1 \end{pmatrix}.$$
+        Identifique: (a) a dimensão de $\mathbf{X}$ e os <em>shapes</em> em NumPy; (b) a entrada $x_{23}$ e seu significado biológico; (c) o vetor coluna $\mathbf{x}_3$ e o rótulo $y_3$.
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Como há $4$ linhas (ensaios) e $3$ colunas (neurônios), $\mathbf{X} \in \mathbb{R}^{4 \times 3}$ e $\mathbf{y} \in \mathbb{R}^4$. Em NumPy, <c>X.shape</c> é <c>(4, 3)</c> e <c>y.shape</c> é <c>(4,)</c>.</item>
+          <item>A entrada $x_{23}$ fica na linha $2$, coluna $3$: $x_{23} = 10\text{ Hz}$. Ela indica que, no segundo ensaio, o neurônio $3$ disparou a $10\text{ Hz}$.</item>
+          <item>A terceira linha de $\mathbf{X}$ é $\mathbf{x}_3^\top = (42,\; 12,\; 35)$, logo o vetor coluna da amostra $3$ é $\mathbf{x}_3 = (42,\; 12,\; 35)^\top \in \mathbb{R}^3$, associado ao estímulo $y_3 = 1$ (som agudo).</item>
+        </list>
+      </example>
+
+      <example id="exm:8-1-previsao-linear">
+        <title>Calculando previsões manuais de um modelo ajustado</title>
+        Suponha que um modelo linear de regressão já ajustado com <c>.fit(X_treino, y_treino)</c> estime a amplitude de um potencial evocado visual (em $\mu\text{V}$) a partir das potências normalizadas nas bandas alfa ($x_1$) e beta ($x_2$) do EEG por:
+        $$\hat{f}(\mathbf{x}) = \hat{\beta}_0 + \hat{\beta}_1 x_1 + \hat{\beta}_2 x_2, \qquad \hat{\beta}_0 = 2{,}0, \quad \hat{\beta}_1 = 1{,}5, \quad \hat{\beta}_2 = -0{,}5.$$
+        Avalie o equivalente a <c>modelo.predict(X_teste)</c> para a matriz de duas novas amostras:
+        $$\mathbf{X}_{\text{teste}} = \begin{pmatrix} 4 & 2 \\ 6 & 4 \end{pmatrix}.$$
+
+        <strong>Solução.</strong> Aplicamos $\hat{f}$ a cada linha de $\mathbf{X}_{\text{teste}}$:
+        <list marker="dash">
+          <item>Para a linha $1$, $\mathbf{x}_1 = (4, 2)^\top$:
+            $$\hat{y}_1 = 2{,}0 + 1{,}5(4) - 0{,}5(2) = 2{,}0 + 6{,}0 - 1{,}0 = 7{,}0\;\mu\text{V}.$$
+          </item>
+          <item>Para a linha $2$, $\mathbf{x}_2 = (6, 4)^\top$:
+            $$\hat{y}_2 = 2{,}0 + 1{,}5(6) - 0{,}5(4) = 2{,}0 + 9{,}0 - 2{,}0 = 9{,}0\;\mu\text{V}.$$
+          </item>
+        </list>
+        Portanto, <c>modelo.predict(X_teste)</c> devolve o vetor <c>array([7.0, 9.0])</c>.
+      </example>
+
+      Vejamos agora nosso primeiro código completo no <c>scikit-learn</c>, usando o conjunto clássico <c>load_iris</c> ($150$ flores medidas em $4$ características botânicas, divididas em $3$ espécies). Como vários modelos dependem da escala das variáveis, encapsulamos a padronização (<c>StandardScaler</c>) e o classificador (<c>LogisticRegression</c>, que estudaremos no Tema 8.3) dentro de um <c>Pipeline</c>. Também usamos <c>train_test_split</c> para separar uma fatia de teste que o modelo não vê durante o <c>.fit()</c>.
+
+      <code lang="python" id="cod:8-1-iris">
+import numpy as np
+from sklearn.datasets import load_iris
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+# Carregamento dos dados: n = 150 amostras, p = 4 variáveis
+dados = load_iris()
+X, y = dados.data, dados.target
+
+print(f"Formato de X: {X.shape}")
+# Formato de X: (150, 4)
+print(f"Formato de y: {y.shape}")
+# Formato de y: (150,)
+print(f"Número de classes K: {len(np.unique(y))}")
+# Número de classes K: 3
+
+# Separação em 80% treino (120 amostras) e 20% teste (30 amostras)
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.2, random_state=0, stratify=y
+)
+print(f"Treino: {X_treino.shape} | Teste: {X_teste.shape}")
+# Treino: (120, 4) | Teste: (30, 4)
+
+# Pipeline garante que a escala (média e desvio) seja aprendida só no treino
+modelo = Pipeline([
+    ("scaler", StandardScaler()),
+    ("clf", LogisticRegression(max_iter=1000)),
+])
+modelo.fit(X_treino, y_treino)
+
+acuracia_treino = modelo.score(X_treino, y_treino)
+acuracia_teste = modelo.score(X_teste, y_teste)
+print(f"Acurácia de treino: {acuracia_treino:.3f}")
+# Acurácia de treino: 0.950
+print(f"Acurácia de teste:  {acuracia_teste:.3f}")
+# Acurácia de teste:  0.967
+      </code>
+
+      Observe o papel de <c>random_state=0</c>: ele fixa a semente aleatória para que a divisão entre treino e teste seja exatamente reprodutível. Com essa divisão, o classificador atinge acurácia de treino de cerca de $0{,}95$ e acurácia de teste de cerca de $0{,}97$.
+
+      <remark id="rem:8-1-armadilha-shape">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Transpor $\mathbf{X}$ sem perceber:</strong> muitos equipamentos de eletrofisiologia gravam matrizes no formato <c>(n_neuronios, n_ensaios)</c>, ou seja, $\mathbf{X}^\top \in \mathbb{R}^{p \times n}$. Passar essa matriz diretamente para <c>.fit(X, y)</c> gera erro de compatibilidade com <c>y</c> (ou pior, se $n = p$, treina o modelo com linhas e colunas trocadas!). Confira sempre <c>X.shape[0] == len(y)</c> e transponha com <c>X.T</c> se necessário.</item>
+          <item><strong>Passar vetor 1D para um único preditor:</strong> quando há apenas $p = 1$ variável (como o contraste de um estímulo em $100$ ensaios), um vetor NumPy comum tem formato <c>(100,)</c>. O <c>scikit-learn</c> exige que <c>X</c> seja sempre uma matriz 2D, mesmo com uma coluna só: use <c>X = x.reshape(-1, 1)</c> para obter o formato <c>(100, 1)</c>.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-1-2-1">
+        <title>Básico — Formatos de matrizes em registros neurais</title>
+        Um laboratório grava a atividade de $p = 50$ neurônios durante $n = 120$ ensaios de tomada de decisão, registrando também a escolha binária do animal em cada ensaio.
+        <list marker="a">
+          <item>Quais devem ser os formatos (<c>shape</c>) de <c>X</c> e <c>y</c> para usar o <c>scikit-learn</c>?</item>
+          <item>O aparelho exportou os dados como um array <c>matriz_bruta</c> de formato <c>(50, 120)</c>. O que representa cada eixo de <c>matriz_bruta</c> e como você a corrige em NumPy?</item>
+          <item>Na matriz corrigida <c>X</c>, qual símbolo matemático (com índices $i, j$) representa a taxa do neurônio $12$ no ensaio $5$?</item>
+        </list>
+        <hint><title>Ver dica</title>Lembre da regra "linhas = amostras, colunas = variáveis". Em NumPy, o atributo <c>.T</c> calcula a matriz transposta.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como $n = 120$ amostras e $p = 50$ variáveis, devemos ter <c>X.shape == (120, 50)</c> e <c>y.shape == (120,)</c>.</item>
+            <item>Em <c>matriz_bruta</c>, as $50$ linhas correspondem aos neurônios e as $120$ colunas correspondem aos ensaios (ou seja, é $\mathbf{X}^\top$). Corrigimos transpondo a matriz: <c>X = matriz_bruta.T</c>, passando a ter formato <c>(120, 50)</c>.</item>
+            <item>Como a linha $i$ indica o ensaio e a coluna $j$ indica o neurônio, a taxa do neurônio $12$ no ensaio $5$ é $x_{5,12}$ (em Python, indexado a partir de zero, <c>X[4, 11]</c>).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-1-2-2">
+        <title>Básico — Corrigindo o erro de entrada 1D</title>
+        Uma aluna mediu a temperatura axonal <c>temp</c> (em $^\circ\text{C}$) e a velocidade de condução <c>vel</c> (em $\text{m/s}$) em $80$ fibras nervosas. Ambos os arrays NumPy têm <c>shape == (80,)</c>. Ao executar <c>modelo.fit(temp, vel)</c>, o Python interrompe com <c>ValueError: Expected 2D array, got 1D array instead</c>. Explique o motivo do erro e mostre a linha de código que o resolve.
+        <hint><title>Ver dica</title>O argumento <c>y</c> pode ser 1D, mas <c>X</c> precisa ter duas dimensões: <c>(n_amostras, n_variaveis)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          O <c>scikit-learn</c> exige que a matriz de variáveis preditoras <c>X</c> seja sempre bidimensional, com linhas representando amostras e colunas representando variáveis. Como há $p = 1$ preditor, <c>temp</c> tem formato <c>(80,)</c> (1D) em vez de <c>(80, 1)</c> (2D).
+
+          Resolvemos convertendo apenas <c>temp</c> com <c>reshape(-1, 1)</c> (onde <c>-1</c> instrui o NumPy a inferir automaticamente o número de linhas $80$):
+          <c>modelo.fit(temp.reshape(-1, 1), vel)</c>.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-1-2-3">
+        <title>Intermediário — Classificação no conjunto Wine em código</title>
+        Escreva um bloco Python autocontido que carregue o conjunto <c>load_wine</c> do <c>sklearn.datasets</c>, imprima o formato de <c>X</c> e de <c>y</c>, divida os dados em $75\%$ treino e $25\%$ teste com <c>random_state=0</c> e <c>stratify=y</c>, ajuste um <c>Pipeline</c> com <c>StandardScaler()</c> e <c>KNeighborsClassifier(n_neighbors=5)</c>, e imprima as acurácias de treino e de teste com três casas decimais.
+        <hint><title>Ver dica</title>Importe <c>load_wine</c> de <c>sklearn.datasets</c> e <c>KNeighborsClassifier</c> de <c>sklearn.neighbors</c>, seguindo a mesma estrutura do bloco da íris.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+from sklearn.datasets import load_wine
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+dados = load_wine()
+X, y = dados.data, dados.target
+print(f"Formato de X: {X.shape} | Formato de y: {y.shape}")
+# Formato de X: (178, 13) | Formato de y: (178,)
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.25, random_state=0, stratify=y
+)
+
+modelo = Pipeline([
+    ("scaler", StandardScaler()),
+    ("knn", KNeighborsClassifier(n_neighbors=5)),
+])
+modelo.fit(X_treino, y_treino)
+
+print(f"Acurácia de treino: {modelo.score(X_treino, y_treino):.3f}")
+# Acurácia de treino: 0.977
+print(f"Acurácia de teste:  {modelo.score(X_teste, y_teste):.3f}")
+# Acurácia de teste:  0.933
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-1-2-4">
+        <title>Avançado — Previsão simultânea na forma matricial</title>
+        Mostre que, para $m$ amostras empilhadas como linhas de $\mathbf{X}_{\text{teste}} \in \mathbb{R}^{m \times p}$ e vetor de coeficientes $\hat{\boldsymbol{\beta}}_{1:p} = (\hat{\beta}_1, \dots, \hat{\beta}_p)^\top \in \mathbb{R}^p$, as $m$ previsões lineares $\hat{y}_i = \hat{\beta}_0 + \sum_{j=1}^p \hat{\beta}_j x_{ij}$ escrevem-se em bloco como $\hat{\mathbf{y}} = \hat{\beta}_0 \mathbf{1}_m + \mathbf{X}_{\text{teste}} \hat{\boldsymbol{\beta}}_{1:p}$, onde $\mathbf{1}_m = (1, \dots, 1)^\top \in \mathbb{R}^m$. Em seguida, aplique essa equação para calcular $\hat{\mathbf{y}}$ (em $\text{mV}$) quando $\hat{\beta}_0 = -65$, $\hat{\boldsymbol{\beta}}_{1:p} = (2, -1)^\top$ e:
+        $$\mathbf{X}_{\text{teste}} = \begin{pmatrix} 3 & 1 \\ 0 & 4 \\ 5 & 2 \end{pmatrix}.$$
+        <hint><title>Ver dica</title>Lembre do produto matriz-vetor do Tema 5.1: a entrada $i$ de $\mathbf{X}_{\text{teste}} \hat{\boldsymbol{\beta}}_{1:p}$ é o produto escalar entre a linha $i$ de $\mathbf{X}_{\text{teste}}$ e $\hat{\boldsymbol{\beta}}_{1:p}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Pela definição do produto matriz-vetor, a componente $i$ de $\mathbf{X}_{\text{teste}} \hat{\boldsymbol{\beta}}_{1:p}$ vale $\sum_{j=1}^p x_{ij} \hat{\beta}_j = \mathbf{x}_i^\top \hat{\boldsymbol{\beta}}_{1:p}$. Somando $\hat{\beta}_0 \mathbf{1}_m$, cuja componente $i$ vale $\hat{\beta}_0$, obtemos exatamente $\hat{y}_i = \hat{\beta}_0 + \sum_{j=1}^p \hat{\beta}_j x_{ij}$ para cada $i = 1, \dots, m$.
+
+          Aplicando aos valores fornecidos:
+          $$\mathbf{X}_{\text{teste}} \hat{\boldsymbol{\beta}}_{1:p} = \begin{pmatrix} 3 & 1 \\ 0 & 4 \\ 5 & 2 \end{pmatrix} \begin{pmatrix} 2 \\ -1 \end{pmatrix} = \begin{pmatrix} 3(2) + 1(-1) \\ 0(2) + 4(-1) \\ 5(2) + 2(-1) \end{pmatrix} = \begin{pmatrix} 5 \\ -4 \\ 8 \end{pmatrix}.$$
+          Somando $\hat{\beta}_0 \mathbf{1}_3 = (-65, -65, -65)^\top$:
+          $$\hat{\mathbf{y}} = \begin{pmatrix} -65 \\ -65 \\ -65 \end{pmatrix} + \begin{pmatrix} 5 \\ -4 \\ 8 \end{pmatrix} = \begin{pmatrix} -60 \\ -69 \\ -57 \end{pmatrix}\text{ mV}.$$
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-1-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Treino × teste: o erro que importa</title>
+      <intro>
+        Decorar as perguntas e o gabarito da lista de exercícios garante nota máxima na própria lista, mas não diz se você aprendeu a resolver uma prova inédita. Em Machine Learning, essa prova inédita é o erro de teste.
+      </intro>
+
+      Suponha que ajustamos um modelo $\hat{f}$ em um conjunto de treino $\{(\mathbf{x}_i, y_i)\}_{i=1}^{n_{\text{treino}}}$. Se avaliarmos o quanto $\hat{f}$ erra exatamente nessas mesmas amostras usadas para encontrá-lo, medimos o <strong>erro de treino</strong>. Já se aplicarmos $\hat{f}$ a um conjunto separado de novas observações $\{(\mathbf{x}_i^{(0)}, y_i^{(0)})\}_{i=1}^{n_{\text{teste}}}$ que não participaram do ajuste, medimos o <strong>erro de teste</strong> (ou erro de <strong>generalização</strong>).
+
+      <definition id="def:8-1-mse-treino-teste">
+        <title>Soma dos quadrados dos resíduos e erro quadrático médio</title>
+        Dado um modelo $\hat{f}$ ajustado apenas nos dados de treino, escrevemos a previsão $\hat{y}_i = \hat{f}(\mathbf{x}_i)$. Para um conjunto com $n$ observações $(\mathbf{x}_i, y_i)$, definimos a <strong>soma dos quadrados dos resíduos</strong> ($\mathrm{RSS}$, de <em>residual sum of squares</em>) e o <strong>erro quadrático médio</strong> ($\mathrm{MSE}$, de <em>mean squared error</em>) por:
+        <equation id="eq:8-1-mse">\mathrm{RSS} = \sum_{i=1}^n (y_i - \hat{y}_i)^2, \qquad \mathrm{MSE} = \frac{1}{n}\sum_{i=1}^n (y_i - \hat{y}_i)^2 = \frac{\mathrm{RSS}}{n}.</equation>
+        Quando calculado sobre as $n_{\text{treino}}$ amostras de treino, obtemos $\mathrm{MSE}_{\text{treino}}$; quando calculado sobre as $n_{\text{teste}}$ amostras inéditas de teste, obtemos $\mathrm{MSE}_{\text{teste}}$.
+      </definition>
+
+      Por que $\mathrm{MSE}_{\text{treino}}$ é quase sempre menor que $\mathrm{MSE}_{\text{teste}}$ — ou seja, por que o erro de treino é <strong>otimista</strong>? Porque o algoritmo escolheu os parâmetros de $\hat{f}$ justamente para minimizar o erro no conjunto de treino. Um modelo muito flexível (por exemplo, um polinômio de grau alto, como detalharemos no Tema 8.2 — Regressão (polinomial)) entorta a curva para passar em cima de cada ponto de treino, ajustando não apenas o sinal verdadeiro $f(\mathbf{x})$, mas também as oscilações casuais $\varepsilon_i$ daquele conjunto específico.
+
+      Quando aumentamos a flexibilidade do modelo, ocorre um comportamento característico:
+      <list marker="dash">
+        <item>o <strong>erro de treino</strong> cai continuamente (podendo até chegar a zero se o modelo tiver parâmetros suficientes para interpolar todos os pontos);</item>
+        <item>o <strong>erro de teste</strong> cai no início (porque o modelo passa a capturar melhor o formato real de $f$), atinge um mínimo e depois volta a subir (porque o modelo passou a decorar o ruído do treino), desenhando uma <strong>curva em U</strong>.</item>
+      </list>
+
+      Vamos ver esses dois comportamentos em dois exemplos concretos — primeiro à mão, depois simulando uma curva de sintonia neuronal em Python.
+
+      <example id="exm:8-1-mse-mao">
+        <title>Calculando $\mathrm{MSE}$ de treino e de teste à mão</title>
+        Um experimento simples mede a taxa de disparo $y$ (em $\text{Hz}$) de um neurônio em função da corrente injetada $x$ (em $\text{nA}$). Temos $n_{\text{treino}} = 4$ pontos de treino:
+        $$(0, 12), \quad (1, 14), \quad (2, 22), \quad (3, 24),$$
+        e $n_{\text{teste}} = 2$ pontos inéditos de teste: $(0{,}5;\; 15)$ e $(2{,}5;\; 21)$.
+
+        Comparamos dois modelos ajustados ao treino:
+        <list marker="dash">
+          <item><strong>Modelo A (reta):</strong> $\hat{f}_A(x) = 12 + 4x$.</item>
+          <item><strong>Modelo B (polinômio de grau $3$):</strong> $\hat{f}_B(x) = -2x^3 + 9x^2 - 5x + 12$.</item>
+        </list>
+        Calcule $\mathrm{MSE}_{\text{treino}}$ e $\mathrm{MSE}_{\text{teste}}$ de ambos e diga qual generaliza melhor.
+
+        <strong>Solução.</strong> Começamos avaliando os dois modelos nos $4$ pontos de treino ($x = 0, 1, 2, 3$):
+        <list marker="number">
+          <item><strong>Para o Modelo A</strong> ($\hat{f}_A(x) = 12 + 4x$):
+            <list marker="dash">
+              <item>$x = 0$: $\hat{y} = 12$, erro $y - \hat{y} = 12 - 12 = 0$, quadrado $= 0$.</item>
+              <item>$x = 1$: $\hat{y} = 16$, erro $14 - 16 = -2$, quadrado $= 4$.</item>
+              <item>$x = 2$: $\hat{y} = 20$, erro $22 - 20 = 2$, quadrado $= 4$.</item>
+              <item>$x = 3$: $\hat{y} = 24$, erro $24 - 24 = 0$, quadrado $= 0$.</item>
+            </list>
+            Logo, $\mathrm{RSS}_{\text{treino}}(A) = 0 + 4 + 4 + 0 = 8$ e $\mathrm{MSE}_{\text{treino}}(A) = \frac{8}{4} = 2$.
+          </item>
+          <item><strong>Para o Modelo B</strong> ($\hat{f}_B(x) = -2x^3 + 9x^2 - 5x + 12$):
+            <list marker="dash">
+              <item>$x = 0$: $\hat{f}_B(0) = 12 = y_1$.</item>
+              <item>$x = 1$: $\hat{f}_B(1) = -2 + 9 - 5 + 12 = 14 = y_2$.</item>
+              <item>$x = 2$: $\hat{f}_B(2) = -16 + 36 - 10 + 12 = 22 = y_3$.</item>
+              <item>$x = 3$: $\hat{f}_B(3) = -54 + 81 - 15 + 12 = 24 = y_4$.</item>
+            </list>
+            O Modelo B passa exatamente sobre os $4$ pontos! Portanto, $\mathrm{MSE}_{\text{treino}}(B) = \frac{0}{4} = 0$.
+          </item>
+        </list>
+
+        Agora avaliamos nos $2$ pontos de teste $(0{,}5;\; 15)$ e $(2{,}5;\; 21)$:
+        <list marker="number">
+          <item><strong>Para o Modelo A:</strong> $\hat{f}_A(0{,}5) = 14$ e $\hat{f}_A(2{,}5) = 22$.
+            $$\mathrm{MSE}_{\text{teste}}(A) = \frac{(15 - 14)^2 + (21 - 22)^2}{2} = \frac{1 + 1}{2} = 1{,}0.$$
+          </item>
+          <item><strong>Para o Modelo B:</strong>
+            $$\hat{f}_B(0{,}5) = -2(0{,}125) + 9(0{,}25) - 5(0{,}5) + 12 = -0{,}25 + 2{,}25 - 2{,}5 + 12 = 11{,}5,$$
+            $$\hat{f}_B(2{,}5) = -2(15{,}625) + 9(6{,}25) - 5(2{,}5) + 12 = -31{,}25 + 56{,}25 - 12{,}5 + 12 = 24{,}5.$$
+            Logo:
+            $$\mathrm{MSE}_{\text{teste}}(B) = \frac{(15 - 11{,}5)^2 + (21 - 24{,}5)^2}{2} = \frac{3{,}5^2 + (-3{,}5)^2}{2} = \frac{12{,}25 + 12{,}25}{2} = 12{,}25.$$
+          </item>
+        </list>
+        Embora B tenha zerado o erro de treino, ele oscila violentamente entre os pontos e tem erro de teste mais de doze vezes pior que A. O Modelo A generaliza muito melhor.
+      </example>
+
+      <example id="exm:8-1-vazamento-escolha">
+        <title>Erro otimista ao escolher modelo usando o conjunto de teste</title>
+        Uma pesquisadora treina $5$ classificadores diferentes para distinguir estágios do sono (vigília, sono NREM e sono REM) em registros de EEG. Em seguida, avalia todos os $5$ modelos no mesmo conjunto de teste de $60$ épocas e obtém taxas de erro de $22\%$, $18\%$, $12\%$, $15\%$ e $19\%$. Ela escolhe o terceiro modelo e escreve no artigo: "o classificador alcança $12\%$ de erro em dados inéditos". Por que esse número não é uma estimativa honesta?
+
+        <strong>Solução.</strong> Suponha que a taxa de erro real de cada modelo em novos sujeitos seja cerca de $15\%$ a $18\%$. Por mera flutuação amostral das $60$ épocas, um dos cinco candidatos tende a ter sorte nesse conjunto específico — exatamente como lançar cinco moedas e publicar apenas aquela que deu mais caras. Como o conjunto de teste foi usado para <em>tomar uma decisão</em> (escolher o modelo 3), a informação desse conjunto vazou para o processo de seleção, enviesando o erro reportado para baixo. Para relatar o desempenho de forma honesta, precisamos separar uma etapa intermediária de validação — ou usar validação cruzada, que estudaremos em detalhes no Tema 8.5 (Reamostragem).
+      </example>
+
+      Agora vamos reproduzir a curva em U no computador. Simulamos uma curva de sintonia neuronal de contraste com ruído de contagem do tipo Poisson (<c>rng.poisson</c>, realista para disparos neurais) e comparamos polinômios de graus $1$, $3$ e $12$ usando <c>PolynomialFeatures</c>, <c>StandardScaler</c> e <c>LinearRegression</c> em um <c>Pipeline</c>. O funcionamento algébrico da regressão polinomial será estudado no Tema 8.2 (Regressão (polinomial)).
+
+      <code lang="python" id="cod:8-1-sintonia">
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+
+rng = np.random.default_rng(0)
+n_ensaios = 36
+contraste = rng.uniform(0.0, 1.0, size=n_ensaios)
+# Curva de sintonia verdadeira em Hz (tipo Naka-Rushton) + ruído de Poisson
+taxa_verdadeira = 10.0 + 70.0 * (contraste ** 2) / (contraste ** 2 + 0.35 ** 2)
+taxas = rng.poisson(taxa_verdadeira).astype(float)
+
+X = contraste.reshape(-1, 1)  # Formato 2D obrigatório: (36, 1)
+y = taxas
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.3, random_state=0
+)
+
+for grau in (1, 3, 12):
+    modelo = Pipeline([
+        ("poly", PolynomialFeatures(degree=grau, include_bias=False)),
+        ("scaler", StandardScaler()),
+        ("reg", LinearRegression()),
+    ])
+    modelo.fit(X_treino, y_treino)
+    mse_treino = mean_squared_error(y_treino, modelo.predict(X_treino))
+    mse_teste = mean_squared_error(y_teste, modelo.predict(X_teste))
+    print(f"Grau {grau:2d} | MSE treino: {mse_treino:7.3f} | MSE teste: {mse_teste:7.3f}")
+# Grau  1 | MSE treino: 101.836 | MSE teste: 101.674
+# Grau  3 | MSE treino:  40.218 | MSE teste:  35.303
+# Grau 12 | MSE treino:  34.252 | MSE teste:  66.904
+      </code>
+
+      Note o padrão qualitativo esperado: o $\mathrm{MSE}$ de treino cai continuamente quando passamos do grau $1$ (cerca de $102$) para o grau $3$ (cerca de $40$) e para o grau $12$ (cerca de $34$). Já o $\mathrm{MSE}$ de teste desenha a curva em U: começa alto no grau $1$ (cerca de $102$, pois uma reta não acompanha a saturação da curva), cai para cerca de $35$ no grau $3$ e volta a subir para cerca de $67$ no grau $12$ (quase o dobro) por perseguir as flutuações aleatórias do treino. Como há só $11$ pontos de teste, o $\mathrm{MSE}$ de teste oscila bastante de uma divisão para outra (no grau $3$ ele saiu até um pouco abaixo do de treino); o Tema 8.5 (Reamostragem) mostra como a validação cruzada reduz essa variabilidade.
+
+      <remark id="rem:8-1-armadilha-teste">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Erro de treino baixo = modelo bom:</strong> um erro de treino próximo de zero costuma ser o sintoma clássico de que o modelo decorou o ruído do conjunto de treino e provavelmente vai errar muito em dados novos.</item>
+          <item><strong>Usar o conjunto de teste para escolher o modelo e reportar esse erro:</strong> nunca ajuste hiperparâmetros (como o grau do polinômio) olhando para o conjunto de teste final e depois publique esse mesmo erro como prova de generalização. O conjunto de teste deve ficar trancado em um "cofre" até a avaliação final — o Tema 8.5 (Reamostragem) mostrará como fazer escolhas honestas usando conjuntos de validação e validação cruzada.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-1-3-1">
+        <title>Básico — Calculando RSS e MSE em um modelo de potencial de membrana</title>
+        Em $5$ ensaios de teste, os potenciais de membrana observados foram $y = (-68, -64, -60, -58, -55)\text{ mV}$, e um modelo de <em>encoding</em> previu $\hat{y} = (-67, -65, -62, -57, -54)\text{ mV}$. Calcule o $\mathrm{RSS}$ e o $\mathrm{MSE}$ de teste (em $\text{mV}^2$).
+        <hint><title>Ver dica</title>Calcule primeiro cada resíduo $y_i - \hat{y}_i$, eleve cada um ao quadrado, some os $5$ quadrados para achar o $\mathrm{RSS}$ e divida por $5$ para obter o $\mathrm{MSE}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculamos os resíduos $e_i = y_i - \hat{y}_i$ e seus quadrados:
+          <list marker="dash">
+            <item>$i = 1$: $-68 - (-67) = -1 \implies (-1)^2 = 1$;</item>
+            <item>$i = 2$: $-64 - (-65) = +1 \implies 1^2 = 1$;</item>
+            <item>$i = 3$: $-60 - (-62) = +2 \implies 2^2 = 4$;</item>
+            <item>$i = 4$: $-58 - (-57) = -1 \implies (-1)^2 = 1$;</item>
+            <item>$i = 5$: $-55 - (-54) = -1 \implies (-1)^2 = 1$.</item>
+          </list>
+          Logo, $\mathrm{RSS} = 1 + 1 + 4 + 1 + 1 = 8\text{ mV}^2$ e $\mathrm{MSE} = \frac{8}{5} = 1{,}6\text{ mV}^2$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-1-3-2">
+        <title>Básico — Escolhendo entre dois modelos</title>
+        Um modelo A apresenta $\mathrm{MSE}_{\text{treino}} = 0{,}8$ e $\mathrm{MSE}_{\text{teste}} = 4{,}5$, enquanto um modelo B apresenta $\mathrm{MSE}_{\text{treino}} = 2{,}1$ e $\mathrm{MSE}_{\text{teste}} = 2{,}4$. Qual modelo deve ser preferido para aplicações clínicas inéditas e por quê?
+        <hint><title>Ver dica</title>O objetivo de um modelo preditivo é errar pouco em amostras nunca vistas durante o ajuste, e não nas amostras já conhecidas.</hint>
+        <solution collapsible="true" collapsed="true">
+          O <strong>modelo B</strong> deve ser preferido. Embora o modelo A tenha um erro menor no conjunto de treino ($0{,}8 < 2{,}1$), seu desempenho despenca no conjunto de teste ($4{,}5 > 2{,}4$), indicando que A decorou idiossincrasias do treino. Já o modelo B exibe erro de teste muito menor ($2{,}4$), demonstrando melhor capacidade de generalização.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-1-3-3">
+        <title>Intermediário — Reta versus parábola à mão</title>
+        Considere $3$ pontos de treino $(0, 5), (1, 5), (2, 11)$ e $2$ pontos de teste $(0{,}5;\; 6)$ e $(1{,}5;\; 9)$. Comparamos o modelo linear $\hat{f}_1(x) = 4 + 3x$ e a parábola interpolante $\hat{f}_2(x) = 3x^2 - 3x + 5$. Calcule $\mathrm{MSE}_{\text{treino}}$ e $\mathrm{MSE}_{\text{teste}}$ para $\hat{f}_1$ e $\hat{f}_2$.
+        <hint><title>Ver dica</title>Confira primeiro se $\hat{f}_2$ passa exatamente pelos $3$ pontos de treino e, em seguida, avalie $\hat{f}_1$ e $\hat{f}_2$ em $x = 0{,}5$ e $x = 1{,}5$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <strong>No conjunto de treino ($n_{\text{treino}} = 3$):</strong>
+          <list marker="dash">
+            <item>Para $\hat{f}_1(x) = 4 + 3x$: previsões $4, 7, 10$ contra valores reais $5, 5, 11$. Os resíduos são $1, -2, 1$, logo:
+              $$\mathrm{MSE}_{\text{treino}}(1) = \frac{1^2 + (-2)^2 + 1^2}{3} = \frac{6}{3} = 2.$$
+            </item>
+            <item>Para $\hat{f}_2(x) = 3x^2 - 3x + 5$: $\hat{f}_2(0) = 5$, $\hat{f}_2(1) = 3 - 3 + 5 = 5$, $\hat{f}_2(2) = 12 - 6 + 5 = 11$. Todos os resíduos são zero, logo $\mathrm{MSE}_{\text{treino}}(2) = 0$.</item>
+          </list>
+
+          <strong>No conjunto de teste ($n_{\text{teste}} = 2$):</strong>
+          <list marker="dash">
+            <item>Para $\hat{f}_1$: $\hat{f}_1(0{,}5) = 5{,}5$ e $\hat{f}_1(1{,}5) = 8{,}5$. Os resíduos frente a $(6, 9)$ são $6 - 5{,}5 = 0{,}5$ e $9 - 8{,}5 = 0{,}5$. Logo:
+              $$\mathrm{MSE}_{\text{teste}}(1) = \frac{0{,}5^2 + 0{,}5^2}{2} = \frac{0{,}25 + 0{,}25}{2} = 0{,}25.$$
+            </item>
+            <item>Para $\hat{f}_2$: $\hat{f}_2(0{,}5) = 3(0{,}25) - 1{,}5 + 5 = 4{,}25$ e $\hat{f}_2(1{,}5) = 3(2{,}25) - 4{,}5 + 5 = 7{,}25$. Os resíduos frente a $(6, 9)$ são $6 - 4{,}25 = 1{,}75$ e $9 - 7{,}25 = 1{,}75$. Logo:
+              $$\mathrm{MSE}_{\text{teste}}(2) = \frac{1{,}75^2 + 1{,}75^2}{2} = 1{,}75^2 = 3{,}0625.$$
+            </item>
+          </list>
+          Portanto, $\hat{f}_1$ tem erro de teste mais de $12$ vezes menor que a parábola interpolante $\hat{f}_2$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-1-3-4">
+        <title>Avançado — Sobreajuste com muitas variáveis no conjunto Diabetes</title>
+        O conjunto <c>load_diabetes</c> do <c>scikit-learn</c> contém $442$ pacientes e $10$ variáveis clínicas. Ao expandir essas $10$ variáveis com um polinômio de grau $3$, geramos centenas de termos cruzados — quase tantos parâmetros quanto pacientes de treino! Escreva um script autocontido usando <c>train_test_split</c> (<c>test_size=0.25</c>, <c>random_state=0</c>) para comparar <c>MSE</c> de treino e <c>MSE</c> de teste para polinômios de grau $1$ e grau $3$.
+        <hint><title>Ver dica</title>Use o mesmo <c>Pipeline</c> com <c>PolynomialFeatures(degree=grau, include_bias=False)</c>, <c>StandardScaler()</c> e <c>LinearRegression()</c>, avaliando com <c>mean_squared_error</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+from sklearn.datasets import load_diabetes
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+
+dados = load_diabetes()
+X, y = dados.data, dados.target
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.25, random_state=0
+)
+
+for grau in (1, 3):
+    modelo = Pipeline([
+        ("poly", PolynomialFeatures(degree=grau, include_bias=False)),
+        ("scaler", StandardScaler()),
+        ("reg", LinearRegression()),
+    ])
+    modelo.fit(X_treino, y_treino)
+    mse_tr = mean_squared_error(y_treino, modelo.predict(X_treino))
+    mse_te = mean_squared_error(y_teste, modelo.predict(X_teste))
+    print(f"Grau {grau} | MSE treino: {mse_tr:8.3f} | MSE teste: {mse_te:8.3f}")
+# Grau 1 | MSE treino: 2780.084 | MSE teste: 3180.160
+# Grau 3 | MSE treino:  536.593 | MSE teste: 154697.296
+          </code>
+          Com $285$ termos polinomiais para $331$ pacientes no treino, o modelo de grau $3$ reduz o erro de treino a cerca de um quinto ($\approx 537$ contra $\approx 2\,780$) em comparação ao grau $1$, mas sofre sobreajuste severo e o erro de teste explode para $\approx 154\,697$ (quase $50$ vezes o do grau $1$).
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-1-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Viés, variância e sobreajuste</title>
+      <intro>
+        Por que o erro de teste faz uma curva em U quando aumentamos a flexibilidade do modelo? A resposta exata vem da decomposição do erro esperado em dois inimigos que puxam em direções opostas: o viés e a variância.
+      </intro>
+
+      Imagine um arqueiro atirando flechas em um alvo, onde o centro do alvo é a resposta verdadeira $f(\mathbf{x}_0)$ em um ponto fixo $\mathbf{x}_0$. Se repetirmos o experimento várias vezes — coletando um novo conjunto de treino de tamanho $n$, ajustando o modelo e olhando onde caiu a previsão $\hat{f}(\mathbf{x}_0)$ — existem duas falhas distintas:
+      <list marker="dash">
+        <item><strong>Viés (<em>bias</em>) alto:</strong> as flechas caem agrupadas no mesmo lugar, mas longe do centro do alvo. O modelo tem um erro sistemático porque é simples demais para acompanhar a curvatura real de $f$.</item>
+        <item><strong>Variância (<em>variance</em>) alta:</strong> em média, as flechas até apontam para o centro, mas espalham-se por todo o alvo. Cada pequeno ruído diferente no conjunto de treino faz $\hat{f}(\mathbf{x}_0)$ mudar drasticamente.</item>
+      </list>
+
+      Retomando os conceitos de esperança e variância de uma variável aleatória vistos no Módulo 7, formalizamos essas duas quantidades para o estimador $\hat{f}(\mathbf{x}_0)$ (tratado como variável aleatória, pois depende de qual amostra de treino foi sorteada).
+
+      <definition id="def:8-1-vies-variancia">
+        <title>Viés e variância de um estimador em um ponto de teste</title>
+        Fixado um ponto de teste $\mathbf{x}_0 \in \mathbb{R}^p$, seja $\hat{f}(\mathbf{x}_0)$ a previsão produzida por um modelo ajustado em um conjunto de treino aleatório de tamanho $n$. Tomando a esperança $\mathbb{E}[\cdot]$ sobre todas as possíveis amostras de treino de tamanho $n$, definimos:
+        <list marker="dash">
+          <item>o <strong>viés</strong> do estimador em $\mathbf{x}_0$:
+            $$\operatorname{\text{Viés}}\!\left(\hat{f}(\mathbf{x}_0)\right) = \mathbb{E}\!\left[\hat{f}(\mathbf{x}_0)\right] - f(\mathbf{x}_0);$$
+          </item>
+          <item>a <strong>variância</strong> do estimador em $\mathbf{x}_0$:
+            $$\operatorname{Var}\!\left(\hat{f}(\mathbf{x}_0)\right) = \mathbb{E}\!\left[\left(\hat{f}(\mathbf{x}_0) - \mathbb{E}\!\left[\hat{f}(\mathbf{x}_0)\right]\right)^2\right].$$
+          </item>
+        </list>
+      </definition>
+
+      O resultado mais importante da teoria estatística de aprendizado mostra que o erro quadrático médio esperado de uma nova observação $y_0 = f(\mathbf{x}_0) + \varepsilon_0$ soma exatamente três termos não negativos.
+
+      <proposition id="prop:8-1-vies-variancia">
+        <title>Decomposição viés–variância</title>
+        Seja $y_0 = f(\mathbf{x}_0) + \varepsilon_0$ uma nova observação em um ponto fixo $\mathbf{x}_0$, onde $\mathbb{E}[\varepsilon_0] = 0$, $\operatorname{Var}(\varepsilon_0) = \sigma^2$ e $\varepsilon_0$ é independente do estimador $\hat{f}(\mathbf{x}_0)$ ajustado nos dados de treino. Então o erro quadrático esperado de teste em $\mathbf{x}_0$ decompõe-se exatamente como:
+        <equation id="eq:8-1-decomposicao">\mathbb{E}\!\left[\left(y_0 - \hat{f}(\mathbf{x}_0)\right)^2\right] = \operatorname{Var}\!\left(\hat{f}(\mathbf{x}_0)\right) + \left[\operatorname{\text{Viés}}\!\left(\hat{f}(\mathbf{x}_0)\right)\right]^2 + \sigma^2.</equation>
+        <intuition>
+          O erro esperado no teste nunca pode ser menor que $\sigma^2$. Para chegar perto desse piso, precisamos de um modelo que mantenha simultaneamente o viés ao quadrado e a variância pequenos.
+        </intuition>
+      </proposition>
+      <proof of="prop:8-1-vies-variancia" collapsible="true" collapsed="true">
+        Para abreviar a escrita, denote $f_0 = f(\mathbf{x}_0)$, $\hat{f}_0 = \hat{f}(\mathbf{x}_0)$ e $\mu = \mathbb{E}[\hat{f}_0]$. Substituindo $y_0 = f_0 + \varepsilon_0$, temos:
+        $$y_0 - \hat{f}_0 = (f_0 - \hat{f}_0) + \varepsilon_0.$$
+        Elevando ao quadrado e tomando a esperança (lembrando que $\mathbb{E}$ é linear):
+        $$\mathbb{E}\!\left[(y_0 - \hat{f}_0)^2\right] = \mathbb{E}\!\left[(f_0 - \hat{f}_0)^2\right] + 2\,\mathbb{E}\!\left[(f_0 - \hat{f}_0)\varepsilon_0\right] + \mathbb{E}[\varepsilon_0^2].$$
+        Como $\varepsilon_0$ é independente de $\hat{f}_0$ e $\mathbb{E}[\varepsilon_0] = 0$, o termo cruzado se anula:
+        $$\mathbb{E}\!\left[(f_0 - \hat{f}_0)\varepsilon_0\right] = \mathbb{E}[f_0 - \hat{f}_0]\cdot \mathbb{E}[\varepsilon_0] = 0.$$
+        Além disso, $\mathbb{E}[\varepsilon_0^2] = \operatorname{Var}(\varepsilon_0) + (\mathbb{E}[\varepsilon_0])^2 = \sigma^2$.
+
+        Agora somamos e subtraímos $\mu = \mathbb{E}[\hat{f}_0]$ dentro de $(f_0 - \hat{f}_0)^2$:
+        $$(f_0 - \hat{f}_0)^2 = \bigl((f_0 - \mu) + (\mu - \hat{f}_0)\bigr)^2 = (f_0 - \mu)^2 + 2(f_0 - \mu)(\mu - \hat{f}_0) + (\mu - \hat{f}_0)^2.$$
+        Ao tomar a esperança, note que $(f_0 - \mu)$ é uma constante e $\mathbb{E}[\mu - \hat{f}_0] = \mu - \mathbb{E}[\hat{f}_0] = 0$, de modo que o termo cruzado novamente se anula:
+        $$\mathbb{E}\!\left[(f_0 - \hat{f}_0)^2\right] = (f_0 - \mu)^2 + \mathbb{E}\!\left[(\hat{f}_0 - \mu)^2\right] = \left[\operatorname{\text{Viés}}(\hat{f}_0)\right]^2 + \operatorname{Var}(\hat{f}_0).$$
+        Reunindo todas as parcelas, concluímos:
+        $$\mathbb{E}\!\left[(y_0 - \hat{f}(\mathbf{x}_0))^2\right] = \operatorname{Var}\!\left(\hat{f}(\mathbf{x}_0)\right) + \left[\operatorname{\text{Viés}}\!\left(\hat{f}(\mathbf{x}_0)\right)\right]^2 + \sigma^2.$$
+      </proof>
+
+      A <ref to="eq:8-1-decomposicao"/> explica completamente a curva em U e define os dois extremos indesejados do treinamento:
+      <list marker="dash">
+        <item><strong>Subajuste (<em>underfitting</em>):</strong> ocorre quando o modelo é rígido demais (por exemplo, grau $1$ para uma curva saturante). O viés ao quadrado domina, tornando altos tanto o erro de treino quanto o de teste.</item>
+        <item><strong>Sobreajuste (<em>overfitting</em>):</strong> ocorre quando o modelo é flexível demais para a quantidade de dados disponível (por exemplo, grau $12$ para $20$ pontos). O viés cai quase a zero, mas a variância explode porque o modelo se molda ao ruído do treino.</item>
+        <item><strong>Compromisso viés–variância (<em>bias–variance trade-off</em>):</strong> ao aumentar a flexibilidade, o viés cai e a variância sobe; o ponto ótimo fica no vale da curva em U, onde a soma $\operatorname{\text{Viés}}^2 + \mathrm{Var}$ é mínima.</item>
+      </list>
+
+      E qual é o papel do tamanho da amostra $n$? Aumentar o número de ensaios ou sujeitos de treino <strong>reduz a variância</strong> do estimador, porque desvios aleatórios em direções opostas se cancelam quando temos mais observações. Em contrapartida, mais dados não eliminam o viés estrutural de um modelo incapaz de representar $f$ (uma reta continuará errando uma parábola mesmo com um milhão de pontos) nem reduzem o ruído irredutível $\sigma^2$.
+
+      A <ref to="fig:8-1-vies-variancia"/> ilustra esse fenômeno em uma simulação de Monte Carlo com $300$ conjuntos de treino de tamanho $n = 20$ extraídos da curva de sintonia neuronal. À esquerda, o $\mathrm{MSE}$ de treino cai sem parar enquanto o $\mathrm{MSE}$ de teste forma um U acima do piso $\sigma^2 = 36\text{ Hz}^2$; à direita, vemos exatamente como a queda do $\operatorname{\text{Viés}}^2$ cruza com a subida da variância.
+
+      <figure src="fig/t01-vies-variancia.svg" alt="Dois gráficos lado a lado mostrando a média de 300 repetições em função do grau do polinômio de 1 a 12: à esquerda o MSE de treino caindo continuamente e o MSE de teste em formato de U acima da linha tracejada de ruído irredutível; à direita a queda de Viés ao quadrado e a subida de Variância somando-se ao erro de teste." id="fig:8-1-vies-variancia">
+        <caption>Simulação de Monte Carlo ($300$ repetições, $n = 20$ amostras de treino, $\sigma = 6\text{ Hz}$). À esquerda, o erro de treino engana ao cair sempre, enquanto o erro de teste forma um U. À direita, a decomposição mostra a troca entre $\operatorname{\text{Viés}}^2$ (alto no subajuste) e variância (alta no sobreajuste).</caption>
+      </figure>
+
+      <example id="exm:8-1-comparacao-vies-var">
+        <title>Comparando modelos pela decomposição viés–variância</title>
+        Em um ponto $\mathbf{x}_0$, sabe-se que o ruído irredutível da taxa de disparo tem desvio padrão $\sigma = 3\text{ Hz}$ (logo $\sigma^2 = 9\text{ Hz}^2$). Comparamos três candidatos a modelo:
+        <list marker="dash">
+          <item><strong>Modelo A (rígido):</strong> $\operatorname{\text{Viés}} = -4\text{ Hz}$, $\operatorname{Var} = 1\text{ Hz}^2$.</item>
+          <item><strong>Modelo B (equilibrado):</strong> $\operatorname{\text{Viés}} = 1\text{ Hz}$, $\operatorname{Var} = 4\text{ Hz}^2$.</item>
+          <item><strong>Modelo C (muito flexível):</strong> $\operatorname{\text{Viés}} = 0{,}5\text{ Hz}$, $\operatorname{Var} = 20\text{ Hz}^2$.</item>
+        </list>
+        Calcule o erro quadrático médio esperado de cada modelo em $\mathbf{x}_0$ e identifique o vencedor.
+
+        <strong>Solução.</strong> Aplicamos a <ref to="prop:8-1-vies-variancia"/> ($\mathrm{Erro} = \operatorname{Var} + \operatorname{\text{Viés}}^2 + \sigma^2$) com $\sigma^2 = 9\text{ Hz}^2$:
+        <list marker="dash">
+          <item><strong>Modelo A:</strong> $1 + (-4)^2 + 9 = 1 + 16 + 9 = 26\text{ Hz}^2$ (sofre de <em>subajuste</em> pelo viés alto).</item>
+          <item><strong>Modelo B:</strong> $4 + 1^2 + 9 = 4 + 1 + 9 = 14\text{ Hz}^2$.</item>
+          <item><strong>Modelo C:</strong> $20 + (0{,}5)^2 + 9 = 20 + 0{,}25 + 9 = 29{,}25\text{ Hz}^2$ (sofre de <em>sobreajuste</em> pela variância alta).</item>
+        </list>
+        O vencedor é o <strong>Modelo B</strong> ($14\text{ Hz}^2$), pois aceita um pequeno viés de $1\text{ Hz}$ em troca de uma grande redução na variância.
+      </example>
+
+      <example id="exm:8-1-estimador-amostral">
+        <title>Estimando viés e variância em $4$ repetições experimentais</title>
+        Suponha que a resposta verdadeira de um potencial pós-sináptico em $x_0$ seja $f(x_0) = 10\text{ mV}$. Ao repetir um protocolo experimental $4$ vezes (gerando $4$ conjuntos de treino independentes), um modelo previu, em $x_0$, os valores $7, 9, 8$ e $12\text{ mV}$. Estime a esperança, o viés e a variância empírica de $\hat{f}(x_0)$ nessas $4$ repetições.
+
+        <strong>Solução.</strong> Calculamos primeiro a média das previsões:
+        $$\bar{\hat{f}}(x_0) = \frac{7 + 9 + 8 + 12}{4} = \frac{36}{4} = 9\text{ mV}.$$
+        Em seguida, comparamos essa média com $f(x_0) = 10\text{ mV}$ para estimar o viés:
+        $$\widehat{\operatorname{\text{Viés}}} = 9 - 10 = -1\text{ mV} \implies \widehat{\operatorname{\text{Viés}}}^2 = (-1)^2 = 1\text{ mV}^2.$$
+        Por fim, a variância empírica em torno da média $9\text{ mV}$ é (dividindo aqui por $4$, isto é, a média dos desvios quadráticos sobre as repetições, como faz <c>np.var</c> com o padrão <c>ddof=0</c> — diferente do divisor $n - 1$ da variância amostral vista no Módulo 7):
+        $$\widehat{\operatorname{Var}} = \frac{(7 - 9)^2 + (9 - 9)^2 + (8 - 9)^2 + (12 - 9)^2}{4} = \frac{4 + 0 + 1 + 9}{4} = \frac{14}{4} = 3{,}5\text{ mV}^2.$$
+      </example>
+
+      No código abaixo, fazemos exatamente essa simulação de Monte Carlo com $200$ conjuntos de treino gerados ao redor da curva de sintonia neuronal, medindo $\operatorname{\text{Viés}}^2$, $\text{Variância}$ e o erro esperado no ponto de contraste $x_0 = 0{,}08$ para polinômios de grau $1$, $3$ e $12$.
+
+      <code lang="python" id="cod:8-1-monte-carlo">
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+
+
+def curva_sintonia(x):
+    return 10.0 + 70.0 * (x ** 2) / (x ** 2 + 0.35 ** 2)
+
+
+rng = np.random.default_rng(0)
+n_treino = 21
+n_rep = 200
+sigma = 6.0  # Variância irredutível sigma^2 = 36.0 Hz^2
+
+x_treino = np.linspace(0.0, 1.0, n_treino)
+X_treino = x_treino.reshape(-1, 1)
+f_treino = curva_sintonia(x_treino)
+
+x0 = 0.08
+X0 = np.array([[x0]])
+f0 = float(curva_sintonia(x0))
+
+for grau in (1, 3, 12):
+    previsoes_x0 = np.empty(n_rep)
+    modelo = Pipeline([
+        ("poly", PolynomialFeatures(degree=grau, include_bias=False)),
+        ("scaler", StandardScaler()),
+        ("reg", LinearRegression()),
+    ])
+    for rep in range(n_rep):
+        y_treino = f_treino + rng.normal(0.0, sigma, size=n_treino)
+        modelo.fit(X_treino, y_treino)
+        previsoes_x0[rep] = modelo.predict(X0)[0]
+
+    vies2 = (np.mean(previsoes_x0) - f0) ** 2
+    variancia = np.var(previsoes_x0)
+    erro_esperado = vies2 + variancia + sigma ** 2
+    print(
+        f"Grau {grau:2d} | Viés²: {vies2:7.3f} | Var: {variancia:7.3f} | "
+        f"Total (com σ²=36): {erro_esperado:7.3f}"
+    )
+# Grau  1 | Viés²:  59.845 | Var:   4.737 | Total (com σ²=36): 100.582
+# Grau  3 | Viés²:   4.045 | Var:   6.577 | Total (com σ²=36):  46.622
+# Grau 12 | Viés²:   0.044 | Var:  16.501 | Total (com σ²=36):  52.545
+      </code>
+
+      Em $x_0 = 0{,}08$, o grau $1$ erra principalmente por viés ao quadrado (cerca de $60\text{ Hz}^2$); o grau $12$ quase zera o viés ao quadrado (cerca de $0{,}04\text{ Hz}^2$), mas sua variância (cerca de $16{,}5\text{ Hz}^2$) é mais que o dobro da do grau $3$; e o grau $3$ tem o menor erro esperado, cerca de $46{,}6\text{ Hz}^2$ (cerca de $10{,}6\text{ Hz}^2$ acima do piso $\sigma^2 = 36\text{ Hz}^2$).
+
+      <remark id="rem:8-1-armadilha-vies-var">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Achar que variância zero significa modelo bom:</strong> um modelo que ignora $\mathbf{x}$ e responde sempre uma constante fixa tem variância igual a zero, mas seu viés costuma ser enorme.</item>
+          <item><strong>Achar que coletar mais dados resolve qualquer erro:</strong> aumentar $n$ reduz a variância (ajudando a combater sobreajuste), mas não corrige um modelo rígido demais preso em subajuste.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-1-4-1">
+        <title>Básico — Cálculo da decomposição e limite de grandes amostras</title>
+        Um modelo ajustado apresenta, no ponto $\mathbf{x}_0$, $\operatorname{\text{Viés}}(\hat{f}(\mathbf{x}_0)) = 3\text{ Hz}$ e $\operatorname{Var}(\hat{f}(\mathbf{x}_0)) = 7\text{ Hz}^2$, enquanto o ruído neural tem desvio padrão $\sigma = 2\text{ Hz}$.
+        <list marker="a">
+          <item>Calcule $\mathbb{E}[(y_0 - \hat{f}(\mathbf{x}_0))^2]$.</item>
+          <item>Suponha que você multiplique o tamanho da amostra de treino até tornar $\operatorname{Var}(\hat{f}(\mathbf{x}_0)) \to 0$, sem alterar o viés estrutural do modelo. Qual será o menor erro quadrático esperado possível nesse ponto?</item>
+        </list>
+        <hint><title>Ver dica</title>Lembre que $\sigma = 2\text{ Hz}$ implica $\sigma^2 = 4\text{ Hz}^2$, e que o viés entra elevado ao quadrado na decomposição.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Temos $\sigma^2 = 2^2 = 4\text{ Hz}^2$. Pela decomposição viés–variância:
+              $$\mathbb{E}\!\left[(y_0 - \hat{f}(\mathbf{x}_0))^2\right] = 7 + 3^2 + 4 = 7 + 9 + 4 = 20\text{ Hz}^2.$$
+            </item>
+            <item>Se $\operatorname{Var}(\hat{f}(\mathbf{x}_0)) \to 0$ e o viés permanece $3\text{ Hz}$, o erro esperado converge para:
+              $$0 + 3^2 + 4 = 9 + 4 = 13\text{ Hz}^2.$$
+              Esse piso mostra que mais dados não conseguem eliminar o viés de um modelo subajustado.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-1-4-2">
+        <title>Básico — Diagnosticando sobreajuste em EEG</title>
+        Um colega treina uma árvore de decisão muito profunda (Tema 8.8) com $n = 40$ amostras de EEG e obtém $0\%$ de erro no treino, mas $35\%$ de erro no teste. Ele propõe duas possíveis saídas: (i) substituir o modelo por uma árvore com apenas um único corte (profundidade $1$), ou (ii) manter a árvore profunda, mas coletar $n = 500$ amostras de treino. Analise cada proposta em termos de viés e variância.
+        <hint><title>Ver dica</title>Erro $0\%$ no treino com $35\%$ no teste sinaliza alta variância (sobreajuste). Avalie o que acontece com a variância e o viés em cada proposta.</hint>
+        <solution collapsible="true" collapsed="true">
+          O modelo atual sofre de <strong>sobreajuste</strong> (variância muito alta por ter flexibilidade excessiva para apenas $40$ amostras).
+          <list marker="dash">
+            <item><strong>Proposta (i):</strong> restringir a árvore a um único corte reduz drasticamente a variância, mas pode aumentar demais o viés (risco de ir para o extremo oposto, <em>subajuste</em>). O ideal costuma ser uma profundidade intermediária.</item>
+            <item><strong>Proposta (ii):</strong> aumentar o conjunto de treino de $40$ para $500$ amostras reduz substancialmente a variância sem aumentar o viés, ajudando a aproximar o erro de teste do desempenho real do modelo.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-1-4-3">
+        <title>Intermediário — Viés e variância de um estimador constante</title>
+        Considere um modelo trivial que ignora completamente os dados e sempre prevê a constante fixa $\hat{f}(\mathbf{x}_0) = 50\text{ Hz}$ para qualquer conjunto de treino. Sabe-se que a taxa verdadeira é $f(\mathbf{x}_0) = 62\text{ Hz}$ e que $\sigma^2 = 25\text{ Hz}^2$. Calcule $\operatorname{Var}(\hat{f}(\mathbf{x}_0))$, $\operatorname{\text{Viés}}(\hat{f}(\mathbf{x}_0))$ e $\mathbb{E}[(y_0 - \hat{f}(\mathbf{x}_0))^2]$.
+        <hint><title>Ver dica</title>A variância de uma constante determinística é sempre zero.</hint>
+        <solution collapsible="true" collapsed="true">
+          Como $\hat{f}(\mathbf{x}_0) = 50$ não muda quando sorteamos outro conjunto de treino, $\mathbb{E}[\hat{f}(\mathbf{x}_0)] = 50$ e:
+          $$\operatorname{Var}(\hat{f}(\mathbf{x}_0)) = \mathbb{E}[(50 - 50)^2] = 0\text{ Hz}^2.$$
+          O viés é:
+          $$\operatorname{\text{Viés}}(\hat{f}(\mathbf{x}_0)) = 50 - 62 = -12\text{ Hz}.$$
+          Substituindo na decomposição viés–variância:
+          $$\mathbb{E}\!\left[(y_0 - \hat{f}(\mathbf{x}_0))^2\right] = 0 + (-12)^2 + 25 = 144 + 25 = 169\text{ Hz}^2.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-1-4-4">
+        <title>Avançado — Efeito do tamanho amostral $n$ por Monte Carlo</title>
+        Adapte a simulação de Monte Carlo (<ref to="cod:8-1-monte-carlo"/>) usando um polinômio de grau $6$ em $x_0 = 0{,}08$ para comparar $n = 15$ e $n = 60$ pontos de treino igualmente espaçados em $[0, 1]$ (com $200$ repetições, $\sigma = 6\text{ Hz}$ e <c>rng = np.random.default_rng(0)</c>). Imprima $\operatorname{\text{Viés}}^2$ e $\text{Variância}$ para ambos os valores de $n$ e verifique que aumentar $n$ derruba a variância.
+        <hint><title>Ver dica</title>Coloque <c>n_treino</c> dentro de um laço <c>for n_treino in (15, 60):</c> e recrie <c>x_treino = np.linspace(0.0, 1.0, n_treino)</c> a cada iteração.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+
+
+def curva_sintonia(x):
+    return 10.0 + 70.0 * (x ** 2) / (x ** 2 + 0.35 ** 2)
+
+
+rng = np.random.default_rng(0)
+n_rep = 200
+sigma = 6.0
+grau = 6
+x0 = 0.08
+X0 = np.array([[x0]])
+f0 = float(curva_sintonia(x0))
+
+for n_treino in (15, 60):
+    x_treino = np.linspace(0.0, 1.0, n_treino)
+    X_treino = x_treino.reshape(-1, 1)
+    f_treino = curva_sintonia(x_treino)
+
+    previsoes_x0 = np.empty(n_rep)
+    modelo = Pipeline([
+        ("poly", PolynomialFeatures(degree=grau, include_bias=False)),
+        ("scaler", StandardScaler()),
+        ("reg", LinearRegression()),
+    ])
+    for rep in range(n_rep):
+        y_treino = f_treino + rng.normal(0.0, sigma, size=n_treino)
+        modelo.fit(X_treino, y_treino)
+        previsoes_x0[rep] = modelo.predict(X0)[0]
+
+    vies2 = (np.mean(previsoes_x0) - f0) ** 2
+    variancia = np.var(previsoes_x0)
+    print(f"n = {n_treino:2d} | Viés²: {vies2:6.3f} | Variância: {variancia:6.3f}")
+# n = 15 | Viés²:  0.045 | Variância: 22.315
+# n = 60 | Viés²:  0.004 | Variância:  5.363
+          </code>
+          Com o mesmo polinômio de grau $6$, multiplicar $n$ por $4$ (de $15$ para $60$) reduz a variância em aproximadamente quatro vezes, confirmando o papel estabilizador de amostras maiores.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-1-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Modelo gerador:</strong> $y = f(\mathbf{x}) + \varepsilon$, com $\mathbb{E}[\varepsilon] = 0$ e $\operatorname{Var}(\varepsilon) = \sigma^2$; o termo $\sigma^2$ impõe um piso irredutível ao erro de previsão.</item>
+        <item><strong>Tipos de aprendizado:</strong> no supervisionado temos $(\mathbf{x}_i, y_i)$ — <em>regressão</em> quando $y \in \mathbb{R}$ (ex.: <em>encoding</em>) e <em>classificação</em> quando $y \in \{0, 1\}$ ou $\{1, \dots, K\}$ (ex.: <em>decoding</em>/MVPA); no não supervisionado temos apenas $\mathbf{X}$ (ex.: agrupamento de tipos celulares).</item>
+        <item><strong>Notação padrão do Módulo 8:</strong> $\mathbf{X} \in \mathbb{R}^{n \times p}$ ($n$ amostras nas linhas, $p$ variáveis nas colunas), $\mathbf{x}_i \in \mathbb{R}^p$ (linha $i$ é $\mathbf{x}_i^\top$), $\mathbf{y} \in \mathbb{R}^n$, coeficientes $\boldsymbol{\beta} = (\beta_0, \beta_1, \dots, \beta_p)$ e estimativas $\hat{\boldsymbol{\beta}}$, $\hat{f}$, $\hat{y}$.</item>
+        <item><strong>Interface do <c>scikit-learn</c>:</strong> todo estimador implementa <c>.fit(X, y)</c>, <c>.predict(X)</c> e <c>.score(X, y)</c>, exigindo sempre <c>X</c> 2D (<c>.reshape(-1, 1)</c> quando $p = 1$).</item>
+        <item><strong>Métricas de erro quadrático:</strong> $\mathrm{RSS} = \sum_{i=1}^n (y_i - \hat{y}_i)^2$ e $\mathrm{MSE} = \frac{1}{n}\sum_{i=1}^n (y_i - \hat{y}_i)^2$; o erro que avalia generalização é $\mathrm{MSE}_{\text{teste}}$, nunca $\mathrm{MSE}_{\text{treino}}$.</item>
+        <item><strong>Curva em U:</strong> com o aumento da flexibilidade, o erro de treino cai continuamente, mas o erro de teste cai até um vale e volta a subir devido ao sobreajuste (<em>overfitting</em>).</item>
+        <item><strong>Decomposição viés–variância:</strong> $\mathbb{E}[(y_0 - \hat{f}(\mathbf{x}_0))^2] = \operatorname{Var}(\hat{f}(\mathbf{x}_0)) + [\operatorname{\text{Viés}}(\hat{f}(\mathbf{x}_0))]^2 + \sigma^2$, onde $\operatorname{\text{Viés}}(\hat{f}(\mathbf{x}_0)) = \mathbb{E}[\hat{f}(\mathbf{x}_0)] - f(\mathbf{x}_0)$.</item>
+        <item><strong>Equilíbrio e tamanho amostral:</strong> modelos rígidos demais sofrem de subajuste (viés alto); modelos flexíveis demais sofrem de sobreajuste (variância alta). Aumentar $n$ reduz a variância, mas não corrige viés estrutural nem remove $\sigma^2$.</item>
+      </list>
+    </section>
+
+    <section id="sec:8-1-alem">
+      <title>Para ir além</title>
+      No próximo tema (<strong>Tema 8.2 — Regressão (polinomial)</strong>), aprofundaremos a regressão linear simples, múltipla e polinomial e veremos como calcular $\hat{\boldsymbol{\beta}}$ explicitamente. Enquanto isso, pratique a divisão treino/teste em um conjunto médico do repositório UC Irvine ou em dados neurais abertos e explore os materiais de apoio do Módulo 8:
+      <list marker="dash">
+        <item><strong>Livro-base do módulo:</strong> <link to="https://www.statlearning.com/">ISLR — Introduction to Statistical Learning</link> (disponível gratuitamente em Python ou R, especialmente o Capítulo 2 sobre viés, variância e flexibilidade).</item>
+        <item><strong>Notas do curso:</strong> Notas de aula da matéria do IMPATech.</item>
+        <item><strong>Aprofundamento teórico:</strong> <em>The Elements of Statistical Learning</em> (versão avançada do ISLR, para detalhes matemáticos da decomposição do erro).</item>
+        <item><strong>Documentação oficial do scikit-learn:</strong> <link to="https://scikit-learn.org/stable/user_guide.html">Guia do usuário</link>, <link to="https://scikit-learn.org/stable/modules/model_evaluation.html">Avaliação de modelos e métricas</link> e <link to="https://scikit-learn.org/stable/common_pitfalls.html">Armadilhas comuns</link> (especialmente sobre vazamento de dados).</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 8 · Machine Learning — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

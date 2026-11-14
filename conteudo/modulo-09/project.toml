@@ -1,0 +1,9 @@
+# Módulo 09 — Deep Learning. Compile com: node scripts/compilar-aulas.mjs --modulo 9
+inputs = ["tema-01.dlt", "tema-02.dlt", "tema-03.dlt", "tema-04.dlt", "tema-05.dlt", "tema-06.dlt", "tema-07.dlt", "tema-08.dlt", "tema-09.dlt"]
+out = "../../aulas/modulo-09"
+
+[document]
+lang         = "pt-BR"
+type         = "book"
+theme-accent = "indigo"
+theme-mode   = "auto"

@@ -1,0 +1,763 @@
+<document>
+  <title>Módulo 5 · Álgebra Linear</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-5-3">Voltar ao guia (Tema 5.3)</link></meta-item>
+    <meta-item key="Módulo">Módulo 5 · Álgebra Linear — A Linguagem dos Dados na Computação</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-5-3">
+    <title>Bases e espaços vetoriais</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Trocar de “ponto de vista” escolhendo os eixos certos para descrever os dados.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Quando registramos mil neurônios simultaneamente ao longo do tempo (uma matriz $\mathbf{X}$ de neurônios $\times$ tempo), ou milhares de <em>voxels</em> de fMRI diante de vários estímulos, cada instante ou estímulo parece viver num espaço de milhares de dimensões. Na prática, porém, os neurônios não disparam de forma totalmente independente: eles formam circuitos acoplados, respondem em conjunto a variáveis comportamentais e acabam ocupando uma fatia muito menor e mais organizada desse espaço gigante. A linguagem de <strong>espaços vetoriais</strong>, <strong>subespaços</strong>, <strong>posto</strong> e <strong>bases</strong> explica exatamente o que significa "viver em menos dimensões" e como eliminar redundâncias sem perder informação.
+
+    Além disso, os eixos padrão da tabela de dados — neurônio $1$, neurônio $2$, neurônio $3$ — nem sempre são os mais esclarecedores. Trocar de base significa rodar ou inclinar os eixos para descrever exatamente os mesmos dados sob um novo ponto de vista: em vez de olhar para cada neurônio isolado, olhamos para padrões coletivos (como soma e diferença de atividade). Essa ideia de escolher os eixos certos prepara o caminho direto para ortogonalidade (Tema 5.4), autovetores (Tema 5.5) e métodos como PCA e SVD (Tema 5.6), que reduzem gravações de milhares de neurônios a poucas coordenadas interpretáveis.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>verificar se um subconjunto de $\mathbb{R}^n$ é um subespaço vetorial e reconhecer o conjunto solução de $\mathbf{A}\mathbf{x} = \mathbf{0}$ (núcleo) como subespaço;</item>
+      <item>determinar o espaço gerado por um conjunto de vetores e testar independência linear por escalonamento e por determinante $2 \times 2$;</item>
+      <item>identificar bases e calcular dimensão, posto e dimensão do núcleo de uma matriz, aplicando o teorema do posto e nulidade;</item>
+      <item>converter coordenadas entre a base canônica e uma nova base $\mathcal{B}$ usando $\mathbf{x} = \mathbf{P}[\mathbf{x}]_{\mathcal{B}}$, e reescrever uma transformação linear em outra base via $\mathbf{P}^{-1}\mathbf{A}\mathbf{P}$;</item>
+      <item>conferir posto, dependência linear e mudança de coordenadas em Python com NumPy (<c>np.linalg.matrix_rank</c> e <c>np.linalg.solve</c>).</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Tema 5.1 (<em>Vetores, matrizes e operações</em>), para vetores-coluna, combinações lineares, matrizes de dados $\mathbf{X} \in \mathbb{R}^{N \times T}$ e centralização pela média; e Tema 5.2 (<em>Sistemas lineares e transformações</em>), para eliminação de Gauss, pivôs, variáveis livres, determinante $2 \times 2$ e matriz inversa. Python e NumPy só são ensinados no Módulo 6 (<em>Programação</em>), portanto os blocos de código servem apenas para conferir suas contas à mão.
+
+    <section id="sec:5-3-1">
+      <eyebrow>Seção 1</eyebrow>
+      <title>Espaços e subespaços vetoriais</title>
+      <intro>
+        Um espaço vetorial é a arena onde somar vetores e multiplicá-los por números nunca joga você para fora do conjunto. Um subespaço é uma fatia plana dentro dessa arena — como uma reta ou um plano pela origem — onde a atividade de uma população neural pode permanecer confinada.
+      </intro>
+
+      No Tema 5.1, usamos $\mathbb{R}^n$ para guardar estados de $n$ neurônios, somar padrões e multiplicar taxas por escalares. Essas duas operações obedecem a regras algébricas tão limpas que qualquer coleção de objetos com soma e multiplicação por escalar bem comportadas forma um <strong>espaço vetorial</strong> (<em>vector space</em>). Neste curso, $\mathbb{R}^n$ é o nosso modelo principal.
+
+      <definition id="def:5-3-espaco-vetorial">
+        <title>O espaço vetorial $\mathbb{R}^n$</title>
+        O conjunto $\mathbb{R}^n$ de todos os vetores-coluna reais de $n$ entradas, equipado com a soma entrada a entrada e a multiplicação por escalar real, satisfaz as seguintes propriedades para quaisquer $\mathbf{u}, \mathbf{v}, \mathbf{w} \in \mathbb{R}^n$ e escalares $\alpha, \beta \in \mathbb{R}$:
+        <list marker="dash">
+          <item><strong>Fechamento:</strong> $\mathbf{u} + \mathbf{v} \in \mathbb{R}^n$ e $\alpha\mathbf{u} \in \mathbb{R}^n$;</item>
+          <item><strong>Soma bem comportada:</strong> $\mathbf{u} + \mathbf{v} = \mathbf{v} + \mathbf{u}$ (comutativa) e $(\mathbf{u} + \mathbf{v}) + \mathbf{w} = \mathbf{u} + (\mathbf{v} + \mathbf{w})$ (associativa);</item>
+          <item><strong>Vetor nulo e oposto:</strong> existe $\mathbf{0} = (0, \dots, 0)^\top$ tal que $\mathbf{u} + \mathbf{0} = \mathbf{u}$, e todo $\mathbf{u}$ tem oposto $-\mathbf{u}$ com $\mathbf{u} + (-\mathbf{u}) = \mathbf{0}$;</item>
+          <item><strong>Distributividade e escala:</strong> $\alpha(\mathbf{u} + \mathbf{v}) = \alpha\mathbf{u} + \alpha\mathbf{v}$, $(\alpha + \beta)\mathbf{u} = \alpha\mathbf{u} + \beta\mathbf{u}$, $\alpha(\beta\mathbf{u}) = (\alpha\beta)\mathbf{u}$ e $1\mathbf{u} = \mathbf{u}$.</item>
+        </list>
+      </definition>
+
+      Na prática, quase nunca os dados ocupam todo o $\mathbb{R}^n$: restrições fisiológicas ou acoplamentos sinápticos prendem os vetores a um subconjunto menor. Quando esse subconjunto preserva a estrutura linear — isto é, funciona como um espaço vetorial em miniatura dentro de $\mathbb{R}^n$ —, chamamo-lo de <strong>subespaço vetorial</strong> (<em>subspace</em>).
+
+      <definition id="def:5-3-subespaco">
+        <title>Subespaço vetorial de $\mathbb{R}^n$</title>
+        Um subconjunto $S \subseteq \mathbb{R}^n$ é um <strong>subespaço vetorial</strong> de $\mathbb{R}^n$ quando satisfaz três condições:
+        <list marker="number">
+          <item><strong>Contém a origem:</strong> $\mathbf{0} \in S$;</item>
+          <item><strong>Fechado para soma:</strong> se $\mathbf{u}, \mathbf{v} \in S$, então $\mathbf{u} + \mathbf{v} \in S$;</item>
+          <item><strong>Fechado para produto por escalar:</strong> se $\mathbf{u} \in S$ e $\alpha \in \mathbb{R}$, então $\alpha\mathbf{u} \in S$.</item>
+        </list>
+        <intuition>
+          As duas condições de fechamento garantem que qualquer combinação linear $\alpha\mathbf{u} + \beta\mathbf{v}$ de vetores de $S$ continua dentro de $S$. Em $\mathbb{R}^2$, os únicos subespaços são a origem $\{\mathbf{0}\}$, qualquer reta passando pela origem e o próprio $\mathbb{R}^2$. Em $\mathbb{R}^3$, são $\{\mathbf{0}\}$, retas pela origem, planos pela origem e o próprio $\mathbb{R}^3$.
+        </intuition>
+      </definition>
+
+      Observe como as três condições funcionam como um filtro rápido:
+      <list marker="dash">
+        <item>Uma <strong>reta fora da origem</strong> em $\mathbb{R}^2$, como $x_1 + x_2 = 1$, <strong>não</strong> é subespaço: $\mathbf{0} = (0, 0)^\top$ dá $0 + 0 = 0 \ne 1$, logo não está no conjunto.</item>
+        <item>O <strong>primeiro quadrante</strong> $\{(x_1, x_2)^\top : x_1 \ge 0,\; x_2 \ge 0\}$ contém $\mathbf{0}$ e é fechado para soma, mas <strong>não</strong> é subespaço: multiplicando $(2, 1)^\top$ pelo escalar $-1$, obtemos $(-2, -1)^\top$, que sai do primeiro quadrante. (Por isso, taxas brutas $r_i \ge 0$ não formam um subespaço; ao centralizar pela média como no Tema 5.1, os desvios $\Delta r_i = r_i - \mu_i$ podem ser positivos ou negativos e vivem confortavelmente em subespaços!)</item>
+        <item>A <strong>união dos dois eixos</strong> $\{(x_1, x_2)^\top : x_1 = 0 \text{ ou } x_2 = 0\}$ contém $\mathbf{0}$ e é fechada para produto por escalar, mas <strong>não</strong> é subespaço: $(1, 0)^\top$ e $(0, 1)^\top$ pertencem à união, porém a soma $(1, 1)^\top$ não está em nenhum eixo.</item>
+      </list>
+
+      Por outro lado, existe uma fábrica garantida de subespaços ligada diretamente ao Tema 5.2: o conjunto de todas as soluções de um sistema linear homogêneo $\mathbf{A}\mathbf{x} = \mathbf{0}$.
+
+      <proposition id="prop:5-3-nucleo">
+        <title>O núcleo de uma matriz é sempre um subespaço</title>
+        Dada qualquer matriz $\mathbf{A} \in \mathbb{R}^{m \times n}$, o conjunto solução do sistema homogêneo $\mathbf{A}\mathbf{x} = \mathbf{0}$, chamado <strong>núcleo</strong> (<em>null space</em>) de $\mathbf{A}$ e denotado por
+        $$\mathcal{N}(\mathbf{A}) = \{\mathbf{x} \in \mathbb{R}^n : \mathbf{A}\mathbf{x} = \mathbf{0}\},$$
+        é um subespaço vetorial de $\mathbb{R}^n$.
+        <intuition>
+          Se duas entradas diferentes produzem saída zero na rede linear $\mathbf{A}$, qualquer mistura linear delas também produz saída zero.
+        </intuition>
+      </proposition>
+      <proof of="prop:5-3-nucleo" collapsible="true" collapsed="true">
+        Verificamos as três condições da <ref to="def:5-3-subespaco"/>:
+        <list marker="number">
+          <item><strong>Origem:</strong> $\mathbf{A}\mathbf{0} = \mathbf{0}$, portanto $\mathbf{0} \in \mathcal{N}(\mathbf{A})$.</item>
+          <item><strong>Soma:</strong> se $\mathbf{u}, \mathbf{v} \in \mathcal{N}(\mathbf{A})$, então $\mathbf{A}\mathbf{u} = \mathbf{0}$ e $\mathbf{A}\mathbf{v} = \mathbf{0}$. Pela distributividade matricial, $\mathbf{A}(\mathbf{u} + \mathbf{v}) = \mathbf{A}\mathbf{u} + \mathbf{A}\mathbf{v} = \mathbf{0} + \mathbf{0} = \mathbf{0}$, logo $\mathbf{u} + \mathbf{v} \in \mathcal{N}(\mathbf{A})$.</item>
+          <item><strong>Escalar:</strong> se $\mathbf{u} \in \mathcal{N}(\mathbf{A})$ e $\alpha \in \mathbb{R}$, então $\mathbf{A}(\alpha\mathbf{u}) = \alpha(\mathbf{A}\mathbf{u}) = \alpha\mathbf{0} = \mathbf{0}$, logo $\alpha\mathbf{u} \in \mathcal{N}(\mathbf{A})$.</item>
+        </list>
+      </proof>
+
+      <example id="exm:5-3-testes-subespaco">
+        <title>Testando subconjuntos e encontrando um núcleo em $\mathbb{R}^3$</title>
+        <list marker="a">
+          <item>Decida se o conjunto $W = \{(x_1, x_2, x_3)^\top \in \mathbb{R}^3 : x_1 - 2x_2 + 3x_3 = 0\}$ é subespaço de $\mathbb{R}^3$. E se trocarmos $0$ por $5$ no lado direito?</item>
+          <item>Mostre que $U = \{(x_1, x_2)^\top \in \mathbb{R}^2 : x_1^2 + x_2^2 \le 1\}$ (o disco unitário) não é subespaço de $\mathbb{R}^2$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>A condição $x_1 - 2x_2 + 3x_3 = 0$ equivale a $\mathbf{A}\mathbf{x} = \mathbf{0}$ para a matriz $1 \times 3$ dada por $\mathbf{A} = \begin{pmatrix} 1 & -2 & 3 \end{pmatrix}$. Pela <ref to="prop:5-3-nucleo"/>, $W = \mathcal{N}(\mathbf{A})$ é automaticamente um subespaço de $\mathbb{R}^3$ (um plano passando pela origem). Já se trocarmos $0$ por $5$, o vetor $\mathbf{0}$ gera $0 - 0 + 0 = 0 \ne 5$: esse plano deslocado não passa pela origem, logo não é subespaço.</item>
+          <item>O vetor $\mathbf{0}$ pertence a $U$ ($0^2 + 0^2 = 0 \le 1$), mas $U$ falha no fechamento por escalar: tomando $\mathbf{u} = (1, 0)^\top \in U$ e $\alpha = 2$, obtemos $2\mathbf{u} = (2, 0)^\top$, que tem $2^2 + 0^2 = 4 &gt; 1$ e portanto está fora de $U$.</item>
+        </list>
+      </example>
+
+      <example id="exm:5-3-populacao-plano">
+        <title>Atividade populacional confinada a um plano em $\mathbb{R}^3$</title>
+        Em um modelo simplificado de três neurônios, medimos os desvios das taxas de disparo em torno da média, $\mathbf{x} = (\Delta r_1, \Delta r_2, \Delta r_3)^\top$ (em $\text{Hz}$). Suponha que o neurônio $3$ recebe excitação igual dos neurônios $1$ e $2$, de modo que seu desvio satisfaz sempre $\Delta r_3 = \Delta r_1 + \Delta r_2$.
+        <list marker="a">
+          <item>Expresse essa restrição como o núcleo de uma matriz $\mathbf{A}$ e verifique as propriedades de subespaço com $\mathbf{u} = (4, -1, 3)^\top\text{ Hz}$ e $\mathbf{v} = (-2, 5, 3)^\top\text{ Hz}$.</item>
+          <item>O estado $\mathbf{w} = (1, 2, 5)^\top\text{ Hz}$ pode ocorrer nessa população?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Reescrevendo $\Delta r_3 = \Delta r_1 + \Delta r_2$ como $\Delta r_1 + \Delta r_2 - \Delta r_3 = 0$, vemos que o conjunto de estados permitidos é o núcleo $\mathcal{N}(\mathbf{A})$ de $\mathbf{A} = \begin{pmatrix} 1 & 1 & -1 \end{pmatrix}$ — um plano pela origem de $\mathbb{R}^3$. Conferindo nos vetores dados: para $\mathbf{u}$, $4 + (-1) - 3 = 0$; para $\mathbf{v}$, $-2 + 5 - 3 = 0$. A soma $\mathbf{u} + \mathbf{v} = (2, 4, 6)^\top$ também satisfaz $2 + 4 - 6 = 0$, assim como o múltiplo $2\mathbf{u} = (8, -2, 6)^\top$ satisfaz $8 + (-2) - 6 = 0$.</item>
+          <item>Testando $\mathbf{w} = (1, 2, 5)^\top$ na equação de restrição, obtemos $\mathbf{A}\mathbf{w} = 1 + 2 - 5 = -2 \ne 0$. Portanto, $\mathbf{w}$ está fora do subespaço.</item>
+        </list>
+        Em dados experimentais reais de neurociência, restrições lineares desse tipo valem apenas <em>aproximadamente</em> por causa do ruído de disparo e de não-linearidades; encontrar o subespaço plano que melhor se ajusta a uma nuvem de pontos neurais é exatamente o papel do PCA no Tema 5.6.
+      </example>
+
+      <box type="tip">
+        <title>Sobre os blocos de código Python nesta aula</title>
+        Python e NumPy só são ensinados formalmente no <strong>Módulo 6 (Programação)</strong>. Os blocos abaixo servem para você copiar no Google Colab e conferir suas contas à mão, lendo os comentários como guia.
+      </box>
+
+      <code lang="python" id="cod:5-3-subespaco">
+import numpy as np  # importa a biblioteca numérica NumPy
+
+# Restrição da população de 3 neurônios: dr1 + dr2 - dr3 = 0
+A = np.array([[1, 1, -1]])
+u = np.array([4, -1, 3])
+v = np.array([-2, 5, 3])
+w = np.array([1, 2, 5])
+
+# Vetores no núcleo dão saída 0; soma e múltiplo permanecem no núcleo
+print("A @ u:", (A @ u).tolist())              # saída: A @ u: [0]
+print("A @ (u + v):", (A @ (u + v)).tolist())  # saída: A @ (u + v): [0]
+print("A @ (2 * u):", (A @ (2 * u)).tolist())  # saída: A @ (2 * u): [0]
+print("A @ w:", (A @ w).tolist())              # saída: A @ w: [-2]
+      </code>
+
+      <remark id="rem:5-3-armadilha-subespaco">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Achar que toda reta ou plano é subespaço:</strong> uma reta ou plano que não contém a origem $\mathbf{0}$ (como $x_1 + x_2 = 1$) <em>não</em> é subespaço vetorial.</item>
+          <item><strong>Testar apenas uma das condições:</strong> o primeiro quadrante é fechado para soma, mas falha ao multiplicar por $-1$; a união dos eixos contém $\mathbf{0}$ e é fechada para escalar, mas falha na soma. Sempre confira as três exigências.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:5-3-1-1">
+        <title>Básico — Identificando subespaços em $\mathbb{R}^2$ e $\mathbb{R}^3$</title>
+        Decida quais dos subconjuntos abaixo são subespaços vetoriais, justificando cada resposta:
+        <list marker="a">
+          <item>$S_1 = \{(x, y)^\top \in \mathbb{R}^2 : 3x - y = 0\}$;</item>
+          <item>$S_2 = \{(x, y)^\top \in \mathbb{R}^2 : 3x - y = 2\}$;</item>
+          <item>$S_3 = \{(x, y, z)^\top \in \mathbb{R}^3 : x \ge 0 \text{ e } z = 0\}$.</item>
+        </list>
+        <hint><title>Ver dica</title>Teste primeiro se $\mathbf{0}$ pertence ao conjunto; se pertencer, verifique soma e multiplicação por escalar (inclusive negativo!).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item><strong>É subespaço.</strong> Podemos escrever $S_1$ como o núcleo da matriz $\mathbf{A} = \begin{pmatrix} 3 & -1 \end{pmatrix}$, pois $3x - y = 0 \iff \mathbf{A}(x, y)^\top = 0$. Pela <ref to="prop:5-3-nucleo"/>, trata-se de um subespaço (a reta $y = 3x$ pela origem).</item>
+            <item><strong>Não é subespaço.</strong> O vetor nulo $(0, 0)^\top$ gera $3(0) - 0 = 0 \ne 2$, logo $\mathbf{0} \notin S_2$.</item>
+            <item><strong>Não é subespaço.</strong> Embora $\mathbf{0} \in S_3$ e a soma mantenha $x_1 + x_2 \ge 0$ e $0 + 0 = 0$, o conjunto falha para escalar negativo: $(1, 2, 0)^\top \in S_3$, mas $(-1)(1, 2, 0)^\top = (-1, -2, 0)^\top$ tem primeira entrada negativa, saindo de $S_3$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-3-1-2">
+        <title>Intermediário — Balanço excitatório-inibitório como subespaço</title>
+        Em um microcircuito de três neurônios, os desvios em torno da taxa basal (em $\text{Hz}$) obedecem à relação $\Delta r_1 - 2\Delta r_2 + \Delta r_3 = 0$.
+        <list marker="a">
+          <item>Escreva esse conjunto de estados como $\mathcal{N}(\mathbf{A})$ para uma matriz $\mathbf{A}$ apropriada e explique por que ele é um subespaço de $\mathbb{R}^3$.</item>
+          <item>Dados $\mathbf{u} = (3, 2, 1)^\top\text{ Hz}$ e $\mathbf{v} = (1, 1, 1)^\top\text{ Hz}$ no subespaço, calcule $\mathbf{w} = 2\mathbf{u} - \mathbf{v}$ e confira diretamente que $\mathbf{w}$ continua no subespaço.</item>
+          <item>O vetor $(5, 2, 1)^\top\text{ Hz}$ pertence ao subespaço?</item>
+        </list>
+        <hint><title>Ver dica</title>A matriz $\mathbf{A}$ tem uma linha e três colunas contendo os coeficientes de $\Delta r_1, \Delta r_2, \Delta r_3$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Tomando $\mathbf{A} = \begin{pmatrix} 1 & -2 & 1 \end{pmatrix}$, a equação $\Delta r_1 - 2\Delta r_2 + \Delta r_3 = 0$ escreve-se $\mathbf{A}\mathbf{x} = \mathbf{0}$. Logo, o conjunto de estados é $\mathcal{N}(\mathbf{A})$, que pela <ref to="prop:5-3-nucleo"/> é um subespaço de $\mathbb{R}^3$.</item>
+            <item>Conferimos primeiro $\mathbf{u}$ ($3 - 4 + 1 = 0$) e $\mathbf{v}$ ($1 - 2 + 1 = 0$). Calculando a combinação linear:
+              $$\mathbf{w} = 2\begin{pmatrix} 3 \\ 2 \\ 1 \end{pmatrix} - \begin{pmatrix} 1 \\ 1 \\ 1 \end{pmatrix} = \begin{pmatrix} 5 \\ 3 \\ 1 \end{pmatrix}\text{ Hz}.$$
+              Testando na equação: $5 - 2(3) + 1 = 5 - 6 + 1 = 0$, confirmando que $\mathbf{w} \in \mathcal{N}(\mathbf{A})$.</item>
+            <item>Para $(5, 2, 1)^\top$, temos $5 - 2(2) + 1 = 2 \ne 0$, logo não pertence ao subespaço.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-3-1-3">
+        <title>Avançado — Parametrizando o núcleo de um sistema 2×3</title>
+        Considere a matriz $\mathbf{A} = \begin{pmatrix} 1 & -1 & 2 \\ 2 & 1 & 1 \end{pmatrix}$.
+        <list marker="a">
+          <item>Resolva $\mathbf{A}\mathbf{x} = \mathbf{0}$ por eliminação de Gauss e escreva todos os vetores de $\mathcal{N}(\mathbf{A})$ em função de um parâmetro $t \in \mathbb{R}$.</item>
+          <item>Use a forma parametrizada obtida em (a) para verificar diretamente o fechamento para soma e para produto por escalar.</item>
+        </list>
+        <hint><title>Ver dica</title>Aplique $L_2 \leftarrow L_2 - 2L_1$ no escalonamento de $\mathbf{A}\mathbf{x} = \mathbf{0}$ e escolha $x_3 = t$ como variável livre.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Escalonando $\mathbf{A}$ (como o lado direito é $\mathbf{0}$, ele permanece nulo em toda operação de linha):
+              $$\begin{pmatrix} 1 & -1 & 2 \\ 2 & 1 & 1 \end{pmatrix} \xrightarrow{L_2 \leftarrow L_2 - 2L_1} \begin{pmatrix} 1 & -1 & 2 \\ 0 & 3 & -3 \end{pmatrix} \xrightarrow{L_2 \leftarrow \frac{1}{3}L_2} \begin{pmatrix} 1 & -1 & 2 \\ 0 & 1 & -1 \end{pmatrix}.$$
+              A coluna $3$ ficou sem pivô, portanto $x_3 = t \in \mathbb{R}$ é variável livre. Da linha $2$, $x_2 - t = 0 \implies x_2 = t$. Da linha $1$, $x_1 - t + 2t = 0 \implies x_1 = -t$. Logo:
+              $$\mathcal{N}(\mathbf{A}) = \left\{ t \begin{pmatrix} -1 \\ 1 \\ 1 \end{pmatrix} : t \in \mathbb{R} \right\},$$
+              uma reta passando pela origem em $\mathbb{R}^3$.</item>
+            <item>Se $\mathbf{u} = t_1(-1, 1, 1)^\top$ e $\mathbf{v} = t_2(-1, 1, 1)^\top$, então $\mathbf{u} + \mathbf{v} = (t_1 + t_2)(-1, 1, 1)^\top \in \mathcal{N}(\mathbf{A})$ (basta tomar $t = t_1 + t_2$), e $\alpha\mathbf{u} = (\alpha t_1)(-1, 1, 1)^\top \in \mathcal{N}(\mathbf{A})$ (tomando $t = \alpha t_1$).</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:5-3-2">
+      <eyebrow>Seção 2</eyebrow>
+      <title>Espaço gerado e independência linear</title>
+      <intro>
+        Dados alguns padrões neurais básicos, quais outros padrões conseguimos montar misturando-os linearmente? E como saber se um desses padrões básicos é apenas cópia redundante dos demais?
+      </intro>
+
+      No Tema 5.1, você aprendeu a formar combinações lineares $c_1\mathbf{v}_1 + \dots + c_k\mathbf{v}_k$. Agora damos um passo adiante: olhamos para o <em>conjunto de todas</em> as combinações possíveis daqueles vetores. Esse conjunto é o alcance completo dos blocos de construção que você tem na mão.
+
+      <definition id="def:5-3-span">
+        <title>Espaço gerado (<em>span</em>)</title>
+        Dados vetores $\mathbf{v}_1, \mathbf{v}_2, \dots, \mathbf{v}_k \in \mathbb{R}^n$, o <strong>espaço gerado</strong> (<em>span</em>) por eles é o conjunto de todas as suas combinações lineares:
+        $$\operatorname{span}\{\mathbf{v}_1, \dots, \mathbf{v}_k\} = \{c_1\mathbf{v}_1 + c_2\mathbf{v}_2 + \dots + c_k\mathbf{v}_k : c_1, \dots, c_k \in \mathbb{R}\}.$$
+        Para qualquer lista de vetores, $\operatorname{span}\{\mathbf{v}_1, \dots, \mathbf{v}_k\}$ é um subespaço vetorial de $\mathbb{R}^n$ (é o menor subespaço que contém todos os $\mathbf{v}_i$).
+        <intuition>
+          Pense em $\mathbf{v}_1, \dots, \mathbf{v}_k$ como módulos ou "sílabas" de atividade neural: o <em>span</em> é o vocabulário inteiro de padrões que a rede consegue montar combinando essas sílabas com pesos positivos ou negativos.
+        </intuition>
+      </definition>
+
+      Como testar na prática se um vetor alvo $\mathbf{b} \in \mathbb{R}^n$ pertence a $\operatorname{span}\{\mathbf{v}_1, \dots, \mathbf{v}_k\}$? Pela leitura por colunas do Tema 5.2, procurar pesos $c_1, \dots, c_k$ tais que $c_1\mathbf{v}_1 + \dots + c_k\mathbf{v}_k = \mathbf{b}$ equivale exatamente a resolver o sistema linear $\mathbf{A}\mathbf{c} = \mathbf{b}$, em que $\mathbf{A} = [\mathbf{v}_1\ \cdots\ \mathbf{v}_k]$ tem os geradores nas colunas. Se a eliminação de Gauss sobre $[\mathbf{A} \mid \mathbf{b}]$ não gerar contradição, $\mathbf{b}$ está no espaço gerado; se aparecer uma linha $[0\; \cdots\; 0 \mid c]$ com $c \ne 0$, $\mathbf{b}$ está fora do <em>span</em>.
+
+      Agora faça a pergunta complementar: será que todos os geradores $\mathbf{v}_1, \dots, \mathbf{v}_k$ são realmente necessários, ou algum deles já pode ser fabricado pelos outros (e portanto removido sem encolher o <em>span</em>)? Isso nos leva ao conceito central de <strong>independência linear</strong> (<em>linear independence</em>).
+
+      <definition id="def:5-3-indep-linear">
+        <title>Independência e dependência linear</title>
+        Um conjunto de vetores $\{\mathbf{v}_1, \dots, \mathbf{v}_k\} \subset \mathbb{R}^n$ é <strong>linearmente independente (LI)</strong> quando a equação homogênea
+        $$c_1\mathbf{v}_1 + c_2\mathbf{v}_2 + \dots + c_k\mathbf{v}_k = \mathbf{0}$$
+        possui <strong>apenas a solução trivial</strong> $c_1 = c_2 = \dots = c_k = 0$. Se existir ao menos uma solução com algum $c_i \ne 0$, dizemos que o conjunto é <strong>linearmente dependente (LD)</strong>.
+        <intuition>
+          Se existir uma combinação não trivial igual a $\mathbf{0}$ — por exemplo, $2\mathbf{v}_1 - \mathbf{v}_2 + \mathbf{v}_3 = \mathbf{0}$ —, podemos isolar $\mathbf{v}_3 = -2\mathbf{v}_1 + \mathbf{v}_2$: o vetor $\mathbf{v}_3$ é redundante porque já morava no espaço gerado pelos outros. Quando são LI, nenhum vetor é combinação linear dos restantes: cada um inaugura uma direção nova.
+        </intuition>
+      </definition>
+
+      Na prática, não precisamos adivinhar coeficientes no olho: a eliminação de Gauss e o determinante (do Tema 5.2) dão testes mecânicos e infalíveis.
+
+      <proposition id="prop:5-3-criterios-li">
+        <title>Testes práticos de independência linear</title>
+        Sejam $\mathbf{v}_1, \dots, \mathbf{v}_k \in \mathbb{R}^n$ e forme a matriz $\mathbf{A} = [\mathbf{v}_1\ \cdots\ \mathbf{v}_k] \in \mathbb{R}^{n \times k}$.
+        <list marker="number">
+          <item><strong>Teste pelo escalonamento:</strong> $\{\mathbf{v}_1, \dots, \mathbf{v}_k\}$ é LI se, e somente se, $\mathbf{A}\mathbf{c} = \mathbf{0}$ tiver solução única $\mathbf{c} = \mathbf{0}$, isto é, se todas as $k$ colunas de $\mathbf{A}$ possuírem pivô na forma escalonada (zero variáveis livres).</item>
+          <item><strong>Teste $2 \times 2$ pelo determinante:</strong> dois vetores $\mathbf{v}_1, \mathbf{v}_2 \in \mathbb{R}^2$ são LI se, e somente se, $\det[\mathbf{v}_1\ \mathbf{v}_2] \ne 0$.</item>
+          <item><strong>Limite de vetores em $\mathbb{R}^n$:</strong> se $k &gt; n$ (mais vetores do que coordenadas), o conjunto é <strong>sempre linearmente dependente</strong>.</item>
+        </list>
+      </proposition>
+      <proof of="prop:5-3-criterios-li" collapsible="true" collapsed="true">
+        O item 1 traduz diretamente a <ref to="prop:5-2-diagnostico-gauss"/> do Tema 5.2 aplicada ao sistema homogêneo $\mathbf{A}\mathbf{c} = \mathbf{0}$: ausência de variáveis livres equivale a solução única $\mathbf{c} = \mathbf{0}$. O item 2 segue do fato de que uma matriz $2 \times 2$ tem dois pivôs se, e somente se, for invertível ($\det \ne 0$). Para o item 3, como $\mathbf{A}$ possui $n$ linhas e cada linha comporta no máximo um pivô, $\mathbf{A}$ tem no máximo $n$ pivôs; se $k &gt; n$, pelo menos $k - n \ge 1$ colunas ficam sem pivô, gerando variáveis livres e soluções não triviais para $\mathbf{A}\mathbf{c} = \mathbf{0}$.
+      </proof>
+
+      <example id="exm:5-3-span-li-r3">
+        <title>Testando independência linear e pertencimento ao espaço gerado em $\mathbb{R}^3$</title>
+        Considere os vetores $\mathbf{v}_1 = (1, 0, 1)^\top$, $\mathbf{v}_2 = (1, 2, 3)^\top$ e $\mathbf{v}_3 = (2, 2, 4)^\top$.
+        <list marker="a">
+          <item>Verifique por escalonamento se $\{\mathbf{v}_1, \mathbf{v}_2, \mathbf{v}_3\}$ é LI ou LD.</item>
+          <item>Teste se $\mathbf{b} = (3, 4, 7)^\top$ e $\mathbf{b}' = (3, 4, 5)^\top$ pertencem a $\operatorname{span}\{\mathbf{v}_1, \mathbf{v}_2\}$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Montamos $\mathbf{A} = [\mathbf{v}_1\ \mathbf{v}_2\ \mathbf{v}_3]$ e escalonamos aplicando $L_3 \leftarrow L_3 - L_1$ e depois $L_3 \leftarrow L_3 - L_2$:
+            $$\begin{pmatrix} 1 & 1 & 2 \\ 0 & 2 & 2 \\ 1 & 3 & 4 \end{pmatrix} \xrightarrow{L_3 \leftarrow L_3 - L_1} \begin{pmatrix} 1 & 1 & 2 \\ 0 & 2 & 2 \\ 0 & 2 & 2 \end{pmatrix} \xrightarrow{L_3 \leftarrow L_3 - L_2} \begin{pmatrix} 1 & 1 & 2 \\ 0 & 2 & 2 \\ 0 & 0 & 0 \end{pmatrix}.$$
+            Apenas as colunas $1$ e $2$ têm pivô; a coluna $3$ não tem pivô. Logo o conjunto é <strong>LD</strong> (e de fato $\mathbf{v}_3 = \mathbf{v}_1 + \mathbf{v}_2$).</item>
+          <item>Escalonamos a matriz aumentada $[\mathbf{v}_1\ \mathbf{v}_2 \mid \mathbf{b}]$ com as mesmas operações de linha:
+            $$\left(\begin{array}{cc|c} 1 & 1 & 3 \\ 0 & 2 & 4 \\ 1 & 3 & 7 \end{array}\right) \xrightarrow{L_3 \leftarrow L_3 - L_1} \left(\begin{array}{cc|c} 1 & 1 & 3 \\ 0 & 2 & 4 \\ 0 & 2 & 4 \end{array}\right) \xrightarrow{L_3 \leftarrow L_3 - L_2} \left(\begin{array}{cc|c} 1 & 1 & 3 \\ 0 & 2 & 4 \\ 0 & 0 & 0 \end{array}\right).$$
+            O sistema é compatível: $2c_2 = 4 \implies c_2 = 2$, e $c_1 + 2 = 3 \implies c_1 = 1$. Assim, $\mathbf{b} = \mathbf{v}_1 + 2\mathbf{v}_2 \in \operatorname{span}\{\mathbf{v}_1, \mathbf{v}_2\}$. Repetindo para $\mathbf{b}' = (3, 4, 5)^\top$, a última linha após $L_3 - L_1$ vira $[0,\; 2 \mid 2]$ e após $L_3 - L_2$ vira $[0,\; 0 \mid -2]$, indicando a contradição $0 = -2$. Portanto, $\mathbf{b}' \notin \operatorname{span}\{\mathbf{v}_1, \mathbf{v}_2\}$.</item>
+        </list>
+      </example>
+
+      <example id="exm:5-3-neuro-redundancia">
+        <title>Neurônios redundantes em uma gravação temporal</title>
+        Suponha que registramos $3$ neurônios ao longo de $T = 4$ instantes, gerando a matriz de dados $\mathbf{X} \in \mathbb{R}^{3 \times 4}$ (desvios em $\text{Hz}$, linhas são séries temporais dos neurônios):
+        $$\mathbf{X} = \begin{pmatrix} 2 & 4 & 0 & 6 \\ 1 & 0 & 3 & 1 \\ 4 & 4 & 6 & 8 \end{pmatrix}.$$
+        Verifique se as séries temporais dos $3$ neurônios são linearmente independentes.
+
+        <strong>Solução.</strong> Para testar a independência linear das linhas de $\mathbf{X}$, podemos colocá-las nas colunas de $\mathbf{X}^\top$ e escalonar — ou observar diretamente na matriz $\mathbf{X}$ que escalonar suas linhas revela combinações entre elas. Aplicando $L_1 \leftrightarrow L_2$ e eliminando abaixo do pivô $1$:
+        $$\begin{pmatrix} 1 & 0 & 3 & 1 \\ 2 & 4 & 0 & 6 \\ 4 & 4 & 6 & 8 \end{pmatrix} \xrightarrow{\substack{L_2 \leftarrow L_2 - 2L_1 \\ L_3 \leftarrow L_3 - 4L_1}} \begin{pmatrix} 1 & 0 & 3 & 1 \\ 0 & 4 & -6 & 4 \\ 0 & 4 & -6 & 4 \end{pmatrix} \xrightarrow{L_3 \leftarrow L_3 - L_2} \begin{pmatrix} 1 & 0 & 3 & 1 \\ 0 & 4 & -6 & 4 \\ 0 & 0 & 0 & 0 \end{pmatrix}.$$
+        Uma linha zerou completamente, logo as séries temporais são <strong>LD</strong>: de fato, $\text{linha } 3 = 1 \cdot (\text{linha } 1) + 2 \cdot (\text{linha } 2)$ (confira: $2+2(1)=4$, $4+2(0)=4$, $0+2(3)=6$, $6+2(1)=8$). O neurônio $3$ não traz informação linear nova além do que os neurônios $1$ e $2$ já carregam.
+      </example>
+
+      O mesmo fenômeno aparece em experimentos de fMRI: quando o desenho experimental cria regressores (colunas indicando a presença de tarefas ou estímulos) linearmente dependentes entre si, a matriz do experimento fica com colunas redundantes — há infinitas combinações de pesos capazes de explicar o mesmo sinal medido, impedindo separar os efeitos individuais de cada tarefa.
+
+      No NumPy, a função <c>np.linalg.matrix_rank(M)</c> conta quantos pivôs (quantas direções independentes) existem em <c>M</c>, conceito que formalizaremos como <em>posto</em> na Seção 3: se <c>matrix_rank(A)</c> for igual ao número de colunas de <c>A</c>, as colunas são LI; se for menor, são LD.
+
+      <code lang="python" id="cod:5-3-span-rank">
+import numpy as np
+
+v1 = np.array([1, 0, 1])
+v2 = np.array([1, 2, 3])
+v3 = np.array([2, 2, 4])
+b = np.array([3, 4, 7])
+b_fora = np.array([3, 4, 5])
+
+# Monta colunas com np.column_stack e verifica quantidade de pivôs (posto)
+A3 = np.column_stack([v1, v2, v3])
+A2 = np.column_stack([v1, v2])
+print("Posto [v1, v2, v3]:", np.linalg.matrix_rank(A3))  # saída: Posto [v1, v2, v3]: 2
+print("Posto [v1, v2]:", np.linalg.matrix_rank(A2))      # saída: Posto [v1, v2]: 2
+
+# Se acrescentar b não aumenta o posto, b está no espaço gerado por v1 e v2
+print("Posto [v1, v2, b]:", np.linalg.matrix_rank(np.column_stack([v1, v2, b])))          # saída: Posto [v1, v2, b]: 2
+print("Posto [v1, v2, b_fora]:", np.linalg.matrix_rank(np.column_stack([v1, v2, b_fora])))  # saída: Posto [v1, v2, b_fora]: 3
+
+# Gravação neural 3x4: posto 2 < 3 neurônios indica linha redundante
+X = np.array([[2, 4, 0, 6], [1, 0, 3, 1], [4, 4, 6, 8]])
+print("Posto de X:", np.linalg.matrix_rank(X))  # saída: Posto de X: 2
+      </code>
+
+      <remark id="rem:5-3-armadilha-li">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Confundir "gerar" com "ser independente":</strong> um conjunto pode gerar um plano e ainda assim ser LD (como $\{\mathbf{v}_1, \mathbf{v}_2, \mathbf{v}_3\}$ no <ref to="exm:5-3-span-li-r3"/>, que tem um vetor sobrando). Reciprocamente, $\{\mathbf{e}_1, \mathbf{e}_2\}$ em $\mathbb{R}^3$ é LI, mas não gera todo o $\mathbb{R}^3$.</item>
+          <item><strong>Testar dependência só aos pares:</strong> os vetores $(1, 0, 0)^\top$, $(0, 1, 0)^\top$ e $(1, 1, 0)^\top$ não são múltiplos uns dos outros par a par, porém formam um trio LD porque o terceiro é a soma dos dois primeiros.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:5-3-2-1">
+        <title>Básico — Testando independência linear em $\mathbb{R}^2$ e $\mathbb{R}^3$</title>
+        Determine se cada conjunto abaixo é LI ou LD:
+        <list marker="a">
+          <item>$\{(3, -2)^\top,\; (-6, 4)^\top\}$ e $\{(3, -2)^\top,\; (1, 2)^\top\}$ em $\mathbb{R}^2$;</item>
+          <item>$\{(1, 1, 0)^\top,\; (0, 1, 1)^\top,\; (1, 0, 1)^\top\}$ em $\mathbb{R}^3$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), calcule o determinante $2 \times 2$. Em (b), coloque os três vetores nas colunas de uma matriz e escalone.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Para o primeiro par, $\det\begin{pmatrix} 3 & -6 \\ -2 & 4 \end{pmatrix} = 3(4) - (-6)(-2) = 12 - 12 = 0$, logo é <strong>LD</strong> (de fato, $(-6, 4)^\top = -2(3, -2)^\top$). Para o segundo par, $\det\begin{pmatrix} 3 & 1 \\ -2 & 2 \end{pmatrix} = 3(2) - 1(-2) = 8 \ne 0$, logo é <strong>LI</strong>.</item>
+            <item>Escalonando a matriz formada pelas três colunas:
+              $$\begin{pmatrix} 1 & 0 & 1 \\ 1 & 1 & 0 \\ 0 & 1 & 1 \end{pmatrix} \xrightarrow{L_2 \leftarrow L_2 - L_1} \begin{pmatrix} 1 & 0 & 1 \\ 0 & 1 & -1 \\ 0 & 1 & 1 \end{pmatrix} \xrightarrow{L_3 \leftarrow L_3 - L_2} \begin{pmatrix} 1 & 0 & 1 \\ 0 & 1 & -1 \\ 0 & 0 & 2 \end{pmatrix}.$$
+              Há três pivôs (um em cada coluna). Portanto, o conjunto é <strong>LI</strong>.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-3-2-2">
+        <title>Intermediário — Pertencimento ao espaço gerado</title>
+        Sejam $\mathbf{v}_1 = (1, 2, -1)^\top$ e $\mathbf{v}_2 = (2, 5, 0)^\top$. Use eliminação de Gauss para decidir se os vetores $\mathbf{b}_1 = (3, 7, -1)^\top$ e $\mathbf{b}_2 = (0, 1, 1)^\top$ pertencem a $\operatorname{span}\{\mathbf{v}_1, \mathbf{v}_2\}$. Em caso positivo, escreva a combinação linear correspondente.
+        <hint><title>Ver dica</title>Monte $[\mathbf{v}_1\ \mathbf{v}_2 \mid \mathbf{b}_i]$ e veja se a última linha da forma escalonada gera $0 = 0$ (pertence) ou $0 = c \ne 0$ (não pertence).</hint>
+        <solution collapsible="true" collapsed="true">
+          Para $\mathbf{b}_1 = (3, 7, -1)^\top$, aplicamos $L_2 \leftarrow L_2 - 2L_1$ e $L_3 \leftarrow L_3 + L_1$, e depois $L_3 \leftarrow L_3 - 2L_2$:
+          $$\left(\begin{array}{cc|c} 1 & 2 & 3 \\ 2 & 5 & 7 \\ -1 & 0 & -1 \end{array}\right) \to \left(\begin{array}{cc|c} 1 & 2 & 3 \\ 0 & 1 & 1 \\ 0 & 2 & 2 \end{array}\right) \to \left(\begin{array}{cc|c} 1 & 2 & 3 \\ 0 & 1 & 1 \\ 0 & 0 & 0 \end{array}\right).$$
+          Como o sistema é compatível, obtemos $c_2 = 1$ e $c_1 = 3 - 2(1) = 1$, logo $\mathbf{b}_1 = \mathbf{v}_1 + \mathbf{v}_2 \in \operatorname{span}\{\mathbf{v}_1, \mathbf{v}_2\}$.
+
+          Repetindo as mesmas operações para $\mathbf{b}_2 = (0, 1, 1)^\top$:
+          $$\left(\begin{array}{cc|c} 1 & 2 & 0 \\ 2 & 5 & 1 \\ -1 & 0 & 1 \end{array}\right) \to \left(\begin{array}{cc|c} 1 & 2 & 0 \\ 0 & 1 & 1 \\ 0 & 2 & 1 \end{array}\right) \to \left(\begin{array}{cc|c} 1 & 2 & 0 \\ 0 & 1 & 1 \\ 0 & 0 & -1 \end{array}\right).$$
+          A última linha traz a contradição $0 = -1$; portanto, $\mathbf{b}_2 \notin \operatorname{span}\{\mathbf{v}_1, \mathbf{v}_2\}$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-3-2-3">
+        <title>Avançado — Regressores colineares em um experimento de fMRI</title>
+        Em um ensaio de fMRI com $4$ aquisições (TR $= 2\text{ s}$), cada coluna abaixo indica quando o estímulo $A$ está ativo, quando o estímulo $B$ está ativo, ou quando <em>qualquer um</em> dos dois está ativo (eles nunca ocorrem juntos):
+        $$\mathbf{r}_A = \begin{pmatrix} 1 \\ 0 \\ 1 \\ 0 \end{pmatrix}, \qquad \mathbf{r}_B = \begin{pmatrix} 0 \\ 1 \\ 0 \\ 1 \end{pmatrix}, \qquad \mathbf{r}_{\text{qualquer}} = \begin{pmatrix} 1 \\ 1 \\ 1 \\ 1 \end{pmatrix}.$$
+        <list marker="a">
+          <item>Mostre por escalonamento que $\{\mathbf{r}_A, \mathbf{r}_B, \mathbf{r}_{\text{qualquer}}\}$ é LD e exiba uma combinação linear não trivial igual a $\mathbf{0}$.</item>
+          <item>Suponha que o sinal de um <em>voxel</em> seja modelado por $\mathbf{y} = \beta_A \mathbf{r}_A + \beta_B \mathbf{r}_B + \beta_0 \mathbf{r}_{\text{qualquer}}$ e que $(\beta_A, \beta_B, \beta_0) = (2, 5, 1)$ ajuste exatamente os dados. Encontre outra tripla diferente que produza exatamente o mesmo vetor $\mathbf{y}$ e explique por que esse desenho experimental impede isolar os efeitos de $A$ e $B$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (b), some à combinação original qualquer múltiplo não nulo da combinação nula encontrada em (a).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Escalonando $[\mathbf{r}_A\ \mathbf{r}_B\ \mathbf{r}_{\text{qualquer}}]$ com $L_3 \leftarrow L_3 - L_1$, $L_4 \leftarrow L_4 - L_2$ e depois $L_2 \leftrightarrow L_2$ (já tem pivô):
+              $$\begin{pmatrix} 1 & 0 & 1 \\ 0 & 1 & 1 \\ 1 & 0 & 1 \\ 0 & 1 & 1 \end{pmatrix} \to \begin{pmatrix} 1 & 0 & 1 \\ 0 & 1 & 1 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{pmatrix}.$$
+              A coluna $3$ não tem pivô (variável livre $c_3 = t$), logo o conjunto é LD. Tomando $c_3 = -1$, obtemos $c_2 = 1$ e $c_1 = 1$, isto é, $\mathbf{r}_A + \mathbf{r}_B - \mathbf{r}_{\text{qualquer}} = \mathbf{0}$.</item>
+            <item>Com $(2, 5, 1)$, temos $\mathbf{y} = 2\mathbf{r}_A + 5\mathbf{r}_B + \mathbf{r}_{\text{qualquer}} = (3, 6, 3, 6)^\top$. Somando $\mathbf{r}_A + \mathbf{r}_B - \mathbf{r}_{\text{qualquer}} = \mathbf{0}$, obtemos:
+              $$\mathbf{y} = (2+1)\mathbf{r}_A + (5+1)\mathbf{r}_B + (1-1)\mathbf{r}_{\text{qualquer}} = 3\mathbf{r}_A + 6\mathbf{r}_B + 0\,\mathbf{r}_{\text{qualquer}},$$
+              que também resulta em $(3, 6, 3, 6)^\top$. Como infinitas triplas $(\beta_A, \beta_B, \beta_0)$ geram exatamente o mesmo sinal $\mathbf{y}$, o modelo não consegue separar quanto da resposta veio de cada regressor.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:5-3-3">
+      <eyebrow>Seção 3</eyebrow>
+      <title>Base, dimensão e posto</title>
+      <intro>
+        Juntando "gerar o espaço" com "não ter redundância", chegamos ao conjunto mínimo de eixos necessário para descrever um subespaço: a base. O número de vetores nessa base mede o verdadeiro tamanho do espaço — a dimensão — e, em matrizes, ganha o nome de posto.
+      </intro>
+
+      Se um conjunto gera todo um subespaço $S$ (tem vetores suficientes) e é linearmente independente (não tem nenhum vetor sobrando), ele forma uma <strong>base</strong> (<em>basis</em>) de $S$.
+
+      <definition id="def:5-3-base-dimensao">
+        <title>Base e dimensão de um subespaço</title>
+        Um conjunto $\mathcal{B} = \{\mathbf{b}_1, \dots, \mathbf{b}_k\}$ contido em um subespaço $S \subseteq \mathbb{R}^n$ é uma <strong>base</strong> de $S$ se satisfaz simultaneamente:
+        <list marker="number">
+          <item>$\mathcal{B}$ é linearmente independente (LI);</item>
+          <item>$\operatorname{span}(\mathcal{B}) = S$ ($\mathcal{B}$ gera $S$).</item>
+        </list>
+        A <strong>base canônica</strong> (<em>standard basis</em>) de $\mathbb{R}^n$ é formada pelos vetores unitários dos eixos $\mathbf{e}_1 = (1, 0, \dots, 0)^\top, \dots, \mathbf{e}_n = (0, \dots, 0, 1)^\top$.
+
+        Um resultado fundamental garante que <strong>todas as bases de um mesmo subespaço $S$ têm exatamente o mesmo número de vetores</strong>. Esse número é a <strong>dimensão</strong> (<em>dimension</em>) de $S$, escrita $\dim(S)$ (convencionando $\dim(\{\mathbf{0}\}) = 0$). Em particular, $\dim(\mathbb{R}^n) = n$.
+      </definition>
+
+      Por que a base é tão poderosa? Porque ela dá a cada vetor um único endereço numérico, sem ambiguidade alguma.
+
+      <theorem id="thm:5-3-unicidade-coord">
+        <title>Unicidade das coordenadas em uma base</title>
+        Se $\mathcal{B} = \{\mathbf{b}_1, \dots, \mathbf{b}_k\}$ é uma base do subespaço $S$, então todo vetor $\mathbf{x} \in S$ pode ser escrito de modo <strong>único</strong> como combinação linear dos vetores da base:
+        $$\mathbf{x} = c_1\mathbf{b}_1 + c_2\mathbf{b}_2 + \dots + c_k\mathbf{b}_k.$$
+      </theorem>
+      <proof of="thm:5-3-unicidade-coord" collapsible="true" collapsed="true">
+        A existência dos coeficientes $c_1, \dots, c_k$ vem do fato de que $\mathcal{B}$ gera $S$. Para provar a unicidade, suponha que existam duas representações para o mesmo $\mathbf{x}$:
+        $$\mathbf{x} = c_1\mathbf{b}_1 + \dots + c_k\mathbf{b}_k \qquad \text{e} \qquad \mathbf{x} = d_1\mathbf{b}_1 + \dots + d_k\mathbf{b}_k.$$
+        Subtraindo as duas igualdades, obtemos:
+        $$(c_1 - d_1)\mathbf{b}_1 + \dots + (c_k - d_k)\mathbf{b}_k = \mathbf{0}.$$
+        Como $\mathcal{B}$ é linearmente independente, a única solução dessa equação homogênea tem todos os coeficientes iguais a zero: $c_i - d_i = 0$, ou seja, $c_i = d_i$ para todo $i = 1, \dots, k$.
+      </proof>
+
+      Agora transferimos a ideia de dimensão para uma matriz qualquer $\mathbf{A} \in \mathbb{R}^{m \times n}$. As colunas de $\mathbf{A}$ geram um subespaço de $\mathbb{R}^m$ chamado <strong>espaço coluna</strong> $\mathcal{C}(\mathbf{A})$, e as linhas de $\mathbf{A}$ geram um subespaço de $\mathbb{R}^n$ chamado <strong>espaço linha</strong> $\mathcal{R}(\mathbf{A})$. Surpreendentemente, esses dois subespaços têm sempre a mesma dimensão!
+
+      <definition id="def:5-3-posto">
+        <title>Posto de uma matriz (<em>rank</em>)</title>
+        O <strong>posto</strong> (<em>rank</em>) de uma matriz $\mathbf{A} \in \mathbb{R}^{m \times n}$, denotado por $\operatorname{posto}(\mathbf{A})$, é o número de pivôs obtidos ao reduzir $\mathbf{A}$ à forma escalonada. Vale a igualdade fundamental:
+        $$\operatorname{posto}(\mathbf{A}) = \dim(\mathcal{C}(\mathbf{A})) = \dim(\mathcal{R}(\mathbf{A})).$$
+        Além disso, as colunas de $\mathbf{A}$ (na matriz <em>original</em>!) correspondentes às posições com pivô formam uma base de $\mathcal{C}(\mathbf{A})$.
+      </definition>
+
+      Já sabemos também que o núcleo $\mathcal{N}(\mathbf{A})$ é um subespaço de $\mathbb{R}^n$ cuja dimensão — chamada <strong>nulidade</strong> — é o número de variáveis livres em $\mathbf{A}\mathbf{x} = \mathbf{0}$. Como cada coluna de $\mathbf{A}$ ou recebe um pivô (conta para o posto) ou fica sem pivô (conta para a nulidade), a soma das duas dimensões dá exatamente o número total de colunas.
+
+      <theorem id="thm:5-3-posto-nulidade">
+        <title>Teorema do posto e nulidade</title>
+        Para qualquer matriz $\mathbf{A} \in \mathbb{R}^{m \times n}$, vale:
+        $$\operatorname{posto}(\mathbf{A}) + \dim(\mathcal{N}(\mathbf{A})) = n,$$
+        em que $n$ é o número de colunas de $\mathbf{A}$.
+        <intuition>
+          Se $\mathbf{A}$ representa uma camada de rede que recebe $n$ neurônios de entrada e possui posto $r$, apenas $r$ dimensões da entrada sobrevivem na saída; as $n - r$ dimensões restantes são comprimidas a zero dentro do núcleo $\mathcal{N}(\mathbf{A})$.
+        </intuition>
+      </theorem>
+
+      <example id="exm:5-3-posto-nulidade">
+        <title>Calculando posto, bases e verificando posto + nulidade</title>
+        Para a matriz $\mathbf{A} = \begin{pmatrix} 1 & 2 & 1 & 3 \\ 2 & 4 & 3 & 8 \\ 1 & 2 & 2 & 5 \end{pmatrix}$, encontre o posto, uma base de $\mathcal{C}(\mathbf{A})$, uma base de $\mathcal{N}(\mathbf{A})$ e confira o teorema do posto e nulidade.
+
+        <strong>Solução.</strong> Reduzimos $\mathbf{A}$ à forma escalonada com $L_2 \leftarrow L_2 - 2L_1$, $L_3 \leftarrow L_3 - L_1$ e depois $L_3 \leftarrow L_3 - L_2$:
+        $$\begin{pmatrix} 1 & 2 & 1 & 3 \\ 2 & 4 & 3 & 8 \\ 1 & 2 & 2 & 5 \end{pmatrix} \to \begin{pmatrix} 1 & 2 & 1 & 3 \\ 0 & 0 & 1 & 2 \\ 0 & 0 & 1 & 2 \end{pmatrix} \to \begin{pmatrix} 1 & 2 & 1 & 3 \\ 0 & 0 & 1 & 2 \\ 0 & 0 & 0 & 0 \end{pmatrix}.$$
+        Há $2$ pivôs (nas colunas $1$ e $3$), logo $\operatorname{posto}(\mathbf{A}) = 2$. Tomando as colunas $1$ e $3$ da matriz <em>original</em> $\mathbf{A}$, obtemos uma base de $\mathcal{C}(\mathbf{A})$:
+        $$\left\{\begin{pmatrix} 1 \\ 2 \\ 1 \end{pmatrix},\; \begin{pmatrix} 1 \\ 3 \\ 2 \end{pmatrix}\right\}, \qquad \dim(\mathcal{C}(\mathbf{A})) = 2.$$
+        Para achar $\mathcal{N}(\mathbf{A})$, as colunas sem pivô ($2$ e $4$) dão as variáveis livres $x_2 = s$ e $x_4 = t$. Pela substituição regressiva em $\mathbf{A}\mathbf{x} = \mathbf{0}$:
+        <list marker="dash">
+          <item>Da linha $2$: $x_3 + 2t = 0 \implies x_3 = -2t$.</item>
+          <item>Da linha $1$: $x_1 + 2s + (-2t) + 3t = 0 \implies x_1 = -2s - t$.</item>
+        </list>
+        Separando os parâmetros $s$ e $t$, todo vetor do núcleo escreve-se como:
+        $$\mathbf{x} = s\begin{pmatrix} -2 \\ 1 \\ 0 \\ 0 \end{pmatrix} + t\begin{pmatrix} -1 \\ 0 \\ -2 \\ 1 \end{pmatrix}.$$
+        Esses dois vetores são LI (olhe para a $2^\text{a}$ e a $4^\text{a}$ coordenadas: $(1, 0)$ e $(0, 1)$ não permitem anular uma combinação sem zerar $s$ e $t$), logo formam uma base de $\mathcal{N}(\mathbf{A})$ e $\dim(\mathcal{N}(\mathbf{A})) = 2$. Conferindo o teorema: $\operatorname{posto}(\mathbf{A}) + \dim(\mathcal{N}(\mathbf{A})) = 2 + 2 = 4$, que é o número de colunas de $\mathbf{A}$.
+      </example>
+
+      <example id="exm:5-3-latentes-posto">
+        <title>Sinais latentes, posto baixo e o efeito do ruído experimental</title>
+        Suponha que a atividade de $N = 4$ neurônios ao longo de $T = 5$ instantes seja dirigida por apenas $2$ sinais latentes ocultos (por exemplo, velocidade e direção do movimento) segundo $\mathbf{X} = \mathbf{M}\mathbf{Z}$, com:
+        $$\mathbf{M} = \begin{pmatrix} 1 & 0 \\ 2 & 1 \\ -1 & 2 \\ 0 & 1 \end{pmatrix}, \qquad \mathbf{Z} = \begin{pmatrix} 2 & 0 & 1 & -1 & 3 \\ 1 & 2 & 1 & 3 & 0 \end{pmatrix}.$$
+        Calcule $\mathbf{X}$ e explique por que seus $5$ vetores de população ocupam no máximo um plano dentro de $\mathbb{R}^4$.
+
+        <strong>Solução.</strong> Multiplicando $\mathbf{M}$ ($4 \times 2$) por $\mathbf{Z}$ ($2 \times 5$), coluna por coluna:
+        $$\mathbf{X} = \mathbf{M}\mathbf{Z} = \begin{pmatrix} 2 & 0 & 1 & -1 & 3 \\ 5 & 2 & 3 & 1 & 6 \\ 0 & 4 & 1 & 7 & -3 \\ 1 & 2 & 1 & 3 & 0 \end{pmatrix}.$$
+        Pela leitura por colunas do produto matricial, cada coluna $t$ de $\mathbf{X}$ é a combinação linear $z_{1,t}\mathbf{m}_1 + z_{2,t}\mathbf{m}_2$ das duas colunas de $\mathbf{M}$. Como existem apenas $2$ colunas geradoras (que são LI, pois a $1^\text{a}$ e a $4^\text{a}$ entradas formam a matriz identidade $2 \times 2$), $\mathcal{C}(\mathbf{X})$ está contido no plano $\operatorname{span}\{\mathbf{m}_1, \mathbf{m}_2\} \subset \mathbb{R}^4$ e $\operatorname{posto}(\mathbf{X}) = 2$.
+
+        Em um experimento real, porém, somamos ruído de medição $\mathbf{E}$ aos dados ($\mathbf{X}_{\text{ruído}} = \mathbf{X} + \mathbf{E}$). Mesmo um ruído minúsculo tira os pontos levemente do plano, fazendo o posto exato saltar para $4$ — embora os dados continuem sendo "quase de posto $2$". É por isso que não basta contar pivôs exatos em dados reais: no Tema 5.6 (PCA e SVD), aprenderemos a descobrir esse plano aproximado.
+      </example>
+
+      <code lang="python" id="cod:5-3-posto">
+import numpy as np
+
+# 1) Conferência do Exemplo de posto e nulidade
+A = np.array([[1, 2, 1, 3], [2, 4, 3, 8], [1, 2, 2, 5]])
+print("Posto de A:", np.linalg.matrix_rank(A))  # saída: Posto de A: 2
+
+# 2) População de 4 neurônios dirigida por 2 sinais latentes (X = M @ Z)
+M = np.array([[1, 0], [2, 1], [-1, 2], [0, 1]])
+Z = np.array([[2, 0, 1, -1, 3], [1, 2, 1, 3, 0]])
+X = M @ Z
+print("Posto sem ruído:", np.linalg.matrix_rank(X))  # saída: Posto sem ruído: 2
+
+# Somando um ruído pequeno (desvio 0.01), o posto exato salta para 4
+rng = np.random.default_rng(0)
+X_ruido = X + 0.01 * rng.standard_normal(X.shape)
+print("Posto com ruído:", np.linalg.matrix_rank(X_ruido))  # saída: Posto com ruído: 4
+      </code>
+
+      <remark id="rem:5-3-armadilha-base">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Achar que a base é única:</strong> um subespaço tem infinitas bases diferentes (a canônica é só a mais conveniente). O que é único é o <em>número</em> de vetores na base (a dimensão) e as coordenadas de um vetor <em>depois</em> de escolhida a base.</item>
+          <item><strong>Pegar as colunas da matriz escalonada como base de $\mathcal{C}(\mathbf{A})$:</strong> operações de linha mudam as colunas! O escalonamento serve apenas para <em>identificar quais índices de coluna</em> têm pivô; a base vem das colunas correspondentes da matriz <strong>original</strong>.</item>
+          <item><strong>Esperar posto baixo exato em gravações ruidosas:</strong> como vimos em código, um ruído de $0{,}01$ já eleva o posto exato ao máximo possível.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:5-3-3-1">
+        <title>Básico — Verificando se um conjunto é base</title>
+        Verifique se cada conjunto forma uma base do espaço indicado:
+        <list marker="a">
+          <item>$\{(2, 1)^\top,\; (1, 3)^\top\}$ em $\mathbb{R}^2$;</item>
+          <item>$\{(1, 0, 2)^\top,\; (0, 1, -1)^\top,\; (2, 1, 3)^\top\}$ em $\mathbb{R}^3$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em $\mathbb{R}^n$, qualquer conjunto com $n$ vetores LI gera automaticamente todo o espaço, formando uma base. Basta testar a independência linear.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Calculando o determinante: $\det\begin{pmatrix} 2 & 1 \\ 1 & 3 \end{pmatrix} = 6 - 1 = 5 \ne 0$. Como são $2$ vetores LI em $\mathbb{R}^2$ (que tem dimensão $2$), o sistema $\mathbf{A}\mathbf{c} = \mathbf{b}$ tem solução única para todo $\mathbf{b} \in \mathbb{R}^2$. Logo, <strong>é uma base</strong> de $\mathbb{R}^2$.</item>
+            <item>Escalonando a matriz com os três vetores nas colunas ($L_3 \leftarrow L_3 - 2L_1$ e $L_3 \leftarrow L_3 + L_2$):
+              $$\begin{pmatrix} 1 & 0 & 2 \\ 0 & 1 & 1 \\ 2 & -1 & 3 \end{pmatrix} \to \begin{pmatrix} 1 & 0 & 2 \\ 0 & 1 & 1 \\ 0 & -1 & -1 \end{pmatrix} \to \begin{pmatrix} 1 & 0 & 2 \\ 0 & 1 & 1 \\ 0 & 0 & 0 \end{pmatrix}.$$
+              Como há apenas $2$ pivôs para $3$ colunas, os vetores são LD (note que o terceiro é $2\mathbf{v}_1 + \mathbf{v}_2$). Portanto, <strong>não é base</strong> de $\mathbb{R}^3$ (gera apenas um plano de dimensão $2$).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-3-3-2">
+        <title>Intermediário — Posto, base do núcleo e conferência do teorema</title>
+        Dada $\mathbf{B} = \begin{pmatrix} 1 & -1 & 2 & 1 \\ 2 & -2 & 5 & 4 \\ 3 & -3 & 7 & 5 \end{pmatrix}$:
+        <list marker="a">
+          <item>Determine $\operatorname{posto}(\mathbf{B})$ e encontre uma base para $\mathcal{C}(\mathbf{B})$.</item>
+          <item>Encontre uma base para o núcleo $\mathcal{N}(\mathbf{B})$ e confira o teorema do posto e nulidade.</item>
+        </list>
+        <hint><title>Ver dica</title>Aplique $L_2 \leftarrow L_2 - 2L_1$ e $L_3 \leftarrow L_3 - 3L_1$; depois zere a terceira linha usando a segunda.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Escalonando $\mathbf{B}$:
+              $$\begin{pmatrix} 1 & -1 & 2 & 1 \\ 2 & -2 & 5 & 4 \\ 3 & -3 & 7 & 5 \end{pmatrix} \xrightarrow{\substack{L_2 \leftarrow L_2 - 2L_1 \\ L_3 \leftarrow L_3 - 3L_1}} \begin{pmatrix} 1 & -1 & 2 & 1 \\ 0 & 0 & 1 & 2 \\ 0 & 0 & 1 & 2 \end{pmatrix} \xrightarrow{L_3 \leftarrow L_3 - L_2} \begin{pmatrix} 1 & -1 & 2 & 1 \\ 0 & 0 & 1 & 2 \\ 0 & 0 & 0 & 0 \end{pmatrix}.$$
+              Há $2$ pivôs (colunas $1$ e $3$), logo $\operatorname{posto}(\mathbf{B}) = 2$. Uma base para $\mathcal{C}(\mathbf{B})$ é formada pelas colunas $1$ e $3$ originais: $\{(1, 2, 3)^\top,\; (2, 5, 7)^\top\}$.</item>
+            <item>As variáveis livres são $x_2 = s$ e $x_4 = t$. De $\mathbf{B}\mathbf{x} = \mathbf{0}$ escalonado, temos $x_3 = -2t$ e $x_1 - s + 2(-2t) + t = 0 \implies x_1 = s + 3t$. Logo:
+              $$\mathbf{x} = s\begin{pmatrix} 1 \\ 1 \\ 0 \\ 0 \end{pmatrix} + t\begin{pmatrix} 3 \\ 0 \\ -2 \\ 1 \end{pmatrix}.$$
+              Esses dois vetores formam uma base de $\mathcal{N}(\mathbf{B})$, dando $\dim(\mathcal{N}(\mathbf{B})) = 2$. Conferindo: $\operatorname{posto}(\mathbf{B}) + \dim(\mathcal{N}(\mathbf{B})) = 2 + 2 = 4$ (o número de colunas de $\mathbf{B}$).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-3-3-3">
+        <title>Avançado — Dimensão efetiva de uma gravação de 3 neurônios</title>
+        Uma gravação de $3$ neurônios em $4$ instantes produziu a matriz de desvios (em $\text{Hz}$):
+        $$\mathbf{X} = \begin{pmatrix} 1 & 2 & 3 & 0 \\ 2 & 1 & 3 & 3 \\ 3 & 3 & 6 & 3 \end{pmatrix}.$$
+        <list marker="a">
+          <item>Determine $\operatorname{posto}(\mathbf{X})$ e dê uma base para o subespaço $\mathcal{C}(\mathbf{X}) \subset \mathbb{R}^3$ ocupado pelos vetores de população.</item>
+          <item>Determine $\dim(\mathcal{N}(\mathbf{X}))$, exiba uma base para $\mathcal{N}(\mathbf{X})$ e interprete biologicamente por que a atividade dessa população vive em um plano dentro de $\mathbb{R}^3$.</item>
+        </list>
+        <hint><title>Ver dica</title>Observe que a $3^\text{a}$ linha de $\mathbf{X}$ é a soma das duas primeiras; confirme isso pelo escalonamento completo.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Escalonando $\mathbf{X}$ com $L_2 \leftarrow L_2 - 2L_1$ e $L_3 \leftarrow L_3 - 3L_1$:
+              $$\begin{pmatrix} 1 & 2 & 3 & 0 \\ 0 & -3 & -3 & 3 \\ 0 & -3 & -3 & 3 \end{pmatrix} \xrightarrow{\substack{L_3 \leftarrow L_3 - L_2 \\ L_2 \leftarrow -\frac{1}{3}L_2}} \begin{pmatrix} 1 & 2 & 3 & 0 \\ 0 & 1 & 1 & -1 \\ 0 & 0 & 0 & 0 \end{pmatrix}.$$
+              Os pivôs estão nas colunas $1$ e $2$, logo $\operatorname{posto}(\mathbf{X}) = 2$. Uma base para $\mathcal{C}(\mathbf{X})$ é $\{(1, 2, 3)^\top,\; (2, 1, 3)^\top\}$.</item>
+            <item>Pelo teorema do posto e nulidade, $\dim(\mathcal{N}(\mathbf{X})) = 4 - 2 = 2$. Fazendo $x_3 = s$ e $x_4 = t$, temos $x_2 = -s + t$ e $x_1 = -2(-s + t) - 3s = -s - 2t$. Assim, $\{( -1, -1, 1, 0)^\top,\; (-2, 1, 0, 1)^\top\}$ é uma base de $\mathcal{N}(\mathbf{X})$. Biologicamente, como o neurônio $3$ dispara sempre com desvio $\Delta r_3 = \Delta r_1 + \Delta r_2$, todas as trajetórias populacionais ficam restritas a um plano $2\text{D}$ dentro de $\mathbb{R}^3$ — bastam $2$ variáveis latentes para descrever exatamente a população inteira (na ausência de ruído).</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:5-3-4">
+      <eyebrow>Seção 4</eyebrow>
+      <title>Mudança de base</title>
+      <intro>
+        O vetor de atividade neural não muda quando você gira os eixos do gráfico — apenas as coordenadas mudam. Escolher uma nova base permite trocar a leitura "neurônio 1 versus neurônio 2" por eixos mais informativos, como "atividade comum versus diferença".
+      </intro>
+
+      Quando escrevemos um vetor $\mathbf{x} = (x_1, x_2)^\top$, estamos usando implicitamente a base canônica: $\mathbf{x} = x_1\mathbf{e}_1 + x_2\mathbf{e}_2$. Mas, pelo <ref to="thm:5-3-unicidade-coord"/>, qualquer outra base $\mathcal{B} = \{\mathbf{b}_1, \dots, \mathbf{b}_n\}$ de $\mathbb{R}^n$ também atribui a $\mathbf{x}$ um conjunto único de pesos $(c_1, \dots, c_n)^\top$. Como traduzir de um sistema de eixos para o outro usando matrizes?
+
+      <definition id="def:5-3-coord-mudanca">
+        <title>Coordenadas em uma base e matriz de mudança de base</title>
+        Seja $\mathcal{B} = \{\mathbf{b}_1, \dots, \mathbf{b}_n\}$ uma base de $\mathbb{R}^n$. Dado $\mathbf{x} \in \mathbb{R}^n$, o <strong>vetor de coordenadas de $\mathbf{x}$ na base $\mathcal{B}$</strong>, denotado por $[\mathbf{x}]_{\mathcal{B}}$, é a coluna formada pelos pesos únicos $c_1, \dots, c_n$ tais que $\mathbf{x} = c_1\mathbf{b}_1 + \dots + c_n\mathbf{b}_n$.
+
+        Empilhando os vetores de $\mathcal{B}$ como colunas da <strong>matriz de mudança de base</strong> $\mathbf{P} = [\mathbf{b}_1\ \cdots\ \mathbf{b}_n] \in \mathbb{R}^{n \times n}$ (sempre invertível, pois suas $n$ colunas são LI), a leitura por colunas do produto matricial fornece:
+        <equation id="eq:5-3-mudanca-base">
+          \mathbf{x} = \mathbf{P}[\mathbf{x}]_{\mathcal{B}} \qquad \Longleftrightarrow \qquad [\mathbf{x}]_{\mathcal{B}} = \mathbf{P}^{-1}\mathbf{x}.
+        </equation>
+        <intuition>
+          $\mathbf{P}$ traduz da linguagem da nova base $\mathcal{B}$ para a linguagem padrão ($\mathbf{x} = c_1\mathbf{b}_1 + \dots + c_n\mathbf{b}_n$). Para fazer o caminho inverso — descobrir quais são as coordenadas na base $\mathcal{B}$ a partir do vetor padrão $\mathbf{x}$ —, resolvemos o sistema $\mathbf{P}[\mathbf{x}]_{\mathcal{B}} = \mathbf{x}$, isto é, aplicamos $\mathbf{P}^{-1}$.
+        </intuition>
+      </definition>
+
+      Essa tradução fica ainda mais interessante quando temos uma transformação linear representada pela matriz $\mathbf{A}$ na base canônica ($\mathbf{y} = \mathbf{A}\mathbf{x}$) e queremos descobrir que matriz faz exatamente o mesmo trabalho usando as coordenadas da base $\mathcal{B}$. Basta seguir o caminho em três passos:
+      <list marker="number">
+        <item>pegue as coordenadas $[\mathbf{x}]_{\mathcal{B}}$ e traduza para a base canônica: $\mathbf{x} = \mathbf{P}[\mathbf{x}]_{\mathcal{B}}$;</item>
+        <item>aplique a transformação $\mathbf{A}$: $\mathbf{y} = \mathbf{A}\mathbf{P}[\mathbf{x}]_{\mathcal{B}}$;</item>
+        <item>traduza o resultado de volta para a base $\mathcal{B}$ multiplicando por $\mathbf{P}^{-1}$: $[\mathbf{y}]_{\mathcal{B}} = \mathbf{P}^{-1}\mathbf{y} = (\mathbf{P}^{-1}\mathbf{A}\mathbf{P})[\mathbf{x}]_{\mathcal{B}}$.</item>
+      </list>
+
+      <proposition id="prop:5-3-matriz-outra-base">
+        <title>Matriz de uma transformação linear em outra base</title>
+        Se uma transformação linear tem matriz $\mathbf{A}$ na base canônica de $\mathbb{R}^n$ e $\mathbf{P} = [\mathbf{b}_1\ \cdots\ \mathbf{b}_n]$ contém os vetores da base $\mathcal{B}$ nas colunas, então a matriz dessa mesma transformação na base $\mathcal{B}$ é:
+        <equation id="eq:5-3-semelhanca">
+          \mathbf{A}_{\mathcal{B}} = \mathbf{P}^{-1}\mathbf{A}\mathbf{P}.
+        </equation>
+      </proposition>
+
+      Por que isso importa tanto em neurociência computacional e aprendizado de máquina? Porque uma matriz $\mathbf{A}$ que parece toda acoplada nos eixos dos neurônios individuais pode ficar <strong>diagonal</strong> (totalmente desacoplada!) quando olhada na base certa — como veremos a seguir e formalizaremos nos Temas 5.5 e 5.6.
+
+      <example id="exm:5-3-soma-diferenca">
+        <title>Base soma e diferença para dois neurônios acoplados</title>
+        Suponha que dois neurônios respondem quase juntos a estímulos sensoriais, registrando em três instantes os vetores de taxas $\mathbf{r}_1 = (22, 18)^\top$, $\mathbf{r}_2 = (30, 32)^\top$ e $\mathbf{r}_3 = (12, 10)^\top$ (em $\text{Hz}$). Em vez da base canônica, adotamos a base "soma e diferença":
+        $$\mathbf{b}_1 = \begin{pmatrix} 1 \\ 1 \end{pmatrix} \text{ (modo comum)}, \qquad \mathbf{b}_2 = \begin{pmatrix} 1 \\ -1 \end{pmatrix} \text{ (modo diferencial)}.$$
+        Monte $\mathbf{P}$, calcule $\mathbf{P}^{-1}$, encontre $[\mathbf{r}_1]_{\mathcal{B}}$, $[\mathbf{r}_2]_{\mathcal{B}}$ e $[\mathbf{r}_3]_{\mathcal{B}}$ e interprete o resultado.
+
+        <strong>Solução.</strong> Colocando $\mathbf{b}_1$ e $\mathbf{b}_2$ nas colunas de $\mathbf{P}$, temos $\mathbf{P} = \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}$, com $\det\mathbf{P} = (1)(-1) - (1)(1) = -2 \ne 0$. Pela fórmula da inversa $2 \times 2$ (Tema 5.2):
+        $$\mathbf{P}^{-1} = -\frac{1}{2}\begin{pmatrix} -1 & -1 \\ -1 & 1 \end{pmatrix} = \frac{1}{2}\begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}.$$
+        Aplicando $[\mathbf{r}_t]_{\mathcal{B}} = \mathbf{P}^{-1}\mathbf{r}_t$ (isto é, primeira coordenada = média $\frac{r_1 + r_2}{2}$, segunda coordenada = semidiferença $\frac{r_1 - r_2}{2}$):
+        <list marker="dash">
+          <item>$[\mathbf{r}_1]_{\mathcal{B}} = \frac{1}{2}\begin{pmatrix} 22 + 18 \\ 22 - 18 \end{pmatrix} = \begin{pmatrix} 20 \\ 2 \end{pmatrix}$ (confira: $20\mathbf{b}_1 + 2\mathbf{b}_2 = (22, 18)^\top$);</item>
+          <item>$[\mathbf{r}_2]_{\mathcal{B}} = \frac{1}{2}\begin{pmatrix} 30 + 32 \\ 30 - 32 \end{pmatrix} = \begin{pmatrix} 31 \\ -1 \end{pmatrix}$ (confira: $31\mathbf{b}_1 - 1\mathbf{b}_2 = (30, 32)^\top$);</item>
+          <item>$[\mathbf{r}_3]_{\mathcal{B}} = \frac{1}{2}\begin{pmatrix} 12 + 10 \\ 12 - 10 \end{pmatrix} = \begin{pmatrix} 11 \\ 1 \end{pmatrix}$ (confira: $11\mathbf{b}_1 + 1\mathbf{b}_2 = (12, 10)^\top$).</item>
+        </list>
+        Veja o que aconteceu ao trocar de base: enquanto na base canônica as duas coordenadas variam bastante ($12$ a $30$ e $10$ a $32$), na base $\mathcal{B}$ quase toda a variação concentra-se na primeira coordenada ($11$, $20$, $31$ — o modo comum), enquanto o modo diferencial fica sempre minúsculo (entre $-1$ e $2$). É exatamente essa rotação para os eixos de maior variação que o PCA (Tema 5.6) automatiza em grandes populações.
+      </example>
+
+      <example id="exm:5-3-diagonalizacao">
+        <title>Diagonalizando uma rede simétrica por mudança de base</title>
+        Considere a matriz de transformação $\mathbf{A} = \begin{pmatrix} 2 & 1 \\ 1 & 2 \end{pmatrix}$ na base canônica (cada neurônio excita a si mesmo com peso $2$ e ao vizinho com peso $1$). Calcule $\mathbf{A}_{\mathcal{B}} = \mathbf{P}^{-1}\mathbf{A}\mathbf{P}$ na base soma e diferença do <ref to="exm:5-3-soma-diferenca"/>.
+
+        <strong>Solução.</strong> Já sabemos que $\mathbf{P} = \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}$ e $\mathbf{P}^{-1} = \frac{1}{2}\begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}$. Calculamos primeiro $\mathbf{A}\mathbf{P}$:
+        $$\mathbf{A}\mathbf{P} = \begin{pmatrix} 2 & 1 \\ 1 & 2 \end{pmatrix}\begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix} = \begin{pmatrix} 3 & 1 \\ 3 & -1 \end{pmatrix}.$$
+        Multiplicando agora à esquerda por $\mathbf{P}^{-1}$:
+        $$\mathbf{A}_{\mathcal{B}} = \mathbf{P}^{-1}(\mathbf{A}\mathbf{P}) = \frac{1}{2}\begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}\begin{pmatrix} 3 & 1 \\ 3 & -1 \end{pmatrix} = \frac{1}{2}\begin{pmatrix} 6 & 0 \\ 0 & 2 \end{pmatrix} = \begin{pmatrix} 3 & 0 \\ 0 & 1 \end{pmatrix}.$$
+        A matriz virou <strong>diagonal</strong>! Nessa base, o modo comum $\mathbf{b}_1$ apenas é multiplicado por $3$ e o modo diferencial $\mathbf{b}_2$ por $1$, sem misturar os dois eixos — antecipando os autovalores ($3$ e $1$) e autovetores ($\mathbf{b}_1$ e $\mathbf{b}_2$) do Tema 5.5.
+      </example>
+
+      Em Python, assim como no Tema 5.2, preferimos usar <c>np.linalg.solve(P, x)</c> em vez de calcular explicitamente <c>np.linalg.inv(P) @ x</c>, pois resolve o sistema $\mathbf{P}[\mathbf{x}]_{\mathcal{B}} = \mathbf{x}$ com maior precisão numérica.
+
+      <code lang="python" id="cod:5-3-mudanca-base">
+import numpy as np
+
+# Base soma e diferença nas colunas de P
+P = np.array([[1, 1], [1, -1]], dtype=float)
+
+# Três vetores de taxas empilhados nas colunas de R
+R = np.array([[22, 30, 12], [18, 32, 10]], dtype=float)
+
+# Coordenadas na base B via np.linalg.solve(P, R)
+coords_B = np.linalg.solve(P, R)
+print("Coordenadas em B:\n", np.round(coords_B, 3).tolist())
+# saída: Coordenadas em B:
+# saída:  [[20.0, 31.0, 11.0], [2.0, -1.0, 1.0]]
+
+# Transformação A vista na base B: A_B = P^{-1} @ A @ P
+A = np.array([[2, 1], [1, 2]], dtype=float)
+A_B = np.linalg.solve(P, A @ P)
+print("Matriz A na base B:", np.round(A_B, 3).tolist())  # saída: Matriz A na base B: [[3.0, 0.0], [0.0, 1.0]]
+      </code>
+
+      <remark id="rem:5-3-armadilha-mudanca">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Trocar $\mathbf{P}$ por $\mathbf{P}^{-1}$:</strong> lembre que $\mathbf{P}[\mathbf{x}]_{\mathcal{B}}$ faz a combinação linear $c_1\mathbf{b}_1 + \dots + c_n\mathbf{b}_n$, levando <em>de $\mathcal{B}$ para a base canônica</em>. Para sair da base canônica e achar $[\mathbf{x}]_{\mathcal{B}}$, você precisa de $\mathbf{P}^{-1}\mathbf{x}$ (ou <c>np.linalg.solve(P, x)</c>).</item>
+          <item><strong>Colocar os vetores da base nas linhas de $\mathbf{P}$:</strong> em $\mathbf{P} = [\mathbf{b}_1\ \cdots\ \mathbf{b}_n]$, cada vetor da base ocupa uma <em>coluna</em>, nunca uma linha.</item>
+          <item><strong>Inverter a ordem em $\mathbf{P}^{-1}\mathbf{A}\mathbf{P}$:</strong> leia da direita para a esquerda o caminho do vetor: entra $[\mathbf{x}]_{\mathcal{B}}$, $\mathbf{P}$ traduz para a canônica, $\mathbf{A}$ age, e $\mathbf{P}^{-1}$ devolve a $\mathcal{B}$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:5-3-4-1">
+        <title>Básico — Traduzindo coordenadas nas duas direções</title>
+        Considere a base $\mathcal{B} = \{\mathbf{b}_1, \mathbf{b}_2\}$ de $\mathbb{R}^2$, com $\mathbf{b}_1 = (2, 1)^\top$ e $\mathbf{b}_2 = (1, 1)^\top$.
+        <list marker="a">
+          <item>Qual vetor $\mathbf{x}$ (na base canônica) possui coordenadas $[\mathbf{x}]_{\mathcal{B}} = (3, -2)^\top$?</item>
+          <item>Determine as coordenadas $[\mathbf{y}]_{\mathcal{B}}$ do vetor $\mathbf{y} = (5, 3)^\top$ e confira sua resposta.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), calcule diretamente $\mathbf{P}[\mathbf{x}]_{\mathcal{B}} = 3\mathbf{b}_1 - 2\mathbf{b}_2$. Em (b), encontre $\mathbf{P}^{-1}$ usando a fórmula $2 \times 2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Montando $\mathbf{P} = \begin{pmatrix} 2 & 1 \\ 1 & 1 \end{pmatrix}$, calculamos $\mathbf{x} = \mathbf{P}[\mathbf{x}]_{\mathcal{B}}$:
+              $$\mathbf{x} = \begin{pmatrix} 2 & 1 \\ 1 & 1 \end{pmatrix}\begin{pmatrix} 3 \\ -2 \end{pmatrix} = \begin{pmatrix} 6 - 2 \\ 3 - 2 \end{pmatrix} = \begin{pmatrix} 4 \\ 1 \end{pmatrix}.$$
+            </item>
+            <item>Como $\det\mathbf{P} = 2(1) - 1(1) = 1$, temos $\mathbf{P}^{-1} = \begin{pmatrix} 1 & -1 \\ -1 & 2 \end{pmatrix}$. Logo:
+              $$[\mathbf{y}]_{\mathcal{B}} = \mathbf{P}^{-1}\mathbf{y} = \begin{pmatrix} 1 & -1 \\ -1 & 2 \end{pmatrix}\begin{pmatrix} 5 \\ 3 \end{pmatrix} = \begin{pmatrix} 5 - 3 \\ -5 + 6 \end{pmatrix} = \begin{pmatrix} 2 \\ 1 \end{pmatrix}.$$
+              <em>Conferência:</em> $2\mathbf{b}_1 + 1\mathbf{b}_2 = 2(2, 1)^\top + (1, 1)^\top = (5, 3)^\top$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-3-4-2">
+        <title>Intermediário — Concentrando variação neural na base soma e diferença</title>
+        Dois neurônios do córtex auditivo respondem a três intensidades sonoras com as taxas $\mathbf{r}_A = (16, 14)^\top\text{ Hz}$, $\mathbf{r}_B = (40, 36)^\top\text{ Hz}$ e $\mathbf{r}_C = (25, 29)^\top\text{ Hz}$.
+        <list marker="a">
+          <item>Calcule as coordenadas dos três vetores na base $\mathcal{B} = \{(1, 1)^\top,\; (1, -1)^\top\}$.</item>
+          <item>Compare a amplitude de variação da $1^\text{a}$ coordenada (modo comum) com a da $2^\text{a}$ coordenada (modo diferencial) e explique o que aconteceria se aproximássemos os dados usando apenas a $1^\text{a}$ coordenada.</item>
+        </list>
+        <hint><title>Ver dica</title>Use a mesma inversa $\mathbf{P}^{-1} = \frac{1}{2}\begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}$ do <ref to="exm:5-3-soma-diferenca"/>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Aplicando $[\mathbf{r}]_{\mathcal{B}} = \mathbf{P}^{-1}\mathbf{r}$:
+              $$[\mathbf{r}_A]_{\mathcal{B}} = \frac{1}{2}\begin{pmatrix} 16 + 14 \\ 16 - 14 \end{pmatrix} = \begin{pmatrix} 15 \\ 1 \end{pmatrix}, \qquad [\mathbf{r}_B]_{\mathcal{B}} = \frac{1}{2}\begin{pmatrix} 40 + 36 \\ 40 - 36 \end{pmatrix} = \begin{pmatrix} 38 \\ 2 \end{pmatrix}, \qquad [\mathbf{r}_C]_{\mathcal{B}} = \frac{1}{2}\begin{pmatrix} 25 + 29 \\ 25 - 29 \end{pmatrix} = \begin{pmatrix} 27 \\ -2 \end{pmatrix}.$$
+            </item>
+            <item>A $1^\text{a}$ coordenada varia de $15$ a $38\text{ Hz}$ (amplitude de $23\text{ Hz}$), capturando a resposta conjunta dos dois neurônios à intensidade do som. Já a $2^\text{a}$ coordenada oscila apenas entre $-2$ e $2\text{ Hz}$. Descartando a $2^\text{a}$ coordenada ($c_2 \approx 0$), reconstruímos $(15, 15)^\top$, $(38, 38)^\top$ e $(27, 27)^\top$: resumimos $2$ neurônios em $1$ único número por ensaio errando por no máximo $2\text{ Hz}$ em cada neurônio.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-3-4-3">
+        <title>Avançado — Diagonalização e potências rápidas via $\mathbf{P}^{-1}\mathbf{A}\mathbf{P}$</title>
+        Considere a matriz $\mathbf{A} = \begin{pmatrix} 5 & -2 \\ 2 & 0 \end{pmatrix}$ na base canônica e a base $\mathcal{B} = \{\mathbf{b}_1, \mathbf{b}_2\}$ com $\mathbf{b}_1 = (2, 1)^\top$ e $\mathbf{b}_2 = (1, 2)^\top$.
+        <list marker="a">
+          <item>Monte $\mathbf{P}$, calcule $\mathbf{P}^{-1}$ e determine $\mathbf{A}_{\mathcal{B}} = \mathbf{P}^{-1}\mathbf{A}\mathbf{P}$.</item>
+          <item>Para $\mathbf{x} = (5, 4)^\top$, calcule $\mathbf{A}^2\mathbf{x}$ de duas formas: (i) diretamente como $\mathbf{A}(\mathbf{A}\mathbf{x})$ e (ii) convertendo $\mathbf{x}$ para $\mathcal{B}$, aplicando $\mathbf{A}_{\mathcal{B}}$ duas vezes e voltando à base canônica via $\mathbf{P}$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), você obterá uma matriz diagonal em $\mathcal{B}$. Em (b), aplicar uma matriz diagonal duas vezes apenas eleva os elementos da diagonal ao quadrado.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Temos $\mathbf{P} = \begin{pmatrix} 2 & 1 \\ 1 & 2 \end{pmatrix}$, com $\det\mathbf{P} = 4 - 1 = 3$, logo $\mathbf{P}^{-1} = \frac{1}{3}\begin{pmatrix} 2 & -1 \\ -1 & 2 \end{pmatrix}$. Calculando $\mathbf{A}\mathbf{P}$:
+              $$\mathbf{A}\mathbf{P} = \begin{pmatrix} 5 & -2 \\ 2 & 0 \end{pmatrix}\begin{pmatrix} 2 & 1 \\ 1 & 2 \end{pmatrix} = \begin{pmatrix} 8 & 1 \\ 4 & 2 \end{pmatrix}.$$
+              Multiplicando à esquerda por $\mathbf{P}^{-1}$:
+              $$\mathbf{A}_{\mathcal{B}} = \frac{1}{3}\begin{pmatrix} 2 & -1 \\ -1 & 2 \end{pmatrix}\begin{pmatrix} 8 & 1 \\ 4 & 2 \end{pmatrix} = \frac{1}{3}\begin{pmatrix} 16 - 4 & 2 - 2 \\ -8 + 8 & -1 + 4 \end{pmatrix} = \frac{1}{3}\begin{pmatrix} 12 & 0 \\ 0 & 3 \end{pmatrix} = \begin{pmatrix} 4 & 0 \\ 0 & 1 \end{pmatrix}.$$
+            </item>
+            <item><em>Via direta:</em> $\mathbf{A}\mathbf{x} = \begin{pmatrix} 5(5) - 2(4) \\ 2(5) + 0(4) \end{pmatrix} = \begin{pmatrix} 17 \\ 10 \end{pmatrix}$, e aplicando $\mathbf{A}$ novamente:
+              $$\mathbf{A}^2\mathbf{x} = \begin{pmatrix} 5(17) - 2(10) \\ 2(17) + 0(10) \end{pmatrix} = \begin{pmatrix} 65 \\ 34 \end{pmatrix}.$$
+              <em>Via mudança de base:</em> primeiro traduzimos $\mathbf{x}$ para $\mathcal{B}$:
+              $$[\mathbf{x}]_{\mathcal{B}} = \mathbf{P}^{-1}\mathbf{x} = \frac{1}{3}\begin{pmatrix} 2 & -1 \\ -1 & 2 \end{pmatrix}\begin{pmatrix} 5 \\ 4 \end{pmatrix} = \frac{1}{3}\begin{pmatrix} 6 \\ 3 \end{pmatrix} = \begin{pmatrix} 2 \\ 1 \end{pmatrix}.$$
+              Aplicando $\mathbf{A}_{\mathcal{B}}$ duas vezes ($\mathbf{A}_{\mathcal{B}}^2 = \begin{pmatrix} 4^2 & 0 \\ 0 & 1^2 \end{pmatrix} = \begin{pmatrix} 16 & 0 \\ 0 & 1 \end{pmatrix}$):
+              $$[\mathbf{A}^2\mathbf{x}]_{\mathcal{B}} = \begin{pmatrix} 16 & 0 \\ 0 & 1 \end{pmatrix}\begin{pmatrix} 2 \\ 1 \end{pmatrix} = \begin{pmatrix} 32 \\ 1 \end{pmatrix}.$$
+              Voltando à base canônica:
+              $$\mathbf{A}^2\mathbf{x} = \mathbf{P}\begin{pmatrix} 32 \\ 1 \end{pmatrix} = \begin{pmatrix} 2(32) + 1(1) \\ 1(32) + 2(1) \end{pmatrix} = \begin{pmatrix} 65 \\ 34 \end{pmatrix},$$
+              que coincide exatamente com o cálculo direto.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:5-3-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Subespaço vetorial:</strong> subconjunto $S \subseteq \mathbb{R}^n$ que contém $\mathbf{0}$ e é fechado para soma ($\mathbf{u} + \mathbf{v} \in S$) e multiplicação por escalar ($\alpha\mathbf{u} \in S$). Retas e planos pela origem e o núcleo $\mathcal{N}(\mathbf{A}) = \{\mathbf{x} \in \mathbb{R}^n : \mathbf{A}\mathbf{x} = \mathbf{0}\}$ são sempre subespaços.</item>
+        <item><strong>Espaço gerado (<em>span</em>):</strong> $\operatorname{span}\{\mathbf{v}_1, \dots, \mathbf{v}_k\}$ é o conjunto de todas as combinações lineares desses vetores; testar se $\mathbf{b}$ está no <em>span</em> equivale a verificar se $\mathbf{A}\mathbf{c} = \mathbf{b}$ tem solução por eliminação de Gauss.</item>
+        <item><strong>Independência linear (LI):</strong> $\{\mathbf{v}_1, \dots, \mathbf{v}_k\}$ é LI quando $c_1\mathbf{v}_1 + \dots + c_k\mathbf{v}_k = \mathbf{0}$ só admite $c_1 = \dots = c_k = 0$ (pivô em toda coluna, ou $\det \ne 0$ para dois vetores em $\mathbb{R}^2$). Mais de $n$ vetores em $\mathbb{R}^n$ são sempre LD.</item>
+        <item><strong>Base e dimensão:</strong> uma base $\mathcal{B}$ de $S$ é um conjunto LI que gera $S$, garantindo coordenadas únicas para todo vetor de $S$. Todas as bases de $S$ têm o mesmo número de vetores, que é $\dim(S)$.</item>
+        <item><strong>Posto ($\operatorname{posto}(\mathbf{A})$):</strong> número de pivôs da forma escalonada de $\mathbf{A}$, igual a $\dim(\mathcal{C}(\mathbf{A})) = \dim(\mathcal{R}(\mathbf{A}))$. Em dados reais ruidosos, o posto exato costuma ser máximo mesmo quando os sinais vivem quase num subespaço de dimensão baixa.</item>
+        <item><strong>Teorema do posto e nulidade:</strong> para $\mathbf{A} \in \mathbb{R}^{m \times n}$, $\operatorname{posto}(\mathbf{A}) + \dim(\mathcal{N}(\mathbf{A})) = n$ (pivôs + variáveis livres = total de colunas).</item>
+        <item><strong>Mudança de base:</strong> com $\mathbf{P} = [\mathbf{b}_1\ \cdots\ \mathbf{b}_n]$, traduzimos coordenadas por $\mathbf{x} = \mathbf{P}[\mathbf{x}]_{\mathcal{B}}$ e $[\mathbf{x}]_{\mathcal{B}} = \mathbf{P}^{-1}\mathbf{x}$ (em NumPy, <c>np.linalg.solve(P, x)</c>).</item>
+        <item><strong>Transformação em outra base:</strong> a matriz $\mathbf{A}$ vista na base $\mathcal{B}$ torna-se $\mathbf{A}_{\mathcal{B}} = \mathbf{P}^{-1}\mathbf{A}\mathbf{P}$, permitindo diagonalizar sistemas acoplados ao escolher os eixos certos.</item>
+      </list>
+    </section>
+
+    <section id="sec:5-3-alem">
+      <title>Para ir além</title>
+      <box type="warning">
+        <title>Aviso didático importante</title>
+        Espaços vetoriais, posto e mudança de base são conceitos abstratos demais quando ficam só em definições simbólicas. Sem visualizar os eixos rodando e o espaço sendo gerado pelos vetores da base, a teoria parece um jogo de regras soltas — <strong>assista aos vídeos de visualização primeiro</strong> antes de seguir para o próximo tema: <strong>Tema 5.4: Ortogonalidade</strong>.
+      </box>
+
+      Consulte os materiais autorizados do Módulo 5 para consolidar a intuição geométrica e a prática computacional:
+      <list marker="dash">
+        <item><strong>Visualização essencial (vídeo):</strong> <link to="https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab">3Blue1Brown — Essência da Álgebra Linear</link> (assista especialmente aos capítulos sobre <em>combinações lineares, span e bases</em> e sobre <em>mudança de base</em>).</item>
+        <item><strong>Referência computacional:</strong> <link to="https://numpy.org/doc/stable/reference/routines.linalg.html">Documentação oficial do NumPy — Álgebra Linear (numpy.linalg)</link>, para consultar <c>matrix_rank</c>, <c>solve</c> e funções correlatas.</item>
+        <item><strong>Estudo por livro-texto:</strong> <em>Linear Algebra and Its Applications</em>, de Gilbert Strang (capítulos sobre espaços vetoriais, os quatro subespaços fundamentais e mudança de base).</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 5 · Álgebra Linear — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

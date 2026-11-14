@@ -1,0 +1,891 @@
+<document>
+  <title>Módulo 4 · Otimização</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-4-2">Voltar ao guia (Tema 4.2)</link></meta-item>
+    <meta-item key="Módulo">Módulo 4 · Otimização — A Busca pelo Ótimo</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-4-2">
+    <title>Minimização e maximização</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Encontrar picos e vales: pontos críticos e o que eles significam.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> No <mark>Tema 4.1</mark> (Espaço de variáveis), vimos que ajustar um modelo de codificação (<em>encoding</em>) ou decodificação (<em>decoding</em>) equivale a procurar o ponto mais baixo em uma paisagem de custo, assim como uma proteína enovelada ou uma rede atratora de Hopfield busca estados de mínima energia. Mas percorrer uma paisagem tentando pontos em grade fica inviável assim que o modelo passa de dois ou três parâmetros. Se quisermos encontrar o melhor ajuste sem força bruta — e entender que tipo de terreno estamos pisando —, precisamos usar o Cálculo para identificar onde o chão fica plano e distinguir um vale genuíno de um pico ou de um passo de montanha.
+
+    Além disso, sistemas biológicos raramente otimizam sem limites. Um neurônio que dispara para representar estímulos visuais precisa respeitar um orçamento metabólico de ATP; uma célula que sintetiza enzimas distribui carbono e energia finitos entre vias concorrentes. Neste tema, aprenderemos primeiro a encontrar e classificar picos e vales em uma e em duas variáveis usando derivadas primeiras e segundas, depois deduziremos a solução analítica exata da reta de mínimos quadrados para o neurônio visual do Tema 4.1 e, por fim, resolveremos problemas de ótimo sob restrições explícitas.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>definir extremos locais e globais em uma variável, enunciar os teoremas de Fermat e de Weierstrass e aplicar o teste da segunda derivada sem esquecer as bordas de intervalos fechados;</item>
+      <item>encontrar pontos críticos de funções de duas variáveis resolvendo $\nabla f(\mathbf{x}_0) = \mathbf{0}$ e classificá-los em mínimo local, máximo local ou ponto de sela usando a matriz Hessiana;</item>
+      <item>deduzir e resolver as equações normais dos mínimos quadrados para ajustar $\hat{y} = ax + b$ a dados experimentais e justificar por que a solução encontrada é o mínimo global;</item>
+      <item>formular e resolver problemas de otimização com uma restrição de igualdade usando multiplicadores de Lagrange, comparando com a substituição direta e interpretando o multiplicador $\lambda$.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Esta aula apoia-se em três pilares anteriores da trilha: <mark>Derivada</mark> (Módulo 2, Cálculo Real: regras de derivação, regra da cadeia e interpretação da derivada como inclinação da reta tangente); <mark>Diferencial em várias variáveis</mark> (Tema 3.2, Módulo 3 — Cálculo Multivariável: derivadas parciais, vetor gradiente $\nabla f$ perpendicular às curvas de nível, derivadas parciais de segunda ordem e o teorema de Schwarz); e <mark>Espaço de variáveis</mark> (Tema 4.1, Módulo 4 — Otimização: função custo $J$, paisagem topográfica, curvas de nível e o ajuste do neurônio visual por busca em grade).
+
+    <section id="sec:4-2-1">
+      <eyebrow>Seção 1</eyebrow>
+      <title>Pontos críticos em uma variável</title>
+      <intro>
+        Antes de caçar vales em espaços multidimensionais, precisamos dominar o caso de um único parâmetro: onde a tangente fica horizontal, como saber se chegamos a um fundo ou a um topo e por que as fronteiras do domínio nunca podem ser ignoradas.
+      </intro>
+
+      Imagine que você caminha por uma trilha montanhosa estreita que só permite ir para frente ou para trás, e cuja altitude em cada posição $x$ é dada por $f(x)$. Enquanto você sobe, a inclinação $f'(x)$ é positiva; enquanto você desce, $f'(x)$ é negativa. Se você passar pelo alto exato de um morro suave ou pelo fundo exato de um vale suave no meio da trilha, a inclinação tem de zerar naquele instante: a reta tangente ao gráfico fica perfeitamente horizontal.
+
+      Essa observação simples é o ponto de partida de toda a otimização analítica. Mas o terreno real reserva sutilezas: há vales rasos ao lado de abismos mais fundos, há platôs horizontais que não são nem pico nem vale, e há extremos que acontecem bem na cerca onde a trilha começa ou termina. Para organizar tudo isso com rigor, precisamos primeiro distinguir o que é ótimo <em>na vizinhança</em> do que é ótimo <em>no domínio inteiro</em>.
+
+      <definition id="def:4-2-extremos-1d">
+        <title>Extremos locais e globais em uma variável</title>
+        Seja $f : D \subseteq \mathbb{R} \to \mathbb{R}$ uma função definida em um domínio $D$, e seja $x_0 \in D$.
+        <list marker="dash">
+          <item>$x_0$ é um <strong>máximo global</strong> (<em>global maximum</em>) de $f$ em $D$ se $f(x_0) \ge f(x)$ para todo $x \in D$; é um <strong>mínimo global</strong> (<em>global minimum</em>) se $f(x_0) \le f(x)$ para todo $x \in D$.</item>
+          <item>$x_0$ é um <strong>máximo local</strong> (<em>local maximum</em>) se existe um raio $r > 0$ tal que $f(x_0) \ge f(x)$ para todo $x \in D$ com $|x - x_0| < r$; é um <strong>mínimo local</strong> (<em>local minimum</em>) se $f(x_0) \le f(x)$ nessa vizinhança.</item>
+        </list>
+        <intuition>
+          Um mínimo local é o fundo do vale onde você está agora: qualquer passo curto para a esquerda ou para a direita faz você subir. Um mínimo global é o ponto mais baixo do mapa inteiro — o equivalente, em biofísica, ao estado nativo mais estável de uma proteína frente a conformações intermediárias apenas localmente estáveis.
+        </intuition>
+      </definition>
+
+      Agora formalizamos os pontos candidatos onde uma função pode mudar de comportamento no interior do seu domínio.
+
+      <definition id="def:4-2-ponto-critico-1d">
+        <title>Ponto crítico em uma variável</title>
+        Um ponto $x_0$ no interior do domínio de $f$ é um <strong>ponto crítico</strong> (<em>critical point</em>) de $f$ quando ocorre uma de duas situações:
+        <list marker="number">
+          <item>$f'(x_0) = 0$ (reta tangente horizontal); ou</item>
+          <item>$f'(x_0)$ não existe (por exemplo, um "bico" agudo, como em $f(x) = |x|$ na origem $x_0 = 0$).</item>
+        </list>
+      </definition>
+
+      Por que todo extremo local suave no interior do domínio precisa ter derivada zero? Esse é o conteúdo de um resultado clássico do Módulo 2 (<mark>Derivada</mark>) que aqui funciona como nossa primeira peneira.
+
+      <theorem id="thm:4-2-fermat">
+        <title>Teorema de Fermat (condição necessária de 1ª ordem)</title>
+        Se $f$ possui um máximo local ou um mínimo local em um ponto interior $x_0$ do seu domínio e $f$ é derivável em $x_0$, então obrigatoriamente:
+        $$f'(x_0) = 0.$$
+      </theorem>
+      <proof of="thm:4-2-fermat" collapsible="true" collapsed="true">
+        Suponha que $x_0$ seja um máximo local interior e que $f'(x_0)$ exista. Para deslocamentos $h > 0$ suficientemente pequenos, temos $f(x_0 + h) \le f(x_0)$, logo $f(x_0 + h) - f(x_0) \le 0$. Dividindo por $h > 0$, o quociente de Newton satisfaz $\frac{f(x_0 + h) - f(x_0)}{h} \le 0$; fazendo $h \to 0^+$, concluímos que $f'(x_0) \le 0$.
+
+        Por outro lado, para $h < 0$ suficientemente pequeno, ainda vale $f(x_0 + h) - f(x_0) \le 0$, mas ao dividir por $h < 0$ o sentido da desigualdade se inverte: $\frac{f(x_0 + h) - f(x_0)}{h} \ge 0$. Fazendo $h \to 0^-$, obtemos $f'(x_0) \ge 0$. Como o mesmo número real $f'(x_0)$ é ao mesmo tempo $\le 0$ e $\ge 0$, resta apenas $f'(x_0) = 0$. Se $x_0$ for um mínimo local, o mesmo argumento vale invertendo as desigualdades (ou aplicando o resultado a $-f$).
+      </proof>
+
+      Repare no sentido lógico da flecha no <ref to="thm:4-2-fermat"/>: ser extremo local derivável no interior <em>implica</em> $f'(x_0) = 0$, mas a recíproca <em>não</em> é verdadeira! Em $f(x) = x^3$, temos $f'(x) = 3x^2$, que se anula em $x_0 = 0$; contudo, para $x < 0$ vale $x^3 < 0$ e para $x > 0$ vale $x^3 > 0$, então $x_0 = 0$ não é máximo nem mínimo — é apenas um degrau horizontal chamado ponto de inflexão. Precisamos de um segundo critério para separar mínimos, máximos e falsos alarmes.
+
+      <proposition id="prop:4-2-segunda-derivada-1d">
+        <title>Teste da segunda derivada em uma variável</title>
+        Seja $f$ duas vezes derivável em uma vizinhança de $x_0$, com $f'(x_0) = 0$. Então:
+        <list marker="dash">
+          <item>se $f''(x_0) > 0$, $x_0$ é um <strong>mínimo local</strong> (concavidade para cima);</item>
+          <item>se $f''(x_0) < 0$, $x_0$ é um <strong>máximo local</strong> (concavidade para baixo);</item>
+          <item>se $f''(x_0) = 0$, o teste é <strong>inconclusivo</strong>.</item>
+        </list>
+        <intuition>
+          A segunda derivada mede a curvatura. Se a tangente em $x_0$ é horizontal ($f' = 0$) e a inclinação está crescendo ($f'' > 0$), então imediatamente à esquerda de $x_0$ a função descia ($f' < 0$) e imediatamente à direita ela sobe ($f' > 0$) — formando uma tigela com fundo em $x_0$. Quando $f''(x_0) = 0$, qualquer coisa pode ocorrer: $f(x) = x^4$ tem um mínimo em $x = 0$, $-x^4$ tem um máximo, e $x^3$ não tem nenhum extremo.
+        </intuition>
+      </proposition>
+      <proof of="prop:4-2-segunda-derivada-1d" collapsible="true" collapsed="true">
+        Se $f''(x_0) > 0$, então a derivada $f'(x)$ tem taxa de variação positiva em $x_0$. Como $f'(x_0) = 0$, para $x$ suficientemente próximo de $x_0$ vale $f'(x) < 0$ quando $x < x_0$ e $f'(x) > 0$ quando $x > x_0$. Portanto $f$ é decrescente logo antes de $x_0$ e crescente logo depois, garantindo que $f(x) \ge f(x_0)$ em uma vizinhança de $x_0$ (mínimo local). O caso $f''(x_0) < 0$ é análogo. Para ver que $f''(x_0) = 0$ é inconclusivo, note que $x^4$ e $x^3$ têm ambos derivada primeira $0$ e derivada segunda $0$ em $x_0 = 0$, mas $x^4 \ge 0$ tem mínimo global em $0$ enquanto $x^3$ muda de sinal e não tem extremo.
+      </proof>
+
+      Quando $f''(x_0) = 0$, não ficamos no escuro: basta analisar diretamente o sinal de $f'(x)$ antes e depois de $x_0$ (como faremos nos exercícios). E o que muda se o problema limitar a variável $x$ a um intervalo fechado $[a, b]$, como uma faixa fisiológica de temperatura ou uma janela finita de tempo? Nesse caso, o extremo global pode morar justamente nas extremidades $a$ ou $b$, onde a função não precisa ter derivada zero.
+
+      <theorem id="thm:4-2-weierstrass">
+        <title>Teorema de Weierstrass e receita em intervalo fechado</title>
+        Se $f$ é contínua em um intervalo fechado e limitado $[a, b]$, então $f$ certamente atinge um máximo global e um mínimo global em $[a, b]$. Para encontrá-los:
+        <list marker="number">
+          <item>encontre todos os pontos críticos de $f$ no interior $(a, b)$;</item>
+          <item>avalie $f(x)$ em cada ponto crítico encontrado <strong>e também</strong> nas duas extremidades $x = a$ e $x = b$;</item>
+          <item>o maior valor da lista é o máximo global em $[a, b]$; o menor é o mínimo global.</item>
+        </list>
+        <intuition>
+          Pense em uma trilha contínua cercada por dois portões em $a$ e $b$. Como a trilha não tem buracos nem foge ao infinito, existem obrigatoriamente um ponto mais alto e um ponto mais baixo — e eles podem estar tanto num morro ou vale interno quanto bem encostados em um dos portões.
+        </intuition>
+      </theorem>
+
+      Vamos aplicar esses resultados a três exemplos — dois deles diretamente ligados à neurobiologia e à fisiologia.
+
+      <example id="exm:4-2-sintonia-1d">
+        <title>Estímulo preferido em uma curva de sintonia neuronal</title>
+        Um neurônio do córtex visual primário (V1) tem sua taxa média de disparo $r$ (em $\text{Hz}$) em função da orientação $\theta$ de uma barra luminosa modelada pela curva gaussiana:
+        $$r(\theta) = r_{\max} \exp\!\left(-\frac{(\theta - \theta_0)^2}{2\sigma^2}\right),$$
+        com $r_{\max} > 0$ e $\sigma > 0$. Mostre analiticamente que o máximo ocorre em $\theta = \theta_0$ e calcule $r''(\theta_0)$ para o caso numérico $r_{\max} = 60\text{ Hz}$, $\theta_0 = 90^\circ$ e $\sigma = 15^\circ$.
+
+        <strong>Solução.</strong> Aplicamos a regra da cadeia (Módulo 2) para derivar $r(\theta)$ em relação a $\theta$:
+        $$r'(\theta) = r_{\max} \exp\!\left(-\frac{(\theta - \theta_0)^2}{2\sigma^2}\right) \cdot \left(-\frac{2(\theta - \theta_0)}{2\sigma^2}\right) = -r(\theta)\,\frac{\theta - \theta_0}{\sigma^2}.$$
+        Como $r_{\max} > 0$ e a função exponencial é sempre estritamente positiva, temos $r(\theta) > 0$ para todo $\theta \in \mathbb{R}$. Logo, $r'(\theta) = 0$ acontece se, e somente se, $\theta - \theta_0 = 0$, isto é, $\theta = \theta_0$ (o único ponto crítico).
+
+        Para aplicar o teste da segunda derivada, derivamos $r'(\theta)$ pela regra do produto:
+        $$r''(\theta) = -r'(\theta)\,\frac{\theta - \theta_0}{\sigma^2} - r(\theta)\,\frac{1}{\sigma^2}.$$
+        No ponto crítico $\theta = \theta_0$, sabemos que $r'(\theta_0) = 0$ e $r(\theta_0) = r_{\max} \exp(0) = r_{\max}$, portanto:
+        $$r''(\theta_0) = 0 - \frac{r_{\max}}{\sigma^2} = -\frac{r_{\max}}{\sigma^2} < 0.$$
+        Como $r''(\theta_0) < 0$, $\theta = \theta_0$ é um máximo local — e, como $r'(\theta) > 0$ para $\theta < \theta_0$ e $r'(\theta) < 0$ para $\theta > \theta_0$, é também o único máximo global, dando a orientação preferida do neurônio. Para $r_{\max} = 60\text{ Hz}$, $\theta_0 = 90^\circ$ e $\sigma = 15^\circ$, a curvatura no pico vale:
+        $$r''(90^\circ) = -\frac{60}{15^2} = -\frac{60}{225} = -\frac{4}{15} \approx -0{,}267\text{ Hz}/(\text{grau})^2.$$
+      </example>
+
+      <example id="exm:4-2-cubica-fechada">
+        <title>Extremos locais versus globais em intervalo fechado</title>
+        Encontre todos os pontos críticos de $f(x) = x^3 - 6x^2 + 9x + 4$, classifique cada um pelo teste da segunda derivada e determine os extremos globais de $f$ no intervalo fechado $[0, 5]$.
+
+        <strong>Solução.</strong> Calculamos a primeira e a segunda derivadas:
+        $$f'(x) = 3x^2 - 12x + 9 = 3(x^2 - 4x + 3) = 3(x - 1)(x - 3),$$
+        $$f''(x) = 6x - 12.$$
+        Igualando $f'(x) = 0$, obtemos dois pontos críticos, ambos no interior $(0, 5)$: $x = 1$ e $x = 3$. Classificamos cada um com $f''$:
+        <list marker="dash">
+          <item>em $x = 1$: $f''(1) = 6(1) - 12 = -6 < 0 \implies$ <strong>máximo local</strong>, com $f(1) = 1 - 6 + 9 + 4 = 8$;</item>
+          <item>em $x = 3$: $f''(3) = 6(3) - 12 = +6 > 0 \implies$ <strong>mínimo local</strong>, com $f(3) = 27 - 54 + 27 + 4 = 4$.</item>
+        </list>
+        Pelo <ref to="thm:4-2-weierstrass"/>, para achar os extremos globais em $[0, 5]$, precisamos comparar os valores nos pontos críticos com os valores nas bordas $x = 0$ e $x = 5$:
+        <list marker="dash">
+          <item>$f(0) = 0 - 0 + 0 + 4 = 4$;</item>
+          <item>$f(1) = 8$;</item>
+          <item>$f(3) = 4$;</item>
+          <item>$f(5) = 5^3 - 6(5^2) + 9(5) + 4 = 125 - 150 + 45 + 4 = 24$.</item>
+        </list>
+        Olhe que surpresa instrutiva: $x = 1$ é um máximo local ($f(1) = 8$), mas o <strong>máximo global</strong> em $[0, 5]$ é $24$, atingido na borda direita $x = 5$! Já o <strong>mínimo global</strong> em $[0, 5]$ vale $4$ e ocorre tanto na borda esquerda $x = 0$ quanto no mínimo local interior $x = 3$.
+      </example>
+
+      <example id="exm:4-2-forrageamento-polinomio">
+        <title>Tempo ótimo de permanência em uma mancha de néctar</title>
+        Em um modelo didático simples de forrageamento, a taxa líquida de ganho energético $G(t)$ (em $\text{mg/min}$ de açúcar equivalente) de uma abelha que permanece $t$ minutos em uma mancha floral, dentro de uma janela experimental viável $t \in [0, 4]\text{ min}$, é modelada por:
+        $$G(t) = -t^3 + 3t^2 + 9t.$$
+        Qual tempo de permanência $t^*$ maximiza o ganho $G(t)$ em $[0, 4]$?
+
+        <strong>Solução.</strong> Derivando $G(t)$ em relação a $t$:
+        $$G'(t) = -3t^2 + 6t + 9 = -3(t^2 - 2t - 3) = -3(t - 3)(t + 1).$$
+        Igualando $G'(t) = 0$, obtemos $t = 3$ e $t = -1$. Como o domínio é $[0, 4]$, descartamos $t = -1$ (tempo negativo está fora da região viável) e ficamos apenas com $t = 3 \in (0, 4)$.
+
+        Calculamos a segunda derivada $G''(t) = -6t + 6$. Em $t = 3$:
+        $$G''(3) = -6(3) + 6 = -12 < 0,$$
+        logo $t = 3$ é um máximo local. Comparando os valores no candidato interno e nas duas bordas do intervalo $[0, 4]$:
+        <list marker="dash">
+          <item>$G(0) = 0\text{ mg/min}$;</item>
+          <item>$G(3) = -3^3 + 3(3^2) + 9(3) = -27 + 27 + 27 = 27\text{ mg/min}$;</item>
+          <item>$G(4) = -4^3 + 3(4^2) + 9(4) = -64 + 48 + 36 = 20\text{ mg/min}$.</item>
+        </list>
+        Portanto, o ganho máximo é $27\text{ mg/min}$, atingido no tempo ótimo de permanência $t^* = 3\text{ min}$.
+      </example>
+
+      <remark id="rem:4-2-armadilha-1d">
+        <title>Armadilha comum</title>
+        Três deslizes aparecem com frequência quando procuramos extremos em uma variável:
+        <list marker="dash">
+          <item><strong>Achar que $f'(x_0) = 0$ basta:</strong> em $f(x) = x^3$, $f'(0) = 0$ e $f''(0) = 0$, mas $0$ não é máximo nem mínimo.</item>
+          <item><strong>Esquecer as bordas do intervalo fechado:</strong> como vimos no <ref to="exm:4-2-cubica-fechada"/>, o máximo global em $[0, 5]$ estava na borda $x = 5$ ($24 > 8$), onde $f'(5) = 24 \ne 0$.</item>
+          <item><strong>Aceitar pontos fora do domínio viável:</strong> sempre confira se a raiz de $f'(x) = 0$ realmente pertence ao intervalo do problema (no <ref to="exm:4-2-forrageamento-polinomio"/>, $t = -1$ zerava $G'$, mas não fazia sentido físico em $[0, 4]$).</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:4-2-1-1">
+        <title>Básico — Pontos críticos e extremos em intervalo fechado</title>
+        Considere a função $f(x) = x^3 - 3x + 2$.
+        <list marker="a">
+          <item>Encontre todos os pontos críticos de $f$ em $\mathbb{R}$ e classifique-os usando o teste da segunda derivada.</item>
+          <item>Determine o máximo global e o mínimo global de $f$ no intervalo fechado $[-2, 3]$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), fatore $f'(x) = 3(x^2 - 1)$. Em (b), não esqueça de calcular $f(-2)$ e $f(3)$ além dos pontos críticos.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Temos $f'(x) = 3x^2 - 3 = 3(x - 1)(x + 1)$ e $f''(x) = 6x$. Igualando $f'(x) = 0$, encontramos $x = -1$ e $x = 1$.
+              <list marker="dash">
+                <item>Em $x = -1$: $f''(-1) = -6 < 0$, logo é <strong>máximo local</strong>, com $f(-1) = (-1)^3 - 3(-1) + 2 = 4$.</item>
+                <item>Em $x = 1$: $f''(1) = +6 > 0$, logo é <strong>mínimo local</strong>, com $f(1) = 1^3 - 3(1) + 2 = 0$.</item>
+              </list>
+            </item>
+            <item>Ambos os pontos críticos estão no interior de $[-2, 3]$. Avaliando também as extremidades:
+              <list marker="dash">
+                <item>$f(-2) = (-2)^3 - 3(-2) + 2 = -8 + 6 + 2 = 0$;</item>
+                <item>$f(-1) = 4$;</item>
+                <item>$f(1) = 0$;</item>
+                <item>$f(3) = 3^3 - 3(3) + 2 = 27 - 9 + 2 = 20$.</item>
+              </list>
+              Portanto, em $[-2, 3]$, o <strong>máximo global</strong> vale $20$ (em $x = 3$) e o <strong>mínimo global</strong> vale $0$ (atingido em dois pontos: $x = -2$ e $x = 1$).
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-2-1-2">
+        <title>Básico — Temperatura ótima de atividade enzimática</title>
+        A atividade relativa $A(T)$ (em unidades arbitrárias) de uma enzima de mamífero na faixa fisiológica e febril $T \in [30, 45]\,^\circ\text{C}$ é modelada por:
+        $$A(T) = -T^2 + 74T - 1\,269.$$
+        Determine a temperatura em que a atividade é máxima e o menor valor da atividade dentro da faixa $[30, 45]\,^\circ\text{C}$.
+        <hint><title>Ver dica</title>Resolva $A'(T) = 0$, verifique o sinal de $A''(T)$ e compare os valores em $T = 30$, no ponto crítico e em $T = 45$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculamos as derivadas:
+          $$A'(T) = -2T + 74, \qquad A''(T) = -2.$$
+          Igualando $A'(T) = 0$: $-2T + 74 = 0 \implies T = 37\,^\circ\text{C}$, que pertence ao interior de $[30, 45]$. Como $A''(37) = -2 < 0$, trata-se de um máximo local.
+
+          Pelo teorema de Weierstrass, avaliamos $A$ no ponto crítico e nas duas bordas:
+          <list marker="dash">
+            <item>$A(30) = -30^2 + 74(30) - 1\,269 = -900 + 2\,220 - 1\,269 = 51$;</item>
+            <item>$A(37) = -37^2 + 74(37) - 1\,269 = -1\,369 + 2\,738 - 1\,269 = 100$;</item>
+            <item>$A(45) = -45^2 + 74(45) - 1\,269 = -2\,025 + 3\,330 - 1\,269 = 36$.</item>
+          </list>
+          A atividade máxima ocorre a $T = 37\,^\circ\text{C}$ (com $A = 100$), enquanto o mínimo na faixa analisada ocorre na borda superior $T = 45\,^\circ\text{C}$ (com $A = 36$).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-2-1-3">
+        <title>Intermediário — Quando a segunda derivada dá zero</title>
+        Considere o polinômio $p(x) = 3x^4 - 4x^3$ definido para todo $x \in \mathbb{R}$.
+        <list marker="a">
+          <item>Encontre todos os pontos críticos de $p$ e avalie $p''$ em cada um deles.</item>
+          <item>Para o ponto crítico onde o teste da segunda derivada for inconclusivo, estude o sinal de $p'(x)$ antes e depois desse ponto para decidir se ele é máximo, mínimo ou ponto de inflexão.</item>
+          <item>Qual é o mínimo global de $p$ em $\mathbb{R}$?</item>
+        </list>
+        <hint><title>Ver dica</title>Fatore $p'(x) = 12x^2(x - 1)$. Observe que $12x^2$ é sempre positivo para qualquer $x \ne 0$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Derivando duas vezes:
+              $$p'(x) = 12x^3 - 12x^2 = 12x^2(x - 1), \qquad p''(x) = 36x^2 - 24x.$$
+              Igualando $p'(x) = 0$, temos $x = 0$ e $x = 1$. Avaliando $p''$:
+              <list marker="dash">
+                <item>em $x = 0$: $p''(0) = 0$ (teste inconclusivo);</item>
+                <item>em $x = 1$: $p''(1) = 36 - 24 = 12 > 0$ (mínimo local, $p(1) = 3 - 4 = -1$).</item>
+              </list>
+            </item>
+            <item>Analisamos o sinal de $p'(x) = 12x^2(x - 1)$ ao redor de $x = 0$: como $12x^2 > 0$ para todo $x \ne 0$, o sinal de $p'(x)$ é igual ao sinal de $x - 1$.
+              <list marker="dash">
+                <item>Para $x < 0$: $x - 1 < 0 \implies p'(x) < 0$ ($p$ está decrescendo).</item>
+                <item>Para $0 < x < 1$: $x - 1 < 0 \implies p'(x) < 0$ ($p$ continua decrescendo!).</item>
+              </list>
+              Como $p$ decresce antes e continua decrescendo depois de $x = 0$, o ponto $x = 0$ não é máximo nem mínimo — é um ponto de inflexão horizontal (com $p(0) = 0$).
+            </item>
+            <item>Como $p'(x) < 0$ para todo $x < 1$ (exceto em $0$, onde zera instantaneamente) e $p'(x) > 0$ para todo $x > 1$, a função decresce até $x = 1$ e cresce depois dele. Logo, $x = 1$ é o mínimo global de $p$ em $\mathbb{R}$, com valor $p(1) = -1$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-2-1-4">
+        <title>Avançado — Resposta bifásica a um neuromodulador</title>
+        Certas vias de sinalização exibem resposta bifásica: concentrações baixas de um ligante estimulam a via, mas concentrações altas promovem dessensibilização. Suponha que a resposta líquida $R(x)$ (em $\text{Hz}$) para uma concentração normalizada $x \in [0, 6]$ seja dada por:
+        $$R(x) = 20 x e^{-x/2}.$$
+        <list marker="a">
+          <item>Calcule $R'(x)$ e $R''(x)$ usando a regra do produto e a regra da cadeia.</item>
+          <item>Encontre o ponto crítico de $R$ em $(0, 6)$ e classifique-o pelo teste da segunda derivada.</item>
+          <item>Determine os extremos globais de $R$ em $[0, 6]$ (dica: para comparar $R(2)$ com $R(6)$, você pode usar o fato de que $R$ é decrescente após o pico, ou estimar $e \approx 2{,}718$).</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), escreva $R'(x) = 20 e^{-x/2}\left(1 - \frac{x}{2}\right)$ colocando $20e^{-x/2}$ em evidência; isso facilita muito achar $R'(x) = 0$ e derivar de novo.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pela regra do produto e da cadeia:
+              $$R'(x) = 20\cdot 1 \cdot e^{-x/2} + 20x\left(-\frac{1}{2}e^{-x/2}\right) = 20e^{-x/2}\left(1 - \frac{x}{2}\right).$$
+              Derivando $R'(x)$ novamente pela regra do produto:
+              $$R''(x) = 20\left(-\frac{1}{2}e^{-x/2}\right)\left(1 - \frac{x}{2}\right) + 20e^{-x/2}\left(-\frac{1}{2}\right) = -10e^{-x/2}\left(1 - \frac{x}{2} + 1\right) = 10e^{-x/2}\left(\frac{x}{2} - 2\right).$$
+            </item>
+            <item>Como $20e^{-x/2} > 0$ para todo $x$, temos $R'(x) = 0 \iff 1 - \frac{x}{2} = 0 \iff x = 2 \in (0, 6)$. Avaliando $R''(2)$:
+              $$R''(2) = 10e^{-1}\left(\frac{2}{2} - 2\right) = -10e^{-1} < 0.$$
+              Logo, $x = 2$ é um máximo local.
+            </item>
+            <item>Avaliamos $R$ nas bordas e no ponto crítico:
+              <list marker="dash">
+                <item>$R(0) = 0$;</item>
+                <item>$R(2) = 40e^{-1} \approx \frac{40}{2{,}718} \approx 14{,}72\text{ Hz}$;</item>
+                <item>$R(6) = 120e^{-3}$. Note que $R'(x) < 0$ para todo $x > 2$, logo $R(6) < R(2)$ sem nem precisar de aproximação decimal (numericamente, $120 e^{-3} \approx 5{,}97\text{ Hz}$).</item>
+              </list>
+              Portanto, o <strong>máximo global</strong> em $[0, 6]$ é $40e^{-1} \approx 14{,}72\text{ Hz}$ em $x = 2$, e o <strong>mínimo global</strong> é $0\text{ Hz}$ na borda $x = 0$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:4-2-2">
+      <eyebrow>Seção 2</eyebrow>
+      <title>Pontos críticos em duas variáveis e a Hessiana</title>
+      <intro>
+        Em duas variáveis, o chão plano não significa apenas pico ou vale: surge uma geometria nova e onipresente em paisagens de custo, o ponto de sela — e a matriz Hessiana é o instrumento que distingue os três casos.
+      </intro>
+
+      Quando passamos de um parâmetro para dois parâmetros $(x, y)$, o gráfico $z = f(x, y)$ vira uma superfície tridimensional — exatamente as paisagens que mapeamos por curvas de nível no <mark>Tema 4.1</mark>. Imagine agora que você está sobre essa superfície no escuro, com os pés tentando sentir se o chão está nivelado. Como vimos em <mark>Diferencial em várias variáveis</mark> (Tema 3.2, Módulo 3), o plano tangente à superfície fica perfeitamente horizontal quando <em>ambas</em> as derivadas parciais se anulam ao mesmo tempo — isto é, quando o vetor gradiente é nulo:
+      $$\nabla f(x_0, y_0) = \left(\frac{\partial f}{\partial x}(x_0, y_0),\; \frac{\partial f}{\partial y}(x_0, y_0)\right) = (0, 0) = \mathbf{0}.$$
+      (Lembre que neste módulo escrevemos indistintamente $\frac{\partial f}{\partial x}$ ou $f_x$ para a derivada parcial em relação a $x$, e da mesma forma $f_{xx} = \frac{\partial^2 f}{\partial x^2}$ e $f_{xy} = \frac{\partial^2 f}{\partial y \partial x}$ para as derivadas parciais de segunda ordem.)
+
+      Mas aqui aparece uma novidade geométrica que não existia em uma variável. Numa trilha unidimensional, só havia duas direções possíveis (frente e trás). Numa superfície, há infinitas direções ao redor de $(x_0, y_0)$! Você pode estar no fundo de uma tigela (subindo em todas as direções), no topo de uma cúpula (descendo em todas as direções) ou em um <strong>passo de montanha</strong> entre dois morros: se caminhar para leste ou oeste, a trilha sobe; se caminhar para norte ou sul, a trilha desce. Essa geometria intermediária chama-se <strong>ponto de sela</strong> (<em>saddle point</em>), porque lembra exatamente a sela de um cavalo.
+
+      <definition id="def:4-2-ponto-critico-2d">
+        <title>Pontos críticos e tipos de estacionariedade em duas variáveis</title>
+        Seja $f(x, y)$ diferenciável em uma vizinhança de $(x_0, y_0)$. Dizemos que $(x_0, y_0)$ é um <strong>ponto crítico</strong> (ou estacionário) de $f$ quando $\nabla f(x_0, y_0) = \mathbf{0}$ (ou quando alguma derivada parcial deixa de existir). Quando $\nabla f(x_0, y_0) = \mathbf{0}$, classificamos $(x_0, y_0)$ em:
+        <list marker="dash">
+          <item><strong>mínimo local:</strong> $f(x_0, y_0) \le f(x, y)$ para todo $(x, y)$ próximo de $(x_0, y_0)$; o exemplo modelo é $f(x, y) = x^2 + y^2$ na origem;</item>
+          <item><strong>máximo local:</strong> $f(x_0, y_0) \ge f(x, y)$ para todo $(x, y)$ próximo de $(x_0, y_0)$; o exemplo modelo é $f(x, y) = -x^2 - y^2$ na origem;</item>
+          <item><strong>ponto de sela</strong> (<em>saddle point</em>): em toda vizinhança de $(x_0, y_0)$ existem pontos com $f(x, y) > f(x_0, y_0)$ e pontos com $f(x, y) < f(x_0, y_0)$; o exemplo modelo é $f(x, y) = x^2 - y^2$ na origem (mínimo ao longo do eixo $x$, máximo ao longo do eixo $y$).</item>
+        </list>
+      </definition>
+
+      Observe na <ref to="fig:4-2-minimo-sela"/> como os mapas de contorno revelam imediatamente a diferença entre um mínimo e um ponto de sela. À esquerda, em $f(x, y) = x^2 + y^2$, as curvas de nível formam anéis fechados concêntricos cujos valores crescem em todas as direções ao se afastar de $(0, 0)$. À direita, em $f(x, y) = x^2 - y^2$, as curvas de nível são hipérboles que se cruzam em $(0, 0)$ no nível zero: indo para a direita ou para a esquerda (eixo $x$), a função fica positiva ($+0{,}5;\; +1{,}0;\; +2{,}0$); indo para cima ou para baixo (eixo $y$), ela fica negativa ($-0{,}5;\; -1{,}0;\; -2{,}0$).
+
+      <figure src="fig/minimo-sela.svg" alt="Dois mapas de curvas de nível lado a lado no quadrado de -2 a 2: à esquerda f(x,y) = x^2 + y^2 com círculos concêntricos positivos e ponto vermelho rotulado mínimo na origem; à direita f(x,y) = x^2 - y^2 com hipérboles sólidas positivas nos lados esquerdo e direito, hipérboles tracejadas negativas acima e abaixo, diagonais pontilhadas no nível zero e ponto vermelho rotulado ponto de sela na origem" id="fig:4-2-minimo-sela">
+        <caption>Comparação topográfica entre um mínimo em $f(x, y) = x^2 + y^2$ (esquerda) e um ponto de sela em $f(x, y) = x^2 - y^2$ (direita). No painel direito, curvas sólidas em verde-azulado indicam níveis positivos, curvas tracejadas em índigo indicam níveis negativos e a cruz pontilhada marca o nível $0$.</caption>
+      </figure>
+
+      Para classificar qualquer ponto crítico suave sem precisar desenhar o mapa inteiro, precisamos reunir todas as curvaturas de segunda ordem de $f$ em um único objeto: a <strong>matriz Hessiana</strong> (<em>Hessian matrix</em>).
+
+      <definition id="def:4-2-hessiana">
+        <title>Matriz Hessiana em duas variáveis</title>
+        Se $f(x, y)$ possui derivadas parciais de segunda ordem em $(x_0, y_0)$, sua <strong>matriz Hessiana</strong> em $(x_0, y_0)$ é a tabela $2 \times 2$ das segundas derivadas:
+        $$\mathbf{H}(x_0, y_0) = \begin{pmatrix} f_{xx}(x_0, y_0) & f_{xy}(x_0, y_0) \\ f_{yx}(x_0, y_0) & f_{yy}(x_0, y_0) \end{pmatrix}.$$
+        Pelo teorema de Schwarz (Tema 3.2), quando as derivadas parciais segundas são contínuas, vale $f_{xy} = f_{yx}$, tornando $\mathbf{H}$ simétrica. Definimos o <strong>determinante</strong> (ou discriminante) da Hessiana em $(x_0, y_0)$ pela fórmula:
+        <equation id="eq:4-2-det-hessiana">
+          D(x_0, y_0) = f_{xx}(x_0, y_0)\, f_{yy}(x_0, y_0) - \bigl(f_{xy}(x_0, y_0)\bigr)^2.
+        </equation>
+        <intuition>
+          Matrizes e determinantes em geral serão estudados em detalhes no <strong>Módulo 5 (Álgebra Linear)</strong>; por ora, trate $\mathbf{H}$ apenas como uma caixa organizada para guardar as três segundas derivadas $f_{xx}$, $f_{yy}$ e $f_{xy}$, e $D$ como a combinação $f_{xx}f_{yy} - f_{xy}^2$ (produto da diagonal principal menos o quadrado da diagonal secundária).
+        </intuition>
+      </definition>
+
+      Note por que não basta olhar apenas para $f_{xx}$ e $f_{yy}$ ignorando o termo cruzado $f_{xy}$! Em $f(x, y) = x^2 + 4xy + y^2$, na origem $(0, 0)$ temos $f_{xx} = 2 > 0$ e $f_{yy} = 2 > 0$ — parece uma tigela ao longo dos eixos $x$ e $y$! Mas, se caminharmos na diagonal $y = -x$, obtemos $f(x, -x) = x^2 - 4x^2 + x^2 = -2x^2$, que desce para baixo! O termo $f_{xy} = 4$ torceu a superfície na diagonal e criou uma sela, acusada imediatamente pelo determinante $D = 2 \cdot 2 - 4^2 = -12 < 0$.
+
+      <theorem id="thm:4-2-teste-hessiana">
+        <title>Teste da segunda derivada em duas variáveis</title>
+        Seja $f(x, y)$ com derivadas parciais de segunda ordem contínuas em uma vizinhança de um ponto crítico $(x_0, y_0)$ onde $\nabla f(x_0, y_0) = \mathbf{0}$, e seja $D = f_{xx}f_{yy} - f_{xy}^2$ avaliado em $(x_0, y_0)$. Então:
+        <list marker="number">
+          <item>se $D > 0$ e $f_{xx}(x_0, y_0) > 0$, $(x_0, y_0)$ é um <strong>mínimo local</strong>;</item>
+          <item>se $D > 0$ e $f_{xx}(x_0, y_0) < 0$, $(x_0, y_0)$ é um <strong>máximo local</strong>;</item>
+          <item>se $D < 0$, $(x_0, y_0)$ é um <strong>ponto de sela</strong>;</item>
+          <item>se $D = 0$, o teste é <strong>inconclusivo</strong>.</item>
+        </list>
+        <intuition>
+          Por que essa regra funciona? Perto de $(x_0, y_0)$ onde $f_x = f_y = 0$, a variação $\Delta f = f(x_0 + \Delta x, y_0 + \Delta y) - f(x_0, y_0)$ é dominada pela aproximação quadrática $\frac{1}{2}\bigl(f_{xx}(\Delta x)^2 + 2f_{xy}\Delta x\,\Delta y + f_{yy}(\Delta y)^2\bigr)$. Quando $f_{xx} \ne 0$, completar o quadrado dentro dos parênteses transforma essa expressão em:
+          $$f_{xx}\left(\Delta x + \frac{f_{xy}}{f_{xx}}\Delta y\right)^2 + \frac{D}{f_{xx}}(\Delta y)^2.$$
+          Se $D > 0$, então $f_{xx}$ e $\frac{D}{f_{xx}}$ têm o <em>mesmo sinal</em>: ambos positivos se $f_{xx} > 0$ (sobe em todas as direções: mínimo) ou ambos negativos se $f_{xx} < 0$ (desce em todas as direções: máximo). Se $D < 0$, os dois coeficientes têm <em>sinais opostos</em>: a superfície sobe numa direção e desce noutra (sela). Já quando $D = 0$, os termos de 2º grau não decidem — basta comparar $f(x, y) = x^4 + y^4$ (mínimo na origem) e $g(x, y) = x^4 - y^4$ (sela na origem), que têm ambas $D(0, 0) = 0$.
+        </intuition>
+      </theorem>
+
+      Repare também que, nos itens 1 e 2 do <ref to="thm:4-2-teste-hessiana"/>, quando $D = f_{xx}f_{yy} - f_{xy}^2 > 0$, temos necessariamente $f_{xx}f_{yy} > f_{xy}^2 \ge 0$, logo $f_{xx}$ e $f_{yy}$ têm obrigatoriamente o mesmo sinal (tanto faz conferir $f_{xx} > 0$ ou $f_{yy} > 0$). Vamos agora praticar essa classificação à mão em dois exemplos completos.
+
+      <example id="exm:4-2-polinomio-2d">
+        <title>Classificando todos os pontos críticos de um polinômio 2D</title>
+        Encontre e classifique todos os pontos críticos de $f(x, y) = x^3 - 3x + y^2$. O mínimo local encontrado é também o mínimo global de $f$ em $\mathbb{R}^2$?
+
+        <strong>Solução.</strong> Calculamos o gradiente e igualamos a $(0, 0)$:
+        $$\frac{\partial f}{\partial x} = 3x^2 - 3 = 0 \implies x^2 = 1 \implies x = 1 \text{ ou } x = -1,$$
+        $$\frac{\partial f}{\partial y} = 2y = 0 \implies y = 0.$$
+        Combinando as soluções, existem dois pontos críticos: $P_1 = (1, 0)$ e $P_2 = (-1, 0)$.
+
+        Calculamos agora as segundas derivadas para montar a Hessiana:
+        $$f_{xx} = 6x, \qquad f_{xy} = 0, \qquad f_{yy} = 2,$$
+        $$\mathbf{H}(x, y) = \begin{pmatrix} 6x & 0 \\ 0 & 2 \end{pmatrix}, \qquad D(x, y) = (6x)(2) - 0^2 = 12x.$$
+        Classificamos cada ponto crítico pelo <ref to="thm:4-2-teste-hessiana"/>:
+        <list marker="dash">
+          <item>Em $P_1 = (1, 0)$: $D(1, 0) = 12(1) = 12 > 0$ e $f_{xx}(1, 0) = 6 > 0$. Portanto, $(1, 0)$ é um <strong>mínimo local</strong>, com valor $f(1, 0) = 1 - 3 + 0 = -2$.</item>
+          <item>Em $P_2 = (-1, 0)$: $D(-1, 0) = 12(-1) = -12 < 0$. Portanto, $(-1, 0)$ é um <strong>ponto de sela</strong>, com valor $f(-1, 0) = -1 + 3 + 0 = 2$.</item>
+        </list>
+        Será que $(1, 0)$ é o mínimo global em $\mathbb{R}^2$? Não! Ao longo da reta $y = 0$, temos $f(x, 0) = x^3 - 3x$, que cai sem limite quando $x$ fica muito negativo (por exemplo, $f(-3, 0) = -27 + 9 = -18 < -2$). Assim, $(1, 0)$ é apenas um mínimo <em>local</em>.
+      </example>
+
+      <example id="exm:4-2-mapa-cortical">
+        <title>Localizando o pico em um mapa de ativação cortical</title>
+        Suponha que, em um estudo simplificado de mapeamento cortical, a intensidade de ativação $Z$ (em unidades normalizadas) sobre uma região bidimensional do córtex com coordenadas $(x, y)$ em milímetros seja aproximada por:
+        $$Z(x, y) = 8 - x^2 - 2xy - 2y^2 + 2x.$$
+        Encontre a coordenada exata do ponto crítico resolvendo $\nabla Z(x, y) = \mathbf{0}$, confirme que se trata de um máximo usando a matriz Hessiana e calcule o valor de pico $Z_{\max}$.
+
+        <strong>Solução.</strong> Calculamos as duas derivadas parciais e igualamos a zero:
+        $$Z_x = -2x - 2y + 2 = 0 \implies x + y = 1,$$
+        $$Z_y = -2x - 4y = 0 \implies x = -2y.$$
+        Substituindo $x = -2y$ na primeira equação:
+        $$-2y + y = 1 \implies -y = 1 \implies y = -1.$$
+        Substituindo de volta em $x = -2y$: $x = -2(-1) = 2$. Logo, o único ponto crítico é $(x_0, y_0) = (2, -1)$.
+
+        Montamos a matriz Hessiana (que aqui é constante, isto é, independe de $(x, y)$):
+        $$Z_{xx} = -2, \qquad Z_{xy} = -2, \qquad Z_{yy} = -4,$$
+        $$\mathbf{H} = \begin{pmatrix} -2 & -2 \\ -2 & -4 \end{pmatrix}.$$
+        Calculamos o determinante pela <ref to="eq:4-2-det-hessiana"/>:
+        $$D = (-2)(-4) - (-2)^2 = 8 - 4 = 4 > 0.$$
+        Como $D = 4 > 0$ e $Z_{xx} = -2 < 0$, o ponto $(2, -1)$ é um <strong>máximo local</strong>. (Na verdade, completando quadrados é possível escrever $Z(x, y) = 10 - \bigl((x - 2) + (y + 1)\bigr)^2 - (y + 1)^2 \le 10$, mostrando que é também o máximo global.) O pico de ativação vale:
+        $$Z(2, -1) = 8 - 2^2 - 2(2)(-1) - 2(-1)^2 + 2(2) = 8 - 4 + 4 - 2 + 4 = 10.$$
+      </example>
+
+      <remark id="rem:4-2-armadilha-2d">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Achar que todo ponto com $\nabla f = \mathbf{0}$ é máximo ou mínimo:</strong> em muitas dimensões, a imensa maioria dos pontos críticos não são nem máximos nem mínimos, e sim pontos de sela!</item>
+          <item><strong>Tirar conclusões quando $D = 0$:</strong> se $D = 0$, o teste da Hessiana não diz nada. Nunca escreva "mínimo" ou "sela" só porque $D = 0$: teste o sinal de $f(x, y) - f(x_0, y_0)$ diretamente ao longo de diferentes caminhos.</item>
+          <item><strong>Esquecer o sinal negativo no determinante:</strong> em $D = f_{xx}f_{yy} - f_{xy}^2$, o termo cruzado entra <em>subtraído</em> e ao quadrado. E lembre: $D < 0$ sempre indica sela, nunca mínimo!</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:4-2-2-1">
+        <title>Básico — Ponto crítico com termo cruzado</title>
+        Encontre e classifique o ponto crítico de $f(x, y) = x^2 + 4xy + y^2 - 6y$.
+        <hint><title>Ver dica</title>Isole $x$ em $f_x = 0$, substitua em $f_y = 0$ e depois calcule $D = f_{xx}f_{yy} - f_{xy}^2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Igualando as derivadas parciais a zero:
+          $$f_x = 2x + 4y = 0 \implies x = -2y,$$
+          $$f_y = 4x + 2y - 6 = 0.$$
+          Substituindo $x = -2y$ na segunda equação:
+          $$4(-2y) + 2y - 6 = 0 \implies -6y = 6 \implies y = -1,$$
+          e portanto $x = -2(-1) = 2$. O único ponto crítico é $(2, -1)$.
+
+          Calculando as segundas derivadas: $f_{xx} = 2$, $f_{xy} = 4$ e $f_{yy} = 2$. O determinante da Hessiana vale:
+          $$D = (2)(2) - 4^2 = 4 - 16 = -12 < 0.$$
+          Como $D < 0$, $(2, -1)$ é um <strong>ponto de sela</strong> (com valor $f(2, -1) = 4 - 8 + 1 + 6 = 3$).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-2-2-2">
+        <title>Básico — Mínimo em uma tigela quadrática</title>
+        Encontre e classifique todos os pontos críticos de $g(x, y) = 2x^2 - 4x + y^2 + 6y + 15$, e calcule o valor de $g$ no ponto encontrado.
+        <hint><title>Ver dica</title>Como não há termo $xy$, as duas equações de $\nabla g = \mathbf{0}$ ficam independentes e $g_{xy} = 0$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculando o gradiente e igualando a zero:
+          $$g_x = 4x - 4 = 0 \implies x = 1, \qquad g_y = 2y + 6 = 0 \implies y = -3.$$
+          O único ponto crítico é $(1, -3)$. A matriz Hessiana é:
+          $$\mathbf{H} = \begin{pmatrix} 4 & 0 \\ 0 & 2 \end{pmatrix},$$
+          cujo determinante é $D = (4)(2) - 0^2 = 8 > 0$. Como $D > 0$ e $g_{xx} = 4 > 0$, o ponto $(1, -3)$ é um <strong>mínimo local</strong> (e também global, pois $g(x, y) = 2(x - 1)^2 + (y + 3)^2 + 4 \ge 4$). O valor mínimo é:
+          $$g(1, -3) = 2(1)^2 - 4(1) + (-3)^2 + 6(-3) + 15 = 2 - 4 + 9 - 18 + 15 = 4.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-2-2-3">
+        <title>Intermediário — Paisagem de energia biestável com dois vales</title>
+        Em um modelo didático de energia livre de dobramento de uma macromolécula com coordenadas conformacionais $(x, y)$, a energia potencial é dada por:
+        $$E(x, y) = x^4 - 2x^2 + y^2 + 1.$$
+        Encontre todos os pontos críticos de $E$, classifique cada um usando a matriz Hessiana e identifique quais correspondem a estados estáveis (mínimos) e qual corresponde à barreira de transição entre eles.
+        <hint><title>Ver dica</title>Ao fatorar $E_x = 4x^3 - 4x = 4x(x^2 - 1)$, você encontrará três valores possíveis para $x$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Igualando as derivadas parciais a zero:
+          $$E_x = 4x^3 - 4x = 4x(x - 1)(x + 1) = 0 \implies x \in \{-1,\, 0,\, 1\},$$
+          $$E_y = 2y = 0 \implies y = 0.$$
+          Temos três pontos críticos: $(-1, 0)$, $(0, 0)$ e $(1, 0)$. As segundas derivadas são:
+          $$E_{xx} = 12x^2 - 4, \qquad E_{xy} = 0, \qquad E_{yy} = 2,$$
+          logo $D(x, y) = (12x^2 - 4)(2) - 0^2 = 24x^2 - 8$. Classificando cada ponto:
+          <list marker="dash">
+            <item>Em $(-1, 0)$: $D = 24(1) - 8 = 16 > 0$ e $E_{xx} = 12(1) - 4 = 8 > 0 \implies$ <strong>mínimo local</strong> ($E(-1, 0) = 1 - 2 + 0 + 1 = 0$).</item>
+            <item>Em $(1, 0)$: $D = 24(1) - 8 = 16 > 0$ e $E_{xx} = 8 > 0 \implies$ <strong>mínimo local</strong> ($E(1, 0) = 0$).</item>
+            <item>Em $(0, 0)$: $D = 24(0) - 8 = -8 < 0 \implies$ <strong>ponto de sela</strong> ($E(0, 0) = 1$).</item>
+          </list>
+          Como $E(x, y) = (x^2 - 1)^2 + y^2 \ge 0$, $(-1, 0)$ e $(1, 0)$ são dois estados estáveis simétricos de energia mínima $0$, separados pela barreira de sela $(0, 0)$ de altura $1$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-2-2-4">
+        <title>Avançado — Taxa de disparo bidimensional e caso inconclusivo $D = 0$</title>
+        <list marker="a">
+          <item>Em um modelo simplificado, a taxa de disparo $R(u, v)$ (em $\text{Hz}$) de um neurônio em função de duas entradas $(u, v)$ é dada por $R(u, v) = 3u - u^3 - 2v^2 + 4v + 20$. Encontre todos os pontos críticos de $R$, classifique-os pela Hessiana e calcule a taxa em cada um.</item>
+          <item>Mostre que a função $h(x, y) = x^4 - y^4$ possui um ponto crítico em $(0, 0)$ com $D(0, 0) = 0$ (teste inconclusivo), mas prove diretamente analisando o sinal de $h$ sobre os eixos que $(0, 0)$ é um ponto de sela.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), resolva $R_u = 3 - 3u^2 = 0$ e $R_v = -4v + 4 = 0$. Em (b), avalie $h(x, 0)$ para $x \ne 0$ e $h(0, y)$ para $y \ne 0$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Calculando o gradiente:
+              $$R_u = 3 - 3u^2 = 3(1 - u^2) = 0 \implies u = \pm 1,$$
+              $$R_v = -4v + 4 = 0 \implies v = 1.$$
+              Os pontos críticos são $(1, 1)$ e $(-1, 1)$. As segundas derivadas valem $R_{uu} = -6u$, $R_{uv} = 0$ e $R_{vv} = -4$, de modo que $D(u, v) = (-6u)(-4) - 0^2 = 24u$.
+              <list marker="dash">
+                <item>Em $(1, 1)$: $D(1, 1) = 24 > 0$ e $R_{uu}(1, 1) = -6 < 0 \implies$ <strong>máximo local</strong>, com $R(1, 1) = 3 - 1 - 2 + 4 + 20 = 24\text{ Hz}$.</item>
+                <item>Em $(-1, 1)$: $D(-1, 1) = -24 < 0 \implies$ <strong>ponto de sela</strong>, com $R(-1, 1) = -3 + 1 - 2 + 4 + 20 = 20\text{ Hz}$.</item>
+              </list>
+            </item>
+            <item>Para $h(x, y) = x^4 - y^4$, temos $h_x = 4x^3$ e $h_y = -4y^3$, que se anulam em $(0, 0)$ ($\nabla h(0, 0) = \mathbf{0}$). As segundas derivadas são $h_{xx} = 12x^2$, $h_{xy} = 0$ e $h_{yy} = -12y^2$, todas iguais a zero em $(0, 0)$; logo $D(0, 0) = 0 \cdot 0 - 0^2 = 0$, e o teste da Hessiana é inconclusivo.
+
+              Porém, avaliando diretamente perto da origem: sobre o eixo $x$ ($y = 0$, $x \ne 0$), temos $h(x, 0) = x^4 > 0 = h(0, 0)$; sobre o eixo $y$ ($x = 0$, $y \ne 0$), temos $h(0, y) = -y^4 < 0 = h(0, 0)$. Como toda vizinhança da origem contém pontos onde $h > 0$ e pontos onde $h < 0$, $(0, 0)$ é um <strong>ponto de sela</strong>.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:4-2-3">
+      <eyebrow>Seção 3</eyebrow>
+      <title>O mínimo exato de um ajuste: mínimos quadrados</title>
+      <intro>
+        No Tema 4.1, ajustamos uma reta a dados de um neurônio visual testando uma grade de valores. Agora temos as ferramentas exatas para ir direto ao fundo da paisagem em uma única conta algébrica.
+      </intro>
+
+      Relembre o experimento do <mark>Tema 4.1</mark>: medimos a taxa de disparo $y$ (em $\text{Hz}$) de um neurônio visual em quatro níveis de contraste $x$:
+      $$(0{,}2;\; 21), \qquad (0{,}4;\; 27), \qquad (0{,}6;\; 43), \qquad (0{,}8;\; 49).$$
+      Queremos escolher os dois parâmetros $(a, b)$ da reta $\hat{y} = ax + b$ que minimizam o erro quadrático médio sobre $m$ pares de dados $(x_1, y_1), \dots, (x_m, y_m)$:
+      <equation id="eq:4-2-eqm">
+        J(a, b) = \frac{1}{m}\sum_{i=1}^m (a x_i + b - y_i)^2.
+      </equation>
+      Esse método clássico de ajuste chama-se <strong>mínimos quadrados</strong> (<em>least squares</em>) — e, quando ajustamos uma função linear nos parâmetros como $\hat{y} = ax + b$, ele é a famosa <strong>regressão linear</strong> (<em>linear regression</em>).
+
+      Em vez de testar dezenas de pares $(a, b)$ numa malha e torcer para acertar o mínimo, vamos resolver diretamente $\nabla J(a, b) = \mathbf{0}$. Para derivar a soma na <ref to="eq:4-2-eqm"/>, aplicamos a regra da cadeia em cada parcela $i$ (lembrando que os dados $x_i$ e $y_i$ são números fixos, e apenas $a$ e $b$ são variáveis!):
+      $$\frac{\partial J}{\partial a} = \frac{1}{m}\sum_{i=1}^m 2(a x_i + b - y_i)\cdot x_i = \frac{2}{m}\left(a \sum_{i=1}^m x_i^2 + b \sum_{i=1}^m x_i - \sum_{i=1}^m x_i y_i\right),$$
+      $$\frac{\partial J}{\partial b} = \frac{1}{m}\sum_{i=1}^m 2(a x_i + b - y_i)\cdot 1 = \frac{2}{m}\left(a \sum_{i=1}^m x_i + m b - \sum_{i=1}^m y_i\right).$$
+      Igualando ambas as derivadas parciais a zero e cancelando o fator $\frac{2}{m} > 0$, chegamos a um sistema de duas equações lineares nas incógnitas $a$ e $b$, conhecido como as <strong>equações normais</strong> (<em>normal equations</em>):
+      <equations id="eq:4-2-equacoes-normais">
+        \left(\sum_{i=1}^m x_i^2\right) a + \left(\sum_{i=1}^m x_i\right) b &= \sum_{i=1}^m x_i y_i, \\
+        \left(\sum_{i=1}^m x_i\right) a + m b &= \sum_{i=1}^m y_i.
+      </equations>
+      Por que um sistema tão limpo apareceu? Porque $J(a, b)$ é um polinômio de 2º grau em $a$ e $b$, logo suas primeiras derivadas são funções de 1º grau! Podemos resolver as equações normais facilmente por substituição: dividindo a segunda equação por $m$ e lembrando que $\bar{x} = \frac{1}{m}\sum_{i=1}^m x_i$ e $\bar{y} = \frac{1}{m}\sum_{i=1}^m y_i$ são as médias dos dados, isolamos $b$:
+      <equation id="eq:4-2-b-otimo">
+        b = \bar{y} - a \bar{x}.
+      </equation>
+      (No Módulo 5 — Álgebra Linear — aprenderemos a escrever sistemas como este em forma matricial e resolvê-los em qualquer dimensão por eliminação de Gauss; além disso, no Tema 5.4 — Ortogonalidade — veremos que as equações normais têm uma interpretação geométrica linda como uma projeção ortogonal!)
+
+      Mas falta responder à pergunta da Seção 2: o ponto crítico $(a^*, b^*)$ que sai das equações normais é mesmo o mínimo — e mais ainda, é o mínimo <em>global</em>? Vamos calcular a matriz Hessiana de $J(a, b)$! Derivando mais uma vez $\frac{\partial J}{\partial a}$ e $\frac{\partial J}{\partial b}$:
+      $$J_{aa} = \frac{2}{m}\sum_{i=1}^m x_i^2, \qquad J_{ab} = J_{ba} = \frac{2}{m}\sum_{i=1}^m x_i, \qquad J_{bb} = 2.$$
+      A Hessiana $\mathbf{H}(a, b)$ é <em>constante</em> no plano $(a, b)$ inteiro! E o seu determinante $D = J_{aa} J_{bb} - J_{ab}^2$ se simplifica de maneira notável usando $\sum x_i = m\bar{x}$:
+      <equations id="eq:4-2-hessiana-mq">
+        D &= \left(\frac{2}{m}\sum_{i=1}^m x_i^2\right)\cdot 2 - \left(\frac{2}{m}\sum_{i=1}^m x_i\right)^2 \\
+          &= \frac{4}{m}\left(\sum_{i=1}^m x_i^2 - m \bar{x}^2\right) = \frac{4}{m}\sum_{i=1}^m (x_i - \bar{x})^2.
+      </equations>
+      (Para conferir a última igualdade, expanda $\sum (x_i - \bar{x})^2 = \sum x_i^2 - 2\bar{x}\sum x_i + m\bar{x}^2 = \sum x_i^2 - 2m\bar{x}^2 + m\bar{x}^2 = \sum x_i^2 - m\bar{x}^2$.)
+
+      Olhe o que a <ref to="eq:4-2-hessiana-mq"/> garante: desde que os valores de entrada $x_1, \dots, x_m$ não sejam todos idênticos, pelo menos um $x_i$ difere da média $\bar{x}$, portanto $\sum_{i=1}^m (x_i - \bar{x})^2 > 0$ e temos $D > 0$ em toda parte! Além disso, como $J_{bb} = 2 > 0$ (e também $J_{aa} = \frac{2}{m}\sum x_i^2 > 0$), o teste da segunda derivada confirma que o ponto crítico é um mínimo local. Mais ainda: o gráfico de $J(a, b)$ é uma única tigela parabólica virada para cima em todas as direções — uma <strong>função convexa</strong>.
+
+      <definition id="def:4-2-convexa">
+        <title>Função convexa (noção intuitiva)</title>
+        Uma função $J : \mathbb{R}^n \to \mathbb{R}$ é dita <strong>convexa</strong> (<em>convex</em>) quando o segmento de reta que liga quaisquer dois pontos do seu gráfico nunca fica abaixo do gráfico — visualmente, a paisagem tem o formato de uma única tigela sem lombadas nem vales separados.
+        <intuition>
+          A grande dádiva das funções convexas em otimização e Machine Learning é que <strong>todo mínimo local é automaticamente mínimo global</strong>, e não existem pontos de sela nem armadilhas locais. O erro quadrático médio de uma reta (regressão linear) é sempre convexo!
+        </intuition>
+      </definition>
+
+      Vamos reunir tudo em uma proposição e aplicar imediatamente ao nosso neurônio visual.
+
+      <proposition id="prop:4-2-minimos-quadrados">
+        <title>Solução exata dos mínimos quadrados para uma reta</title>
+        Se os valores $x_1, \dots, x_m$ não forem todos iguais, a função custo $J(a, b) = \frac{1}{m}\sum_{i=1}^m (a x_i + b - y_i)^2$ é convexa com $D > 0$ e $J_{aa} > 0$, possuindo um único ponto crítico $(a^*, b^*)$ — obtido pelas equações normais (<ref to="eq:4-2-equacoes-normais"/>) —, que é o seu <strong>mínimo global</strong>.
+      </proposition>
+
+      <example id="exm:4-2-minimos-quadrados-neuronio">
+        <title>O mínimo exato do neurônio visual do Tema 4.1</title>
+        Retome os $4$ dados do neurônio visual do Tema 4.1 — pares (contraste $x$, taxa em $\text{Hz}$ $y$):
+        $$(0{,}2;\; 21), \qquad (0{,}4;\; 27), \qquad (0{,}6;\; 43), \qquad (0{,}8;\; 49).$$
+        <list marker="a">
+          <item>Monte e resolva à mão as equações normais para ajustar o modelo $\hat{y} = ax + b$.</item>
+          <item>Calcule a matriz Hessiana de $J(a, b)$, verifique $D > 0$ e calcule o custo mínimo $J(a^*, b^*)$.</item>
+          <item>Interprete biologicamente $a^*$ e $b^*$, e confira o resultado com a busca em grade do Tema 4.1.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Calculamos os quatro somatórios para os $m = 4$ pontos:
+            <list marker="dash">
+              <item>$\sum x_i = 0{,}2 + 0{,}4 + 0{,}6 + 0{,}8 = 2{,}0$ (logo $\bar{x} = \frac{2{,}0}{4} = 0{,}5$);</item>
+              <item>$\sum x_i^2 = 0{,}04 + 0{,}16 + 0{,}36 + 0{,}64 = 1{,}20$;</item>
+              <item>$\sum y_i = 21 + 27 + 43 + 49 = 140$ (logo $\bar{y} = \frac{140}{4} = 35$);</item>
+              <item>$\sum x_i y_i = 0{,}2(21) + 0{,}4(27) + 0{,}6(43) + 0{,}8(49) = 4{,}2 + 10{,}8 + 25{,}8 + 39{,}2 = 80{,}0$.</item>
+            </list>
+            Substituindo nas <ref to="eq:4-2-equacoes-normais"/>:
+            $$\begin{cases} 1{,}2a + 2b = 80, \\ 2a + 4b = 140. \end{cases}$$
+            Dividindo a segunda equação por $4$, obtemos $0{,}5a + b = 35 \implies b = 35 - 0{,}5a$. Substituindo na primeira equação:
+            $$1{,}2a + 2(35 - 0{,}5a) = 80 \implies 1{,}2a + 70 - a = 80 \implies 0{,}2a = 10 \implies a^* = \frac{10}{0{,}2} = 50.$$
+            Voltando para $b$:
+            $$b^* = 35 - 0{,}5(50) = 35 - 25 = 10.$$
+          </item>
+          <item>As segundas derivadas são $J_{aa} = \frac{2}{4}(1{,}20) = 0{,}6$, $J_{ab} = \frac{2}{4}(2{,}0) = 1$ e $J_{bb} = 2$, ou seja:
+            $$\mathbf{H} = \begin{pmatrix} 0{,}6 & 1 \\ 1 & 2 \end{pmatrix}, \qquad D = (0{,}6)(2) - 1^2 = 1{,}2 - 1 = 0{,}2 > 0.$$
+            Como $D = 0{,}2 > 0$ e $J_{aa} = 0{,}6 > 0$, $(a^*, b^*) = (50, 10)$ é o mínimo global. Para a reta ótima $\hat{y} = 50x + 10$, as previsões em $x = 0{,}2;\; 0{,}4;\; 0{,}6;\; 0{,}8$ são $20,\; 30,\; 40,\; 50\text{ Hz}$, dando resíduos $\hat{y}_i - y_i$ iguais a $-1,\; +3,\; -3,\; +1$. O custo mínimo vale:
+            $$J(50, 10) = \frac{(-1)^2 + 3^2 + (-3)^2 + 1^2}{4} = \frac{1 + 9 + 9 + 1}{4} = \frac{20}{4} = 5.$$
+          </item>
+          <item>O resultado $(a^*, b^*) = (50, 10)$ com custo $J = 5$ coincide <em>exatamente</em> com o mínimo encontrado pela busca em grade do Tema 4.1 (quando a malha caiu sobre o ponto certo). Biologicamente, $b^* = 10\text{ Hz}$ representa a <strong>taxa de disparo espontânea</strong> do neurônio quando o contraste é nulo ($x = 0$), e $a^* = 50\text{ Hz}$ (por unidade de contraste) representa o <strong>ganho</strong> de sensibilidade ao contraste: cada aumento de $0{,}1$ no contraste eleva a taxa média em $5\text{ Hz}$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:4-2-mq-quatro-pontos">
+        <title>Ajuste exato passo a passo com quatro pontos</title>
+        Ajuste a reta $\hat{y} = ax + b$ por mínimos quadrados aos pontos $(0, 1)$, $(1, 3)$, $(2, 4)$ e $(3, 4)$, e calcule o erro quadrático médio mínimo.
+
+        <strong>Solução.</strong> Com $m = 4$, somamos nos quatro dados:
+        $$\sum x_i = 0 + 1 + 2 + 3 = 6, \qquad \sum x_i^2 = 0 + 1 + 4 + 9 = 14,$$
+        $$\sum y_i = 1 + 3 + 4 + 4 = 12, \qquad \sum x_i y_i = 0(1) + 1(3) + 2(4) + 3(4) = 23.$$
+        Montamos as equações normais:
+        $$\begin{cases} 14a + 6b = 23, \\ 6a + 4b = 12. \end{cases}$$
+        Dividindo a segunda por $4$: $1{,}5a + b = 3 \implies b = 3 - 1{,}5a$. Substituindo na primeira:
+        $$14a + 6(3 - 1{,}5a) = 23 \implies 14a + 18 - 9a = 23 \implies 5a = 5 \implies a^* = 1.$$
+        Logo, $b^* = 3 - 1{,}5(1) = 1{,}5$. Na Hessiana, $J_{aa} = \frac{2}{4}(14) = 7$, $J_{ab} = \frac{2}{4}(6) = 3$ e $J_{bb} = 2$, donde $D = 7(2) - 3^2 = 5 > 0$ e $J_{aa} = 7 > 0$ (mínimo global).
+
+        A reta ótima é $\hat{y} = x + 1{,}5$, que prevê $1{,}5;\; 2{,}5;\; 3{,}5;\; 4{,}5$ para $x = 0, 1, 2, 3$. Os erros são $+0{,}5;\; -0{,}5;\; -0{,}5;\; +0{,}5$, resultando no custo mínimo:
+        $$J(1;\; 1{,}5) = \frac{0{,}5^2 + (-0{,}5)^2 + (-0{,}5)^2 + 0{,}5^2}{4} = \frac{4 \cdot 0{,}25}{4} = 0{,}25.$$
+      </example>
+
+      Esta ideia — formular o erro de previsão como função custo convexa e encontrar os parâmetros ótimos — é o coração da <strong>regressão linear</strong> no <strong>Módulo 8 (Machine Learning)</strong>.
+
+      <remark id="rem:4-2-armadilha-mq">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Esquecer o fator $x_i$ da regra da cadeia em $\frac{\partial J}{\partial a}$:</strong> ao derivar $(a x_i + b - y_i)^2$ em relação a $a$, o termo interno tem derivada $x_i$, não $1$!</item>
+          <item><strong>Tentar ajustar uma reta quando todos os $x_i$ são iguais:</strong> se você medir a resposta de um neurônio quatro vezes sempre no mesmo contraste $x_i = 0{,}5$, terá $\sum (x_i - \bar{x})^2 = 0$, logo $D = 0$. Nesse caso, as duas equações normais ficam redundantes: qualquer reta que passe pelo ponto médio $(0{,}5;\; \bar{y})$ dá exatamente o mesmo custo mínimo, e é impossível identificar a inclinação $a$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:4-2-3-1">
+        <title>Básico — Equações normais com três pontos</title>
+        Encontre a reta $\hat{y} = ax + b$ que minimiza o erro quadrático médio $J(a, b)$ para os pontos $(0, 2)$, $(1, 3)$ e $(2, 7)$, confirme que é mínimo pela Hessiana e calcule o custo mínimo $J(a^*, b^*)$.
+        <hint><title>Ver dica</title>Calcule $\sum x_i$, $\sum x_i^2$, $\sum y_i$ e $\sum x_i y_i$ para $m = 3$, monte o sistema $2 \times 2$ e isole $b$ na segunda equação.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para $m = 3$:
+          $$\sum x_i = 0 + 1 + 2 = 3, \qquad \sum x_i^2 = 0 + 1 + 4 = 5,$$
+          $$\sum y_i = 2 + 3 + 7 = 12, \qquad \sum x_i y_i = 0(2) + 1(3) + 2(7) = 17.$$
+          As equações normais são:
+          $$\begin{cases} 5a + 3b = 17, \\ 3a + 3b = 12. \end{cases}$$
+          Dividindo a segunda equação por $3$: $a + b = 4 \implies b = 4 - a$. Substituindo na primeira:
+          $$5a + 3(4 - a) = 17 \implies 2a + 12 = 17 \implies 2a = 5 \implies a^* = 2{,}5.$$
+          Logo, $b^* = 4 - 2{,}5 = 1{,}5$. Na Hessiana, $J_{aa} = \frac{2}{3}(5) = \frac{10}{3}$, $J_{ab} = \frac{2}{3}(3) = 2$ e $J_{bb} = 2$, dando $D = \frac{20}{3} - 4 = \frac{8}{3} > 0$ e $J_{aa} > 0$ (mínimo global).
+
+          Com a reta $\hat{y} = 2{,}5x + 1{,}5$, as previsões em $x = 0, 1, 2$ são $1{,}5;\; 4{,}0;\; 6{,}5$, com resíduos $-0{,}5;\; +1{,}0;\; -0{,}5$. Portanto:
+          $$J(2{,}5;\; 1{,}5) = \frac{(-0{,}5)^2 + 1{,}0^2 + (-0{,}5)^2}{3} = \frac{0{,}25 + 1{,}0 + 0{,}25}{3} = \frac{1{,}5}{3} = 0{,}5.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-2-3-2">
+        <title>Básico — Estimando resistência de entrada e repouso de um neurônio</title>
+        Em um registro intracelular, injetaram-se quatro correntes constantes $I$ (em $\text{nA}$) e mediu-se o potencial estacionário de membrana $V$ (em $\text{mV}$):
+        $$(0;\; -70), \qquad (0{,}2;\; -58), \qquad (0{,}4;\; -52), \qquad (0{,}6;\; -40).$$
+        No modelo passivo linear $V = R_{\text{in}} I + E_L$ (como $I$ está em $\text{nA}$ e $V$ em $\text{mV}$, $R_{\text{in}}$ sai diretamente em $\text{M}\Omega$ e $E_L$ em $\text{mV}$), use as equações normais para encontrar os valores ótimos $R_{\text{in}}^*$ e $E_L^*$ e calcule o custo mínimo $J(R_{\text{in}}^*, E_L^*)$.
+        <hint><title>Ver dica</title>Identifique $a = R_{\text{in}}$ e $b = E_L$ e calcule os quatro somatórios para $m = 4$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Com $x_i = I_i$, $y_i = V_i$ e $m = 4$:
+          $$\sum I_i = 0 + 0{,}2 + 0{,}4 + 0{,}6 = 1{,}2, \qquad \sum I_i^2 = 0 + 0{,}04 + 0{,}16 + 0{,}36 = 0{,}56,$$
+          $$\sum V_i = -70 - 58 - 52 - 40 = -220, \qquad \sum I_i V_i = 0 + 0{,}2(-58) + 0{,}4(-52) + 0{,}6(-40) = -56{,}4.$$
+          As equações normais para $a = R_{\text{in}}$ e $b = E_L$ são:
+          $$\begin{cases} 0{,}56 R_{\text{in}} + 1{,}2 E_L = -56{,}4, \\ 1{,}2 R_{\text{in}} + 4 E_L = -220. \end{cases}$$
+          Dividindo a segunda por $4$: $0{,}3 R_{\text{in}} + E_L = -55 \implies E_L = -55 - 0{,}3 R_{\text{in}}$. Substituindo na primeira:
+          $$0{,}56 R_{\text{in}} + 1{,}2(-55 - 0{,}3 R_{\text{in}}) = -56{,}4 \implies 0{,}56 R_{\text{in}} - 66 - 0{,}36 R_{\text{in}} = -56{,}4$$
+          $$\implies 0{,}20 R_{\text{in}} = 9{,}6 \implies R_{\text{in}}^* = 48\text{ M}\Omega.$$
+          Calculando $E_L^*$:
+          $$E_L^* = -55 - 0{,}3(48) = -55 - 14{,}4 = -69{,}4\text{ mV}.$$
+          As previsões de $48I - 69{,}4$ para $I = 0;\; 0{,}2;\; 0{,}4;\; 0{,}6$ são $-69{,}4;\; -59{,}8;\; -50{,}2;\; -40{,}6\text{ mV}$, dando erros de $+0{,}6;\; -1{,}8;\; +1{,}8;\; -0{,}6\text{ mV}$. O custo mínimo é:
+          $$J(48;\; -69{,}4) = \frac{0{,}6^2 + (-1{,}8)^2 + 1{,}8^2 + (-0{,}6)^2}{4} = \frac{0{,}36 + 3{,}24 + 3{,}24 + 0{,}36}{4} = \frac{7{,}2}{4} = 1{,}8\text{ mV}^2.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-2-3-3">
+        <title>Intermediário — Ajuste proporcional passando pela origem</title>
+        Muitas leis físicas têm intercepto nulo conhecido de antemão, como $\Delta V = R_{\text{in}} I$ (variação de potencial nula quando não há corrente injetada). Para ajustar a reta $\hat{y} = a x$ (um único parâmetro $a$) a dados $(x_1, y_1), \dots, (x_m, y_m)$ com pelo menos um $x_i \ne 0$:
+        <list marker="a">
+          <item>Derive $J(a) = \frac{1}{m}\sum_{i=1}^m (a x_i - y_i)^2$ em relação a $a$, obtenha a fórmula fechada de $a^*$ e use $J''(a)$ para provar que é mínimo global.</item>
+          <item>Aplique a fórmula aos pares $(I, \Delta V)$ (em $\text{nA}$ e $\text{mV}$): $(0{,}1;\; 7)$, $(0{,}2;\; 9)$ e $(0{,}3;\; 15)$, estimando $R_{\text{in}}^*$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), iguale $J'(a) = \frac{2}{m}\sum_{i=1}^m x_i(ax_i - y_i) = 0$ e isole $a$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Aplicando a regra da cadeia:
+              $$J'(a) = \frac{2}{m}\sum_{i=1}^m x_i(a x_i - y_i) = \frac{2}{m}\left(a \sum_{i=1}^m x_i^2 - \sum_{i=1}^m x_i y_i\right).$$
+              Igualando $J'(a) = 0$ (e notando que $\sum_{i=1}^m x_i^2 > 0$ porque algum $x_i \ne 0$):
+              $$a^* = \frac{\sum_{i=1}^m x_i y_i}{\sum_{i=1}^m x_i^2}.$$
+              A segunda derivada é constante e positiva: $J''(a) = \frac{2}{m}\sum_{i=1}^m x_i^2 > 0$ para todo $a \in \mathbb{R}$, o que garante que $a^*$ é o mínimo global de $J(a)$.
+            </item>
+            <item>Para os três pontos dados:
+              $$\sum I_i^2 = 0{,}1^2 + 0{,}2^2 + 0{,}3^2 = 0{,}01 + 0{,}04 + 0{,}09 = 0{,}14,$$
+              $$\sum I_i \Delta V_i = 0{,}1(7) + 0{,}2(9) + 0{,}3(15) = 0{,}7 + 1{,}8 + 4{,}5 = 7{,}0.$$
+              Portanto:
+              $$R_{\text{in}}^* = \frac{7{,}0}{0{,}14} = 50\text{ M}\Omega.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-2-3-4">
+        <title>Avançado — Centroide dos dados e falha quando os $x_i$ são iguais</title>
+        <list marker="a">
+          <item>Usando a segunda equação normal (<ref to="eq:4-2-b-otimo"/>), mostre que a reta ótima $\hat{y} = a^* x + b^*$ passa obrigatoriamente pelo ponto médio $(\bar{x}, \bar{y})$ dos dados e que a soma dos resíduos $\sum_{i=1}^m (\hat{y}_i - y_i)$ vale exatamente zero.</item>
+          <item>Suponha agora que todas as medições foram feitas no mesmo valor de entrada $x_1 = x_2 = \dots = x_m = c$. Use a <ref to="eq:4-2-hessiana-mq"/> para mostrar que $D = 0$ e descreva todos os pares $(a, b)$ que minimizam $J(a, b)$ nesse caso.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), avalie $\hat{y}$ em $x = \bar{x}$ e lembre que $\sum (\hat{y}_i - y_i)$ aparece dentro de $\frac{\partial J}{\partial b}$. Em (b), note que $\bar{x} = c$, logo $x_i - \bar{x} = 0$ para todo $i$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pela <ref to="eq:4-2-b-otimo"/>, $b^* = \bar{y} - a^* \bar{x}$. Avaliando a reta ótima em $x = \bar{x}$:
+              $$\hat{y}(\bar{x}) = a^* \bar{x} + b^* = a^* \bar{x} + (\bar{y} - a^* \bar{x}) = \bar{y}.$$
+              Logo, a reta passa sempre por $(\bar{x}, \bar{y})$. Além disso, a equação $\frac{\partial J}{\partial b} = 0$ diz diretamente que $\frac{2}{m}\sum_{i=1}^m (a^* x_i + b^* - y_i) = 0$, ou seja, $\sum_{i=1}^m (\hat{y}_i - y_i) = 0$: os resíduos positivos e negativos somam zero exatamente.
+            </item>
+            <item>Se $x_1 = \dots = x_m = c$, então $\bar{x} = \frac{mc}{m} = c$, e cada parcela $(x_i - \bar{x})^2$ vale $(c - c)^2 = 0$. Pela <ref to="eq:4-2-hessiana-mq"/>, $D = \frac{4}{m}\cdot 0 = 0$. Nesse caso, para qualquer $(a, b)$ o valor previsto é o mesmo número $ac + b$ em todos os pontos, logo $J(a, b) = \frac{1}{m}\sum_{i=1}^m (ac + b - y_i)^2$. Esse custo é mínimo quando $ac + b = \bar{y}$ — uma reta inteira de infinitas soluções $(a, b)$ no espaço de parâmetros!
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:4-2-4">
+      <eyebrow>Seção 4</eyebrow>
+      <title>Otimização com restrição: multiplicadores de Lagrange</title>
+      <intro>
+        Na biologia, raramente podemos escolher parâmetros com liberdade total: energia, tempo, massa e área de membrana são orçamentos fixos. Quando o ótimo precisa viver sobre uma curva de restrição, entra em cena o método dos multiplicadores de Lagrange.
+      </intro>
+
+      Até aqui, procuramos picos e vales livres no plano $\mathbb{R}^2$ (ou dentro de intervalos simples). Mas suponha que você queira maximizar o benefício metabólico $f(x, y)$ obtido por um neurônio que aloca quantidades $x$ e $y$ de ATP entre duas tarefas celulares — digamos, manutenção de bombas iônicas e síntese proteica — com a condição rígida de gastar um orçamento total fixo: $x + y = 9$. Agora não podemos ir para onde $f$ for maior no plano todo; somos obrigados a caminhar estritamente sobre a curva da restrição (ou <strong>vínculo</strong>) $g(x, y) = c$.
+
+      Como descobrir onde está o ponto mais alto (ou mais baixo) de $f(x, y)$ ao longo da trilha $g(x, y) = c$? Pense em uma caminhada por uma trilha estreita desenhada sobre o mapa topográfico de curvas de nível de $f$. Enquanto a trilha <em>atravessa</em> as curvas de nível de $f$, um passo para um lado faz você subir e um passo para o outro faz você descer — logo você ainda não está em um extremo ao longo da trilha. Você só para de subir ou descer ao longo da trilha no ponto exato em que a trilha apenas <em>toca tangencialmente</em> uma curva de nível de $f$, sem atravessá-la!
+
+      E o que significa duas curvas serem tangentes em um ponto $(x_0, y_0)$? Pelo Tema 3.2 (<mark>Diferencial em várias variáveis</mark>), o gradiente $\nabla f$ é perpendicular à curva de nível de $f$, e o gradiente $\nabla g$ é perpendicular à curva de vínculo $g(x, y) = c$. Se as duas curvas têm a mesma reta tangente em $(x_0, y_0)$, então suas direções perpendiculares coincidem: os vetores $\nabla f(x_0, y_0)$ e $\nabla g(x_0, y_0)$ são <strong>paralelos</strong>! Ou seja, um é múltiplo escalar do outro: $\nabla f(x_0, y_0) = \lambda \nabla g(x_0, y_0)$.
+
+      <theorem id="thm:4-2-lagrange">
+        <title>Multiplicadores de Lagrange (duas variáveis, uma restrição)</title>
+        Sejam $f(x, y)$ e $g(x, y)$ funções diferenciáveis. Se $(x_0, y_0)$ é um máximo local ou mínimo local de $f$ restrito à curva $g(x, y) = c$, e se $\nabla g(x_0, y_0) \ne \mathbf{0}$, então existe um número real $\lambda \in \mathbb{R}$ — chamado <strong>multiplicador de Lagrange</strong> (<em>Lagrange multiplier</em>) — tal que:
+        <equations id="eq:4-2-lagrange">
+          \nabla f(x_0, y_0) &= \lambda \nabla g(x_0, y_0), \\
+          g(x_0, y_0) &= c.
+        </equations>
+        Escrevendo por coordenadas, resolvemos o sistema de três equações para três incógnitas $(x, y, \lambda)$:
+        $$\begin{cases} f_x(x, y) = \lambda g_x(x, y), \\ f_y(x, y) = \lambda g_y(x, y), \\ g(x, y) = c. \end{cases}$$
+        <intuition>
+          O número $\lambda$ não é apenas um truque algébrico descartável — ele tem um significado prático muito útil: $\lambda$ mede aproximadamente <em>quanto o valor ótimo de $f$ melhora (ou varia) por unidade de afrouxamento do vínculo $c$</em>. Se $c$ é um orçamento de energia, $\lambda$ funciona como o "preço-sombra" de uma unidade extra de energia disponível.
+        </intuition>
+      </theorem>
+
+      Vale ressaltar duas características práticas importantes do método:
+      <list marker="number">
+        <item><strong>Comparação com o método direto:</strong> quando a restrição $g(x, y) = c$ permite isolar facilmente uma variável (como $y = c - x$), você pode substituir diretamente em $f(x, y)$ e reduzir o problema a uma variável só, resolvendo pela Seção 1. Ambos os métodos dão exatamente o mesmo resultado! Porém, quando o vínculo é curvo ou envolve várias variáveis (como $x^2 + y^2 = 5$), isolar uma variável gera raízes quadradas e ramos separados, enquanto Lagrange mantém o sistema simétrico e limpo.</item>
+        <item><strong>Condição necessária, não suficiente:</strong> assim como $f'(x_0) = 0$ na Seção 1, as equações de Lagrange (<ref to="eq:4-2-lagrange"/>) fornecem apenas <em>candidatos</em> a extremos sobre a restrição. Depois de encontrá-los, é preciso verificar se o candidato é máximo, mínimo ou sela restrita — comparando o valor de $f$ nos diferentes candidatos, testando pontos vizinhos da curva ou conferindo por substituição direta.</item>
+      </list>
+
+      <example id="exm:4-2-lagrange-produto">
+        <title>Produto máximo com soma fixa: Lagrange versus substituição direta</title>
+        Encontre os números $x$ e $y$ que maximizam $f(x, y) = xy$ sujeito à restrição $x + y = 10$ (por exemplo, a área máxima de um retângulo de semiperímetro fixo $10$). Resolva pelos multiplicadores de Lagrange e compare com o método direto.
+
+        <strong>Solução.</strong>
+        <list marker="dash">
+          <item><strong>Pelo método de Lagrange:</strong> definimos $g(x, y) = x + y$, com $c = 10$. Calculamos os gradientes:
+            $$\nabla f(x, y) = (y, x), \qquad \nabla g(x, y) = (1, 1) \ne \mathbf{0}.$$
+            Aplicando a <ref to="eq:4-2-lagrange"/>:
+            $$\begin{cases} y = \lambda \cdot 1, \\ x = \lambda \cdot 1, \\ x + y = 10. \end{cases}$$
+            Das duas primeiras equações, $x = y = \lambda$. Substituindo na equação do vínculo: $\lambda + \lambda = 10 \implies 2\lambda = 10 \implies \lambda = 5$. Logo, o único candidato é $(x^*, y^*) = (5, 5)$, com $f(5, 5) = 25$. Note a interpretação de $\lambda = 5$: se afrouxarmos ligeiramente o vínculo de $10$ para $10{,}1$ ($\Delta c = 0{,}1$), o novo ótimo em $(5{,}05;\; 5{,}05)$ vale $25{,}5025 \approx 25 + 5(0{,}1)$ — sobe cerca de $\lambda$ vezes o acréscimo em $c$!
+          </item>
+          <item><strong>Pelo método direto:</strong> isolamos $y = 10 - x$ no vínculo e substituímos em $f$:
+            $$h(x) = x(10 - x) = 10x - x^2.$$
+            Derivando em uma variável: $h'(x) = 10 - 2x = 0 \implies x = 5$, e $h''(x) = -2 < 0$ em toda parte — confirmando que $x = 5, y = 5$ é de fato o <strong>máximo global</strong> sob a restrição, com área máxima $25$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:4-2-lagrange-atp">
+        <title>Alocação de um orçamento fixo de ATP entre duas tarefas celulares</title>
+        Considere um modelo didático em que um neurônio distribui um orçamento fixo de $9$ unidades de energia (ATP) entre duas atividades metabólicas em quantidades $x > 0$ e $y > 0$, de modo que $x + y = 9$. Suponha que o benefício funcional conjunto seja modelado por retornos marginais decrescentes na forma:
+        $$B(x, y) = \ln x + 2\ln y.$$
+        (Trata-se de uma escolha didática simples em que os coeficientes $1$ e $2$ representam pesos diferentes de prioridade fisiológica para as duas tarefas.) Encontre a alocação ótima $(x^*, y^*)$ e interprete o multiplicador $\lambda$.
+
+        <strong>Solução.</strong> Aqui $g(x, y) = x + y = 9$, com $\nabla g = (1, 1) \ne \mathbf{0}$, e $\nabla B(x, y) = \left(\frac{1}{x},\; \frac{2}{y}\right)$. O sistema de Lagrange (<ref to="eq:4-2-lagrange"/>) fica:
+        $$\begin{cases} \dfrac{1}{x} = \lambda, \\[6pt] \dfrac{2}{y} = \lambda, \\[6pt] x + y = 9. \end{cases}$$
+        Como $\frac{1}{x} \ne 0$, certamente $\lambda \ne 0$. Das duas primeiras equações, isolamos $x$ e $y$ em função de $\lambda$:
+        $$x = \frac{1}{\lambda}, \qquad y = \frac{2}{\lambda} \implies y = 2x.$$
+        Substituímos $y = 2x$ na equação do vínculo $x + y = 9$:
+        $$x + 2x = 9 \implies 3x = 9 \implies x^* = 3, \qquad y^* = 6, \qquad \lambda = \frac{1}{3}.$$
+        Para confirmar que $(3, 6)$ é máximo (e não mínimo), podemos substituir $y = 9 - x$ em $B$: $h(x) = \ln x + 2\ln(9 - x)$ para $x \in (0, 9)$ tem $h''(x) = -\frac{1}{x^2} - \frac{2}{(9 - x)^2} < 0$ em todo o intervalo, logo $(3, 6)$ é o único máximo global restrito (com $B(3, 6) = \ln 3 + 2\ln 6 = \ln 108$). A segunda atividade recebe o dobro de ATP porque seu peso no benefício é o dobro. Já o multiplicador $\lambda = \frac{1}{3}$ indica que, se o orçamento de ATP fosse ampliado em uma pequena quantidade $\Delta c$ acima de $9$, o benefício máximo $B^*$ aumentaria em aproximadamente $\frac{1}{3}\Delta c$.
+      </example>
+
+      <remark id="rem:4-2-armadilha-lagrange">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Esquecer a equação do vínculo $g(x, y) = c$:</strong> $\nabla f = \lambda \nabla g$ fornece apenas duas equações para três incógnitas ($x, y, \lambda$). Sem incluir $g(x, y) = c$, o sistema não fecha!</item>
+          <item><strong>Achar que o único ponto de Lagrange é automaticamente máximo (ou mínimo):</strong> se o vínculo for uma curva fechada (como um círculo), Lagrange normalmente devolve pelo menos dois pontos — um máximo e um mínimo — e é comparando o valor de $f$ neles que decidimos quem é quem.</item>
+          <item><strong>Dividir por $\lambda$ ou por $x$ sem checar se podem valer zero:</strong> antes de escrever $\frac{1}{\lambda}$, verifique se $\lambda = 0$ satisfaria as equações.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:4-2-4-1">
+        <title>Básico — Menor distância quadrática até uma reta</title>
+        Use multiplicadores de Lagrange para minimizar $f(x, y) = x^2 + y^2$ (o quadrado da distância até a origem) sujeito à restrição $x + 2y = 10$. Confirme por substituição direta que o ponto encontrado é o mínimo global sobre a reta.
+        <hint><title>Ver dica</title>Monte $2x = \lambda$, $2y = 2\lambda$ e $x + 2y = 10$. Para confirmar diretamente, substitua $x = 10 - 2y$ em $f(x, y)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Com $g(x, y) = x + 2y = 10$, temos $\nabla f = (2x, 2y)$ e $\nabla g = (1, 2) \ne \mathbf{0}$. O sistema de Lagrange é:
+          $$\begin{cases} 2x = \lambda, \\ 2y = 2\lambda \implies y = \lambda, \\ x + 2y = 10. \end{cases}$$
+          De $2x = \lambda$ e $y = \lambda$, segue $y = 2x$. Substituindo no vínculo:
+          $$x + 2(2x) = 10 \implies 5x = 10 \implies x^* = 2, \qquad y^* = 4, \qquad \lambda = 4.$$
+          O valor candidato é $f(2, 4) = 2^2 + 4^2 = 20$. Para confirmar que é mínimo global sobre a reta, isolamos $x = 10 - 2y$ e substituímos:
+          $$h(y) = (10 - 2y)^2 + y^2 = 100 - 40y + 4y^2 + y^2 = 5y^2 - 40y + 100 = 5(y - 4)^2 + 20 \ge 20,$$
+          confirmando o mínimo global $20$ em $(2, 4)$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-2-4-2">
+        <title>Básico — Alocação de substrato entre duas vias metabólicas</title>
+        Em um modelo didático simples de alocação metabólica, uma célula distribui um suprimento fixo $x + y = 12$ ($x, y > 0$) de um precursor entre duas vias biossintéticas, obtendo a função de utilidade $U(x, y) = 3\ln x + \ln y$. Use multiplicadores de Lagrange para encontrar a alocação ótima $(x^*, y^*)$ e o valor de $\lambda$.
+        <hint><title>Ver dica</title>Iguale $\frac{3}{x} = \lambda$ e $\frac{1}{y} = \lambda$ para relacionar $x$ e $y$ antes de usar $x + y = 12$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Com $g(x, y) = x + y = 12$, temos $\nabla U = \left(\frac{3}{x},\; \frac{1}{y}\right)$ e $\nabla g = (1, 1)$. Pelo sistema de Lagrange:
+          $$\begin{cases} \dfrac{3}{x} = \lambda, \\[6pt] \dfrac{1}{y} = \lambda, \\[6pt] x + y = 12. \end{cases}$$
+          Como $\frac{1}{y} \ne 0$, temos $\lambda \ne 0$, logo $x = \frac{3}{\lambda}$ e $y = \frac{1}{\lambda}$, de onde $x = 3y$. Substituindo na equação do vínculo:
+          $$3y + y = 12 \implies 4y = 12 \implies y^* = 3, \qquad x^* = 9, \qquad \lambda = \frac{1}{3}.$$
+          Como $h(y) = 3\ln(12 - y) + \ln y$ em $(0, 12)$ tem $h''(y) = -\frac{3}{(12 - y)^2} - \frac{1}{y^2} < 0$, o ponto $(9, 3)$ maximiza globalmente a utilidade sob a restrição.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-2-4-3">
+        <title>Intermediário — Máximo e mínimo sobre uma circunferência</title>
+        Encontre os valores máximo e mínimo da função linear $f(x, y) = x + 2y$ restrita à circunferência $x^2 + y^2 = 5$. (Observe como aqui os multiplicadores de Lagrange são bem mais práticos do que tentar isolar $y = \pm\sqrt{5 - x^2}$!)
+        <hint><title>Ver dica</title>Monte $1 = 2\lambda x$ e $2 = 2\lambda y$, mostre que $\lambda \ne 0$ e $y = 2x$, e substitua em $x^2 + y^2 = 5$ para achar os dois pontos candidatos.</hint>
+        <solution collapsible="true" collapsed="true">
+          Definimos $g(x, y) = x^2 + y^2 = 5$, com $\nabla g(x, y) = (2x, 2y)$ (que não se anula sobre a circunferência, pois $(0, 0)$ não satisfaz $x^2 + y^2 = 5$). Como $\nabla f = (1, 2)$, as equações de Lagrange são:
+          $$\begin{cases} 1 = 2\lambda x, \\ 2 = 2\lambda y, \\ x^2 + y^2 = 5. \end{cases}$$
+          Da primeira equação $1 = 2\lambda x$, vemos imediatamente que $\lambda \ne 0$ e $x \ne 0$. Dividindo a segunda equação pela primeira (ou isolando $2\lambda = \frac{1}{x} = \frac{2}{y}$), obtemos $y = 2x$. Substituindo na equação do vínculo:
+          $$x^2 + (2x)^2 = 5 \implies 5x^2 = 5 \implies x^2 = 1 \implies x = 1 \text{ ou } x = -1.$$
+          Temos dois candidatos sobre a circunferência:
+          <list marker="dash">
+            <item>para $x = 1$: $y = 2$, com $\lambda = \frac{1}{2}$ e $f(1, 2) = 1 + 2(2) = 5$;</item>
+            <item>para $x = -1$: $y = -2$, com $\lambda = -\frac{1}{2}$ e $f(-1, -2) = -1 + 2(-2) = -5$.</item>
+          </list>
+          Como a circunferência é uma curva fechada e limitada onde a função contínua $f$ atinge máximo e mínimo globais, concluímos que o <strong>máximo global restrito</strong> vale $5$ em $(1, 2)$ e o <strong>mínimo global restrito</strong> vale $-5$ em $(-1, -2)$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-2-4-4">
+        <title>Avançado — Minimização de custo metabólico com meta de disparo</title>
+        Em um modelo didático de codificação populacional, duas populações neuronais precisam manter uma taxa conjunta fixa $r_1 + r_2 = 12$ (em $\text{Hz}$), enquanto consomem energia metabólica modelada pelo custo quadrático $C(r_1, r_2) = r_1^2 + 2r_2^2$.
+        <list marker="a">
+          <item>Use multiplicadores de Lagrange para encontrar as taxas ótimas $(r_1^*, r_2^*)$ que minimizam o custo metabólico $C$ respeitando a meta, bem como o multiplicador $\lambda$.</item>
+          <item>Confirme pelo método direto (substituindo $r_1 = 12 - r_2$) que o ponto encontrado é de fato o mínimo global sobre a reta de restrição, e calcule o custo mínimo.</item>
+          <item>Explique em palavras o que o valor de $\lambda$ significa se a meta de disparo passar de $12\text{ Hz}$ para um valor ligeiramente maior.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), resolva $2r_1 = \lambda$ e $4r_2 = \lambda$ junto com $r_1 + r_2 = 12$. Em (b), use o sinal da segunda derivada da função de uma variável resultante.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Com $g(r_1, r_2) = r_1 + r_2 = 12$, temos $\nabla C = (2r_1, 4r_2)$ e $\nabla g = (1, 1) \ne \mathbf{0}$. O sistema de Lagrange é:
+              $$\begin{cases} 2r_1 = \lambda, \\ 4r_2 = \lambda, \\ r_1 + r_2 = 12. \end{cases}$$
+              Das duas primeiras equações, $2r_1 = 4r_2 \implies r_1 = 2r_2$. Substituindo no vínculo:
+              $$2r_2 + r_2 = 12 \implies 3r_2 = 12 \implies r_2^* = 4\text{ Hz}, \qquad r_1^* = 8\text{ Hz}, \qquad \lambda = 2(8) = 16.$$
+            </item>
+            <item>Substituindo $r_1 = 12 - r_2$ diretamente em $C$:
+              $$h(r_2) = (12 - r_2)^2 + 2r_2^2 = 144 - 24r_2 + 3r_2^2.$$
+              Derivando: $h'(r_2) = -24 + 6r_2 = 0 \implies r_2 = 4\text{ Hz}$, e $h''(r_2) = 6 > 0$ em toda parte — confirmando o mínimo global restrito em $(r_1^*, r_2^*) = (8, 4)\text{ Hz}$. O custo mínimo vale:
+              $$C(8, 4) = 8^2 + 2(4^2) = 64 + 32 = 96.$$
+            </item>
+            <item>O valor $\lambda = 16$ significa que a taxa de variação do custo mínimo em relação à meta de disparo vale $16$: se elevarmos ligeiramente a meta de $12\text{ Hz}$ para $12 + \Delta c\text{ Hz}$, o custo metabólico mínimo cresce aproximadamente $16\,\Delta c$ unidades.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:4-2-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Teorema de Fermat (1 variável):</strong> todo extremo local interior onde $f$ é derivável satisfaz $f'(x_0) = 0$. (Mas $f'(x_0) = 0$ sozinho não garante extremo, como em $f(x) = x^3$.)</item>
+        <item><strong>Teste da segunda derivada em 1D:</strong> com $f'(x_0) = 0$, $f''(x_0) > 0$ indica mínimo local, $f''(x_0) < 0$ indica máximo local, e $f''(x_0) = 0$ é inconclusivo (ex.: $x^4$ tem mínimo, $x^3$ não tem extremo).</item>
+        <item><strong>Teorema de Weierstrass (intervalo fechado $[a, b]$):</strong> para achar máximo e mínimo globais de uma função contínua em $[a, b]$, compare os valores de $f$ nos pontos críticos internos <em>e</em> nas bordas $x = a$ e $x = b$.</item>
+        <item><strong>Pontos críticos em 2 variáveis:</strong> ocorrem onde o plano tangente é horizontal, $\nabla f(x_0, y_0) = \mathbf{0}$ (ou onde derivadas parciais falham). Podem ser mínimos locais, máximos locais ou <strong>pontos de sela</strong> (como $x^2 - y^2$).</item>
+        <item><strong>Matriz Hessiana e teste da 2ª derivada em 2D:</strong> para $\mathbf{H} = \begin{pmatrix} f_{xx} & f_{xy} \\ f_{yx} & f_{yy} \end{pmatrix}$ com $D = f_{xx} f_{yy} - f_{xy}^2$ em um ponto crítico onde $\nabla f = \mathbf{0}$:
+          <list marker="dash">
+            <item>$D > 0$ e $f_{xx} > 0 \implies$ mínimo local;</item>
+            <item>$D > 0$ e $f_{xx} < 0 \implies$ máximo local;</item>
+            <item>$D < 0 \implies$ ponto de sela;</item>
+            <item>$D = 0 \implies$ teste inconclusivo.</item>
+          </list>
+        </item>
+        <item><strong>Mínimos quadrados (regressão linear):</strong> igualar $\nabla J(a, b) = \mathbf{0}$ para $J(a, b) = \frac{1}{m}\sum_{i=1}^m (a x_i + b - y_i)^2$ gera as <strong>equações normais</strong> $\left(\sum x_i^2\right)a + \left(\sum x_i\right)b = \sum x_i y_i$ e $\left(\sum x_i\right)a + m b = \sum y_i$. Quando nem todos os $x_i$ são iguais, $D = \frac{4}{m}\sum(x_i - \bar{x})^2 > 0$ e $J_{aa} > 0$: $J$ é convexa e o ponto crítico é o mínimo global único.</item>
+        <item><strong>Multiplicadores de Lagrange:</strong> para otimizar $f(x, y)$ sujeito a um vínculo $g(x, y) = c$ (com $\nabla g \ne \mathbf{0}$), a curva de nível de $f$ tangencia a curva do vínculo no ótimo, levando ao sistema $\nabla f = \lambda \nabla g$ junto com $g(x, y) = c$.</item>
+      </list>
+    </section>
+
+    <section id="sec:4-2-alem">
+      <title>Para ir além</title>
+      Agora que você sabe encontrar e classificar pontos críticos analiticamente — e descobriu por que resolver $\nabla J = \mathbf{0}$ à mão funciona perfeitamente em polinômios simples e na regressão linear, mas fica impraticável em modelos não lineares com milhares de parâmetros —, o próximo passo é o <strong>Tema 4.3 — Métodos computacionais</strong> (onde transformaremos $-\nabla J$ em algoritmos iterativos como a descida de gradiente em Python), preparando o terreno para o <strong>Módulo 5 — Álgebra Linear</strong> (onde veremos matrizes, determinantes e a interpretação geométrica dos mínimos quadrados). Para aprofundar sua intuição visual:
+      <list marker="dash">
+        <item><strong>Vídeo recomendado:</strong> <link to="https://www.youtube.com/watch?v=IHZwWFHWa-w">3Blue1Brown — Gradient Descent (série de Redes Neurais)</link>, que mostra como paisagens de custo, mínimos locais e vales aparecem durante o treinamento de modelos.</item>
+        <item><strong>Exploração visual:</strong> pesquise no YouTube por visualizações de <em>superfícies e paisagens de custo (cost landscapes)</em> em 3D e pontos de sela para enxergar por que trajetórias de descida podem desacelerar perto de selas ou ficar presas em mínimos locais.</item>
+        <item><strong>Referência técnica opcional:</strong> para explorar funções numéricas que aparecerão nos algoritmos do próximo tema, consulte a <link to="https://numpy.org/doc/stable/">documentação oficial do NumPy</link>.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 4 · Otimização — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

@@ -1,0 +1,1174 @@
+<document>
+  <title>Módulo 6 · Programação (Python)</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-6-5">Voltar ao guia (Tema 6.5)</link></meta-item>
+    <meta-item key="Módulo">Módulo 6 · Programação (Python) — Saindo da Teoria para a Prática Ferramental</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-6-5">
+    <title>Códigos funcionais</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Organizar o código em funções reutilizáveis, testáveis e legíveis — e empacotá-las em módulos próprios.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Da análise de disparos neuronais (<em>spikes</em>) ao pré-processamento de eletroencefalografia (EEG, amostrado entre $250$ e $1\,000\text{ Hz}$) e de ressonância magnética funcional (fMRI, com tempo de repetição $\text{TR} \approx 2\text{ s}$), a neurociência computacional vive em Python. Bibliotecas como MNE e nilearn são coleções organizadas de funções testadas por milhares de pesquisadores. Reprodutibilidade e versionamento são exigências de laboratórios e revistas científicas — não detalhes opcionais.
+
+    Nos temas anteriores, <mark>Comandos iniciais e lógica básica</mark> e <mark>Estruturas de dados básicas</mark>, você escreveu laços e condicionais soltos no meio do script para calcular conteúdo GC, converter potenciais de membrana e filtrar experimentos. Imagine agora ter que repetir esse mesmo bloco de dez linhas para vinte animais diferentes: além de poluir o notebook, se você descobrir um erro de conversão de unidades em um dos cálculos, precisará caçar e corrigir todas as cópias à mão. A solução é exatamente a mesma ideia de função que você já conhece do Módulo 1 (<mark>Pré-Cálculo</mark>, tema <mark>Funções</mark>): uma máquina bem definida que recebe entradas e devolve uma saída previsível. Empacotar cada tarefa em uma função com nome claro e testes automáticos é o passo decisivo para construir código confiável em <mark>Bibliotecas</mark> e no projeto final do módulo.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>definir e chamar funções com <c>def</c>, parâmetros, <c>return</c>, retorno múltiplo por tupla e <em>docstrings</em> com unidades;</item>
+      <item>diferenciar <c>return</c> de <c>print</c>, usar argumentos posicionais, nomeados e valores padrão e distinguir escopo local de escopo global;</item>
+      <item>evitar efeitos colaterais indesejados e a armadilha de valores padrão mutáveis, validando suas funções com testes <c>assert</c>;</item>
+      <item>escrever compreensões de lista e de dicionário legíveis e ordenar dados passando funções ou expressões <c>lambda</c> em <c>sorted(..., key=...)</c>;</item>
+      <item>importar módulos da biblioteca padrão, criar seus próprios arquivos <c>.py</c> no Colab com <c>%%writefile</c> e proteger testes com <c>if __name__ == "__main__":</c>.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Domínio de variáveis, condicionais, laços e <em>f-strings</em> vistos em <mark>Comandos iniciais e lógica básica</mark>, além de listas, tuplas e dicionários vistos em <mark>Estruturas de dados básicas</mark>. Também ajuda retomar o conceito matemático de função como regra entrada → saída do tema <mark>Funções</mark> no Módulo 1 (<mark>Pré-Cálculo</mark>).
+
+    <section id="sec:6-5-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Definir e chamar funções</title>
+      <intro>
+        Em vez de copiar e colar os mesmos passos de cálculo dezenas de vezes, você escreve a receita uma única vez, dá um nome claro a ela e passa a reutilizá-la como um bloco de montar confiável.
+      </intro>
+
+      No laboratório de biologia molecular, ninguém escreve o protocolo inteiro de extração de DNA por extenso em cada linha do caderno de bancada: você escreve o protocolo uma vez em uma ficha — com os reagentes de entrada e o produto esperado na saída — e, no dia a dia, apenas anota "aplicar protocolo de extração à amostra B3". Em programação, essa ficha de protocolo reutilizável é uma <strong>função</strong> (<em>function</em>).
+
+      Você já conhece a essência disso do Módulo 1 (<mark>Pré-Cálculo</mark>): uma função matemática $f$ recebe uma entrada $x$ e produz uma saída $f(x)$. Em Python, uma função faz o mesmo trajeto entrada → saída, mas pode receber zero, uma ou várias entradas, executar quantas linhas de lógica forem necessárias e devolver um ou mais resultados. Organizar o código em funções atende a três objetivos práticos: evita repetição de código (princípio conhecido como <em>Don't Repeat Yourself</em>, ou "não se repita"), dá nomes descritivos a ideias biológicas (ler <c>taxa_disparo(30, 1500)</c> é muito mais claro do que ler <c>30 / (1500 / 1000)</c> perdido no meio de um script) e permite testar cada pedaço do programa separadamente.
+
+      <definition id="def:6-5-funcao">
+        <title>Definição de função (<c>def</c>), parâmetros e <c>return</c></title>
+        Em Python, criamos uma função com a palavra-chave <c>def</c>, seguida do nome da função, de uma lista de <strong>parâmetros</strong> entre parênteses e de dois pontos <c>:</c>. Todo o código que pertence à função forma o <strong>corpo</strong>, escrito com indentação de quatro espaços. A instrução <c>return</c> encerra a execução da função e envia o resultado de volta para quem a chamou.
+        <intuition>
+          Pense nos parâmetros como as entradas vazias de um formulário de protocolo: quando você <em>define</em> a função com <c>def</c>, o Python apenas guarda a receita na memória sem executá-la; quando você <em>chama</em> a função passando <strong>argumentos</strong> concretos entre parênteses, o formulário é preenchido, o cálculo roda e o <c>return</c> entrega a resposta.
+        </intuition>
+      </definition>
+
+      Observe primeiro um exemplo mínimo e determinístico: converter um potencial de membrana de milivolts ($\text{mV}$) para volts ($\text{V}$), lembrando que $1\text{ V} = 1\,000\text{ mV}$. Como sempre nesta aula, cada bloco de código é autocontido para rodar em uma célula independente do Google Colab:
+
+      <code lang="python" id="cod:6-5-mv-para-v">
+def mv_para_v(v_mv):
+    return v_mv / 1000.0
+
+repouso_v = mv_para_v(-70.0)
+limiar_v = mv_para_v(-55.0)
+
+print("Repouso (V):", repouso_v)  # Repouso (V): -0.07
+print("Limiar (V):", limiar_v)    # Limiar (V): -0.055
+      </code>
+
+      Repare na separação clara entre <strong>definir</strong> e <strong>chamar</strong>. As duas primeiras linhas apenas ensinam ao interpretador Python o que significa <c>mv_para_v</c>. Só na quarta linha, ao escrever <c>mv_para_v(-70.0)</c>, o valor <c>-70.0</c> entra no parâmetro <c>v_mv</c>, a divisão é executada e o <c>return</c> devolve <c>-0.07</c> para ser guardado em <c>repouso_v</c>. Depois, reutilizamos a mesma receita para <c>-55.0</c> sem reescrever a divisão por <c>1000.0</c>.
+
+      Muita gente que está começando confunde duas instruções que parecem fazer a mesma coisa na tela, mas têm efeitos completamente diferentes na memória do programa: <c>print</c> e <c>return</c>.
+
+      <proposition id="prop:6-5-return-print">
+        <title>Diferença entre <c>return</c> e <c>print</c> (retorno implícito <c>None</c>)</title>
+        <list marker="number">
+          <item><c>print(...)</c> apenas exibe texto na tela para leitura humana; ele <strong>não</strong> devolve nenhum valor utilizável ao restante do código.</item>
+          <item><c>return valor</c> entrega <c>valor</c> ao ponto onde a função foi chamada (permitindo guardá-lo em uma variável ou usá-lo em novas contas) e interrompe imediatamente a execução da função.</item>
+          <item>Se uma função termina sem executar nenhum <c>return</c> (ou executa um <c>return</c> vazio), ela devolve automaticamente o objeto especial <c>None</c> (nulo).</item>
+        </list>
+      </proposition>
+
+      Veja na prática o que acontece quando alguém tenta guardar ou somar o resultado de uma função que apenas usa <c>print</c>:
+
+      <code lang="python" id="cod:6-5-return-vs-print">
+def dobro_imprime(x):
+    print("Resultado interno:", 2 * x)
+
+def dobro_devolve(x):
+    return 2 * x
+
+a = dobro_imprime(15)
+print("Valor guardado em a:", a)
+# Resultado interno: 30
+# Valor guardado em a: None
+
+b = dobro_devolve(15)
+print("Valor guardado em b:", b)  # Valor guardado em b: 30
+print("b + 5 =", b + 5)           # b + 5 = 35
+      </code>
+
+      Ao chamar <c>dobro_imprime(15)</c>, o número <c>30</c> apareceu na tela durante a execução, mas não voltou para a variável <c>a</c>, que recebeu <c>None</c>. Se tentássemos calcular <c>a + 5</c>, o Python pararia imediatamente com <c>TypeError: unsupported operand type(s) for +: 'NoneType' and 'int'</c>. Já <c>dobro_devolve(15)</c> entrega o inteiro <c>30</c> para <c>b</c>, pronto para cálculos posteriores. Como regra prática, funções de cálculo quase sempre devem usar <c>return</c> — e quem decide se e como imprimir o resultado é o código que chamou a função.
+
+      Muitas tarefas biológicas produzem mais de uma medida de uma só vez: por exemplo, o potencial mínimo e o potencial máximo de um registro eletrofisiológico. Em Python, basta separar os valores por vírgula após o <c>return</c>. Internamente, o Python empacota esses valores em uma <strong>tupla</strong> (como vimos no tema <mark>Estruturas de dados básicas</mark>), permitindo que você os receba diretamente por <strong>desempacotamento</strong> (<em>unpacking</em>):
+
+      <code lang="python" id="cod:6-5-retorno-multiplo">
+def faixa_potencial(potenciais_mv):
+    return min(potenciais_mv), max(potenciais_mv)
+
+traco = [-70.0, -68.0, -54.0, 28.0, -73.0]
+v_min, v_max = faixa_potencial(traco)
+
+print(f"Mínimo: {v_min} mV | Máximo: {v_max} mV")
+# Mínimo: -73.0 mV | Máximo: 28.0 mV
+      </code>
+
+      Por fim, uma função reutilizável precisa explicar rapidamente o que espera receber e em quais <strong>unidades</strong>. Misturar milissegundos com segundos ou milivolts com volts é uma das fontes mais comuns de erros silenciosos na neurociência computacional. Para evitar isso, colocamos uma cadeia de documentação — a <strong><em>docstring</em></strong> — logo na primeira linha dentro da função.
+
+      <definition id="def:6-5-docstring">
+        <title><em>Docstring</em> e ajuda integrada (<c>help</c>)</title>
+        Uma <strong><em>docstring</em></strong> (<em>documentation string</em>) é um texto delimitado por três aspas duplas <c>"""..."""</c> colocado imediatamente após a linha <c>def</c>. Ela descreve em português direto: o que a função faz, cada parâmetro (tipo e unidade) e o que ela devolve (tipo e unidade). Essa documentação fica gravada no atributo <c>funcao.__doc__</c> e pode ser lida interativamente com <c>help(funcao)</c>.
+      </definition>
+
+      Vamos consolidar esses quatro elementos — <c>def</c>, <c>return</c>, unidades e <em>docstring</em> — em dois exemplos biológicos passo a passo.
+
+      <example id="exm:6-5-conteudo-gc">
+        <title>Fração GC de uma sequência de DNA com <em>docstring</em></title>
+        Queremos uma função <c>conteudo_gc(seq)</c> que receba uma sequência de DNA (em maiúsculas ou minúsculas), conte as bases guanina (<c>G</c>) e citosina (<c>C</c>) e devolva a fração GC entre $0{,}0$ e $1{,}0$. Também devemos proteger o caso em que a string recebida é vazia para evitar divisão por zero.
+
+        <code lang="python" id="cod:6-5-exm-gc">
+def conteudo_gc(seq):
+    """Calcula a fração de bases G e C em uma sequência de DNA.
+
+    Parâmetros:
+        seq (str): sequência de nucleotídeos (ex.: 'ATGGCC').
+    Retorno:
+        float: fração entre 0.0 e 1.0 (0.0 se seq for vazia).
+    """
+    seq_limpa = seq.upper()
+    if len(seq_limpa) == 0:
+        return 0.0
+    n_gc = seq_limpa.count("G") + seq_limpa.count("C")
+    return n_gc / len(seq_limpa)
+
+print("ATGC ->", conteudo_gc("ATGC"))          # ATGC -> 0.5
+print("gggCCCaa ->", conteudo_gc("gggCCCaa"))  # gggCCCaa -> 0.75
+print("Vazia ->", conteudo_gc(""))             # Vazia -> 0.0
+print("Resumo:", conteudo_gc.__doc__.splitlines()[0])
+# Resumo: Calcula a fração de bases G e C em uma sequência de DNA.
+        </code>
+
+        <strong>Passo a passo:</strong> primeiro convertemos <c>seq</c> para maiúsculas com <c>.upper()</c> para tratar igualmente <c>"g"</c> e <c>"G"</c>. Em seguida, verificamos se o comprimento é zero e devolvemos <c>0.0</c> antecipadamente (<em>early return</em>), impedindo uma divisão por zero. Para <c>"ATGC"</c>, há $2$ bases GC em $4$ ($0{,}5$); para <c>"gggCCCaa"</c>, há $6$ bases GC em $8$ ($0{,}75$). No Colab, executar <c>help(conteudo_gc)</c> exibe a <em>docstring</em> inteira formatada.
+      </example>
+
+      <example id="exm:6-5-taxa-disparo">
+        <title>Taxa de disparo neuronal com conversão de milissegundos para segundos</title>
+        Em registros eletrofisiológicos, a janela de análise costuma vir em milissegundos ($\text{ms}$), enquanto a taxa de disparo é expressa em hertz ($\text{Hz}$, disparos por segundo). Escrevemos <c>taxa_disparo(n_spikes, duracao_ms)</c> documentando explicitamente as unidades na <em>docstring</em> para nunca dividir por milissegundos por engano.
+
+        <code lang="python" id="cod:6-5-exm-taxa">
+def taxa_disparo(n_spikes, duracao_ms):
+    """Calcula a taxa média de disparo neuronal em Hz.
+
+    Parâmetros:
+        n_spikes (int): número de potenciais de ação.
+        duracao_ms (float): duração da janela de registro em milissegundos.
+    Retorno:
+        float: taxa média de disparo em hertz (Hz).
+    """
+    duracao_s = duracao_ms / 1000.0
+    return n_spikes / duracao_s
+
+basal_hz = taxa_disparo(18, 1500)
+evocada_hz = taxa_disparo(45, 500)
+
+print(f"Basal: {basal_hz:.1f} Hz")      # Basal: 12.0 Hz
+print(f"Evocada: {evocada_hz:.1f} Hz")  # Evocada: 90.0 Hz
+        </code>
+
+        <strong>Passo a passo:</strong> em $1\,500\text{ ms} = 1{,}5\text{ s}$, $18$ disparos correspondem a $18 / 1{,}5 = 12{,}0\text{ Hz}$ (atividade basal realista); durante o estímulo, $45$ disparos em $500\text{ ms} = 0{,}5\text{ s}$ correspondem a $45 / 0{,}5 = 90{,}0\text{ Hz}$.
+      </example>
+
+      <remark id="rem:6-5-armadilha-sec1">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Usar <c>print</c> no lugar de <c>return</c>:</strong> se você imprime o valor dentro da função e esquece o <c>return</c>, a função devolve <c>None</c> e quebra qualquer conta feita depois com o resultado.</item>
+          <item><strong>Esquecer os parênteses ao chamar a função:</strong> escrever <c>x = taxa_disparo</c> sem parênteses não executa a função — apenas cria outro nome apontando para o próprio objeto função na memória. Para rodar a função, os parênteses <c>(...)</c> são obrigatórios.</item>
+          <item><strong>Escrever código depois do <c>return</c>:</strong> assim que o Python encontra <c>return</c>, ele sai da função na hora; qualquer linha logo abaixo no mesmo bloco jamais será executada.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:6-5-1-1">
+        <title>Básico — Corrigindo uma função que imprime em vez de devolver</title>
+        Um colega escreveu o código abaixo para converter uma janela de registro de milissegundos para segundos e calcular a taxa de disparo, mas o script trava com <c>TypeError</c>. Explique o erro, corrija a função e faça o cálculo imprimir a taxa correta em Hz.
+        <code lang="python" numbered="false" lines="false">
+def converter_ms_para_s(ms):
+    print(ms / 1000.0)
+
+duracao_s = converter_ms_para_s(500)
+taxa_hz = 25 / duracao_s
+print("Taxa (Hz):", taxa_hz)
+        </code>
+        <hint><title>Ver dica</title>Verifique o que <c>converter_ms_para_s(500)</c> realmente guarda em <c>duracao_s</c> e substitua <c>print(...)</c> pela instrução que envia o número de volta.</hint>
+        <solution collapsible="true" collapsed="true">
+          A função usava <c>print(ms / 1000.0)</c> sem <c>return</c>, portanto devolvia <c>None</c> para <c>duracao_s</c>; dividir <c>25</c> por <c>None</c> dispara <c>TypeError</c>. Trocando <c>print</c> por <c>return</c>, <c>duracao_s</c> recebe <c>0.5</c> e a taxa resulta em $25 / 0{,}5 = 50{,}0\text{ Hz}$.
+
+          <code lang="python" id="cod:6-5-sol-1-1">
+def converter_ms_para_s(ms):
+    return ms / 1000.0
+
+duracao_s = converter_ms_para_s(500)
+taxa_hz = 25 / duracao_s
+print("Duração (s):", duracao_s)  # Duração (s): 0.5
+print("Taxa (Hz):", taxa_hz)      # Taxa (Hz): 50.0
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-5-1-2">
+        <title>Básico — Despolarização restante até o limiar</title>
+        Escreva uma função <c>despolarizacao_necessaria(v_atual_mv, v_limiar_mv)</c>, com <em>docstring</em> indicando as unidades, que devolva quantos milivolts ainda faltam para o potencial atual atingir o limiar (ou <c>0.0</c> se o potencial atual já for maior ou igual ao limiar). Teste com <c>(-70.0, -55.0)</c> e <c>(-50.0, -55.0)</c>.
+        <hint><title>Ver dica</title>Calcule <c>diferenca = v_limiar_mv - v_atual_mv</c>; se <c>diferenca <= 0</c>, devolva <c>0.0</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Quando o neurônio está em repouso a $-70{,}0\text{ mV}$, faltam $-55{,}0 - (-70{,}0) = 15{,}0\text{ mV}$ para alcançar $-55{,}0\text{ mV}$. Quando já está em $-50{,}0\text{ mV}$, a diferença é $-5{,}0$, portanto a função devolve <c>0.0</c>.
+
+          <code lang="python" id="cod:6-5-sol-1-2">
+def despolarizacao_necessaria(v_atual_mv, v_limiar_mv):
+    """Calcula quantos mV faltam para atingir o limiar de disparo.
+
+    Parâmetros:
+        v_atual_mv (float): potencial de membrana atual em mV.
+        v_limiar_mv (float): limiar de disparo em mV.
+    Retorno:
+        float: despolarização restante em mV (0.0 se já atingiu o limiar).
+    """
+    diferenca = v_limiar_mv - v_atual_mv
+    if diferenca <= 0:
+        return 0.0
+    return diferenca
+
+print("Em repouso:", despolarizacao_necessaria(-70.0, -55.0))  # Em repouso: 15.0
+print("Acima:", despolarizacao_necessaria(-50.0, -55.0))       # Acima: 0.0
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-5-1-3">
+        <title>Intermediário — Contagem e fração GC com retorno múltiplo</title>
+        Crie uma função <c>analisar_gc(seq)</c> com <em>docstring</em> que devolva dois valores em uma tupla: o número inteiro de bases <c>G</c> e <c>C</c> e a fração GC (entre <c>0.0</c> e <c>1.0</c>). Desempacote o retorno para a sequência <c>"ATGCGCTAGC"</c> e imprima ambos os valores.
+        <hint><title>Ver dica</title>Escreva <c>return total_gc, fracao</c> ao final e desempacote na chamada com <c>qtd, frac = analisar_gc(...)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Na sequência <c>"ATGCGCTAGC"</c> de $10$ nucleotídeos, há $3$ guaninas e $3$ citosinas, somando $6$ bases GC e fração $6 / 10 = 0{,}60$.
+
+          <code lang="python" id="cod:6-5-sol-1-3">
+def analisar_gc(seq):
+    """Conta bases G/C e calcula a fração GC de uma sequência de DNA.
+
+    Parâmetros:
+        seq (str): sequência de nucleotídeos.
+    Retorno:
+        tuple: par (total_gc, fracao_gc) como (int, float).
+    """
+    s = seq.upper()
+    total_gc = s.count("G") + s.count("C")
+    fracao = total_gc / len(s) if len(s) > 0 else 0.0
+    return total_gc, fracao
+
+qtd, frac = analisar_gc("ATGCGCTAGC")
+print(f"Bases GC: {qtd} | Fração: {frac:.2f}")  # Bases GC: 6 | Fração: 0.60
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-5-1-4">
+        <title>Avançado — Duração e volume de pontos de um trecho de EEG</title>
+        Escreva uma função <c>resumo_janela_eeg(n_amostras, n_canais, freq_hz)</c>, com <em>docstring</em> completa (incluindo unidades), que calcule e devolva a tupla <c>(duracao_s, total_pontos)</c> de um trecho de EEG. Desempacote e imprima o resultado para $500$ amostras por canal, $32$ canais e frequência de amostragem de $250{,}0\text{ Hz}$.
+        <hint><title>Ver dica</title>A duração em segundos é <c>n_amostras / freq_hz</c>, e o total de pontos numéricos na matriz é <c>n_amostras * n_canais</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Dividindo $500$ amostras por $250{,}0\text{ Hz}$, obtemos exatamente $2{,}0\text{ s}$ de registro; multiplicando $500$ amostras por $32$ canais, obtemos $16\,000$ pontos de voltagem armazenados.
+
+          <code lang="python" id="cod:6-5-sol-1-4">
+def resumo_janela_eeg(n_amostras, n_canais, freq_hz):
+    """Calcula a duração e o total de pontos de um trecho de EEG.
+
+    Parâmetros:
+        n_amostras (int): número de amostras temporais por canal.
+        n_canais (int): número de eletrodos (canais).
+        freq_hz (float): frequência de amostragem em Hz.
+    Retorno:
+        tuple: (duracao_s, total_pontos) em segundos e pontos.
+    """
+    duracao_s = n_amostras / freq_hz
+    total_pontos = n_amostras * n_canais
+    return duracao_s, total_pontos
+
+dur, pts = resumo_janela_eeg(500, 32, 250.0)
+print(f"Duração: {dur:.1f} s | Total de pontos: {pts}")
+# Duração: 2.0 s | Total de pontos: 16000
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-5-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Parâmetros, escopo e efeitos colaterais</title>
+      <intro>
+        Funções maduras têm parâmetros flexíveis com valores padrão seguros, não dependem de variáveis escondidas fora delas, não alteram seus dados originais por acidente e carregam testes automáticos para provar que funcionam.
+      </intro>
+
+      Quando você usa um aparelho de eletrofisiologia ou uma centrífuga de bancada, vários ajustes vêm pré-configurados em um valor padrão razoável (como o limiar de disparo clássico de $-55{,}0\text{ mV}$ ou a temperatura de $37\,^\circ\text{C}$), e você só altera esses ajustes quando o protocolo exige um valor diferente. Em Python, fazemos o mesmo dando <strong>valores padrão</strong> aos parâmetros.
+
+      Existem duas maneiras de passar argumentos ao chamar uma função: por <strong>posição</strong> (na mesma ordem em que os parâmetros aparecem no <c>def</c>) ou por <strong>nome</strong> (<em>keyword arguments</em>, escrevendo <c>nome=valor</c>, o que deixa a chamada autoexplicativa e independe da ordem). Duas regras sintáticas governam essas chamadas: na definição, todo parâmetro com valor padrão deve ficar à direita dos parâmetros obrigatórios; na chamada, todo argumento posicional deve vir antes dos argumentos nomeados.
+
+      <code lang="python" id="cod:6-5-args-padrao">
+def esta_acima_limiar(v_mv, limiar_mv=-55.0):
+    """Indica se o potencial v_mv (mV) atingiu ou superou limiar_mv (mV)."""
+    return v_mv >= limiar_mv
+
+print("Padrão (-58):", esta_acima_limiar(-58.0))  # Padrão (-58): False
+print("Padrão (-55):", esta_acima_limiar(-55.0))  # Padrão (-55): True
+print("Nomeado (-58, -60):", esta_acima_limiar(limiar_mv=-60.0, v_mv=-58.0))
+# Nomeado (-58, -60): True
+      </code>
+
+      Na terceira chamada, passamos ambos os argumentos pelo nome em ordem invertida e sobrescrevemos o valor padrão de <c>limiar_mv</c> para <c>-60.0</c>, sem ambiguidade alguma.
+
+      Agora precisamos entender onde as variáveis criadas dentro e fora de uma função realmente vivem — conceito conhecido como <strong>escopo</strong> (<em>scope</em>).
+
+      <definition id="def:6-5-escopo">
+        <title>Escopo local e escopo global</title>
+        <list marker="dash">
+          <item><strong>Escopo local:</strong> parâmetros e variáveis atribuídas dentro de uma função existem apenas durante aquela chamada. Do lado de fora da função, essas variáveis não são visíveis.</item>
+          <item><strong>Escopo global:</strong> variáveis criadas no nível principal do script ou notebook. Uma função consegue <em>ler</em> uma variável global, mas depender disso cria acoplamento invisível e torna a função difícil de reutilizar.</item>
+        </list>
+        <intuition>
+          Pense no escopo local como uma câmara de fluxo laminar fechada: as etiquetas que você cola nos tubos lá dentro não aparecem na bancada principal do laboratório e vão para o descarte assim que o procedimento acaba.
+        </intuition>
+      </definition>
+
+      Veja o comportamento do escopo no código a seguir:
+
+      <code lang="python" id="cod:6-5-escopo">
+limiar_global = -55.0
+
+def margem_para_limiar(v_mv):
+    margem_local = v_mv - limiar_global  # lê a global; margem_local é local
+    return margem_local
+
+print("Margem (mV):", margem_para_limiar(-62.0))  # Margem (mV): -7.0
+# Tentar print(margem_local) fora da função geraria NameError
+      </code>
+
+      Embora <c>margem_para_limiar</c> tenha conseguido ler <c>limiar_global</c>, esse estilo é perigoso: se alguém mudar <c>limiar_global</c> três células abaixo ou copiar a função para outro arquivo, ela passa a dar resultados diferentes ou quebra com <c>NameError</c>. Prefira sempre passar tudo de que a função precisa via parâmetros explícitos (como fizemos com <c>limiar_mv=-55.0</c>). Além disso, se você tentar atribuir um valor a uma variável com o mesmo nome da global dentro da função, o Python simplesmente cria uma nova variável local separada, sem tocar na global.
+
+      Ainda mais importante do que variáveis globais é entender o que acontece quando uma função recebe uma estrutura mutável, como uma lista ou um dicionário, conforme vimos no conceito de apelido (<em>aliasing</em>) em <mark>Estruturas de dados básicas</mark>.
+
+      <definition id="def:6-5-funcao-pura">
+        <title>Função pura versus efeito colateral (<em>side effect</em>)</title>
+        Uma <strong>função pura</strong> depende apenas de seus argumentos de entrada e devolve um valor sem produzir nenhuma alteração observável fora dela (não modifica listas ou dicionários recebidos, não grava arquivos e não depende de estado externo mutável). Quando uma função altera a lista original recebida como argumento ou modifica variáveis externas, dizemos que ela tem um <strong>efeito colateral</strong> (<em>side effect</em>).
+      </definition>
+
+      Compare as duas abordagens no código abaixo ao aplicar uma correção de <c>+5.0</c> mV a um traço de potencial:
+
+      <code lang="python" id="cod:6-5-pura-vs-colateral">
+def deslocar_puro(potenciais, offset_mv):
+    nova = []
+    for v in potenciais:
+        nova.append(v + offset_mv)
+    return nova
+
+def deslocar_inplace(potenciais, offset_mv):
+    for i in range(len(potenciais)):
+        potenciais[i] = potenciais[i] + offset_mv
+
+orig = [-70.0, -68.0, -65.0]
+ajustada = deslocar_puro(orig, 5.0)
+print("Após função pura -> orig:", orig)          # Após função pura -> orig: [-70.0, -68.0, -65.0]
+print("Após função pura -> ajustada:", ajustada)  # Após função pura -> ajustada: [-65.0, -63.0, -60.0]
+
+deslocar_inplace(orig, 5.0)
+print("Após efeito colateral -> orig:", orig)     # Após efeito colateral -> orig: [-65.0, -63.0, -60.0]
+      </code>
+
+      Em análises científicas, prefira quase sempre funções puras: elas preservam os dados brutos intactos, são previsíveis e reproduzem exatamente os mesmos resultados sempre que chamadas com os mesmos argumentos.
+
+      <remark id="rem:6-5-padrao-mutavel">
+        <title>Armadilha comum</title>
+        <strong>Valor padrão mutável (<c>def adiciona(x, lista=[])</c>):</strong> este é um dos erros mais famosos do Python. Quando você escreve <c>lista=[]</c> na linha <c>def</c>, o Python cria essa lista vazia <em>uma única vez</em> quando a função é definida — e <strong>não</strong> a cada chamada! Por isso, chamadas que omitirem o segundo argumento acumulam itens na mesma lista invisível.
+
+        <code lang="python" id="cod:6-5-armadilha-mutavel">
+# JEITO ERRADO: lista=[] é criada uma única vez na definição
+def adiciona_bug(x, lista=[]):
+    lista.append(x)
+    return lista
+
+print("Bug 1ª chamada:", adiciona_bug("N1"))  # Bug 1ª chamada: ['N1']
+print("Bug 2ª chamada:", adiciona_bug("N2"))  # Bug 2ª chamada: ['N1', 'N2']
+
+# JEITO CORRETO: use None como sentinela e crie a lista dentro da função
+def adiciona_seguro(x, lista=None):
+    if lista is None:
+        lista = []
+    lista.append(x)
+    return lista
+
+print("Seguro 1ª chamada:", adiciona_seguro("N1"))  # Seguro 1ª chamada: ['N1']
+print("Seguro 2ª chamada:", adiciona_seguro("N2"))  # Seguro 2ª chamada: ['N2']
+        </code>
+
+        A mesma regra vale para dicionários (<c>registro=None</c> em vez de <c>registro={}</c>) ou conjuntos: use sempre <c>None</c> como padrão e inicialize o objeto mutável dentro da função.
+      </remark>
+
+      Depois de escrever uma função, como garantir que ela acerta casos de borda sem conferir números à mão a cada mudança no código? Usamos a instrução <c>assert</c>.
+
+      <definition id="def:6-5-assert">
+        <title>Testes automáticos com <c>assert</c></title>
+        A instrução <c>assert condicao, "mensagem opcional"</c> avalia <c>condicao</c>. Se for <c>True</c>, o programa segue em silêncio; se for <c>False</c>, interrompe a execução com <c>AssertionError</c>.
+
+        Para números decimais (<c>float</c>), devido a pequenas imprecisões de representação binária (vistas em <mark>Comandos iniciais e lógica básica</mark>), compare a diferença absoluta com uma tolerância pequena, como <c>abs(resultado - esperado) < 1e-12</c>.
+      </definition>
+
+      Por exemplo, para a função do <ref to="exm:6-5-conteudo-gc"/>, escrevemos <c>assert abs(conteudo_gc("GGCC") - 1.0) < 1e-12</c>. Vamos aplicar parâmetros padrão, função pura e testes <c>assert</c> em dois exemplos biológicos.
+
+      <example id="exm:6-5-contar-spikes">
+        <title>Contador de <em>spikes</em> por cruzamento de limiar com testes <c>assert</c></title>
+        Em um registro intracelular, um único potencial de ação permanece acima de $-55{,}0\text{ mV}$ por várias amostras seguidas (por exemplo, $-54\text{ mV}$, $+30\text{ mV}$, $-40\text{ mV}$). Como vimos em <mark>Comandos iniciais e lógica básica</mark>, contar amostras acima do limiar superestimaria os disparos. O critério correto conta apenas <strong>cruzamentos de baixo para cima</strong>: instantes $i \ge 1$ com <c>potenciais[i - 1] < limiar_mv</c> e <c>potenciais[i] >= limiar_mv</c>.
+
+        <code lang="python" id="cod:6-5-exm-contar-spikes">
+def contar_spikes(potenciais, limiar_mv=-55.0):
+    """Conta potenciais de ação por cruzamento ascendente do limiar.
+
+    Parâmetros:
+        potenciais (list[float]): série temporal de potencial em mV.
+        limiar_mv (float): limiar de disparo em mV (padrão: -55.0).
+    Retorno:
+        int: número de cruzamentos de baixo para cima.
+    """
+    if len(potenciais) < 2:
+        return 0
+    spikes = 0
+    for i in range(1, len(potenciais)):
+        if potenciais[i - 1] < limiar_mv and potenciais[i] >= limiar_mv:
+            spikes += 1
+    return spikes
+
+# Casos pequenos conferidos à mão
+assert contar_spikes([]) == 0
+assert contar_spikes([-70.0]) == 0
+assert contar_spikes([-70.0, -65.0, -56.0, -68.0]) == 0
+assert contar_spikes([-70.0, -54.0, 30.0, -40.0, -72.0]) == 1
+assert contar_spikes([-70.0, -55.0, 20.0, -71.0, -50.0, -70.0]) == 2
+assert contar_spikes([-70.0, -58.0, -70.0], limiar_mv=-60.0) == 1
+
+print("Todos os testes de contar_spikes passaram!")
+# Todos os testes de contar_spikes passaram!
+        </code>
+
+        <strong>Passo a passo:</strong> listas com menos de $2$ pontos retornam <c>0</c>. No quarto teste, o traço fica acima de $-55{,}0\text{ mV}$ por três amostras seguidas, mas há apenas um cruzamento (<c>-70.0</c> para <c>-54.0</c>), resultando em <c>1</c>. No sexto teste, um pico de $-58{,}0\text{ mV}$ só é contado quando ajustamos <c>limiar_mv=-60.0</c>.
+      </example>
+
+      <example id="exm:6-5-normalizar-pura">
+        <title>Função pura para desvio em relação ao repouso com tolerância numérica</title>
+        Calculamos o desvio de cada amostra de potencial em relação à linha de base padrão (<c>repouso_mv=-70.0</c>), devolvendo uma nova lista sem alterar a original e conferindo com <c>assert</c>.
+
+        <code lang="python" id="cod:6-5-exm-normalizar">
+def subtrair_repouso(potenciais, repouso_mv=-70.0):
+    """Devolve nova lista com os desvios em mV em relação ao repouso."""
+    desvios = []
+    for v in potenciais:
+        desvios.append(v - repouso_mv)
+    return desvios
+
+traco_original = [-70.0, -68.0, -55.0]
+desvios = subtrair_repouso(traco_original)
+
+assert desvios == [0.0, 2.0, 15.0]
+assert traco_original == [-70.0, -68.0, -55.0]
+assert abs(sum(desvios) / len(desvios) - (17.0 / 3.0)) < 1e-12
+
+print("Desvios (mV):", desvios)           # Desvios (mV): [0.0, 2.0, 15.0]
+print("Original intacto:", traco_original)  # Original intacto: [-70.0, -68.0, -55.0]
+        </code>
+
+        <strong>Passo a passo:</strong> os desvios são $0{,}0$, $2{,}0$ e $15{,}0\text{ mV}$, cuja média vale $17 / 3\text{ mV}$ (dízima periódica); por isso o terceiro <c>assert</c> usa <c>abs(...) < 1e-12</c>. Note como precisamos de quatro linhas só para transformar uma lista em outra — na próxima seção veremos um atalho mais conciso.
+      </example>
+
+      <exercise id="exr:6-5-2-1">
+        <title>Básico — Prevendo a saída de um código com valor padrão mutável</title>
+        Leia o trecho abaixo <em>sem executá-lo primeiro</em>, preveja exatamente o que os dois <c>print</c> exibirão e explique o porquê. Em seguida, reescreva a função <c>registrar_evento</c> corrigindo o bug com o padrão <c>None</c>.
+        <code lang="python" numbered="false" lines="false">
+def registrar_evento(evento, historico=[]):
+    historico.append(evento)
+    return historico
+
+print(registrar_evento("spike_1"))
+print(registrar_evento("spike_2"))
+        </code>
+        <hint><title>Ver dica</title>Lembre que <c>historico=[]</c> é criado uma única vez quando o Python lê o <c>def</c>; na correção, use <c>historico=None</c> e inicialize <c>historico = []</c> dentro do corpo.</hint>
+        <solution collapsible="true" collapsed="true">
+          <strong>Previsão da saída original:</strong> a primeira chamada imprime <c>['spike_1']</c>, mas a segunda imprime <c>['spike_1', 'spike_2']</c> em vez de apenas <c>['spike_2']</c>. Isso ocorre porque a lista padrão <c>[]</c> é alocada na memória uma única vez durante o <c>def</c>, então as duas chamadas compartilham a mesma lista. Usando <c>None</c> como sentinela, cada chamada sem segundo argumento cria uma lista nova e independente:
+
+          <code lang="python" id="cod:6-5-sol-2-1">
+def registrar_evento(evento, historico=None):
+    if historico is None:
+        historico = []
+    historico.append(evento)
+    return historico
+
+print(registrar_evento("spike_1"))  # ['spike_1']
+print(registrar_evento("spike_2"))  # ['spike_2']
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-5-2-2">
+        <title>Básico — Classificador de potencial com parâmetro padrão para o limiar</title>
+        Escreva uma função <c>classificar_potencial(v_mv, limiar_mv=-55.0)</c> que devolva <c>"acima do limiar"</c> quando <c>v_mv >= limiar_mv</c> e <c>"abaixo do limiar"</c> caso contrário. Teste a função com <c>-58.0</c> e <c>-52.0</c> usando o limiar padrão e com <c>-58.0</c> usando o argumento nomeado <c>limiar_mv=-60.0</c>.
+        <hint><title>Ver dica</title>Defina <c>limiar_mv=-55.0</c> no cabeçalho <c>def</c> e use um condicional <c>if v_mv >= limiar_mv:</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Com o padrão <c>-55.0</c>, o valor <c>-58.0</c> fica abaixo e <c>-52.0</c> fica acima; ao passar <c>limiar_mv=-60.0</c>, <c>-58.0</c> passa a estar acima do limiar ajustado.
+
+          <code lang="python" id="cod:6-5-sol-2-2">
+def classificar_potencial(v_mv, limiar_mv=-55.0):
+    """Classifica um potencial em mV em relação ao limiar informado."""
+    if v_mv >= limiar_mv:
+        return "acima do limiar"
+    return "abaixo do limiar"
+
+print(classificar_potencial(-58.0))                   # abaixo do limiar
+print(classificar_potencial(-52.0))                   # acima do limiar
+print(classificar_potencial(-58.0, limiar_mv=-60.0))  # acima do limiar
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-5-2-3">
+        <title>Intermediário — Intervalos entre <em>spikes</em> com <em>docstring</em> e testes <c>assert</c></title>
+        Escreva uma função pura <c>intervalos_entre_spikes(tempos_ms)</c>, com <em>docstring</em> especificando unidades, que receba uma lista ordenada de instantes de disparo em milissegundos e devolva uma nova lista com os intervalos consecutivos (<c>t[i] - t[i - 1]</c>). Inclua testes <c>assert</c> para lista vazia, lista com um único disparo, a lista <c>[10.0, 35.0, 50.0]</c> e a garantia de que a lista original não foi modificada.
+        <hint><title>Ver dica</title>Percorra <c>range(1, len(tempos_ms))</c> acumulando <c>tempos_ms[i] - tempos_ms[i - 1]</c> em uma nova lista; se <c>len(tempos_ms) < 2</c>, o laço nem roda e devolve <c>[]</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para os tempos <c>[10.0, 35.0, 50.0]</c>, os intervalos são $35{,}0 - 10{,}0 = 25{,}0\text{ ms}$ e $50{,}0 - 35{,}0 = 15{,}0\text{ ms}$. O laço começando no índice <c>1</c> trata naturalmente listas de comprimento $0$ ou $1$, devolvendo <c>[]</c>.
+
+          <code lang="python" id="cod:6-5-sol-2-3">
+def intervalos_entre_spikes(tempos_ms):
+    """Calcula os intervalos entre disparos consecutivos (ISI) em ms.
+
+    Parâmetros:
+        tempos_ms (list[float]): instantes ordenados de disparo em ms.
+    Retorno:
+        list[float]: diferenças consecutivas entre disparos em ms.
+    """
+    isis = []
+    for i in range(1, len(tempos_ms)):
+        isis.append(tempos_ms[i] - tempos_ms[i - 1])
+    return isis
+
+amostra = [10.0, 35.0, 50.0]
+assert intervalos_entre_spikes([]) == []
+assert intervalos_entre_spikes([12.0]) == []
+assert intervalos_entre_spikes(amostra) == [25.0, 15.0]
+assert amostra == [10.0, 35.0, 50.0]
+
+print("ISIs (ms):", intervalos_entre_spikes(amostra))  # ISIs (ms): [25.0, 15.0]
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-5-2-4">
+        <title>Avançado — Eliminando dependência global e efeito colateral</title>
+        O código abaixo tenta contar <em>spikes</em> e achar o maior potencial, mas comete dois erros de projeto: depende de uma variável global e destrói a ordem temporal da lista recebida usando <c>.sort()</c>. Refatore-o em uma função pura <c>resumo_picos(potenciais, limiar_mv=-55.0)</c> que devolva <c>(n_spikes, pico_mv)</c> preservando <c>potenciais</c> intacta e valide com <c>assert</c>.
+        <code lang="python" numbered="false" lines="false">
+limiar = -55.0
+
+def resumo_bug(potenciais):
+    n = 0
+    for i in range(1, len(potenciais)):
+        if potenciais[i - 1] < limiar and potenciais[i] >= limiar:
+            n += 1
+    potenciais.sort()
+    return n, potenciais[-1]
+        </code>
+        <hint><title>Ver dica</title>Transforme <c>limiar</c> em parâmetro padrão <c>limiar_mv=-55.0</c> e troque <c>potenciais.sort(); ... potenciais[-1]</c> por <c>max(potenciais)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Chamar <c>potenciais.sort()</c> modificava a lista original por efeito colateral, destruindo a ordem temporal dos potenciais. Usando <c>max(potenciais)</c> obtemos o pico sem alterar a lista, e transformando <c>limiar</c> em parâmetro com valor padrão eliminamos a dependência de escopo global. Na lista <c>[-70.0, -54.0, 28.0, -72.0, -50.0, -70.0]</c>, há $2$ cruzamentos ascendentes e o pico é $28{,}0\text{ mV}$.
+
+          <code lang="python" id="cod:6-5-sol-2-4">
+def resumo_picos(potenciais, limiar_mv=-55.0):
+    """Devolve (n_spikes, pico_mv) sem modificar a série temporal recebida."""
+    if not potenciais:
+        return 0, None
+    n = 0
+    for i in range(1, len(potenciais)):
+        if potenciais[i - 1] < limiar_mv and potenciais[i] >= limiar_mv:
+            n += 1
+    return n, max(potenciais)
+
+traco = [-70.0, -54.0, 28.0, -72.0, -50.0, -70.0]
+n_sp, pico = resumo_picos(traco)
+
+assert (n_sp, pico) == (2, 28.0)
+assert traco == [-70.0, -54.0, 28.0, -72.0, -50.0, -70.0]
+print(f"Spikes: {n_sp} | Pico: {pico} mV")  # Spikes: 2 | Pico: 28.0 mV
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-5-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Compreensões de lista e de dicionário</title>
+      <intro>
+        Quando a tarefa é transformar ou filtrar elementos de uma coleção em uma linha limpa, as compreensões substituem quatro linhas repetitivas de laço por uma expressão que se lê quase como uma definição matemática de conjunto.
+      </intro>
+
+      No final da seção anterior, escrevemos quatro linhas (<c>desvios = []</c>, <c>for v in ...</c>, <c>desvios.append(...)</c>) apenas para aplicar a mesma conta a cada elemento de uma lista. Em análise de dados biológicos, esse padrão "percorrer, filtrar e transformar" aparece o tempo inteiro: converter potenciais de milivolts para volts, selecionar leituras de sequenciamento (<em>reads</em>) com qualidade acima de $30$ ou construir um dicionário ligando genes ao seu comprimento.
+
+      O Python oferece uma sintaxe enxuta inspirada na notação matemática de conjuntos (como $\{v / 1000 : v \in V\}$ no Módulo 1): a <strong>compreensão de lista</strong> (<em>list comprehension</em>).
+
+      <definition id="def:6-5-listcomp">
+        <title>Compreensão de lista</title>
+        Uma <strong>compreensão de lista</strong> constrói uma nova lista aplicando uma expressão a cada item de um iterável, com filtro opcional ao final:
+        <list marker="dash">
+          <item><strong>Transformação:</strong> <c>[expressao for item in iteravel]</c></item>
+          <item><strong>Transformação com filtro:</strong> <c>[expressao for item in iteravel if condicao]</c></item>
+        </list>
+      </definition>
+
+      Compare lado a lado o laço <c>for</c> tradicional com <c>.append()</c> e a compreensão de lista equivalente ao converter uma lista de potenciais de milivolts para volts e filtrar apenas valores acima do limiar:
+
+      <code lang="python" id="cod:6-5-for-vs-comp">
+potenciais_mv = [-70.0, -68.0, -55.0, 30.0]
+
+# Jeito tradicional com for + append
+potenciais_v_laco = []
+for v in potenciais_mv:
+    potenciais_v_laco.append(v / 1000.0)
+
+# Equivalente com compreensão de lista
+potenciais_v = [v / 1000.0 for v in potenciais_mv]
+acima_limiar = [v for v in potenciais_mv if v >= -55.0]
+
+assert potenciais_v == potenciais_v_laco
+print("Em volts:", potenciais_v)      # Em volts: [-0.07, -0.068, -0.055, 0.03]
+print("Acima de -55:", acima_limiar)  # Acima de -55: [-55.0, 30.0]
+      </code>
+
+      A leitura em voz alta segue exatamente a ordem dos termos: "para cada <c>v</c> em <c>potenciais_mv</c>, inclua <c>v / 1000.0</c>". Quando há um <c>if</c> no final, só os itens que passam no teste entram na nova lista.
+
+      A mesma ideia funciona usando chaves <c>{...}</c> e dois pontos <c>:</c> para criar dicionários diretamente.
+
+      <definition id="def:6-5-dictcomp">
+        <title>Compreensão de dicionário</title>
+        Uma <strong>compreensão de dicionário</strong> (<em>dictionary comprehension</em>) cria um novo dicionário gerando pares <c>chave: valor</c> a partir de um iterável:
+        <c>{chave: valor for item in iteravel if condicao}</c>.
+      </definition>
+
+      Por mais elegante que seja essa sintaxe, clareza vem sempre antes de brevidade. Nem todo laço deve virar uma compreensão.
+
+      <proposition id="prop:6-5-quando-nao-comp">
+        <title>Quando não usar compreensões</title>
+        Prefira um laço <c>for</c> comum sempre que:
+        <list marker="number">
+          <item>a lógica exigir múltiplos <c>if</c>/<c>elif</c>/<c>else</c> ou laços aninhados difíceis de ler em uma única linha;</item>
+          <item>o objetivo for executar uma ação com efeito colateral (como chamar <c>print()</c>, gravar um arquivo ou modificar uma lista existente) em vez de construir uma nova coleção.</item>
+        </list>
+      </proposition>
+
+      Outro recurso extremamente útil para organizar análises é o fato de que, em Python, <strong>funções são valores como quaisquer outros</strong>. Você pode guardá-las em variáveis, colocá-las em listas e passá-las como argumento para outras funções — sem parênteses, porque você está entregando a própria função, não o resultado de uma chamada imediata.
+
+      Um uso clássico desse recurso é ordenar listas de dicionários ou tuplas com <c>sorted(..., key=funcao)</c>. A função passada em <c>key</c> recebe cada item da lista e devolve o critério numérico ou alfabético pelo qual o Python deve ordenar. Para critérios muito simples de uma única expressão, você também pode escrever uma função anônima curta com <c>lambda parametro: expressao</c>; sempre que a lógica precisar de mais de uma linha ou de uma <em>docstring</em>, defina uma função normal com <c>def</c>.
+
+      Veja três exemplos biológicos aplicando compreensões e ordenação com <c>key</c>.
+
+      <example id="exm:6-5-reads-qualidade">
+        <title>Filtrando <em>reads</em> de sequenciamento por qualidade média</title>
+        Em sequenciamento de DNA, cada leitura (<em>read</em>) recebe uma pontuação média de qualidade (escore Phred, onde valores acima de $30$ indicam alta confiança). Dada uma lista de tuplas <c>(id_read, qualidade)</c>, queremos extrair apenas os identificadores dos <em>reads</em> com qualidade estritamente acima de $30{,}0$.
+
+        <code lang="python" id="cod:6-5-exm-reads">
+reads = [
+    ("read_01", 34.5),
+    ("read_02", 22.0),
+    ("read_03", 38.2),
+    ("read_04", 29.8),
+    ("read_05", 31.0),
+]
+
+reads_bons = [rid for rid, q in reads if q > 30.0]
+print("Reads aprovados:", reads_bons)
+# Reads aprovados: ['read_01', 'read_03', 'read_05']
+        </code>
+
+        <strong>Passo a passo:</strong> desempacotamos cada tupla diretamente no cabeçalho <c>for rid, q in reads</c>, filtramos com <c>if q > 30.0</c> e guardamos apenas o texto <c>rid</c>. Os dois <em>reads</em> abaixo ou iguais a $30{,}0$ (<c>22.0</c> e <c>29.8</c>) ficam de fora.
+      </example>
+
+      <example id="exm:6-5-dict-genes">
+        <title>Dicionário <c>{gene: comprimento}</c> filtrado por tamanho mínimo</title>
+        Dado um dicionário mapeando nomes de genes a trechos curtos de DNA, construímos com uma compreensão de dicionário um novo mapa <c>{gene: comprimento}</c> mantendo somente sequências com pelo menos $6$ nucleotídeos.
+
+        <code lang="python" id="cod:6-5-exm-dict-genes">
+genes_seq = {
+    "BDNF": "ATGCCG",
+    "FOS": "ATGGCTAGCTAG",
+    "ARC": "ATG",
+    "NPY": "ATGCGATCG",
+}
+
+comprimentos = {
+    gene: len(seq)
+    for gene, seq in genes_seq.items()
+    if len(seq) >= 6
+}
+
+print("Genes filtrados:", comprimentos)
+# Genes filtrados: {'BDNF': 6, 'FOS': 12, 'NPY': 9}
+        </code>
+
+        <strong>Passo a passo:</strong> percorremos os pares <c>(gene, seq)</c> com <c>.items()</c>. O gene <c>"ARC"</c> tem comprimento $3 < 6$ e é descartado pelo filtro; os três genes restantes entram no dicionário com seus comprimentos $6$, $12$ e $9$.
+      </example>
+
+      <example id="exm:6-5-sorted-key">
+        <title>Ordenando animais por taxa de disparo com <c>sorted</c> e <c>key</c></title>
+        Temos uma pequena tabela de registros experimentais (uma lista de dicionários com <c>id</c> e <c>taxa_hz</c>). Queremos ordená-los da maior taxa de disparo para a menor usando uma função nomeada <c>obter_taxa</c>, e depois em ordem crescente usando <c>lambda</c>.
+
+        <code lang="python" id="cod:6-5-exm-sorted">
+animais = [
+    {"id": "R01", "taxa_hz": 18.5},
+    {"id": "R02", "taxa_hz": 42.0},
+    {"id": "R03", "taxa_hz": 12.0},
+]
+
+def obter_taxa(registro):
+    return registro["taxa_hz"]
+
+decrescente = sorted(animais, key=obter_taxa, reverse=True)
+crescente = sorted(animais, key=lambda r: r["taxa_hz"])
+
+print("Maior para menor:", [a["id"] for a in decrescente])
+# Maior para menor: ['R02', 'R01', 'R03']
+print("Menor para maior:", [a["id"] for a in crescente])
+# Menor para maior: ['R03', 'R01', 'R02']
+        </code>
+
+        <strong>Passo a passo:</strong> em <c>sorted(animais, key=obter_taxa, reverse=True)</c>, passamos <c>obter_taxa</c> <em>sem parênteses</em>. O Python chama <c>obter_taxa</c> nos bastidores para cada dicionário, obtém os números <c>18.5</c>, <c>42.0</c> e <c>12.0</c> e ordena os dicionários completos segundo esses valores sem alterar a lista <c>animais</c> original. A expressão <c>lambda r: r["taxa_hz"]</c> é exatamente uma versão resumida da função <c>obter_taxa</c>.
+      </example>
+
+      <remark id="rem:6-5-armadilha-comp">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Usar compreensão apenas para chamar <c>print()</c>:</strong> escrever <c>[print(v) for v in potenciais]</c> imprime os valores, mas constrói na memória uma lista inútil cheia de <c>[None, None, ...]</c>. Sempre que quiser apenas executar uma ação para cada item, use um laço <c>for</c> comum.</item>
+          <item><strong>Colocar parênteses no argumento <c>key</c>:</strong> escrever <c>sorted(animais, key=obter_taxa())</c> tenta chamar <c>obter_taxa</c> na hora sem argumento e falha com <c>TypeError</c>. Passe apenas o nome da função: <c>key=obter_taxa</c>.</item>
+          <item><strong>Forçar tudo em uma linha ilegível:</strong> uma compreensão de três linhas aninhadas economiza espaço na tela, mas custa minutos para entender na revisão seguinte. Se estiver confusa, volte ao <c>for</c>.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:6-5-3-1">
+        <title>Básico — Transformando um laço <c>for</c> em compreensão de lista</title>
+        Reescreva o trecho abaixo substituindo o laço <c>for</c> e o <c>.append()</c> por uma única compreensão de lista que converta os tempos de milissegundos para segundos mantendo apenas os valores maiores ou iguais a $1{,}0\text{ s}$. Valide o resultado com <c>assert</c>.
+        <code lang="python" numbered="false" lines="false">
+tempos_ms = [500, 1000, 1500, 2000]
+tempos_s = []
+for t in tempos_ms:
+    if t >= 1000:
+        tempos_s.append(t / 1000.0)
+        </code>
+        <hint><title>Ver dica</title>Coloque a expressão <c>t / 1000.0</c> antes do <c>for t in tempos_ms</c> e o filtro <c>if t >= 1000</c> no final, tudo entre colchetes.</hint>
+        <solution collapsible="true" collapsed="true">
+          A condição <c>t >= 1000</c> filtra <c>500</c> e mantém <c>1000</c>, <c>1500</c> e <c>2000</c>, que divididos por <c>1000.0</c> geram <c>[1.0, 1.5, 2.0]</c>.
+
+          <code lang="python" id="cod:6-5-sol-3-1">
+tempos_ms = [500, 1000, 1500, 2000]
+tempos_s = [t / 1000.0 for t in tempos_ms if t >= 1000]
+
+assert tempos_s == [1.0, 1.5, 2.0]
+print("Tempos filtrados (s):", tempos_s)  # Tempos filtrados (s): [1.0, 1.5, 2.0]
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-5-3-2">
+        <title>Básico — Compreensão de dicionário para neurônios ativos</title>
+        O dicionário <c>contagens = {"N1": 8, "N2": 40, "N3": 5, "N4": 30}</c> registra o número de <em>spikes</em> de quatro neurônios durante uma janela de $0{,}5\text{ s}$ ($500\text{ ms}$). Use uma compreensão de dicionário para construir <c>taxas_ativas</c> no formato <c>{neuronio: taxa_hz}</c>, mantendo apenas os neurônios cuja taxa seja maior ou igual a $20{,}0\text{ Hz}$.
+        <hint><title>Ver dica</title>Percorra <c>for nid, c in contagens.items()</c>, calcule a taxa com <c>c / 0.5</c> e filtre com <c>if c / 0.5 >= 20.0</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Dividindo cada contagem por $0{,}5\text{ s}$, obtemos <c>N1: 16.0 Hz</c>, <c>N2: 80.0 Hz</c>, <c>N3: 10.0 Hz</c> e <c>N4: 60.0 Hz</c>. Apenas <c>N2</c> e <c>N4</c> atingem pelo menos $20{,}0\text{ Hz}$.
+
+          <code lang="python" id="cod:6-5-sol-3-2">
+contagens = {"N1": 8, "N2": 40, "N3": 5, "N4": 30}
+taxas_ativas = {nid: c / 0.5 for nid, c in contagens.items() if c / 0.5 >= 20.0}
+
+assert taxas_ativas == {"N2": 80.0, "N4": 60.0}
+print("Neurônios ativos (Hz):", taxas_ativas)
+# Neurônios ativos (Hz): {'N2': 80.0, 'N4': 60.0}
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-5-3-3">
+        <title>Intermediário — Ordenando sequências genéticas por conteúdo GC</title>
+        Dada a lista de tuplas <c>seqs = [("geneA", "ATATAT"), ("geneB", "GCGCAT"), ("geneC", "GGGGCC")]</c>, escreva a função <c>conteudo_gc(seq)</c> e use <c>sorted(..., key=..., reverse=True)</c> para ordenar os genes da maior para a menor fração GC.
+        <hint><title>Ver dica</title>Em cada tupla <c>par</c>, o nome está em <c>par[0]</c> e a sequência de DNA está em <c>par[1]</c>; use <c>key=lambda par: conteudo_gc(par[1])</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Os conteúdos GC são $0{,}0$ para <c>geneA</c>, $4/6 \approx 0{,}67$ para <c>geneB</c> e $1{,}0$ para <c>geneC</c>. Passando <c>conteudo_gc(par[1])</c> como critério em <c>sorted(..., reverse=True)</c>, obtemos a ordem decrescente <c>geneC</c>, <c>geneB</c>, <c>geneA</c>.
+
+          <code lang="python" id="cod:6-5-sol-3-3">
+def conteudo_gc(seq):
+    s = seq.upper()
+    return (s.count("G") + s.count("C")) / len(s) if s else 0.0
+
+seqs = [("geneA", "ATATAT"), ("geneB", "GCGCAT"), ("geneC", "GGGGCC")]
+ordenadas = sorted(seqs, key=lambda par: conteudo_gc(par[1]), reverse=True)
+
+assert [nome for nome, _ in ordenadas] == ["geneC", "geneB", "geneA"]
+print("Ordenadas por GC:", ordenadas)
+# Ordenadas por GC: [('geneC', 'GGGGCC'), ('geneB', 'GCGCAT'), ('geneA', 'ATATAT')]
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-5-3-4">
+        <title>Avançado — Escolhendo entre compreensão e laço <c>for</c></title>
+        Suponha que você recebeu dois ensaios de potencial de membrana <c>ensaios = [[-70.0, -54.0, 25.0, -72.0], [-70.0, 150.0, -68.0, -71.0]]</c> e deseja produzir uma lista de dicionários com <c>{"ensaio": i, "spikes": n, "artefato": bool}</c> (onde valores acima de $100{,}0\text{ mV}$ são artefatos elétricos que também devem disparar um aviso com <c>print</c>). Explique por que uma compreensão de lista é inadequada aqui e implemente a função <c>auditar_ensaios(ensaios)</c> com um laço <c>for</c> claro.
+        <hint><title>Ver dica</title>A tarefa exige contar cruzamentos, verificar artefatos e imprimir avisos (efeito colateral), o que tornaria uma compreensão ilegível; use um laço <c>for</c> com <c>enumerate</c> ou <c>range(len(ensaios))</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Uma compreensão de lista é inadequada por dois motivos: primeiro, combina múltiplas etapas (contagem de cruzamentos, checagem de máximo e montagem de dicionário); segundo, precisa imprimir um aviso (efeito colateral). Um laço <c>for</c> explícito reaproveita a função <c>contar_spikes</c> e mantém a leitura imediata.
+
+          <code lang="python" id="cod:6-5-sol-3-4">
+def contar_spikes(potenciais, limiar_mv=-55.0):
+    spikes = 0
+    for i in range(1, len(potenciais)):
+        if potenciais[i - 1] < limiar_mv and potenciais[i] >= limiar_mv:
+            spikes += 1
+    return spikes
+
+def auditar_ensaios(ensaios, limiar_mv=-55.0, teto_artefato=100.0):
+    relatorio = []
+    for idx in range(len(ensaios)):
+        traco = ensaios[idx]
+        tem_artefato = max(traco) > teto_artefato
+        if tem_artefato:
+            print(f"Aviso: artefato no ensaio {idx} (pico {max(traco)} mV)")
+        relatorio.append({
+            "ensaio": idx,
+            "spikes": contar_spikes(traco, limiar_mv=limiar_mv),
+            "artefato": tem_artefato,
+        })
+    return relatorio
+
+ensaios = [[-70.0, -54.0, 25.0, -72.0], [-70.0, 150.0, -68.0, -71.0]]
+res = auditar_ensaios(ensaios)
+# Aviso: artefato no ensaio 1 (pico 150.0 mV)
+print(res)
+# [{'ensaio': 0, 'spikes': 1, 'artefato': False}, {'ensaio': 1, 'spikes': 1, 'artefato': True}]
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-5-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Módulos: importar e criar os seus</title>
+      <intro>
+        Quando suas funções testadas começam a servir para vários notebooks e experimentos diferentes, você as guarda em um arquivo <c>.py</c> separado — um módulo — para importá-las em qualquer projeto sem copiar e colar código.
+      </intro>
+
+      Até aqui, nossas funções moraram apenas na memória da sessão atual do notebook. Se você abrir um segundo notebook no dia seguinte para analisar outro experimento de eletrofisiologia, precisaria copiar todas as definições novamente. Para resolver isso, o Python organiza código reutilizável em <strong>módulos</strong> (<em>modules</em>).
+
+      <definition id="def:6-5-modulo">
+        <title>Módulo e formas de importação</title>
+        Um <strong>módulo</strong> é simplesmente um arquivo de texto com extensão <c>.py</c> contendo definições de funções, constantes e classes que podem ser carregadas em outro script ou notebook usando <c>import</c>. Existem três formas principais de importar:
+        <list marker="dash">
+          <item><c>import math</c>: carrega o módulo inteiro mantendo seu nome como prefixo (<c>math.sqrt(16)</c>), evitando conflitos de nomes;</item>
+          <item><c>from math import sqrt, pi</c>: traz apenas os nomes escolhidos para uso direto (<c>sqrt(16)</c>);</item>
+          <item><c>import numpy as np</c>: cria um apelido curto e padronizado (<c>np.array(...)</c>), muito usado nas bibliotecas científicas do tema <mark>Bibliotecas</mark>.</item>
+        </list>
+        Evite escrever <c>from modulo import *</c>, porque isso despeja dezenas de nomes desconhecidos no seu ambiente e pode sobrescrever silenciosamente variáveis ou funções suas.
+      </definition>
+
+      Antes de instalar pacotes externos, lembre que o Python já vem com "baterias inclusas" na sua <strong>biblioteca padrão</strong>. Cinco módulos padrão resolvem grande parte das necessidades do dia a dia em biologia:
+      <list marker="dash">
+        <item><c>math</c>: funções matemáticas reais (<c>sqrt</c>, <c>log</c>, <c>exp</c>, <c>pi</c>);</item>
+        <item><c>statistics</c>: estatística descritiva básica em listas (<c>mean</c>, <c>median</c>, <c>stdev</c>);</item>
+        <item><c>random</c>: sorteios e embaralhamentos simples (com semente via <c>random.Random(42)</c>; para grandes matrizes numéricas, preferimos <c>np.random.default_rng(42)</c>);</item>
+        <item><c>pathlib</c>: caminhos portáteis de arquivos e pastas com <c>Path</c> (visto em <mark>Informática básica</mark>);</item>
+        <item><c>json</c>: leitura e escrita de metadados estruturados em JSON.</item>
+      </list>
+
+      Veja quatro desses módulos da biblioteca padrão trabalhando juntos em um pequeno resumo estatístico:
+
+      <code lang="python" id="cod:6-5-stdlib">
+import json
+import math
+import statistics
+from pathlib import Path
+
+taxas_hz = [12.0, 16.0, 16.0, 16.0]
+media = statistics.mean(taxas_hz)
+desvio = statistics.stdev(taxas_hz)
+erro_padrao = desvio / math.sqrt(len(taxas_hz))
+
+caminho = Path("dados") / "sessao_01.json"
+resumo = {
+    "arquivo": caminho.name,
+    "media_hz": media,
+    "erro_padrao_hz": erro_padrao,
+}
+
+print(json.dumps(resumo))
+# {"arquivo": "sessao_01.json", "media_hz": 15.0, "erro_padrao_hz": 1.0}
+      </code>
+
+      Como você cria o <em>seu próprio</em> módulo quando está trabalhando no Google Colab? Em uma célula do Colab, o comando mágico <c>%%writefile nome_do_arquivo.py</c> na primeira linha grava todo o conteúdo restante daquela célula em um arquivo <c>.py</c> dentro da pasta de trabalho atual. Na célula seguinte, basta escrever <c>import nome_do_arquivo</c> (sem a extensão <c>.py</c>) para usar suas funções.
+
+      Há um detalhe importante no fluxo de trabalho: o Python guarda os módulos já importados em uma memória intermediária (cache). Se você editar o arquivo <c>neuro_utils.py</c> e rodar a célula <c>%%writefile</c> de novo, executar apenas <c>import neuro_utils</c> <strong>não</strong> atualiza as funções antigas na memória! Para carregar as alterações, você deve reiniciar o ambiente de execução ou chamar <c>importlib.reload(neuro_utils)</c> usando o módulo padrão <c>importlib</c>.
+
+      Por último, ao escrever um módulo como <c>neuro_utils.py</c>, é ótima prática deixar alguns testes <c>assert</c> dentro do próprio arquivo para poder verificá-lo diretamente — mas você não quer que esses testes rodem e poluam a tela toda vez que outro notebook importar o módulo. É exatamente para isso que serve a verificação <c>if __name__ == "__main__":</c>.
+
+      <definition id="def:6-5-main-guard">
+        <title>A variável especial <c>__name__</c> e o bloco <c>if __name__ == "__main__":</c></title>
+        Todo arquivo Python recebe automaticamente uma variável interna chamada <c>__name__</c>:
+        <list marker="dash">
+          <item>se o arquivo for executado diretamente (por exemplo, <c>python neuro_utils.py</c> no terminal ou <c>!python neuro_utils.py</c> no Colab), <c>__name__</c> vale <c>"__main__"</c>;</item>
+          <item>se o arquivo for carregado por outro código via <c>import neuro_utils</c>, <c>__name__</c> vale <c>"neuro_utils"</c>.</item>
+        </list>
+        Colocar testes ou chamadas de demonstração dentro de <c>if __name__ == "__main__":</c> garante que eles rodem apenas quando o arquivo for executado como programa principal, permanecendo silenciosos durante importações.
+      </definition>
+
+      Veja nos dois exemplos abaixo como criar seu módulo biológico no Colab e como combinar módulos da biblioteca padrão com segurança.
+
+      <example id="exm:6-5-modulo-neuro">
+        <title>Criando, testando e importando o módulo <c>neuro_utils.py</c> no Colab</title>
+        Reunimos nossas três funções biológicas principais — <c>conteudo_gc</c> (<ref to="exm:6-5-conteudo-gc"/>), <c>taxa_disparo</c> (<ref to="exm:6-5-taxa-disparo"/>) e <c>contar_spikes</c> (<ref to="exm:6-5-contar-spikes"/>) — em um módulo <c>neuro_utils.py</c>, com testes <c>assert</c> protegidos por <c>if __name__ == "__main__":</c>.
+
+        No Google Colab, a primeira célula grava o arquivo no disco com <c>%%writefile</c>:
+
+        <code lang="python" id="cod:6-5-writefile-neuro">
+%%writefile neuro_utils.py
+"""Utilidades básicas de bioinformática e eletrofisiologia."""
+
+
+def conteudo_gc(seq):
+    """Calcula a fração de bases G e C (entre 0.0 e 1.0)."""
+    s = seq.upper()
+    if len(s) == 0:
+        return 0.0
+    return (s.count("G") + s.count("C")) / len(s)
+
+
+def taxa_disparo(n_spikes, duracao_ms):
+    """Calcula a taxa média de disparo em Hz a partir de duracao_ms (ms)."""
+    return n_spikes / (duracao_ms / 1000.0)
+
+
+def contar_spikes(potenciais, limiar_mv=-55.0):
+    """Conta cruzamentos ascendentes do limiar_mv (mV)."""
+    spikes = 0
+    for i in range(1, len(potenciais)):
+        if potenciais[i - 1] < limiar_mv and potenciais[i] >= limiar_mv:
+            spikes += 1
+    return spikes
+
+
+if __name__ == "__main__":
+    assert conteudo_gc("ATGGCCAT") == 0.5
+    assert taxa_disparo(30, 1500) == 20.0
+    assert contar_spikes([-70.0, -54.0, 25.0, -72.0]) == 1
+    print("Autoteste de neuro_utils concluído com sucesso!")
+        </code>
+
+        Na segunda célula do Colab, importamos o módulo recém-gravado e chamamos suas funções. Repare que o <c>print</c> do autoteste <em>não</em> aparece durante o <c>import</c>, pois <c>__name__</c> agora é <c>"neuro_utils"</c> e não <c>"__main__"</c>:
+
+        <code lang="python" id="cod:6-5-import-neuro">
+import importlib
+import neuro_utils
+
+print("GC:", neuro_utils.conteudo_gc("ATGGCCAT"))                 # GC: 0.5
+print("Taxa (Hz):", neuro_utils.taxa_disparo(30, 1500))           # Taxa (Hz): 20.0
+print("Spikes:", neuro_utils.contar_spikes([-70.0, -54.0, 25.0, -72.0]))  # Spikes: 1
+
+# Caso edite neuro_utils.py e queira recarregar sem reiniciar a sessão:
+neuro_utils = importlib.reload(neuro_utils)
+        </code>
+
+        Se você rodar <c>!python neuro_utils.py</c> em uma célula do Colab ou no terminal, aí sim verá a mensagem <c>Autoteste de neuro_utils concluído com sucesso!</c>.
+      </example>
+
+      <example id="exm:6-5-pipeline-modulo">
+        <title>Combinando <c>statistics</c>, <c>math</c> e <c>random</c> em uma amostra de neurônios</title>
+        Suponha que você registrou a taxa basal de cinco neurônios corticais e deseja calcular média, mediana, desvio-padrão amostral e sortear dois neurônios de forma reprodutível com semente fixa para inspeção visual.
+
+        <code lang="python" id="cod:6-5-exm-stats">
+import math
+import random
+import statistics
+
+taxas = [12.0, 12.0, 15.0, 18.0, 18.0]
+media = statistics.mean(taxas)
+mediana = statistics.median(taxas)
+desvio = statistics.stdev(taxas)
+
+print(f"Média: {media:.1f} Hz | Mediana: {mediana:.1f} Hz | Desvio: {desvio:.1f} Hz")
+# Média: 15.0 Hz | Mediana: 15.0 Hz | Desvio: 3.0 Hz
+
+rng_py = random.Random(42)
+amostra = rng_py.sample(["N1", "N2", "N3", "N4", "N5"], k=2)
+print("Neurônios sorteados:", amostra)
+# aprox. 2 IDs distintos (os valores exatos dependem da semente)
+print("Raiz de 16 via math:", math.sqrt(16))  # Raiz de 16 via math: 4.0
+        </code>
+
+        <strong>Passo a passo:</strong> a soma das cinco taxas é $75{,}0$, logo a média e a mediana valem $15{,}0\text{ Hz}$. Os desvios em torno da média são $-3, -3, 0, +3, +3$, cuja soma dos quadrados é $36$; dividindo por $n - 1 = 4$, obtemos variância amostral $9$ e desvio-padrão $\sqrt{9} = 3{,}0\text{ Hz}$. Ao usar <c>random.Random(42)</c>, garantimos que o sorteio de controle se repita exatamente da mesma forma em qualquer computador.
+      </example>
+
+      <remark id="rem:6-5-armadilha-modulos">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Dar ao seu arquivo o nome de uma biblioteca (<c>numpy.py</c>, <c>random.py</c>, <c>statistics.py</c>):</strong> ao executar <c>import random</c>, o Python procura primeiro na pasta atual antes de procurar na biblioteca padrão ou nos pacotes instalados. Se existir um arquivo seu chamado <c>random.py</c> na mesma pasta, o Python importa o <em>seu</em> arquivo no lugar da biblioteca oficial — fenômeno chamado de <strong>sombreamento</strong> (<em>shadowing</em>) — e qualquer chamada como <c>random.randint(1, 10)</c> quebra com <c>AttributeError</c>. Nunca nomeie seus scripts com nomes de módulos existentes.</item>
+          <item><strong>Esquecer de recarregar após editar um módulo no notebook:</strong> se você alterou <c>neuro_utils.py</c> via <c>%%writefile</c>, rodar apenas <c>import neuro_utils</c> reutiliza a versão antiga em cache. Use <c>importlib.reload(neuro_utils)</c> ou reinicie a sessão.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:6-5-4-1">
+        <title>Básico — Estatística descritiva e erro padrão com a biblioteca padrão</title>
+        Importe os módulos <c>math</c> e <c>statistics</c> para calcular a média, a mediana, o desvio-padrão amostral e o erro padrão da média ($\text{SEM} = s / \sqrt{n}$) da lista de taxas de disparo <c>taxas = [18.0, 22.0, 22.0, 22.0]</c>. Valide os quatro números com <c>assert</c>.
+        <hint><title>Ver dica</title>Use <c>statistics.mean</c>, <c>statistics.median</c>, <c>statistics.stdev</c> e divida o desvio por <c>math.sqrt(len(taxas))</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          A média dos quatro valores é $(18 + 22 + 22 + 22) / 4 = 21{,}0\text{ Hz}$, a mediana é $22{,}0\text{ Hz}$, os desvios em torno da média são $(-3, +1, +1, +1)$ com soma dos quadrados $9 + 1 + 1 + 1 = 12$, variância amostral $12 / 3 = 4{,}0$, desvio-padrão $2{,}0\text{ Hz}$ e erro padrão $2{,}0 / \sqrt{4} = 1{,}0\text{ Hz}$.
+
+          <code lang="python" id="cod:6-5-sol-4-1">
+import math
+import statistics
+
+taxas = [18.0, 22.0, 22.0, 22.0]
+media = statistics.mean(taxas)
+mediana = statistics.median(taxas)
+desvio = statistics.stdev(taxas)
+sem = desvio / math.sqrt(len(taxas))
+
+assert media == 21.0
+assert mediana == 22.0
+assert desvio == 2.0
+assert sem == 1.0
+
+print(f"Média: {media} | Mediana: {mediana} | DP: {desvio} | SEM: {sem}")
+# Média: 21.0 | Mediana: 22.0 | DP: 2.0 | SEM: 1.0
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-5-4-2">
+        <title>Básico — Diagnosticando sombreamento de biblioteca</title>
+        Um estudante criou um arquivo de testes chamado <c>statistics.py</c> na mesma pasta do seu projeto e, na célula seguinte, tentou rodar <c>import statistics; print(statistics.mean([10, 20]))</c>, recebendo o erro <c>AttributeError: module 'statistics' has no attribute 'mean'</c>. Explique por que esse erro ocorreu e como corrigi-lo definitivamente.
+        <hint><title>Ver dica</title>Pense na ordem em que o Python procura arquivos quando encontra um <c>import statistics</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          O Python sempre procura módulos primeiro na pasta de trabalho atual antes de buscar na biblioteca padrão. Como havia um arquivo chamado <c>statistics.py</c> na pasta local, <c>import statistics</c> carregou o arquivo vazio ou de testes do próprio estudante (sombreando a biblioteca oficial), que não possui a função <c>mean</c>. Para corrigir, renomeie o arquivo local para algo específico e descritivo (como <c>analise_estatistica_lab.py</c>), apague eventual pasta <c>__pycache__</c> antiga se necessário e reinicie o ambiente de execução para limpar o módulo errado do cache.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-5-4-3">
+        <title>Intermediário — Criando e importando o módulo <c>bio_conversoes.py</c></title>
+        No estilo de duas células do Google Colab: (1) crie um módulo <c>bio_conversoes.py</c> usando <c>%%writefile bio_conversoes.py</c> contendo as funções <c>mv_para_v(v_mv)</c> e <c>ms_para_s(t_ms)</c>, com <em>docstrings</em> e um bloco <c>if __name__ == "__main__":</c> com testes <c>assert</c>; (2) na segunda célula, importe as duas funções com <c>from bio_conversoes import mv_para_v, ms_para_s</c> e calcule o potencial de $-55{,}0\text{ mV}$ em volts e a taxa de disparo de $12$ <em>spikes</em> em $400\text{ ms}$.
+        <hint><title>Ver dica</title>Coloque o <c>%%writefile bio_conversoes.py</c> sozinho na primeira linha da Célula 1 e faça o <c>from bio_conversoes import ...</c> na Célula 2.</hint>
+        <solution collapsible="true" collapsed="true">
+          Separando a escrita do módulo e a importação em duas células, garantimos que o <c>%%writefile</c> salve apenas a definição do módulo (com os testes protegidos por <c>__name__ == "__main__"</c>) e a segunda célula importe diretamente as duas conversões: $-55{,}0\text{ mV} = -0{,}055\text{ V}$ e $400\text{ ms} = 0{,}4\text{ s}$, gerando $12 / 0{,}4 = 30{,}0\text{ Hz}$.
+
+          <code lang="python" id="cod:6-5-sol-4-3a">
+%%writefile bio_conversoes.py
+"""Conversões simples de unidades fisiológicas."""
+
+
+def mv_para_v(v_mv):
+    """Converte potencial de milivolts (mV) para volts (V)."""
+    return v_mv / 1000.0
+
+
+def ms_para_s(t_ms):
+    """Converte intervalo de tempo de milissegundos (ms) para segundos (s)."""
+    return t_ms / 1000.0
+
+
+if __name__ == "__main__":
+    assert mv_para_v(-70.0) == -0.07
+    assert ms_para_s(500) == 0.5
+          </code>
+
+          <code lang="python" id="cod:6-5-sol-4-3b">
+from bio_conversoes import mv_para_v, ms_para_s
+
+limiar_v = mv_para_v(-55.0)
+duracao_s = ms_para_s(400)
+taxa_hz = 12 / duracao_s
+
+print("Limiar (V):", limiar_v)  # Limiar (V): -0.055
+print("Taxa (Hz):", taxa_hz)    # Taxa (Hz): 30.0
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-5-4-4">
+        <title>Avançado — Módulo de DNA com recarregamento (<c>importlib.reload</c>)</title>
+        Crie um módulo <c>dna_tools.py</c> via <c>%%writefile</c> com uma função <c>limpar_seq(seq)</c> (que remove espaços nas pontas com <c>.strip()</c> e converte para maiúsculas) e uma função <c>conteudo_gc(seq)</c> que chame <c>limpar_seq</c>, além de testes <c>assert</c> dentro de <c>if __name__ == "__main__":</c>. Na segunda célula, importe <c>dna_tools</c>, teste com <c>" atggccat "</c> e inclua a chamada correta de <c>importlib.reload</c> para o caso de você editar o arquivo depois.
+        <hint><title>Ver dica</title>Dentro de <c>dna_tools.py</c>, uma função pode chamar outra função do mesmo módulo diretamente; na segunda célula, importe <c>importlib</c> junto com <c>dna_tools</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Organizando <c>limpar_seq</c> e <c>conteudo_gc</c> no mesmo módulo, evitamos repetir código de limpeza em várias funções de bioinformática. Para <c>" atggccat "</c>, <c>limpar_seq</c> devolve <c>"ATGGCCAT"</c> ($8$ bases, $4$ GC), resultando em <c>0.5</c>. Caso o arquivo seja alterado depois, <c>importlib.reload(dna_tools)</c> atualiza o módulo em memória sem reiniciar o ambiente.
+
+          <code lang="python" id="cod:6-5-sol-4-4a">
+%%writefile dna_tools.py
+"""Funções auxiliares para limpeza e análise de sequências de DNA."""
+
+
+def limpar_seq(seq):
+    """Remove espaços nas extremidades e converte a sequência para maiúsculas."""
+    return seq.strip().upper()
+
+
+def conteudo_gc(seq):
+    """Calcula a fração GC (entre 0.0 e 1.0) após limpar a sequência."""
+    s = limpar_seq(seq)
+    if len(s) == 0:
+        return 0.0
+    return (s.count("G") + s.count("C")) / len(s)
+
+
+if __name__ == "__main__":
+    assert limpar_seq(" atgc ") == "ATGC"
+    assert conteudo_gc(" atggccat ") == 0.5
+          </code>
+
+          <code lang="python" id="cod:6-5-sol-4-4b">
+import importlib
+import dna_tools
+
+dna_tools = importlib.reload(dna_tools)
+seq_limpa = dna_tools.limpar_seq(" atggccat ")
+gc = dna_tools.conteudo_gc(" atggccat ")
+
+print("Limpa:", seq_limpa)  # Limpa: ATGGCCAT
+print("Fração GC:", gc)     # Fração GC: 0.5
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-5-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Definir e chamar funções:</strong> use <c>def nome(parametros):</c> com corpo indentado e <c>return resultado</c>; chame sempre com parênteses (<c>nome(argumentos)</c>).</item>
+        <item><strong><c>return</c> versus <c>print</c>:</strong> <c>print</c> apenas mostra na tela; uma função sem <c>return</c> devolve <c>None</c>. Para devolver vários valores, separe-os por vírgula (<c>return a, b</c>) e desempacote na chamada (<c>x, y = ...</c>).</item>
+        <item><strong><em>Docstrings</em> e unidades:</strong> escreva uma string tripla <c>"""..."""</c> logo abaixo do <c>def</c> indicando o propósito, os tipos e as unidades de entrada e saída (mV, V, ms, s, Hz); consulte-a com <c>help(funcao)</c>.</item>
+        <item><strong>Parâmetros e valores padrão:</strong> combine argumentos posicionais e nomeados e use valores padrão imutáveis como <c>limiar_mv=-55.0</c>. Nunca use listas ou dicionários vazios como padrão (<c>lista=[]</c>); use <c>lista=None</c> e crie a lista dentro da função.</item>
+        <item><strong>Escopo e pureza:</strong> variáveis criadas dentro da função são locais; evite ler variáveis globais e prefira funções puras que não alteram listas ou dicionários recebidos por efeito colateral.</item>
+        <item><strong>Testes com <c>assert</c>:</strong> verifique casos pequenos feitos à mão com <c>assert</c> (usando <c>abs(a - b) < 1e-12</c> para decimais); falhas interrompem o script com <c>AssertionError</c>.</item>
+        <item><strong>Compreensões e <c>sorted(..., key=...)</c>:</strong> transforme e filtre coleções com <c>[expr for x in seq if cond]</c> e <c>{k: v for ... if cond}</c> quando ficarem legíveis em uma linha; passe funções por nome (ou <c>lambda</c> curtas) no parâmetro <c>key</c> de <c>sorted</c>.</item>
+        <item><strong>Módulos e <c>__name__</c>:</strong> reutilize bibliotecas padrão (<c>math</c>, <c>statistics</c>, <c>random</c>, <c>pathlib</c>, <c>json</c>), grave seus próprios módulos <c>.py</c> no Colab com <c>%%writefile</c>, recarregue edições com <c>importlib.reload</c>, proteja testes com <c>if __name__ == "__main__":</c> e jamais dê a um arquivo seu o nome de uma biblioteca existente.</item>
+      </list>
+    </section>
+
+    <section id="sec:6-5-alem">
+      <title>Para ir além</title>
+      Dica de sobrevivência do módulo: <strong>programação se aprende programando. Escreva código até a mão cansar.</strong> Abra um notebook no <link to="https://colab.research.google.com">Google Colab</link>, transforme os scripts antigos que você escreveu para <mark>Estruturas de dados básicas</mark> em funções puras com <em>docstring</em> e testes <c>assert</c> e experimente movê-las para um módulo <c>.py</c> com <c>%%writefile</c>.
+
+      Esse hábito de modularizar funções pequenas, claras e testadas é exatamente o que permitirá trabalhar com grandes pacotes científicos no próximo tema (<mark>Bibliotecas</mark>) e construir um código limpo no projeto final do Módulo 6 — escrever um script em Python que baixe dados neurais públicos (por exemplo, do OpenNeuro) via API, passe por um <em>pipeline</em> de limpeza leve, gere dois gráficos e suba tudo no GitHub de forma padronizada. Para continuar praticando:
+      <list marker="dash">
+        <item><strong>Material do módulo:</strong> <link to="https://github.com/ry4n-felinto/impytech_2026">Curso IMPATech — repositório no GitHub</link>, com roteiros e listas de exercícios em Python.</item>
+        <item><strong>Tutorial oficial do Python:</strong> <link to="https://docs.python.org/pt-br/3/tutorial/">Tutorial Python (em português)</link>, especialmente os capítulos sobre definição de funções, compreensões de lista e módulos.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 6 · Programação (Python) — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

@@ -1,0 +1,966 @@
+<document>
+  <title>Módulo 8 · Machine Learning</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-8-6">Voltar ao guia (Tema 8.6)</link></meta-item>
+    <meta-item key="Módulo">Módulo 8 · Machine Learning — Criando a Inteligência Clássica</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-8-6">
+    <title>Regularização</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Frear o overfitting: ridge é o método central dos encoding models.
+    </box>
+
+    <strong>Por que isso importa.</strong> Em neurociência computacional, raramente temos poucas variáveis bem comportadas e milhares de amostras limpas. Em um experimento típico de ressonância magnética funcional (fMRI) para construir um modelo de codificação (<em>encoding model</em>), registramos algumas centenas de volumes cerebrais (com tempo de repetição $\mathrm{TR} \approx 2\text{ s}$) enquanto o voluntário assiste a filmes ou ouve histórias descritas por centenas de características visuais ou semânticas — muitas delas fortemente correlacionadas entre si. Quando o número de variáveis $p$ se aproxima ou supera o número de amostras $n$, os mínimos quadrados ordinários decoram o ruído de medição e colapsam fora da amostra.
+
+    A <strong>regularização</strong> (<em>regularization</em>) resolve esse impasse ao impor um freio controlado sobre o tamanho dos coeficientes, trocando um pouco de viés por uma redução drástica na variância. Entre todas as técnicas desse grupo, a regressão <em>ridge</em> tornou-se o método central dos <em>encoding models</em> modernos, permitindo prever a atividade de dezenas de milhares de voxels simultaneamente com estabilidade numérica e alta capacidade preditiva.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>diagnosticar por que os mínimos quadrados ordinários falham quando $p$ é próximo ou maior que $n$ ou quando há colinearidade entre preditores;</item>
+      <item>formular a regressão <em>ridge</em> (penalidade L2), derivar sua solução fechada, interpretar o encolhimento pela SVD e sua leitura bayesiana (MAP), e aplicá-la após padronização;</item>
+      <item>comparar o <em>lasso</em> (penalidade L1) e o <em>elastic net</em> com a <em>ridge</em>, usando limiarização suave e respeitando a escala do parâmetro <c>alpha</c> no <c>scikit-learn</c>;</item>
+      <item>selecionar o hiperparâmetro $\lambda$ por validação cruzada em grade logarítmica (incluindo a regra de um erro padrão) sem vazar dados do teste;</item>
+      <item>implementar um <em>encoding model</em> multivoxel em Python com <c>RidgeCV</c> (<c>alpha_per_target=True</c>) avaliado por correlação em blocos temporais separados.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Temas 8.1 (Introdução: compromisso viés–variância), 8.2 (Regressão (polinomial): mínimos quadrados e <em>encoding model</em> de um voxel) e 8.5 (Reamostragem: validação cruzada); Módulo 4 — Otimização (Minimização e maximização; Métodos computacionais); Módulo 5 — Álgebra Linear (Sistemas lineares e transformações; Autovalores e autovetores; Decomposições: SVD); e Módulo 7 — Estatística e Probabilidade (Inferência Bayesiana: <em>priori</em>, <em>posteriori</em> e estimador MAP).
+
+    <section id="sec:8-6-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Por que regularizar: muitas variáveis, poucas amostras</title>
+      <intro>
+        Quando temos dezenas ou centenas de preditores correlacionados para poucas amostras, os mínimos quadrados ordinários fabricam coeficientes gigantescos que ajustam o ruído de treino e falham no teste.
+      </intro>
+
+      No Tema 8.2 (Regressão (polinomial)), vimos que os mínimos quadrados ordinários (OLS) encontram $\hat{\boldsymbol{\beta}} = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}$ minimizando a soma dos quadrados dos resíduos $\mathrm{RSS}$. Quando temos $n = 200$ volumes de fMRI e apenas $p = 3$ variáveis do estímulo, o método funciona com folga. Mas o que acontece quando passamos para $p = 80$, $p = 150$ ou $p = 500$ características semânticas ou visuais com os mesmos poucos volumes?
+
+      O problema aparece em duas frentes ligadas à Álgebra Linear do Módulo 5 (Sistemas lineares e transformações; Autovalores e autovetores). Primeiro, se $p \ge n$, existem mais incógnitas do que equações: o sistema $\mathbf{X}\boldsymbol{\beta} = \mathbf{y}$ admite infinitas soluções exatas com $\mathrm{RSS} = 0$ no treino, e $\mathbf{X}^\top\mathbf{X}$ é singular (não tem inversa). Segundo, mesmo quando $p < n$, se $p$ está perto de $n$ ou se as colunas de $\mathbf{X}$ são fortemente correlacionadas (<strong>colinearidade</strong>), $\mathbf{X}^\top\mathbf{X}$ ganha autovalores muito próximos de zero. Ao inverter a matriz, dividimos por esses números minúsculos e os coeficientes explodem em variância, assumindo sinais opostos para cancelar pequenas flutuações de ruído.
+
+      <definition id="def:8-6-condicionamento">
+        <title>Matriz mal-condicionada e regime de alta dimensão</title>
+        Seja $\mathbf{X} \in \mathbb{R}^{n \times p}$ a matriz de preditores (centrados) com valores singulares $d_1 \ge d_2 \ge \dots \ge d_{\min(n,p)} \ge 0$, de modo que os autovalores de $\mathbf{X}^\top\mathbf{X} \in \mathbb{R}^{p \times p}$ são $\mu_j = d_j^2$ (com $\mu_j = 0$ para $j > \operatorname{posto}(\mathbf{X})$).
+        <list marker="dash">
+          <item>Se $\mu_{\min} = 0$ (sempre ocorre quando $p > n$ ou quando há colunas linearmente dependentes), $\mathbf{X}^\top\mathbf{X}$ é <strong>singular</strong> e a solução de mínimos quadrados não é única.</item>
+          <item>Se $\mu_{\min} > 0$, mas o <strong>número de condição</strong> $\kappa(\mathbf{X}^\top\mathbf{X}) = \mu_{\max}/\mu_{\min}$ é muito grande, dizemos que $\mathbf{X}^\top\mathbf{X}$ é <strong>mal-condicionada</strong>: como $\operatorname{Cov}(\hat{\boldsymbol{\beta}}_{\text{MQ}}) = \sigma^2(\mathbf{X}^\top\mathbf{X})^{-1}$, a variância dos coeficientes cresce proporcionalmente a $1/\mu_{\min}$.</item>
+        </list>
+        <intuition>
+          Pense em duas colunas quase idênticas de $\mathbf{X}$ como dois canais de EEG colados um ao outro. Como ambos medem praticamente o mesmo sinal, aumentar o peso de um em $+50$ e o do outro em $-50$ quase não muda a previsão no treino, mas permite que a pequena diferença entre eles persiga o ruído aleatório $\varepsilon$.
+        </intuition>
+      </definition>
+
+      <example id="exm:8-6-colinear">
+        <title>Sistema $2 \times 2$ quase singular à mão</title>
+        Considere $n = 4$ ensaios com duas variáveis preditoras centradas quase idênticas:
+        $$\mathbf{x}_1 = (1;\; 1;\; -1;\; -1)^\top, \qquad \mathbf{x}_2 = (1{,}1;\; 0{,}9;\; -0{,}9;\; -1{,}1)^\top.$$
+        Suponha que o modelo verdadeiro dependa apenas de $x_1$, ou seja, $y = 1\cdot x_1 + 0\cdot x_2 + \varepsilon$, mas o ruído produza um pequeno desvio $\boldsymbol{\varepsilon} = (0{,}5;\; -0{,}5;\; 0{,}5;\; -0{,}5)^\top$, dando $\mathbf{y} = (1{,}5;\; 0{,}5;\; -0{,}5;\; -1{,}5)^\top$. Calcule $\hat{\boldsymbol{\beta}}_{\text{MQ}}$.
+
+        <strong>Solução.</strong> Montamos $\mathbf{X}^\top\mathbf{X}$ e $\mathbf{X}^\top\mathbf{y}$:
+        $$\mathbf{x}_1^\top\mathbf{x}_1 = 1 + 1 + 1 + 1 = 4, \qquad \mathbf{x}_1^\top\mathbf{x}_2 = 1{,}1 + 0{,}9 + 0{,}9 + 1{,}1 = 4,$$
+        $$\mathbf{x}_2^\top\mathbf{x}_2 = 1{,}21 + 0{,}81 + 0{,}81 + 1{,}21 = 4{,}04,$$
+        $$\mathbf{x}_1^\top\mathbf{y} = 1{,}5 + 0{,}5 + 0{,}5 + 1{,}5 = 4, \qquad \mathbf{x}_2^\top\mathbf{y} = 1{,}65 + 0{,}45 + 0{,}45 + 1{,}65 = 4{,}20.$$
+        Logo:
+        $$\mathbf{X}^\top\mathbf{X} = \begin{pmatrix} 4 & 4 \\ 4 & 4{,}04 \end{pmatrix}, \qquad \det(\mathbf{X}^\top\mathbf{X}) = 4 \cdot 4{,}04 - 4^2 = 16{,}16 - 16 = 0{,}16.$$
+        Invertendo a matriz $2 \times 2$:
+        $$(\mathbf{X}^\top\mathbf{X})^{-1} = \frac{1}{0{,}16}\begin{pmatrix} 4{,}04 & -4 \\ -4 & 4 \end{pmatrix} = \begin{pmatrix} 25{,}25 & -25 \\ -25 & 25 \end{pmatrix}.$$
+        Multiplicando por $\mathbf{X}^\top\mathbf{y} = (4;\; 4{,}20)^\top$:
+        $$\hat{\beta}_1 = 25{,}25(4) - 25(4{,}20) = 101 - 105 = -4, \qquad \hat{\beta}_2 = -25(4) + 25(4{,}20) = -100 + 105 = +5.$$
+        Os pesos verdadeiros eram $(1, 0)$, mas o ruído minúsculo fez os mínimos quadrados explodirem para $(-4, +5)$, com sinais opostos e grandes em módulo.
+      </example>
+
+      <example id="exm:8-6-p-maior-n">
+        <title>Infinitas soluções com $\mathrm{RSS} = 0$ quando $p > n$</title>
+        Em um <em>encoding model</em> de fMRI, suponha $n = 200$ volumes ($\mathrm{TR} = 2\text{ s}$) e $p = 300$ atributos semânticos. Pelo teorema do núcleo e da imagem (Módulo 5), se $\operatorname{posto}(\mathbf{X}) = 200$, o núcleo $\ker(\mathbf{X})$ tem dimensão $300 - 200 = 100$. Qualquer vetor $\mathbf{v} \in \ker(\mathbf{X})$ somado a uma solução exata produz $\mathbf{X}(\hat{\boldsymbol{\beta}} + \mathbf{v}) = \mathbf{X}\hat{\boldsymbol{\beta}} = \mathbf{y}$, mantendo $\mathrm{RSS}_{\text{treino}} = 0$.
+
+        Para enxergar isso em escala mínima, tome $n = 2$ ensaios e $p = 3$ neurônios preditores sem intercepto:
+        $$\mathbf{X} = \begin{pmatrix} 1 & 0 & 1 \\ 0 & 1 & 1 \end{pmatrix}, \qquad \mathbf{y} = \begin{pmatrix} 10 \\ 14 \end{pmatrix}\text{ Hz}.$$
+        Observe que $\mathbf{v} = (-1, -1, 1)^\top$ satisfaz $\mathbf{X}\mathbf{v} = (0, 0)^\top$. Assim, para todo $c \in \mathbb{R}$, o vetor $\hat{\boldsymbol{\beta}}(c) = (10 - c,\; 14 - c,\; c)^\top$ satisfaz exatamente $\mathbf{X}\hat{\boldsymbol{\beta}}(c) = \mathbf{y}$ ($\mathrm{RSS} = 0$): tanto $(10, 14, 0)^\top$ quanto $(0, 4, 10)^\top$ ou $(110, 114, -100)^\top$ ajustam o treino sem erro, mas divergem totalmente em uma nova amostra.
+      </example>
+
+      O código a seguir ilustra essa explosão de variância em regressão comum com $p = 80$ preditores correlacionados e $n = 100$ amostras de treino: no treino, $R^2$ fica perto de $1$; no teste, $R^2$ despenca para valores negativos.
+
+      <code lang="python" id="cod:8-6-explosao">
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+
+rng = np.random.default_rng(0)
+n_treino, n_teste, p = 100, 100, 80
+
+# 80 variáveis correlacionadas geradas a partir de 10 fatores latentes
+fatores = rng.normal(0.0, 1.0, size=(n_treino + n_teste, 10))
+mistura = rng.normal(0.0, 1.0, size=(10, p))
+X = fatores @ mistura + 0.5 * rng.normal(0.0, 1.0, size=(n_treino + n_teste, p))
+
+# Apenas as 5 primeiras variáveis influenciam a resposta neural
+pesos_reais = np.zeros(p)
+pesos_reais[:5] = [1.5, -1.2, 1.0, -0.8, 0.7]
+y = X @ pesos_reais + rng.normal(0.0, 6.0, size=n_treino + n_teste)
+
+X_treino, X_teste = X[:n_treino], X[n_treino:]
+y_treino, y_teste = y[:n_treino], y[n_treino:]
+
+ols = LinearRegression().fit(X_treino, y_treino)
+r2_tr = r2_score(y_treino, ols.predict(X_treino))
+r2_te = r2_score(y_teste, ols.predict(X_teste))
+
+print(f"Norma ||beta||_2 real : {np.linalg.norm(pesos_reais):.3f}")
+# Norma ||beta||_2 real : 2.412
+print(f"Norma ||beta||_2 OLS  : {np.linalg.norm(ols.coef_):.3f}")
+# Norma ||beta||_2 OLS  : 20.984
+print(f"R² treino (OLS)       : {r2_tr:.3f}")
+# R² treino (OLS)       : 0.956
+print(f"R² teste  (OLS)       : {r2_te:.3f}")
+# R² teste  (OLS)       : -1.472
+      </code>
+
+      <remark id="rem:8-6-armadilha-r2">
+        <title>Armadilha comum</title>
+        <strong>Comemorar um $R^2$ de treino próximo de $1$ quando $p/n$ é alto.</strong> Ajustar $80$ parâmetros em $100$ amostras consome quase todos os graus de liberdade disponíveis: a reta ou hiperplano encosta nos pontos de treino à custa de oscilações enormes entre as amostras, produzindo um $R^2$ de teste negativo (pior do que prever simplesmente a média $\bar{y}$).
+      </remark>
+
+      <exercise id="exr:8-6-1-1">
+        <title>Básico — Variância dos coeficientes e autovalores pequenos</title>
+        Suponha que $\mathbf{X}^\top\mathbf{X} = \begin{pmatrix} 100 & 0 \\ 0 & 0{,}01 \end{pmatrix}$ e que a variância do ruído seja $\sigma^2 = 4$. Sabendo que $\operatorname{Cov}(\hat{\boldsymbol{\beta}}_{\text{MQ}}) = \sigma^2 (\mathbf{X}^\top\mathbf{X})^{-1}$, calcule a variância e o erro padrão ($\sqrt{\operatorname{Var}}$) de $\hat{\beta}_1$ e de $\hat{\beta}_2$.
+        <hint><title>Ver dica</title>Para uma matriz diagonal, a inversa tem na diagonal os inversos de cada elemento da diagonal original.</hint>
+        <solution collapsible="true" collapsed="true">
+          Invertendo a matriz diagonal, obtemos $(\mathbf{X}^\top\mathbf{X})^{-1} = \begin{pmatrix} 1/100 & 0 \\ 0 & 1/0{,}01 \end{pmatrix} = \begin{pmatrix} 0{,}01 & 0 \\ 0 & 100 \end{pmatrix}$. Multiplicando por $\sigma^2 = 4$:
+          <list marker="dash">
+            <item>$\operatorname{Var}(\hat{\beta}_1) = 4 \cdot 0{,}01 = 0{,}04 \implies \mathrm{EP}(\hat{\beta}_1) = \sqrt{0{,}04} = 0{,}2$.</item>
+            <item>$\operatorname{Var}(\hat{\beta}_2) = 4 \cdot 100 = 400 \implies \mathrm{EP}(\hat{\beta}_2) = \sqrt{400} = 20$.</item>
+          </list>
+          Um autovalor $10\,000$ vezes menor amplificou o erro padrão do coeficiente correspondente por um fator de $100$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-6-1-2">
+        <title>Intermediário — Canais vizinhos de EEG quase colineares</title>
+        Em um registro de EEG com sinal centrado, dois eletrodos vizinhos produzem $\mathbf{X}^\top\mathbf{X} = \begin{pmatrix} 10 & 10 \\ 10 & 10{,}1 \end{pmatrix}$ e $\mathbf{X}^\top\mathbf{y} = \begin{pmatrix} 20 \\ 20{,}5 \end{pmatrix}$. Calcule $\det(\mathbf{X}^\top\mathbf{X})$, a inversa $(\mathbf{X}^\top\mathbf{X})^{-1}$ e os coeficientes de mínimos quadrados $\hat{\boldsymbol{\beta}}_{\text{MQ}}$.
+        <hint><title>Ver dica</title>Use a fórmula da inversa de matriz $2 \times 2$: $\begin{pmatrix} a & b \\ b & d \end{pmatrix}^{-1} = \frac{1}{ad - b^2}\begin{pmatrix} d & -b \\ -b & a \end{pmatrix}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculamos o determinante:
+          $$\det(\mathbf{X}^\top\mathbf{X}) = 10 \cdot 10{,}1 - 10^2 = 101 - 100 = 1.$$
+          Logo:
+          $$(\mathbf{X}^\top\mathbf{X})^{-1} = \frac{1}{1}\begin{pmatrix} 10{,}1 & -10 \\ -10 & 10 \end{pmatrix} = \begin{pmatrix} 10{,}1 & -10 \\ -10 & 10 \end{pmatrix}.$$
+          Multiplicando por $\mathbf{X}^\top\mathbf{y} = (20;\; 20{,}5)^\top$:
+          $$\hat{\beta}_1 = 10{,}1(20) - 10(20{,}5) = 202 - 205 = -3, \qquad \hat{\beta}_2 = -10(20) + 10(20{,}5) = -200 + 205 = +5.$$
+          Novamente, a quase igualdade das colunas gera pesos grandes e com sinais opostos.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-6-1-3">
+        <title>Avançado — Observando a explosão quando $p$ se aproxima de $n$</title>
+        Adapte o <ref to="cod:8-6-explosao"/> para testar $p \in \{10, 40, 80, 95\}$ mantendo $n_{\text{treino}} = 100$ e $n_{\text{teste}} = 100$ (gere uma matriz base com $95$ colunas correlacionadas e use apenas as primeiras $p$ colunas em cada rodada). Imprima $R^2_{\text{treino}}$, $R^2_{\text{teste}}$ e $\|\hat{\boldsymbol{\beta}}\|_2$ para cada valor de $p$.
+        <hint><title>Ver dica</title>Gere <c>X</c> e <c>y</c> uma única vez com <c>p_max = 95</c> e faça um laço <c>for p in [10, 40, 80, 95]</c> fatiando <c>X_treino[:, :p]</c> e <c>X_teste[:, :p]</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+
+rng = np.random.default_rng(0)
+n_treino, n_teste, p_max = 100, 100, 95
+
+fatores = rng.normal(0.0, 1.0, size=(n_treino + n_teste, 10))
+mistura = rng.normal(0.0, 1.0, size=(10, p_max))
+X = fatores @ mistura + 0.5 * rng.normal(0.0, 1.0, size=(n_treino + n_teste, p_max))
+
+pesos_reais = np.zeros(p_max)
+pesos_reais[:5] = [1.5, -1.2, 1.0, -0.8, 0.7]
+y = X @ pesos_reais + rng.normal(0.0, 6.0, size=n_treino + n_teste)
+
+for p in [10, 40, 80, 95]:
+    ols = LinearRegression().fit(X[:n_treino, :p], y[:n_treino])
+    r2_tr = r2_score(y[:n_treino], ols.predict(X[:n_treino, :p]))
+    r2_te = r2_score(y[n_treino:], ols.predict(X[n_treino:, :p]))
+    norma = np.linalg.norm(ols.coef_)
+    print(f"p={p:2d} | R2 treino: {r2_tr:6.3f} | R2 teste: {r2_te:7.3f} | ||beta||_2: {norma:6.3f}")
+
+# p=10 | R2 treino:  0.519 | R2 teste:   0.654 | ||beta||_2:  2.480
+# p=40 | R2 treino:  0.687 | R2 teste:   0.397 | ||beta||_2:  8.975
+# p=80 | R2 treino:  0.917 | R2 teste:  -2.860 | ||beta||_2: 36.883
+# p=95 | R2 treino:  0.974 | R2 teste:  -7.471 | ||beta||_2: 52.969
+          </code>
+          À medida que $p$ se aproxima de $n_{\text{treino}} = 100$, o $R^2$ de treino sobe quase até $1$, enquanto o $R^2$ de teste desaba e a norma dos coeficientes explode.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-6-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Regressão ridge (penalidade L2)</title>
+      <intro>
+        Somar uma multa proporcional à soma dos quadrados dos coeficientes impede que eles explodam, torna a matriz sempre invertível e encolhe seletivamente as direções ruidosas.
+      </intro>
+
+      Se o defeito dos mínimos quadrados é deixar $\|\boldsymbol{\beta}\|_2^2 = \sum_{j=1}^p \beta_j^2$ crescer sem limites para perseguir pequenas oscilações do treino, a cura direta consiste em cobrar um imposto sobre o tamanho dos coeficientes (Hoerl &amp; Kennard, 1970). Em vez de minimizar apenas a $\mathrm{RSS}$, minimizamos a $\mathrm{RSS}$ somada a um termo de penalidade controlado pelo hiperparâmetro $\lambda \ge 0$.
+
+      Repare em um detalhe essencial: o intercepto $\beta_0$ <strong>não</strong> entra na penalidade. O papel de $\beta_0$ é apenas ajustar o nível médio da resposta (por exemplo, a taxa basal de disparo de um neurônio ou a linha de base de um voxel); penalizá-lo puxaria todas as previsões artificialmente para zero caso a média de $y$ fosse diferente de zero.
+
+      <definition id="def:8-6-ridge">
+        <title>Regressão ridge (penalidade L2)</title>
+        Dado $\lambda \ge 0$, a <strong>regressão ridge</strong> estima $(\hat{\beta}_0, \hat{\boldsymbol{\beta}}_\lambda)$ minimizando a função objetivo:
+        <equation id="eq:8-6-ridge-obj">
+          J_{\text{ridge}}(\beta_0, \boldsymbol{\beta}) = \sum_{i=1}^n \left(y_i - \beta_0 - \sum_{j=1}^p \beta_j x_{ij}\right)^2 + \lambda \sum_{j=1}^p \beta_j^2 = \mathrm{RSS} + \lambda \|\boldsymbol{\beta}\|_2^2.
+        </equation>
+        Quando $\lambda = 0$, recuperamos os mínimos quadrados ordinários. Quanto maior $\lambda$, mais fortemente os coeficientes $\beta_1, \dots, \beta_p$ são encolhidos em direção a zero.
+        <intuition>
+          A penalidade cria um cabo de guerra: a $\mathrm{RSS}$ puxa os coeficientes para explicar os dados de treino, enquanto $\lambda\|\boldsymbol{\beta}\|_2^2$ os puxa para perto de zero. Se aumentar um coeficiente em $+10$ e outro em $-10$ melhora muito pouco a $\mathrm{RSS}$, a multa $\lambda(10^2 + 10^2) = 200\lambda$ torna o negócio desvantajoso e mantém ambos pequenos.
+        </intuition>
+      </definition>
+
+      Se centrarmos as colunas de $\mathbf{X}$ e o vetor $\mathbf{y}$ (subtraindo suas médias amostrais), o intercepto ótimo passa a ser simplesmente $\hat{\beta}_0 = \bar{y}$, e podemos trabalhar apenas com os $p$ coeficientes de inclinação $\boldsymbol{\beta} \in \mathbb{R}^p$. Nesse formato centrado, a regressão <em>ridge</em> possui fórmula fechada explícita e sempre bem definida.
+
+      <proposition id="prop:8-6-ridge-solucao">
+        <title>Solução fechada, invertibilidade e visão pela SVD</title>
+        Suponha $\mathbf{X} \in \mathbb{R}^{n \times p}$ e $\mathbf{y} \in \mathbb{R}^n$ centrados e $\lambda > 0$. Seja $\mathbf{X} = \mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^\top$ a decomposição em valores singulares (SVD) de $\mathbf{X}$, com valores singulares $d_1, \dots, d_p \ge 0$ (tomando $d_j = 0$ para $j > \operatorname{posto}(\mathbf{X})$). Então:
+        <list marker="number">
+          <item>A matriz $\mathbf{X}^\top\mathbf{X} + \lambda\mathbf{I}$ possui autovalores $d_j^2 + \lambda > 0$, logo é <strong>sempre invertível</strong> (mesmo se $p > n$ ou houver colunas idênticas).</item>
+          <item>O minimizador único de $J_{\text{ridge}}(\boldsymbol{\beta}) = \|\mathbf{y} - \mathbf{X}\boldsymbol{\beta}\|_2^2 + \lambda\|\boldsymbol{\beta}\|_2^2$ é:
+            <equation id="eq:8-6-ridge-fechada">
+              \hat{\boldsymbol{\beta}}_\lambda = (\mathbf{X}^\top\mathbf{X} + \lambda\mathbf{I})^{-1}\mathbf{X}^\top\mathbf{y}.
+            </equation>
+          </item>
+          <item>No caso de $p = 1$ variável centrada, $\hat{\beta}_\lambda = \dfrac{\sum_{i=1}^n x_i y_i}{\sum_{i=1}^n x_i^2 + \lambda}$. No caso geral, as previsões escrevem-se na base dos vetores singulares esquerdos $\mathbf{u}_j$ como:
+            <equation id="eq:8-6-ridge-svd">
+              \hat{\mathbf{y}}_\lambda = \mathbf{X}\hat{\boldsymbol{\beta}}_\lambda = \sum_{j=1}^{\operatorname{posto}(\mathbf{X})} \frac{d_j^2}{d_j^2 + \lambda}\,\mathbf{u}_j(\mathbf{u}_j^\top\mathbf{y}).
+            </equation>
+            Aqui, $\mathbf{u}_j(\mathbf{u}_j^\top\mathbf{y})$ é a projeção ortogonal de $\mathbf{y}$ sobre a direção principal $\mathbf{u}_j$, e a <em>ridge</em> encolhe mais as projeções nas direções de $d_j$ pequeno.
+          </item>
+        </list>
+      </proposition>
+      <proof of="prop:8-6-ridge-solucao" collapsible="true" collapsed="true">
+        Expandimos o objetivo:
+        $$J_{\text{ridge}}(\boldsymbol{\beta}) = \mathbf{y}^\top\mathbf{y} - 2\mathbf{y}^\top\mathbf{X}\boldsymbol{\beta} + \boldsymbol{\beta}^\top(\mathbf{X}^\top\mathbf{X} + \lambda\mathbf{I})\boldsymbol{\beta}.$$
+        Derivando em relação a $\boldsymbol{\beta}$ (Módulo 4 — Minimização e maximização) e igualando o gradiente a zero:
+        $$\nabla_{\boldsymbol{\beta}} J_{\text{ridge}}(\boldsymbol{\beta}) = -2\mathbf{X}^\top\mathbf{y} + 2(\mathbf{X}^\top\mathbf{X} + \lambda\mathbf{I})\boldsymbol{\beta} = \mathbf{0} \implies (\mathbf{X}^\top\mathbf{X} + \lambda\mathbf{I})\hat{\boldsymbol{\beta}}_\lambda = \mathbf{X}^\top\mathbf{y}.$$
+        Pela SVD de $\mathbf{X}$ (Tema 5.6 — Decomposições), $\mathbf{X}^\top\mathbf{X} = \mathbf{V}\operatorname{diag}(d_1^2, \dots, d_p^2)\mathbf{V}^\top$, onde $\mathbf{V}$ é ortogonal ($\mathbf{V}\mathbf{V}^\top = \mathbf{I}$). Logo:
+        $$\mathbf{X}^\top\mathbf{X} + \lambda\mathbf{I} = \mathbf{V}\operatorname{diag}(d_1^2 + \lambda, \dots, d_p^2 + \lambda)\mathbf{V}^\top.$$
+        Como $d_j^2 \ge 0$ e $\lambda > 0$, todos os autovalores $d_j^2 + \lambda$ são estritamente positivos; a matriz é simétrica definida positiva, portanto invertível, garantindo mínimo global único dado pela <ref to="eq:8-6-ridge-fechada"/>. Por fim, substituindo $\mathbf{X} = \mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^\top$ em $\mathbf{X}(\mathbf{X}^\top\mathbf{X} + \lambda\mathbf{I})^{-1}\mathbf{X}^\top\mathbf{y}$, cada componente ao longo de $\mathbf{u}_j$ (para $d_j > 0$) é multiplicada por $d_j \cdot (d_j^2 + \lambda)^{-1} \cdot d_j = \frac{d_j^2}{d_j^2 + \lambda}$.
+      </proof>
+
+      Na <ref to="eq:8-6-ridge-svd"/>, os mínimos quadrados usam fator $1$ em toda direção com $d_j > 0$, enquanto a <em>ridge</em> multiplica cada projeção por $\frac{d_j^2}{d_j^2 + \lambda}$: quando $d_j^2 \gg \lambda$, o fator fica perto de $1$ e preserva o sinal; quando $d_j^2 \ll \lambda$ (baixa variância, onde o ruído domina), o fator cai perto de $0$ e cala a instabilidade.
+
+      A regressão <em>ridge</em> também tem uma interpretação bayesiana elegante (Módulo 7 — Inferência Bayesiana). Se assumirmos ruído gaussiano $y_i \mid \mathbf{x}_i, \boldsymbol{\beta} \sim \mathcal{N}(\boldsymbol{\beta}^\top\mathbf{x}_i, \sigma^2)$ e atribuirmos a cada coeficiente uma distribuição <em>a priori</em> normal centrada em zero, $\beta_j \sim \mathcal{N}(0, \tau^2)$, maximizar a densidade <em>a posteriori</em> (estimador MAP) equivale a minimizar o negativo do log-<em>posteriori</em>:
+      $$\frac{1}{2\sigma^2}\|\mathbf{y} - \mathbf{X}\boldsymbol{\beta}\|_2^2 + \frac{1}{2\tau^2}\|\boldsymbol{\beta}\|_2^2,$$
+      que coincide exatamente com a <ref to="eq:8-6-ridge-obj"/> ao identificar $\lambda = \sigma^2 / \tau^2$. Quanto maior o ruído $\sigma^2$ ou mais concentrada em zero for a <em>priori</em> (menor $\tau^2$), maior será a regularização $\lambda$.
+
+      No <c>scikit-learn</c>, a classe <c>Ridge(alpha=...)</c> minimiza exatamente $\|\mathbf{y} - \mathbf{X}\mathbf{w}\|_2^2 + \alpha\|\mathbf{w}\|_2^2$ (sem dividir por $n$ e sem penalizar o intercepto). Portanto, o argumento <c>alpha</c> de <c>Ridge</c> corresponde diretamente ao $\lambda$ da nossa fórmula.
+
+      <example id="exm:8-6-ridge-1d">
+        <title>Regressão ridge 1D à mão: sintonia ao contraste</title>
+        Considere $n = 4$ ensaios em um neurônio de V1 já centrados na média: contraste centrado $x = (-2,\; -1,\; 1,\; 2)$ e taxa de disparo centrada $y = (-7,\; -1,\; 3,\; 5)\text{ Hz}$. Calcule a inclinação $\hat{\beta}_\lambda$ para $\lambda = 0$ (OLS), $\lambda = 4$ e $\lambda = 18$.
+
+        <strong>Solução.</strong> Calculamos primeiro as somas:
+        $$\sum_{i=1}^4 x_i^2 = (-2)^2 + (-1)^2 + 1^2 + 2^2 = 10,$$
+        $$\sum_{i=1}^4 x_i y_i = (-2)(-7) + (-1)(-1) + 1(3) + 2(5) = 14 + 1 + 3 + 10 = 28.$$
+        Aplicando $\hat{\beta}_\lambda = \dfrac{\sum x_i y_i}{\sum x_i^2 + \lambda}$:
+        <list marker="dash">
+          <item>Para $\lambda = 0$ (OLS): $\hat{\beta}_0 = \frac{28}{10} = 2{,}8\text{ Hz}$ por unidade de contraste.</item>
+          <item>Para $\lambda = 4$: $\hat{\beta}_4 = \frac{28}{10 + 4} = \frac{28}{14} = 2{,}0\text{ Hz}$.</item>
+          <item>Para $\lambda = 18$: $\hat{\beta}_{18} = \frac{28}{10 + 18} = \frac{28}{28} = 1{,}0\text{ Hz}$.</item>
+        </list>
+        Observe que $\hat{\beta}_\lambda$ encolhe continuamente na direção de zero sem nunca zerar exatamente para $\lambda$ finito.
+      </example>
+
+      <example id="exm:8-6-ridge-2d">
+        <title>Resgatando o sistema $2 \times 2$ quase singular</title>
+        Retome os dados do <ref to="exm:8-6-colinear"/>, onde $\mathbf{X}^\top\mathbf{X} = \begin{pmatrix} 4 & 4 \\ 4 & 4{,}04 \end{pmatrix}$, $\mathbf{X}^\top\mathbf{y} = \begin{pmatrix} 4 \\ 4{,}20 \end{pmatrix}$ e o OLS havia dado $(-4,\; +5)^\top$. Calcule os coeficientes <em>ridge</em> com $\lambda = 1$.
+
+        <strong>Solução.</strong> Somamos $\lambda\mathbf{I} = \mathbf{I}$ à diagonal de $\mathbf{X}^\top\mathbf{X}$:
+        $$\mathbf{X}^\top\mathbf{X} + \mathbf{I} = \begin{pmatrix} 5 & 4 \\ 4 & 5{,}04 \end{pmatrix}, \qquad \det(\mathbf{X}^\top\mathbf{X} + \mathbf{I}) = 5 \cdot 5{,}04 - 16 = 25{,}20 - 16 = 9{,}20.$$
+        Invertendo e multiplicando por $\mathbf{X}^\top\mathbf{y}$:
+        $$\hat{\boldsymbol{\beta}}_1 = \frac{1}{9{,}20}\begin{pmatrix} 5{,}04 & -4 \\ -4 & 5 \end{pmatrix}\begin{pmatrix} 4 \\ 4{,}20 \end{pmatrix} = \frac{1}{9{,}20}\begin{pmatrix} 20{,}16 - 16{,}80 \\ -16 + 21{,}00 \end{pmatrix} = \frac{1}{9{,}20}\begin{pmatrix} 3{,}36 \\ 5{,}00 \end{pmatrix} \approx \begin{pmatrix} 0{,}365 \\ 0{,}543 \end{pmatrix}.$$
+        A soma dos pesos continua próxima de $0{,}91 \approx 1$, mas os valores extremos $(-4, +5)$ foram domados para coeficientes positivos e estáveis.
+      </example>
+
+      Agora vamos comparar <c>LinearRegression</c> e <c>Ridge</c> exatamente no mesmo cenário de alta variância da seção anterior ($p = 80$, $n_{\text{treino}} = 100$), sempre encapsulando <c>StandardScaler()</c> dentro de um <c>Pipeline</c>.
+
+      <code lang="python" id="cod:8-6-ridge">
+import numpy as np
+from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.metrics import r2_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(0)
+n_treino, n_teste, p = 100, 100, 80
+
+fatores = rng.normal(0.0, 1.0, size=(n_treino + n_teste, 10))
+mistura = rng.normal(0.0, 1.0, size=(10, p))
+X = fatores @ mistura + 0.5 * rng.normal(0.0, 1.0, size=(n_treino + n_teste, p))
+
+pesos_reais = np.zeros(p)
+pesos_reais[:5] = [1.5, -1.2, 1.0, -0.8, 0.7]
+y = X @ pesos_reais + rng.normal(0.0, 6.0, size=n_treino + n_teste)
+
+X_treino, X_teste = X[:n_treino], X[n_treino:]
+y_treino, y_teste = y[:n_treino], y[n_treino:]
+
+modelos = {
+    "OLS (sem regularização)": Pipeline([("scaler", StandardScaler()), ("reg", LinearRegression())]),
+    "Ridge (alpha = 100.0)"  : Pipeline([("scaler", StandardScaler()), ("reg", Ridge(alpha=100.0))]),
+}
+
+for nome, tubo in modelos.items():
+    tubo.fit(X_treino, y_treino)
+    r2_tr = r2_score(y_treino, tubo.predict(X_treino))
+    r2_te = r2_score(y_teste, tubo.predict(X_teste))
+    norma = np.linalg.norm(tubo.named_steps["reg"].coef_)
+    print(f"{nome:24s} | R² treino: {r2_tr:6.3f} | R² teste: {r2_te:6.3f} | ||beta||_2: {norma:6.3f}")
+
+# OLS (sem regularização)  | R² treino:  0.956 | R² teste: -1.472 | ||beta||_2: 64.678
+# Ridge (alpha = 100.0)    | R² treino:  0.641 | R² teste:  0.538 | ||beta||_2:  2.363
+      </code>
+
+      <remark id="rem:8-6-armadilha-escala">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Esquecer de padronizar as variáveis antes de penalizar:</strong> a penalidade $\lambda\sum_{j=1}^p \beta_j^2$ depende da escala de cada coluna. Se um canal de EEG é medido em volts ($\text{V}$) e outro em microvolts ($\mu\text{V}$), o primeiro exige um $\beta_j$ um milhão de vezes maior para o mesmo efeito físico — e será esmagado pela penalidade. Use sempre <c>StandardScaler()</c> em um <c>Pipeline</c>.</item>
+          <item><strong>Penalizar o intercepto $\beta_0$:</strong> em implementações manuais, nunca inclua $\beta_0^2$ na soma da penalidade; se você usar a fórmula fechada $(\mathbf{X}^\top\mathbf{X} + \lambda\mathbf{I})^{-1}\mathbf{X}^\top\mathbf{y}$ sem a coluna de uns, lembre-se de centrar $\mathbf{X}$ e $\mathbf{y}$ antes e recuperar $\hat{\beta}_0 = \bar{y} - \bar{\mathbf{x}}^\top\hat{\boldsymbol{\beta}}_\lambda$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-6-2-1">
+        <title>Básico — Fórmula 1D da ridge</title>
+        Em um modelo 1D com variáveis centradas, temos $\sum_{i=1}^n x_i^2 = 12$ e $\sum_{i=1}^n x_i y_i = 36$. Calcule a estimativa <em>ridge</em> $\hat{\beta}_\lambda$ para $\lambda = 0$, $\lambda = 6$ e $\lambda = 24$.
+        <hint><title>Ver dica</title>Substitua diretamente em $\hat{\beta}_\lambda = \dfrac{\sum x_i y_i}{\sum x_i^2 + \lambda}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="dash">
+            <item>Para $\lambda = 0$: $\hat{\beta}_0 = \frac{36}{12 + 0} = 3{,}0$.</item>
+            <item>Para $\lambda = 6$: $\hat{\beta}_6 = \frac{36}{12 + 6} = \frac{36}{18} = 2{,}0$.</item>
+            <item>Para $\lambda = 24$: $\hat{\beta}_{24} = \frac{36}{12 + 24} = \frac{36}{36} = 1{,}0$.</item>
+          </list>
+          A inclinação diminui monotonicamente conforme $\lambda$ aumenta.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-6-2-2">
+        <title>Intermediário — Efeito das unidades na penalidade L2</title>
+        A taxa de disparo de um neurônio responde a dois preditores: o potencial somático $x_1$ medido em volts (desvio padrão $s_1 = 0{,}01\text{ V}$) e o contraste $x_2$ medido em porcentagem (desvio padrão $s_2 = 10\%$). Na relação verdadeira $y = 200 x_1 + 0{,}2 x_2$, ambos os termos variam tipicamente em $2\text{ Hz}$.
+        <list marker="a">
+          <item>Calcule $\beta_1^2 + \beta_2^2$ nas unidades originais e compare a parcela de penalidade que recai sobre $x_1$ e sobre $x_2$.</item>
+          <item>Se definirmos variáveis padronizadas $z_1 = x_1/0{,}01$ e $z_2 = x_2/10$, quais serão os novos coeficientes $\tilde{\beta}_1$ e $\tilde{\beta}_2$ e suas contribuições à penalidade?</item>
+        </list>
+        <hint><title>Ver dica</title>Substitua $x_1 = 0{,}01 z_1$ e $x_2 = 10 z_2$ na equação de $y$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Nas unidades originais, $\beta_1^2 = 200^2 = 40\,000$ e $\beta_2^2 = 0{,}2^2 = 0{,}04$ (total $40\,000{,}04$). A variável $x_1$ sofre uma penalidade $1\,000\,000$ de vezes maior que $x_2$, embora ambas tenham a mesma importância física.</item>
+            <item>Substituindo $x_1 = 0{,}01 z_1$ e $x_2 = 10 z_2$:
+              $$y = 200(0{,}01 z_1) + 0{,}2(10 z_2) = 2{,}0\,z_1 + 2{,}0\,z_2.$$
+              Agora $\tilde{\beta}_1 = \tilde{\beta}_2 = 2{,}0$, de modo que $\tilde{\beta}_1^2 = \tilde{\beta}_2^2 = 4{,}0$: a penalidade trata os dois preditores de maneira justa.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-6-2-3">
+        <title>Avançado — Fatores de encolhimento na SVD e leitura bayesiana</title>
+        Uma matriz $\mathbf{X}$ centrada possui dois valores singulares: $d_1 = 10$ e $d_2 = 0{,}5$.
+        <list marker="a">
+          <item>Calcule os fatores de encolhimento da SVD $\frac{d_j^2}{d_j^2 + \lambda}$ para cada direção quando $\lambda = 1$ e quando $\lambda = 10$.</item>
+          <item>Na leitura bayesiana $\lambda = \sigma^2 / \tau^2$, o que acontece com o encolhimento se o ruído experimental $\sigma^2$ dobrar ou se a variância <em>a priori</em> $\tau^2$ cair pela metade?</item>
+        </list>
+        <hint><title>Ver dica</title>Eleve $d_1$ e $d_2$ ao quadrado ($100$ e $0{,}25$) antes de substituir na razão $\frac{d_j^2}{d_j^2 + \lambda}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Temos $d_1^2 = 100$ e $d_2^2 = 0{,}25$.
+              Para $\lambda = 1$: direção $1$ fica $\frac{100}{101} \approx 0{,}990$ (quase intocada) e direção $2$ cai para $\frac{0{,}25}{1{,}25} = 0{,}200$.
+              Para $\lambda = 10$: direção $1$ fica $\frac{100}{110} \approx 0{,}909$, enquanto a direção ruidosa $2$ despenca para $\frac{0{,}25}{10{,}25} \approx 0{,}024$.
+            </item>
+            <item>Em ambos os casos, $\lambda = \sigma^2 / \tau^2$ dobra de valor, aumentando o encolhimento. Faz sentido intuitivo: dados mais ruidosos (maior $\sigma^2$) ou crença prévia mais forte de que os pesos são pequenos (menor $\tau^2$) exigem regularização mais intensa.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-6-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Lasso e elastic net (penalidade L1)</title>
+      <intro>
+        Trocar o quadrado do coeficiente pelo seu valor absoluto faz com que pesos pequenos sejam zerados exatamente, produzindo modelos esparsos e interpretáveis.
+      </intro>
+
+      A regressão <em>ridge</em> reduz a variância com eficiência, mas carrega todos os $p$ preditores com coeficientes diferentes de zero. Em certos estudos — por exemplo, quando registramos centenas de metabólitos ou dezenas de canais de EEG e suspeitamos de que apenas um pequeno subconjunto realmente importa — queremos que o modelo zere automaticamente as variáveis irrelevantes. Essa é a marca registrada do <strong>lasso</strong> (Tibshirani, 1996), que substitui a norma L2 ao quadrado ($\|\boldsymbol{\beta}\|_2^2$) pela norma L1 ($\|\boldsymbol{\beta}\|_1$).
+
+      <definition id="def:8-6-lasso-enet">
+        <title>Lasso e elastic net</title>
+        Dado $\lambda \ge 0$, o <strong>lasso</strong> (<em>least absolute shrinkage and selection operator</em>) minimiza:
+        <equation id="eq:8-6-lasso-obj">
+          J_{\text{lasso}}(\beta_0, \boldsymbol{\beta}) = \mathrm{RSS} + \lambda \sum_{j=1}^p |\beta_j| = \mathrm{RSS} + \lambda \|\boldsymbol{\beta}\|_1.
+        </equation>
+        Quando variáveis altamente correlacionadas aparecem juntas, combinamos as penalidades L1 e L2 no <strong>elastic net</strong>, controlado por $\lambda \ge 0$ e pela mistura $\rho \in [0, 1]$:
+        <equation id="eq:8-6-enet-obj">
+          J_{\text{enet}}(\beta_0, \boldsymbol{\beta}) = \mathrm{RSS} + \lambda\left(\rho \|\boldsymbol{\beta}\|_1 + \frac{1 - \rho}{2}\|\boldsymbol{\beta}\|_2^2\right).
+        </equation>
+        <intuition>
+          Geometricamente, minimizar $\mathrm{RSS} + \lambda\|\boldsymbol{\beta}\|_1$ equivale a minimizar $\mathrm{RSS}$ dentro de um "losango" $|\beta_1| + |\beta_2| \le s$ (em 2D), enquanto a <em>ridge</em> restringe os coeficientes a um círculo $\beta_1^2 + \beta_2^2 \le s$. As elipses de nível da $\mathrm{RSS}$ tendem a tocar os cantos pontiagudos do losango — que ficam exatamente sobre os eixos coordenados, zerando um dos coeficientes —, ao passo que o círculo liso raramente toca um eixo.
+        </intuition>
+      </definition>
+
+      Para ver analiticamente por que a penalidade L1 zera pesos pequenos enquanto a L2 apenas os encolhe, considere uma única variável normalizada ($\sum_{i=1}^n x_i^2 = 1$), onde surge a <strong>limiarização suave</strong> (<em>soft thresholding</em>).
+
+      <proposition id="prop:8-6-soft-thresholding">
+        <title>Limiarização suave no caso 1D normalizado</title>
+        Considere um problema 1D centrado sem intercepto com $\sum_{i=1}^n x_i^2 = 1$, cuja estimativa de mínimos quadrados é $\hat{\beta}^{\text{MQ}} = \sum_{i=1}^n x_i y_i$. Para o objetivo $L(\beta) = \sum_{i=1}^n (y_i - \beta x_i)^2 + \lambda|\beta|$ ($\lambda > 0$), o minimizador único é:
+        <equation id="eq:8-6-soft-thresh">
+          \hat{\beta}^{\text{lasso}} = \operatorname{sign}(\hat{\beta}^{\text{MQ}})\max\!\left(|\hat{\beta}^{\text{MQ}}| - \frac{\lambda}{2},\; 0\right).
+        </equation>
+        Em contraste, para a regressão <em>ridge</em> sob a mesma normalização ($\sum x_i^2 = 1$), temos $\hat{\beta}^{\text{ridge}} = \dfrac{\hat{\beta}^{\text{MQ}}}{1 + \lambda}$. Lembre-se de que o <c>StandardScaler</c> garante $\frac{1}{n}\sum x_i^2 = 1$ (logo $\sum x_i^2 = n$), diferente da normalização $\sum x_i^2 = 1$ usada nesta dedução; veja o <ref to="exm:8-6-sklearn-lambda"/> para a conversão.
+      </proposition>
+      <proof of="prop:8-6-soft-thresholding" collapsible="true" collapsed="true">
+        Expandindo $\mathrm{RSS}(\beta)$ e usando $\sum_{i=1}^n x_i^2 = 1$ e $\sum_{i=1}^n x_i y_i = \hat{\beta}^{\text{MQ}}$, obtemos:
+        $$L(\beta) = \sum_{i=1}^n y_i^2 - 2\hat{\beta}^{\text{MQ}}\beta + \beta^2 + \lambda|\beta|.$$
+        Analisamos três regiões para o sinal de $\beta$:
+        <list marker="number">
+          <item>Se $\beta > 0$, então $|\beta| = \beta$ e $L'(\beta) = -2\hat{\beta}^{\text{MQ}} + 2\beta + \lambda = 0 \implies \beta = \hat{\beta}^{\text{MQ}} - \frac{\lambda}{2}$, o que é estritamente positivo se, e somente se, $\hat{\beta}^{\text{MQ}} > \frac{\lambda}{2}$.</item>
+          <item>Se $\beta < 0$, então $|\beta| = -\beta$ e $L'(\beta) = -2\hat{\beta}^{\text{MQ}} + 2\beta - \lambda = 0 \implies \beta = \hat{\beta}^{\text{MQ}} + \frac{\lambda}{2}$, o que é estritamente negativo se, e somente se, $\hat{\beta}^{\text{MQ}} < -\frac{\lambda}{2}$.</item>
+          <item>Se $|\hat{\beta}^{\text{MQ}}| \le \frac{\lambda}{2}$, então $L'(\beta) = 2(\beta - \hat{\beta}^{\text{MQ}}) + \lambda > 0$ para todo $\beta > 0$ e $L'(\beta) = 2(\beta - \hat{\beta}^{\text{MQ}}) - \lambda < 0$ para todo $\beta < 0$; logo, a função decresce até $0$ e cresce depois de $0$, atingindo o mínimo exato em $\beta = 0$.</item>
+        </list>
+        Reunindo os três casos, obtemos a fórmula de limiarização suave <ref to="eq:8-6-soft-thresh"/>.
+      </proof>
+
+      Ao contrário da <em>ridge</em>, quando $p > 1$ e as colunas não são ortogonais, o <em>lasso</em> <strong>não possui fórmula fechada matricial</strong> por causa do bico não diferenciável de $|\beta_j|$ em zero. O ajuste é feito por algoritmos numéricos iterativos, em especial a <strong>descida por coordenadas</strong> (<em>coordinate descent</em>, ligada aos métodos computacionais do Módulo 4): atualiza-se um coeficiente $\beta_j$ por vez mantendo os outros fixos, aplicando repetidamente a limiarização suave 1D até convergir.
+
+      Quando há variáveis fortemente correlacionadas, porém, o <em>lasso</em> exibe duas limitações conhecidas: primeiro, se $p > n$, ele seleciona no máximo $n$ variáveis; segundo, diante de duas variáveis quase idênticas, ele escolhe uma arbitrariamente e zera a outra de forma instável (basta trocar algumas amostras para o peso saltar de uma coluna para a vizinha). O <em>elastic net</em> mitiga esse defeito: a parcela L2 incentiva que variáveis correlacionadas compartilhem o peso em grupo, enquanto a parcela L1 preserva a esparsidade.
+
+      <strong>Cuidado crítico com as escalas no <c>scikit-learn</c>.</strong> Enquanto <c>Ridge(alpha)</c> minimiza $\|\mathbf{y} - \mathbf{X}\mathbf{w}\|_2^2 + \alpha\|\mathbf{w}\|_2^2$ (sem dividir pela amostra), <c>Lasso(alpha)</c> e <c>ElasticNet(alpha, l1_ratio)</c> trazem um fator $\frac{1}{2n}$ multiplicando a $\mathrm{RSS}$:
+      <equations id="eq:8-6-sklearn-escalas">
+        \text{Lasso:} \quad &\frac{1}{2n}\|\mathbf{y} - \mathbf{X}\mathbf{w}\|_2^2 + \alpha\|\mathbf{w}\|_1, \\
+        \text{ElasticNet:} \quad &\frac{1}{2n}\|\mathbf{y} - \mathbf{X}\mathbf{w}\|_2^2 + \alpha\rho\|\mathbf{w}\|_1 + \frac{\alpha(1-\rho)}{2}\|\mathbf{w}\|_2^2,
+      </equations>
+      onde $\rho = \text{l1\_ratio}$. Multiplicando o objetivo do <c>Lasso</c> por $2n$, obtemos $\mathrm{RSS} + (2n\alpha)\|\mathbf{w}\|_1$: o <c>alpha</c> do <c>scikit-learn</c> <strong>não</strong> equivale ao $\lambda$ do livro, pois $\lambda = 2n\,\alpha$.
+
+      <example id="exm:8-6-soft-mao">
+        <title>Limiarização suave vs. encolhimento ridge à mão</title>
+        Para dois preditores 1D normalizados ($\sum x_i^2 = 1$), obtivemos por mínimos quadrados $\hat{\beta}_1^{\text{MQ}} = 3{,}0$ e $\hat{\beta}_2^{\text{MQ}} = -0{,}8$. Calcule as estimativas <em>ridge</em> e <em>lasso</em> (fórmula do livro $\mathrm{RSS} + \lambda|\beta|$) usando $\lambda = 2$.
+
+        <strong>Solução.</strong> Para $\lambda = 2$:
+        <list marker="dash">
+          <item><strong>Preditor 1 ($\hat{\beta}_1^{\text{MQ}} = 3{,}0$):</strong>
+            $$\hat{\beta}_1^{\text{ridge}} = \frac{3{,}0}{1 + 2} = 1{,}0, \qquad \hat{\beta}_1^{\text{lasso}} = \operatorname{sign}(3{,}0)\max\!\left(3{,}0 - \frac{2}{2},\; 0\right) = 2{,}0.$$
+          </item>
+          <item><strong>Preditor 2 ($\hat{\beta}_2^{\text{MQ}} = -0{,}8$):</strong>
+            $$\hat{\beta}_2^{\text{ridge}} = \frac{-0{,}8}{1 + 2} \approx -0{,}267, \qquad \hat{\beta}_2^{\text{lasso}} = \operatorname{sign}(-0{,}8)\max\!\left(0{,}8 - \frac{2}{2},\; 0\right) = 0.$$
+          </item>
+        </list>
+        A <em>ridge</em> encolheu ambos na mesma proporção ($1/3$), deixando o segundo pequeno mas não nulo; o <em>lasso</em> deslocou ambos em $\lambda/2 = 1{,}0$ e zerou exatamente o preditor mais fraco.
+      </example>
+
+      <example id="exm:8-6-sklearn-lambda">
+        <title>Convertendo o <c>alpha</c> do <c>Lasso</c> em um estudo de EEG</title>
+        Em um experimento de potenciais evocados com $n = 50$ ensaios, um pesquisador ajusta <c>Lasso(alpha=0.25)</c> após padronizar as colunas com <c>StandardScaler</c> (de modo que $\frac{1}{n}\sum_{i=1}^n x_{ij}^2 = 1$). Qual é o $\lambda$ correspondente na fórmula $\mathrm{RSS} + \lambda\|\boldsymbol{\beta}\|_1$? E para um preditor ortogonal padronizado, a partir de qual valor de $|\hat{\beta}^{\text{MQ}}|$ o coeficiente sobrevive diferente de zero?
+
+        <strong>Solução.</strong> Como $\lambda = 2n\,\alpha$, obtemos $\lambda = 2 \cdot 50 \cdot 0{,}25 = 25$. Além disso, quando cada coluna já está padronizada com $\frac{1}{n}\sum x_i^2 = 1$, temos $\sum x_i^2 = n$, e a derivada de $\frac{1}{2n}\|y - \beta x\|_2^2 + \alpha|\beta|$ mostra que o limiar de corte direto sobre $|\hat{\beta}^{\text{MQ}}|$ é simplesmente $\alpha = 0{,}25$: qualquer variável ortogonal com $|\hat{\beta}^{\text{MQ}}| \le 0{,}25$ é zerada pelo <c>Lasso(alpha=0.25)</c>.
+      </example>
+
+      O código a seguir cria $120$ amostras de treino com $50$ variáveis padronizadas, das quais apenas $5$ carregam sinal verdadeiro, e verifica quantas sobrevivem diferentes de zero após o ajuste do <c>Lasso</c>.
+
+      <code lang="python" id="cod:8-6-lasso">
+import numpy as np
+from sklearn.linear_model import Lasso, LinearRegression
+from sklearn.metrics import r2_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(0)
+n_treino, n_teste, p = 120, 80, 50
+
+X = rng.normal(0.0, 1.0, size=(n_treino + n_teste, p))
+pesos_reais = np.zeros(p)
+pesos_reais[:5] = [2.0, -1.5, 1.2, -1.0, 0.8]
+y = X @ pesos_reais + rng.normal(0.0, 1.0, size=n_treino + n_teste)
+
+X_treino, X_teste = X[:n_treino], X[n_treino:]
+y_treino, y_teste = y[:n_treino], y[n_treino:]
+
+ols = Pipeline([("scaler", StandardScaler()), ("reg", LinearRegression())]).fit(X_treino, y_treino)
+lasso = Pipeline([
+    ("scaler", StandardScaler()),
+    ("reg", Lasso(alpha=0.25, max_iter=5000, random_state=0)),
+]).fit(X_treino, y_treino)
+
+coefs_lasso = lasso.named_steps["reg"].coef_
+n_ativos = int(np.sum(np.abs(coefs_lasso) > 1e-8))
+indices_ativos = np.where(np.abs(coefs_lasso) > 1e-8)[0]
+
+print(f"R² teste (OLS, 50 variáveis)   : {r2_score(y_teste, ols.predict(X_teste)):.3f}")
+# R² teste (OLS, 50 variáveis)   : 0.875
+print(f"R² teste (Lasso, alpha=0.25)   : {r2_score(y_teste, lasso.predict(X_teste)):.3f}")
+# R² teste (Lasso, alpha=0.25)   : 0.897
+print(f"Coeficientes != 0 no Lasso     : {n_ativos} de {p}")
+# Coeficientes != 0 no Lasso     : 5 de 50
+print("Índices selecionados           :", indices_ativos.tolist())
+# Índices selecionados           : [0, 1, 2, 3, 4]
+      </code>
+
+      <remark id="rem:8-6-armadilha-lasso">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Interpretar os coeficientes não nulos do <em>lasso</em> como "as únicas variáveis que importam" quando há colinearidade:</strong> se duas regiões cerebrais ou duas bandas de EEG são fortemente correlacionadas e ambas participam do processo biológico, o <em>lasso</em> frequentemente zera uma delas e retém a outra ao sabor da amostra. Zero no <em>lasso</em> significa redundância naquela amostra, não ausência de efeito biológico.</item>
+          <item><strong>Confundir o <c>alpha</c> do <c>Lasso</c>/<c>ElasticNet</c> com o $\lambda$ de <c>Ridge</c> ou do livro:</strong> porque o <c>Lasso</c> divide a $\mathrm{RSS}$ por $2n$, passar <c>alpha=10</c> em <c>Ridge</c> é uma penalidade branda, mas passar <c>alpha=10</c> em <c>Lasso</c> normalmente zera todos os coeficientes.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-6-3-1">
+        <title>Básico — Ridge e lasso na mão</title>
+        Suponha variáveis 1D normalizadas ($\sum x_i^2 = 1$) com estimativas de mínimos quadrados $\hat{\beta}_1^{\text{MQ}} = 5{,}0$ e $\hat{\beta}_2^{\text{MQ}} = -1{,}2$. Calcule $\hat{\beta}^{\text{ridge}}$ e $\hat{\beta}^{\text{lasso}}$ (na forma $\mathrm{RSS} + \lambda|\beta|$) para $\lambda = 3$.
+        <hint><title>Ver dica</title>Use $\frac{\hat{\beta}^{\text{MQ}}}{1 + \lambda}$ para <em>ridge</em> e $\operatorname{sign}(\hat{\beta}^{\text{MQ}})\max(|\hat{\beta}^{\text{MQ}}| - \lambda/2, 0)$ para <em>lasso</em>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Com $\lambda = 3$, temos $\lambda/2 = 1{,}5$ e $1 + \lambda = 4$:
+          <list marker="dash">
+            <item>Para $\hat{\beta}_1^{\text{MQ}} = 5{,}0$: $\hat{\beta}_1^{\text{ridge}} = \frac{5{,}0}{4} = 1{,}25$ e $\hat{\beta}_1^{\text{lasso}} = \max(5{,}0 - 1{,}5,\; 0) = 3{,}5$.</item>
+            <item>Para $\hat{\beta}_2^{\text{MQ}} = -1{,}2$: $\hat{\beta}_2^{\text{ridge}} = \frac{-1{,}2}{4} = -0{,}30$ e $\hat{\beta}_2^{\text{lasso}} = -\max(1{,}2 - 1{,}5,\; 0) = 0$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-6-3-2">
+        <title>Intermediário — Seleção instável em canais de EEG correlacionados</title>
+        Em uma tarefa de atenção visual, as potências na banda alfa dos eletrodos parietais Pz e Oz apresentam correlação $r = 0{,}98$. Ao ajustar um <c>Lasso</c> para prever o tempo de reação, um pesquisador obtém $\hat{\beta}_{\text{Pz}} = 1{,}8$ e $\hat{\beta}_{\text{Oz}} = 0$, e conclui que "a região occipital (Oz) não participa da tarefa". Explique o erro dessa conclusão e como o <c>ElasticNet</c> altera esse comportamento.
+        <hint><title>Ver dica</title>Lembre do comportamento da penalidade L1 diante de preditores colineares e do papel do termo L2 no <em>elastic net</em>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Como Pz e Oz carregam praticamente a mesma informação ($r = 0{,}98$), qualquer divisão positiva com soma fixa $\beta_{\text{Pz}} + \beta_{\text{Oz}} = 1{,}8$ produz praticamente a mesma previsão na $\mathrm{RSS}$ e exatamente a mesma penalidade L1 ($|\beta_{\text{Pz}}| + |\beta_{\text{Oz}}| = 1{,}8$). Assim, pequenas flutuações amostrais quebram o empate e fazem o <em>lasso</em> jogar todo o peso em apenas um eletrodo e zerar o outro. Logo, $\hat{\beta}_{\text{Oz}} = 0$ indica colinearidade, não irrelevância biológica. No <c>ElasticNet</c>, o termo estritamente convexo $\|\boldsymbol{\beta}\|_2^2$ prefere dividir o peso entre variáveis correlacionadas (pois $0{,}9^2 + 0{,}9^2 = 1{,}62 < 1{,}8^2 + 0^2 = 3{,}24$), retendo Pz e Oz em conjunto.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-6-3-3">
+        <title>Avançado — Comparando Lasso e ElasticNet com variáveis correlacionadas</title>
+        Em Python, crie um conjunto de $120$ amostras de treino e $80$ de teste com $p = 30$ variáveis, onde as $4$ primeiras são cópias ruidosas de um mesmo sinal latente $z$ ($x_j = z + 0{,}15\,\eta_j$) e o alvo obedece a $y = 2z + \varepsilon$. Compare <c>Lasso(alpha=0.2)</c> e <c>ElasticNet(alpha=0.2, l1_ratio=0.5)</c> (em <c>Pipeline</c> com <c>StandardScaler</c>) quanto ao $R^2$ de teste e a quantas das $4$ variáveis correlacionadas recebem peso diferente de zero.
+        <hint><title>Ver dica</title>Inspecione <c>coef_[:4]</c> de cada modelo e conte quantas entradas têm valor absoluto maior que <c>1e-8</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.linear_model import ElasticNet, Lasso
+from sklearn.metrics import r2_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(0)
+n_treino, n_teste, p = 120, 80, 30
+n_total = n_treino + n_teste
+
+z = rng.normal(0.0, 1.0, size=n_total)
+X = rng.normal(0.0, 1.0, size=(n_total, p))
+for j in range(4):
+    X[:, j] = z + 0.15 * rng.normal(0.0, 1.0, size=n_total)
+
+y = 2.0 * z + rng.normal(0.0, 0.8, size=n_total)
+X_tr, X_te, y_tr, y_te = X[:n_treino], X[n_treino:], y[:n_treino], y[n_treino:]
+
+modelos = {
+    "Lasso (alpha=0.2)"              : Lasso(alpha=0.2, max_iter=5000, random_state=0),
+    "ElasticNet (0.2, l1_ratio=0.5)" : ElasticNet(alpha=0.2, l1_ratio=0.5, max_iter=5000, random_state=0),
+}
+
+for nome, est in modelos.items():
+    tubo = Pipeline([("scaler", StandardScaler()), ("reg", est)]).fit(X_tr, y_tr)
+    coef = tubo.named_steps["reg"].coef_
+    r2_te = r2_score(y_te, tubo.predict(X_te))
+    ativas_grupo = int(np.sum(np.abs(coef[:4]) > 1e-8))
+    ativas_ruido = int(np.sum(np.abs(coef[4:]) > 1e-8))
+    print(f"{nome:31s} | R² teste: {r2_te:.3f} | Grupo (4): {ativas_grupo} | Ruído (26): {ativas_ruido}")
+
+# Lasso (alpha=0.2)               | R² teste: 0.795 | Grupo (4): 3 | Ruído (26): 0
+# ElasticNet (0.2, l1_ratio=0.5)  | R² teste: 0.802 | Grupo (4): 4 | Ruído (26): 6
+          </code>
+          O <em>elastic net</em> mantém as $4$ variáveis do grupo correlacionado, mas também deixa entrar $6$ variáveis de ruído (com pesos pequenos), enquanto o <em>lasso</em> fica com $3$ das $4$ do grupo e nenhuma de ruído; o $R^2$ de teste é parecido ($\approx 0{,}80$).
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-6-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Escolhendo λ por validação cruzada</title>
+      <intro>
+        O parâmetro $\lambda$ governa o compromisso entre viés e variância ao longo de ordens de grandeza; usamos grades logarítmicas e validação cruzada para sintonizá-lo sem olhar para o conjunto de teste.
+      </intro>
+
+      Como visto no Tema 8.1 (Introdução), todo modelo regularizado atravessa um compromisso entre viés e variância controlado por $\lambda$. Se $\lambda$ for pequeno demais, a variância dispara e o modelo sofre sobreajuste (<em>overfitting</em>); se $\lambda$ for grande demais, todos os coeficientes são esmagados para perto de zero e o modelo sofre subajuste (<em>underfitting</em>). A ferramenta padrão para encontrar a região ideal entre esses dois extremos é a validação cruzada do Tema 8.5 (Reamostragem).
+
+      Como os efeitos interessantes de $\lambda$ ocorrem em escalas multiplicativas ($0{,}01$, $0{,}1$, $1$, $10$, $100$, $1\,000$...), nunca montamos uma grade linear uniforme: usamos uma <strong>grade logarítmica</strong> com <c>np.logspace</c>. Ao longo dessa grade, o gráfico dos coeficientes $\hat{\beta}_j(\lambda)$ em função de $\lambda$ forma o <strong>caminho de regularização</strong> (<em>regularization path</em>), ilustrado na <ref to="fig:8-6-caminho"/>: na <em>ridge</em>, todas as curvas descem suavemente juntas em direção a zero; no <em>lasso</em>, as variáveis de ruído batem exatamente em zero cedo, deixando apenas os sinais ativos em uma faixa ampla de $\alpha$.
+
+      <figure src="fig/t06-caminho.svg" alt="Dois gráficos lado a lado em escala logarítmica mostrando os coeficientes estimados em função de alpha: à esquerda, Ridge com encolhimento suave de todas as 10 variáveis; à direita, Lasso zerando as 7 variáveis de ruído enquanto retém as 3 variáveis ativas" id="fig:8-6-caminho">
+        <caption>Caminho de regularização para $3$ variáveis ativas e $7$ de ruído. À esquerda, a <em>ridge</em> encolhe todos os pesos de forma contínua; à direita, o <em>lasso</em> zera exatamente os coeficientes irrelevantes.</caption>
+      </figure>
+
+      Ao traçar a curva do erro médio de validação cruzada $\mathrm{CV}(\lambda)$ contra $\lambda$, identificamos o ponto $\lambda_{\min}$ que atinge o menor erro médio. Muitas vezes, porém, a curva é bem achatada perto do mínimo, e um $\lambda$ um pouco maior produz praticamente o mesmo erro com um modelo mais simples (mais regularizado). Para formalizar essa escolha parcimoniosa, usamos a <strong>regra de um erro padrão</strong> (<em>one-standard-error rule</em>).
+
+      <definition id="def:8-6-regra-1ep">
+        <title>Grade logarítmica, $\lambda_{\min}$ e regra de um erro padrão</title>
+        Dada uma grade logarítmica $\lambda_1 < \lambda_2 < \dots < \lambda_M$ avaliada em validação cruzada de $k$ dobras, seja $\mathrm{CV}(\lambda_m) = \frac{1}{k}\sum_{r=1}^k E_{r}(\lambda_m)$ o erro médio (por exemplo, $\mathrm{MSE}$) e $\mathrm{EP}(\lambda_m) = \frac{s_m}{\sqrt{k}}$ o erro padrão entre as $k$ dobras (onde $s_m$ é o desvio padrão amostral dos $k$ erros).
+        <list marker="dash">
+          <item><strong>Escolha pelo mínimo:</strong> $\lambda_{\min} = \arg\min_{\lambda_m} \mathrm{CV}(\lambda_m)$.</item>
+          <item><strong>Regra de um erro padrão:</strong> escolhemos o <strong>maior</strong> $\lambda_m$ (modelo mais regularizado) cujo erro médio satisfaz $\mathrm{CV}(\lambda_m) \le \mathrm{CV}(\lambda_{\min}) + \mathrm{EP}(\lambda_{\min})$.</item>
+        </list>
+        <intuition>
+          Se vários modelos têm erro médio estatisticamente indistinguível do mínimo dentro de uma margem de incerteza de $1$ erro padrão, a navalha de Occam manda ficar com o mais simples — isto é, o que tem maior regularização $\lambda$.
+        </intuition>
+      </definition>
+
+      No <c>scikit-learn</c>, <c>RidgeCV(alphas=...)</c> e <c>LassoCV(alphas=..., cv=5, random_state=0)</c> escolhem <c>alpha_</c> por validação cruzada e reajustam o modelo vencedor. Sempre encapsule-os em um <c>Pipeline</c> após <c>StandardScaler()</c> (para evitar vazamento entre dobras) e avalie o desempenho final em um conjunto de teste separado ou por validação cruzada aninhada.
+
+      <example id="exm:8-6-regra-1ep-mao">
+        <title>Aplicando a regra de um erro padrão à mão</title>
+        Uma validação cruzada $5$-fold avaliou cinco valores de $\lambda$ e obteve os seguintes pares $(\mathrm{MSE}_{\text{CV}} \pm \mathrm{EP})$:
+        $$\lambda = 0{,}01:\; 4{,}80 \pm 0{,}50; \quad 0{,}1:\; 3{,}60 \pm 0{,}35; \quad 1:\; 3{,}10 \pm 0{,}30; \quad 10:\; 3{,}35 \pm 0{,}28; \quad 100:\; 4{,}50 \pm 0{,}40.$$
+        Determine $\lambda_{\min}$ e o valor escolhido pela regra de um erro padrão.
+
+        <strong>Solução.</strong> O menor $\mathrm{MSE}$ médio ocorre em $\lambda_{\min} = 1$, com $\mathrm{CV}(1) = 3{,}10$ e $\mathrm{EP}(1) = 0{,}30$. O teto da regra de um erro padrão é:
+        $$\mathrm{CV}(\lambda_{\min}) + \mathrm{EP}(\lambda_{\min}) = 3{,}10 + 0{,}30 = 3{,}40.$$
+        Comparando os valores com $\lambda > 1$:
+        <list marker="dash">
+          <item>Para $\lambda = 10$: $\mathrm{CV}(10) = 3{,}35 \le 3{,}40$ (aceito).</item>
+          <item>Para $\lambda = 100$: $\mathrm{CV}(100) = 4{,}50 > 3{,}40$ (rejeitado).</item>
+        </list>
+        Portanto, a regra de um erro padrão escolhe $\lambda_{\text{1EP}} = 10$, obtendo um modelo mais estável com desempenho estatisticamente compatível com o mínimo.
+      </example>
+
+      <example id="exm:8-6-vazamento-cv">
+        <title>Duas formas sutis de vazar informação ao escolher $\lambda$</title>
+        Ao analisar registros de potenciais de ação em $100$ ensaios, um estudante padronizou toda a matriz <c>X</c> com <c>StandardScaler().fit_transform(X)</c>, dividiu em treino e teste e depois testou $30$ valores de <c>alpha</c> em <c>Ridge(alpha)</c>, publicando o $R^2$ do melhor <c>alpha</c> no conjunto de teste. Aponte os dois erros e corrija o protocolo.
+
+        <strong>Solução.</strong> Primeiro erro: padronizar antes da divisão vazou a média e o desvio padrão do teste para dentro do treino. Segundo erro: escolher <c>alpha</c> olhando o desempenho no conjunto de teste transformou o teste em conjunto de validação — o $R^2$ reportado fica otimista por viés de seleção. Protocolo correto: (1) separe o teste final antes de tudo; (2) nos dados de treino, ajuste <c>Pipeline([("scaler", StandardScaler()), ("reg", RidgeCV(alphas=np.logspace(-2, 4, 30), cv=5))])</c>; (3) avalie o modelo já sintonizado uma única vez no teste separado.
+      </example>
+
+      <code lang="python" id="cod:8-6-cv">
+import numpy as np
+from sklearn.linear_model import LassoCV, RidgeCV
+from sklearn.metrics import r2_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(0)
+n_treino, n_teste, p = 120, 80, 60
+
+fatores = rng.normal(0.0, 1.0, size=(n_treino + n_teste, 8))
+X = fatores @ rng.normal(0.0, 1.0, size=(8, p)) + 0.6 * rng.normal(0.0, 1.0, size=(n_treino + n_teste, p))
+pesos_reais = np.zeros(p)
+pesos_reais[:4] = [1.8, -1.4, 1.1, -0.9]
+y = X @ pesos_reais + rng.normal(0.0, 3.0, size=n_treino + n_teste)
+
+X_treino, X_teste = X[:n_treino], X[n_treino:]
+y_treino, y_teste = y[:n_treino], y[n_treino:]
+
+tubo_ridge = Pipeline([
+    ("scaler", StandardScaler()),
+    ("reg", RidgeCV(alphas=np.logspace(-1, 4, 25), cv=5)),
+]).fit(X_treino, y_treino)
+
+tubo_lasso = Pipeline([
+    ("scaler", StandardScaler()),
+    ("reg", LassoCV(alphas=np.logspace(-3, 0.5, 25), cv=5, max_iter=5000, random_state=0)),
+]).fit(X_treino, y_treino)
+
+print(f"RidgeCV alpha*: {tubo_ridge.named_steps['reg'].alpha_:7.3f} | R² teste: {r2_score(y_teste, tubo_ridge.predict(X_teste)):.3f}")
+# RidgeCV alpha*:   7.499 | R² teste: 0.711
+print(f"LassoCV alpha*: {tubo_lasso.named_steps['reg'].alpha_:7.3f} | R² teste: {r2_score(y_teste, tubo_lasso.predict(X_teste)):.3f}")
+# LassoCV alpha*:   0.110 | R² teste: 0.730
+      </code>
+
+      <remark id="rem:8-6-armadilha-cv">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Escolher $\lambda$ olhando o conjunto de teste:</strong> se o conjunto de teste participou da escolha de <c>alpha</c>, ele deixou de medir a generalização real.</item>
+          <item><strong>Confundir <c>alpha</c> com <c>C</c> em classificadores:</strong> em <c>Ridge</c> e <c>Lasso</c>, <c>alpha</c> multiplica a penalidade (maior <c>alpha</c> = mais regularização). Já em <c>LogisticRegression(C=...)</c> e <c>SVC(C=...)</c>, <c>C</c> multiplica a perda e equivale ao inverso da regularização ($C \propto 1/\lambda$), de modo que <em>menor</em> <c>C</c> significa <em>mais</em> regularização.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-6-4-1">
+        <title>Básico — Cálculo de EP e regra de um erro padrão</title>
+        Em uma validação cruzada com $k = 5$ dobras, o menor erro médio ocorreu em $\lambda = 1$, com os cinco erros das dobras tendo média $2{,}40$ e desvio padrão amostral $s = 0{,}55$. Os erros médios para valores maiores foram $2{,}58$ ($\lambda = 3$), $2{,}62$ ($\lambda = 10$) e $2{,}95$ ($\lambda = 30$). Qual $\lambda$ a regra de um erro padrão escolhe?
+        <hint><title>Ver dica</title>Calcule $\mathrm{EP} = \frac{s}{\sqrt{k}}$ usando $\sqrt{5} \approx 2{,}236$, some à média mínima $2{,}40$ e escolha o maior $\lambda$ abaixo desse teto.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculamos o erro padrão em $\lambda_{\min} = 1$:
+          $$\mathrm{EP} = \frac{0{,}55}{\sqrt{5}} \approx \frac{0{,}55}{2{,}236} \approx 0{,}246.$$
+          Somando ao mínimo $\mathrm{CV}(1) = 2{,}40$, o limite é $2{,}40 + 0{,}246 = 2{,}646$. Tanto $\lambda = 3$ ($2{,}58 \le 2{,}646$) quanto $\lambda = 10$ ($2{,}62 \le 2{,}646$) ficam dentro da tolerância, enquanto $\lambda = 30$ ($2{,}95 > 2{,}646$) ultrapassa o teto. Logo, a regra escolhe o maior deles: $\lambda_{\text{1EP}} = 10$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-6-4-2">
+        <title>Intermediário — Grade logarítmica para decodificador logístico em EEG</title>
+        Você está decodificando imagética motora a partir de $64$ canais de EEG usando <c>LogisticRegression(C=..., max_iter=1000)</c> dentro de uma validação cruzada.
+        <list marker="a">
+          <item>Por que testamos valores de <c>C</c> em escala logarítmica (<c>np.logspace(-3, 2, 6)</c>) em vez de uma grade linear como <c>np.linspace(0.001, 100, 6)</c>?</item>
+          <item>Se o classificador estiver com $99\%$ de acurácia no treino e $54\%$ no teste (forte sobreajuste), você deve aumentar ou diminuir o parâmetro <c>C</c>?</item>
+        </list>
+        <hint><title>Ver dica</title>Verifique quais valores uma grade linear entre $0{,}001$ e $100$ geraria perto de zero, e lembre que em <c>LogisticRegression</c> o termo $C$ multiplica a perda.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Uma grade linear de $6$ pontos entre $0{,}001$ e $100$ gera $[0{,}001;\; 20;\; 40;\; 60;\; 80;\; 100]$, ignorando completamente toda a faixa decisiva entre $0{,}01$ e $10$. A grade logarítmica <c>np.logspace(-3, 2, 6)</c> testa $[0{,}001;\; 0{,}01;\; 0{,}1;\; 1;\; 10;\; 100]$, explorando todas as ordens de grandeza com o mesmo detalhamento relativo.</item>
+            <item>Como há sobreajuste, precisamos de <em>mais</em> regularização. Como em <c>LogisticRegression</c> a função objetivo é $\frac{1}{2}\|\mathbf{w}\|_2^2 + C\sum_i (\text{perda logística})_i$, aumentar a regularização relativa exige <strong>diminuir</strong> <c>C</c>.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-6-4-3">
+        <title>Avançado — Validação cruzada aninhada com RidgeCV</title>
+        Implemente uma validação cruzada aninhada ($5$ dobras externas via <c>KFold(n_splits=5, shuffle=True, random_state=0)</c>, com <c>RidgeCV(alphas=np.logspace(-2, 4, 20), cv=4)</c> como estimador interno dentro de um <c>Pipeline</c>) sobre um conjunto sintético com $n = 120$ e $p = 60$. Imprima o $R^2$ de cada dobra externa e a média final.
+        <hint><title>Ver dica</title>Use <c>cross_val_score(tubo, X, y, cv=cv_ext, scoring="r2")</c>, onde <c>tubo</c> já contém o <c>StandardScaler()</c> e o <c>RidgeCV</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.linear_model import RidgeCV
+from sklearn.model_selection import KFold, cross_val_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(0)
+n, p = 120, 60
+fatores = rng.normal(0.0, 1.0, size=(n, 6))
+X = fatores @ rng.normal(0.0, 1.0, size=(6, p)) + 0.6 * rng.normal(0.0, 1.0, size=(n, p))
+pesos = np.zeros(p)
+pesos[:4] = [1.8, -1.4, 1.1, -0.9]
+y = X @ pesos + rng.normal(0.0, 3.0, size=n)
+
+tubo = Pipeline([
+    ("scaler", StandardScaler()),
+    ("reg", RidgeCV(alphas=np.logspace(-2, 4, 20), cv=4)),
+])
+cv_externo = KFold(n_splits=5, shuffle=True, random_state=0)
+escores = cross_val_score(tubo, X, y, cv=cv_externo, scoring="r2")
+
+print("R² por dobra externa:", np.round(escores, 3))
+# R² por dobra externa: [0.659 0.532 0.483 0.723 0.753]
+print(f"R² médio (CV aninhada): {escores.mean():.3f}")
+# R² médio (CV aninhada): 0.630
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-6-5">
+      <eyebrow>Subtema 5</eyebrow>
+      <title>Ridge nos encoding models</title>
+      <intro>
+        Para mapear dezenas de milhares de voxels cerebrais a partir de centenas de atributos correlacionados do estímulo, cada voxel ganha sua própria regressão ridge com um $\lambda$ ajustado à sua relação sinal–ruído.
+      </intro>
+
+      No Tema 8.2 (Regressão (polinomial)), ajustamos um <em>encoding model</em> para um único voxel usando $3$ variáveis. Na neuroimagem moderna — como na identificação de imagens naturais a partir da atividade do córtex visual por Kay et al. (2008), na formalização geral de <em>encoding</em> e <em>decoding</em> por Naselaris et al. (2011) e nos mapas semânticos distribuídos pelo córtex humano ao ouvir histórias naturais de Huth et al. (2016) — queremos prever simultaneamente $V$ voxels ($10\,000$ a $50\,000$ voxels) a partir de $p = 100$ a $1\,000$ características do estímulo (filtros visuais ou vetores semânticos), geralmente repetidas com vários atrasos temporais para capturar a lentidão da resposta hemodinâmica ($\mathrm{TR} \approx 2\text{ s}$).
+
+      Por que a regressão <strong>ridge</strong> domina os <em>encoding models</em> em vez da regressão comum ou do <em>lasso</em>? Três motivos práticos convergem:
+      <list marker="number">
+        <item><strong>Atributos fortemente correlacionados:</strong> filtros visuais vizinhos, palavras coocorrentes em narrativas e cópias atrasadas no tempo da mesma variável têm alta colinearidade. O <em>lasso</em> descartaria parte dessas colunas ao acaso, enquanto a <em>ridge</em> distribui o peso de modo estável entre todas.</item>
+        <item><strong>Foco em previsão, não em seleção esparsa:</strong> como a atividade de um voxel resulta da soma de milhares de neurônios sintonizados a múltiplas características distribuídas, manter todos os pesos regulares costuma prever melhor o sinal BOLD futuro do que forçar zeros exatos.</item>
+        <item><strong>Eficiência compartilhada via SVD:</strong> como todos os voxels enxergam exatamente a mesma matriz de estímulos $\mathbf{X}$, basta calcular a SVD de $\mathbf{X}$ <strong>uma única vez</strong> para resolver rapidamente milhares de voxels e dezenas de valores de $\lambda$.</item>
+      </list>
+
+      <definition id="def:8-6-encoding-voxel">
+        <title>Encoding model multivoxel com $\lambda_v$ por voxel</title>
+        Seja $\mathbf{X} \in \mathbb{R}^{n \times p}$ a matriz centrada e padronizada de atributos do estímulo ao longo de $n$ volumes, e seja $\mathbf{Y} \in \mathbb{R}^{n \times V}$ a matriz de respostas centradas de $V$ voxels. Para cada voxel $v \in \{1, \dots, V\}$, ajustamos uma regressão <em>ridge</em> independente com seu próprio parâmetro $\lambda_v > 0$:
+        <equation id="eq:8-6-ridge-voxel">
+          \hat{\boldsymbol{\beta}}_v(\lambda_v) = (\mathbf{X}^\top\mathbf{X} + \lambda_v\mathbf{I})^{-1}\mathbf{X}^\top\mathbf{y}_v.
+        </equation>
+        Em dados de teste separados (outra corrida ou bloco temporal contíguo, sem embaralhar), avaliamos o desempenho de cada voxel pela <strong>correlação de Pearson</strong> $r_v = \operatorname{corr}(\mathbf{y}_{v,\text{teste}},\, \hat{\mathbf{y}}_{v,\text{teste}})$.
+        <intuition>
+          Um voxel no córtex auditivo primário responde forte e limpamente a estímulos sonoros (alta relação sinal–ruído) e precisa de $\lambda_v$ pequeno para não perder detalhes da sintonia; já um voxel ruidoso ou pouco sensível ao estímulo exige $\lambda_v$ grande para não transformar ruído em pesos falsos.
+        </intuition>
+      </definition>
+
+      No <c>scikit-learn</c>, passar <c>alpha_per_target=True</c> ao <c>RidgeCV(alphas=..., alpha_per_target=True)</c> (com o padrão <c>cv=None</c>, que usa validação cruzada analítica eficiente deixando um de fora) permite que cada coluna de $\mathbf{Y}$ escolha automaticamente o seu próprio <c>alpha_</c> otimizado em frações de segundo.
+
+      <example id="exm:8-6-snr-voxels">
+        <title>Por que um único $\lambda$ global prejudica o mapa cortical</title>
+        Suponha um experimento com dois voxels: o Voxel A (em V1) tem alta relação sinal–ruído ($\sigma_A^2 = 1$, variância dos pesos $\tau_A^2 = 1$), enquanto o Voxel B (em córtex associativo) tem baixa relação sinal–ruído ($\sigma_B^2 = 10$, variância dos pesos $\tau_B^2 = 0{,}1$). Pela equivalência bayesiana $\lambda = \sigma^2 / \tau^2$, temos $\lambda_A^{\text{ideal}} = 1/1 = 1$, enquanto $\lambda_B^{\text{ideal}} = 10/0{,}1 = 100$. Se impusermos um único $\lambda = 10$ a todos os voxels, o Voxel A sofre encolhimento excessivo (viés alto) e o Voxel B sofre regularização insuficiente (variância alta). Usar <c>alpha_per_target=True</c> adapta $\lambda_v$ a cada voxel.
+      </example>
+
+      <example id="exm:8-6-correlacao-r2-mao">
+        <title>Correlação de Pearson vs. $R^2$ sob encolhimento ridge</title>
+        Em um bloco de teste com $4$ volumes, a resposta observada (centrada) de um voxel foi $\mathbf{y}_{\text{teste}} = (-2,\; -1,\; 1,\; 2)$, enquanto um modelo <em>ridge</em> com $\lambda$ moderado previu os mesmos padrões temporais com metade da amplitude: $\hat{\mathbf{y}}_{\text{teste}} = (-1,\; -0{,}5;\; 0{,}5;\; 1)$. Calcule a correlação de Pearson $r$ e o $R^2$ de teste.
+
+        <strong>Solução.</strong> Como ambos os vetores já têm média zero:
+        $$\sum_{i=1}^4 y_i \hat{y}_i = (-2)(-1) + (-1)(-0{,}5) + 1(0{,}5) + 2(1) = 2 + 0{,}5 + 0{,}5 + 2 = 5,$$
+        $$\mathrm{TSS} = \sum_{i=1}^4 y_i^2 = 4 + 1 + 1 + 4 = 10, \qquad \sum_{i=1}^4 \hat{y}_i^2 = 1 + 0{,}25 + 0{,}25 + 1 = 2{,}5.$$
+        Logo, a correlação de Pearson vale:
+        $$r = \frac{5}{\sqrt{10 \cdot 2{,}5}} = \frac{5}{\sqrt{25}} = 1{,}000.$$
+        Já a soma dos quadrados dos resíduos é $\mathrm{RSS} = (-2+1)^2 + (-1+0{,}5)^2 + (1-0{,}5)^2 + (2-1)^2 = 1 + 0{,}25 + 0{,}25 + 1 = 2{,}5$, dando:
+        $$R^2 = 1 - \frac{\mathrm{RSS}}{\mathrm{TSS}} = 1 - \frac{2{,}5}{10} = 0{,}750.$$
+        Como o encolhimento da <em>ridge</em> reduz a amplitude prevista e o ganho do sinal BOLD pode variar entre sessões, os estudos de <em>encoding</em> costumam avaliar a acurácia de predição pela correlação $r$ (que é invariante a um fator de escala positivo).
+      </example>
+
+      O bloco abaixo simula um experimento completo de <em>encoding</em> multivoxel: $600$ volumes de fMRI, $150$ atributos correlacionados suavizados por uma resposta hemodinâmica curta e $20$ voxels com pesos verdadeiros e níveis de ruído distintos, treinando nos primeiros $450$ volumes e testando nos últimos $150$ volumes sem embaralhar.
+
+      <code lang="python" id="cod:8-6-encoding-ridge">
+import numpy as np
+from sklearn.linear_model import LinearRegression, RidgeCV
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+def correlacao_por_voxel(Y_real, Y_pred):
+    return np.array([
+        np.corrcoef(Y_real[:, v], Y_pred[:, v])[0, 1] for v in range(Y_real.shape[1])
+    ])
+
+rng = np.random.default_rng(0)
+n_volumes, n_features, n_voxels = 600, 150, 20
+
+# 150 features correlacionadas (15 fatores latentes) convoluídas com HRF simplificada
+fatores = rng.normal(0.0, 1.0, size=(n_volumes, 15))
+mistura = rng.normal(0.0, 1.0, size=(15, n_features))
+bruto = fatores @ mistura + 0.5 * rng.normal(0.0, 1.0, size=(n_volumes, n_features))
+hrf = np.array([0.2, 0.6, 0.2])
+X = np.apply_along_axis(lambda col: np.convolve(col, hrf, mode="same"), 0, bruto)
+
+# 20 voxels com pesos verdadeiros e níveis de ruído distintos
+W_real = rng.normal(0.0, 0.15, size=(n_features, n_voxels))
+sigmas = rng.uniform(2.0, 6.0, size=n_voxels)
+ruido = rng.normal(0.0, 1.0, size=(n_volumes, n_voxels)) * sigmas
+Y = X @ W_real + ruido
+
+# Divisão em blocos temporais contíguos (SEM embaralhar!)
+corte = 450
+X_treino, X_teste = X[:corte], X[corte:]
+Y_treino, Y_teste = Y[:corte], Y[corte:]
+
+tubo_ols = Pipeline([
+    ("scaler", StandardScaler()),
+    ("reg", LinearRegression()),
+]).fit(X_treino, Y_treino)
+
+tubo_ridge = Pipeline([
+    ("scaler", StandardScaler()),
+    ("reg", RidgeCV(alphas=np.logspace(0, 5, 25), alpha_per_target=True)),
+]).fit(X_treino, Y_treino)
+
+corr_ols = correlacao_por_voxel(Y_teste, tubo_ols.predict(X_teste))
+corr_ridge = correlacao_por_voxel(Y_teste, tubo_ridge.predict(X_teste))
+
+print(f"Correlação média de teste (OLS)    : {corr_ols.mean():.3f}")
+# Correlação média de teste (OLS)    : 0.678
+print(f"Correlação média de teste (RidgeCV): {corr_ridge.mean():.3f}")
+# Correlação média de teste (RidgeCV): 0.780
+      </code>
+
+      Em média nos $20$ voxels, a regressão comum atinge correlação de cerca de $0{,}68$, enquanto o <c>RidgeCV</c> com um <c>alpha_</c> por voxel sobe para cerca de $0{,}78$.
+
+      <remark id="rem:8-6-armadilha-encoding">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Embaralhar volumes de fMRI antes da divisão treino/teste:</strong> como vimos no Tema 8.2 e no Tema 8.5, a suavidade da HRF torna volumes adjacentes quase iguais; embaralhá-los vaza o sinal vizinho e infla artificialmente a correlação de teste.</item>
+          <item><strong>Usar um único $\lambda$ para todos os voxels ou escolher <c>Lasso</c> por padrão em mapas densos:</strong> voxels com diferentes relações sinal–ruído exigem penalizações próprias (<c>alpha_per_target=True</c>), e atributos visuais ou semânticos correlacionados são mais bem aproveitados pela penalidade L2 da <em>ridge</em>.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-6-5-1">
+        <title>Básico — Correlação vs. $R^2$ sob encolhimento</title>
+        Em $3$ volumes de teste centrados, um voxel teve sinal observado $\mathbf{y} = (-3,\; 0,\; 3)$ e previsão <em>ridge</em> $\hat{\mathbf{y}} = (-2,\; 0,\; 2)$. Calcule a correlação de Pearson $r$ e o coeficiente $R^2$.
+        <hint><title>Ver dica</title>Como $\mathbf{y}$ e $\hat{\mathbf{y}}$ têm média zero, use $r = \frac{\sum y_i \hat{y}_i}{\sqrt{\sum y_i^2 \sum \hat{y}_i^2}}$ e $R^2 = 1 - \frac{\mathrm{RSS}}{\mathrm{TSS}}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculamos os produtos e somas de quadrados:
+          $$\sum y_i \hat{y}_i = (-3)(-2) + 0 + 3(2) = 12, \qquad \mathrm{TSS} = \sum y_i^2 = 9 + 0 + 9 = 18, \qquad \sum \hat{y}_i^2 = 4 + 0 + 4 = 8.$$
+          Logo:
+          $$r = \frac{12}{\sqrt{18 \cdot 8}} = \frac{12}{\sqrt{144}} = 1{,}000.$$
+          Para o $R^2$, temos $\mathrm{RSS} = (-3+2)^2 + 0^2 + (3-2)^2 = 1 + 0 + 1 = 2$, portanto:
+          $$R^2 = 1 - \frac{2}{18} = \frac{16}{18} \approx 0{,}889.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-6-5-2">
+        <title>Intermediário — Escolhendo o protocolo para $10\,000$ voxels</title>
+        Você dispõe de $n = 500$ volumes de fMRI ($\mathrm{TR} = 2\text{ s}$), $p = 180$ atributos semânticos fortemente correlacionados e $V = 10\,000$ voxels corticais. Justifique:
+        <list marker="a">
+          <item>Por que escolher <c>RidgeCV</c> em vez de <c>LinearRegression</c> ou <c>Lasso</c>?</item>
+          <item>Por que ativar <c>alpha_per_target=True</c> (deixando <c>cv=None</c>) em vez de rodar um laço <c>for</c> com <c>LassoCV(cv=5)</c> sobre os $10\,000$ voxels?</item>
+        </list>
+        <hint><title>Ver dica</title>Considere a colinearidade semântica, a heterogeneidade da relação sinal–ruído no córtex e o custo de calcular a SVD de $\mathbf{X}$ uma única vez versus $50\,000$ descidas por coordenadas.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Com $p = 180$ colunas correlacionadas para $n = 500$ volumes (ainda menor em graus de liberdade efetivos por causa da autocorrelação da HRF), <c>LinearRegression</c> sofre alta variância nas direções de menor valor singular. O <c>Lasso</c> escolheria arbitrariamente algumas palavras e zeraria sinônimos correlacionados, perdendo poder preditivo; a <c>Ridge</c> estabiliza todos os pesos distribuídos.</item>
+            <item><c>alpha_per_target=True</c> permite adaptar $\lambda_v$ à relação sinal–ruído de cada voxel, e o modo padrão (<c>cv=None</c>) aproveita a SVD compartilhada de $\mathbf{X}$ para calcular o erro analítico de validação cruzada para todos os $10\,000$ voxels simultaneamente em segundos — ao passo que um laço com <c>LassoCV(cv=5)</c> repetiria dezenas de milhares de otimizações iterativas.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-6-5-3">
+        <title>Avançado — $\alpha$ global vs. $\alpha_v$ por voxel</title>
+        Estenda o <ref to="cod:8-6-encoding-ridge"/> para incluir <c>RidgeCV(alphas=np.logspace(0, 5, 25), alpha_per_target=False)</c> (um único $\alpha$ global compartilhado pelos $20$ voxels). Compare as correlações médias de teste dos três modelos e imprima o menor e o maior valor de <c>alpha_</c> escolhidos quando <c>alpha_per_target=True</c>.
+        <hint><title>Ver dica</title>Com <c>alpha_per_target=True</c>, o atributo <c>tubo.named_steps["reg"].alpha_</c> é um array de tamanho <c>20</c>; use <c>.min()</c> e <c>.max()</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.linear_model import LinearRegression, RidgeCV
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+def correlacao_por_voxel(Y_real, Y_pred):
+    return np.array([
+        np.corrcoef(Y_real[:, v], Y_pred[:, v])[0, 1] for v in range(Y_real.shape[1])
+    ])
+
+rng = np.random.default_rng(0)
+n_volumes, n_features, n_voxels = 600, 150, 20
+
+fatores = rng.normal(0.0, 1.0, size=(n_volumes, 15))
+mistura = rng.normal(0.0, 1.0, size=(15, n_features))
+bruto = fatores @ mistura + 0.5 * rng.normal(0.0, 1.0, size=(n_volumes, n_features))
+hrf = np.array([0.2, 0.6, 0.2])
+X = np.apply_along_axis(lambda col: np.convolve(col, hrf, mode="same"), 0, bruto)
+
+W_real = rng.normal(0.0, 0.15, size=(n_features, n_voxels))
+sigmas = rng.uniform(2.0, 6.0, size=n_voxels)
+Y = X @ W_real + rng.normal(0.0, 1.0, size=(n_volumes, n_voxels)) * sigmas
+
+corte = 450
+X_tr, X_te, Y_tr, Y_te = X[:corte], X[corte:], Y[:corte], Y[corte:]
+grade = np.logspace(0, 5, 25)
+
+ols = Pipeline([("scaler", StandardScaler()), ("reg", LinearRegression())]).fit(X_tr, Y_tr)
+ridge_global = Pipeline([("scaler", StandardScaler()), ("reg", RidgeCV(alphas=grade, alpha_per_target=False))]).fit(X_tr, Y_tr)
+ridge_voxel = Pipeline([("scaler", StandardScaler()), ("reg", RidgeCV(alphas=grade, alpha_per_target=True))]).fit(X_tr, Y_tr)
+
+alphas_v = ridge_voxel.named_steps["reg"].alpha_
+print(f"Corr. média OLS          : {correlacao_por_voxel(Y_te, ols.predict(X_te)).mean():.3f}")
+# Corr. média OLS          : 0.678
+print(f"Corr. média Ridge global : {correlacao_por_voxel(Y_te, ridge_global.predict(X_te)).mean():.3f} (alpha={ridge_global.named_steps['reg'].alpha_:.1f})")
+# Corr. média Ridge global : 0.781 (alpha=121.2)
+print(f"Corr. média Ridge/voxel  : {correlacao_por_voxel(Y_te, ridge_voxel.predict(X_te)).mean():.3f}")
+# Corr. média Ridge/voxel  : 0.780
+print(f"Faixa de alpha_ por voxel: [{alphas_v.min():.1f}, {alphas_v.max():.1f}]")
+# Faixa de alpha_ por voxel: [28.7, 316.2]
+          </code>
+          Aqui o <em>ridge</em> global e o <em>ridge</em> por voxel empatam ($\approx 0{,}78$), porque os voxels simulados têm relação sinal–ruído parecida; o <c>alpha_</c> por voxel compensa quando os voxels diferem muito em ruído.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-6-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Por que regularizar:</strong> quando $p \ge n$ ou há forte colinearidade, $\mathbf{X}^\top\mathbf{X}$ fica singular ou mal-condicionada (autovalores próximos de zero), fazendo os coeficientes de mínimos quadrados explodirem em variância e o $R^2$ de teste cair.</item>
+        <item><strong>Regressão ridge (L2):</strong> minimiza $\mathrm{RSS} + \lambda\sum_{j=1}^p \beta_j^2$ (sem penalizar o intercepto $\beta_0$); com dados centrados, tem solução fechada $\hat{\boldsymbol{\beta}}_\lambda = (\mathbf{X}^\top\mathbf{X} + \lambda\mathbf{I})^{-1}\mathbf{X}^\top\mathbf{y}$, sempre invertível para $\lambda > 0$.</item>
+        <item><strong>SVD e leitura bayesiana da ridge:</strong> cada direção principal é encolhida por $\frac{d_j^2}{d_j^2 + \lambda}$, suprimindo direções ruidosas; equivale ao estimador MAP sob <em>priori</em> $\beta_j \sim \mathcal{N}(0, \tau^2)$ com $\lambda = \sigma^2/\tau^2$.</item>
+        <item><strong>Lasso (L1) e elastic net:</strong> o <em>lasso</em> minimiza $\mathrm{RSS} + \lambda\|\boldsymbol{\beta}\|_1$, realiza limiarização suave $\hat{\beta}^{\text{lasso}} = \operatorname{sign}(\hat{\beta}^{\text{MQ}})\max(|\hat{\beta}^{\text{MQ}}| - \lambda/2, 0)$ no caso 1D normalizado e zera variáveis exatamente; o <em>elastic net</em> combina L1 e L2 para estabilizar grupos correlacionados.</item>
+        <item><strong>Pré-processamento e escalas no <c>scikit-learn</c>:</strong> padronize sempre com <c>StandardScaler</c> dentro de um <c>Pipeline</c>. Lembre que <c>Ridge(alpha)</c> minimiza $\|\mathbf{y} - \mathbf{X}\mathbf{w}\|_2^2 + \alpha\|\mathbf{w}\|_2^2$, enquanto <c>Lasso(alpha)</c> divide a $\mathrm{RSS}$ por $2n$ ($\lambda = 2n\,\alpha$), e <c>LogisticRegression</c>/<c>SVC</c> usam $C \propto 1/\lambda$.</item>
+        <item><strong>Escolha de $\lambda$ por CV:</strong> explore $\lambda$ em grade logarítmica (<c>np.logspace</c>), aplique <c>RidgeCV</c>/<c>LassoCV</c> (ou a regra de um erro padrão) apenas dentro do conjunto de treino e reporte o desempenho final em teste separado ou CV aninhada.</item>
+        <item><strong><em>Encoding models</em> com ridge:</strong> prever cada voxel com <c>RidgeCV(alphas=..., alpha_per_target=True)</c> e avaliar a correlação de Pearson em blocos temporais contíguos separados lida naturalmente com atributos correlacionados e diferentes relações sinal–ruído no córtex.</item>
+      </list>
+    </section>
+
+    <section id="sec:8-6-alem">
+      <title>Para ir além</title>
+      Agora que você sabe controlar a complexidade de modelos lineares com L1, L2 e validação cruzada, o próximo passo natural é investigar quais variáveis realmente sustentam as previsões e como interpretá-las sem cair em ilusões de colinearidade — assunto do <strong>Tema 8.7 (Estudo de variáveis)</strong>. Como treino prático do módulo, experimente comparar <c>RidgeCV</c>, <c>LassoCV</c> e <c>ElasticNetCV</c> em um conjunto médico do repositório UC Irvine ou em um banco de dados neural aberto.
+      <list marker="dash">
+        <item><strong>Livro-base do módulo:</strong> <link to="https://www.statlearning.com/">ISLR — Introduction to Statistical Learning</link> (em Python ou R, a critério do aluno) — Capítulo 6 (<em>Linear Model Selection and Regularization</em>).</item>
+        <item><strong>Material complementar:</strong> Notas de aula da matéria do IMPATech.</item>
+        <item><strong>Aprofundamento teórico:</strong> <em>Elements of Statistical Learning</em> (versão avançada do ISLR) — Capítulo 3 (seções sobre <em>ridge</em>, <em>lasso</em> e <em>elastic net</em>).</item>
+        <item><strong>Documentação oficial (Modelos lineares regularizados):</strong> <link to="https://scikit-learn.org/stable/modules/linear_model.html">Scikit-learn — Generalized Linear Models</link> (<c>Ridge</c>, <c>RidgeCV</c>, <c>Lasso</c>, <c>LassoCV</c> e <c>ElasticNet</c>).</item>
+        <item><strong>Documentação oficial (Validação e armadilhas):</strong> <link to="https://scikit-learn.org/stable/modules/cross_validation.html">Scikit-learn — Cross-validation</link> e <link to="https://scikit-learn.org/stable/common_pitfalls.html">Scikit-learn — Common Pitfalls</link>.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 8 · Machine Learning — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

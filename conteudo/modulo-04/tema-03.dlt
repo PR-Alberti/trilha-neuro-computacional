@@ -1,0 +1,699 @@
+<document>
+  <title>Módulo 4 · Otimização</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-4-3">Voltar ao guia (Tema 4.3)</link></meta-item>
+    <meta-item key="Módulo">Módulo 4 · Otimização — A Busca pelo Ótimo</meta-item>
+    <meta-item key="Nível">Avançado</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-4-3">
+    <title>Métodos computacionais</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Gradiente descendente e suas armadilhas: mínimos locais vs. o mínimo global.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Treinar qualquer modelo de codificação (<em>encoding</em>) ou decodificação (<em>decoding</em>) neural significa otimizar uma função custo ajustando parâmetros aos dados. No <mark>Tema 4.1</mark> (Espaço de variáveis), vimos que a busca em grade explode com a dimensão ($k^n$ avaliações); no <mark>Tema 4.2</mark> (Minimização e maximização), resolvemos $\nabla J = \mathbf{0}$ à mão nas equações normais de uma reta. Contudo, modelos biofísicos realistas de canais iônicos, curvas de sintonia não lineares e redes neurais não possuem fórmula fechada para o mínimo e envolvem milhares de parâmetros.
+
+    A saída computacional é caminhar passo a passo usando apenas a inclinação local: o <strong>gradiente descendente</strong>. Porém, em paisagens com vários vales — como a energia livre de uma proteína se enovelando ou a paisagem de energia de uma rede atratora de Hopfield —, essa busca local pode ficar presa em um vale raso (um mínimo local). Dominar o método, o papel do tamanho do passo e seus limites fecha a base de otimização para Machine Learning e Deep Learning.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>formular o gradiente descendente, justificar a direção $-\nabla J(\mathbf{w}_k)$ e executar passos à mão e em NumPy;</item>
+      <item>analisar a estabilidade da taxa de aprendizado $\eta$ em 1D ($0 < \eta < 2/c$) e explicar o zigue-zague em vales estreitos;</item>
+      <item>distinguir mínimos locais do mínimo global por meio de bacias de atração e aplicar múltiplas reinicializações;</item>
+      <item>explicar, usando a paisagem de energia de Hopfield e o dobramento proteico, por que uma descida local fica presa em mínimos locais;</item>
+      <item>descrever o gradiente descendente estocástico (SGD) e por que seu ruído ajuda a escapar de vales rasos.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Esta aula retoma <mark>Diferencial em várias variáveis</mark> (Tema 3.2, Módulo 3 — gradiente $\nabla f$ e derivada direcional), <mark>Espaço de variáveis</mark> (Tema 4.1 — curvas de nível, paisagem de custo e dados do neurônio visual) e <mark>Minimização e maximização</mark> (Tema 4.2 — pontos críticos, Hessiana, sela e equações normais).
+
+    <section id="sec:4-3-1">
+      <eyebrow>Seção 1</eyebrow>
+      <title>Gradiente descendente</title>
+      <intro>
+        Quando a grade explode e $\nabla J = \mathbf{0}$ não tem solução analítica, transformamos a inclinação sob os pés em passos iterativos morro abaixo.
+      </intro>
+
+      Imagine tentar achar o fundo de um vale no meio de uma neblina espessa. Sem enxergar o mapa inteiro, você sente com os pés para qual lado o chão desce mais rápido, dá um passo nessa direção, sente a nova inclinação e repete até o terreno ficar plano.
+
+      Essa é a ideia do <strong>gradiente descendente</strong> (<em>gradient descent</em>). Em neurociência, cabe uma analogia didática — <em>apenas analogia, sem afirmar que seja o mecanismo celular exato</em>: a plasticidade sináptica também ajusta pesos aos poucos com base em sinais locais, em vez de resolver um sistema global de uma vez.
+
+      Por que seguir justamente $-\nabla J(\mathbf{w})$? Como vimos no <mark>Tema 3.2</mark> (Diferencial em várias variáveis) e no <mark>Tema 4.1</mark>, a derivada direcional $D_{\mathbf{u}} J(\mathbf{w}) = \nabla J(\mathbf{w}) \cdot \mathbf{u} = \|\nabla J(\mathbf{w})\|\cos\theta$ é mais negativa na direção de $-\nabla J(\mathbf{w})$. A proposição abaixo mostra o efeito de dar um passo pequeno nessa direção.
+
+      <proposition id="prop:4-3-descida-local">
+        <title>Um passo pequeno ao longo de $-\nabla J$ reduz o custo</title>
+        Seja $J : \mathbb{R}^n \to \mathbb{R}$ diferenciável em $\mathbf{w}_k$, com $\nabla J(\mathbf{w}_k) \ne \mathbf{0}$. Para uma taxa $\eta > 0$ suficientemente pequena, o ponto $\mathbf{w}_{k+1} = \mathbf{w}_k - \eta\,\nabla J(\mathbf{w}_k)$ satisfaz $J(\mathbf{w}_{k+1}) < J(\mathbf{w}_k)$.
+      </proposition>
+      <proof of="prop:4-3-descida-local" collapsible="true" collapsed="true">
+        Pela aproximação linear da diferencial (Tema 3.2), para o deslocamento $-\eta\,\nabla J(\mathbf{w}_k)$ com $\eta > 0$ pequeno:
+        $$J(\mathbf{w}_k - \eta\,\nabla J(\mathbf{w}_k)) \approx J(\mathbf{w}_k) + \nabla J(\mathbf{w}_k) \cdot \bigl(-\eta\,\nabla J(\mathbf{w}_k)\bigr) = J(\mathbf{w}_k) - \eta\,\|\nabla J(\mathbf{w}_k)\|^2.$$
+        Como $\|\nabla J(\mathbf{w}_k)\|^2 > 0$, para $\eta > 0$ suficientemente pequeno o termo $-\eta\,\|\nabla J(\mathbf{w}_k)\|^2$ domina o resto da aproximação, garantindo $J(\mathbf{w}_{k+1}) < J(\mathbf{w}_k)$.
+      </proof>
+
+      <definition id="def:4-3-gradiente-descendente">
+        <title>Algoritmo do gradiente descendente</title>
+        Dada $J : \mathbb{R}^n \to \mathbb{R}$ diferenciável, um ponto inicial $\mathbf{w}_0 \in \mathbb{R}^n$ e uma <strong>taxa de aprendizado</strong> (<em>learning rate</em>) $\eta > 0$, o <strong>gradiente descendente</strong> atualiza os parâmetros por:
+        <equation id="eq:4-3-gd">
+          \mathbf{w}_{k+1} = \mathbf{w}_k - \eta\,\nabla J(\mathbf{w}_k), \qquad k = 0, 1, 2, \dots
+        </equation>
+        O processo termina por um <strong>critério de parada</strong> (<em>stopping criterion</em>): atingir um máximo de passos $K_{\max}$, obter norma pequena $\|\nabla J(\mathbf{w}_k)\| \le \varepsilon$ ou registrar passo pequeno $\|\mathbf{w}_{k+1} - \mathbf{w}_k\| \le \varepsilon$.
+        <intuition>
+          O vetor $-\nabla J(\mathbf{w}_k)$ escolhe a direção de maior descida e $\eta$ regula o tamanho do passo. Onde a encosta é íngreme, os passos são longos; perto do fundo ($\|\nabla J\| \to 0$), encolhem automaticamente.
+        </intuition>
+      </definition>
+
+      <youtube src="https://www.youtube.com/watch?v=IHZwWFHWa-w" id="vid:4-3-gd">
+        <caption>3Blue1Brown — Gradient Descent (série de Redes Neurais): visualização intuitiva da descida pelo negativo do gradiente.</caption>
+      </youtube>
+
+      <example id="exm:4-3-gd-mao">
+        <title>Passos de gradiente descendente à mão em 1D e 2D</title>
+        <list marker="a">
+          <item>Para $J(w) = (w - 3)^2$, parta de $w_0 = 7$ com $\eta = 0{,}2$ e calcule $w_1$, $w_2$ e $w_3$.</item>
+          <item>Para $J(w_1, w_2) = w_1^2 + 4w_2^2$, parta de $\mathbf{w}_0 = (-2{,}5;\; 1{,}5)$ com $\eta = 0{,}10$ e calcule $\mathbf{w}_1$ e $\mathbf{w}_2$ (valores retomados na <ref to="fig:4-3-descida-gradiente"/>).</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Com $J'(w) = 2(w - 3)$ (mínimo em $w^* = 3$):
+            <list marker="dash">
+              <item><strong>Passo 1:</strong> $J'(7) = 8 \implies w_1 = 7 - 0{,}2(8) = 5{,}4$ ($J$ cai de $16$ para $5{,}76$).</item>
+              <item><strong>Passo 2:</strong> $J'(5{,}4) = 4{,}8 \implies w_2 = 5{,}4 - 0{,}2(4{,}8) = 4{,}44$ ($J = 2{,}0736$).</item>
+              <item><strong>Passo 3:</strong> $J'(4{,}44) = 2{,}88 \implies w_3 = 4{,}44 - 0{,}2(2{,}88) = 3{,}864$ ($J = 0{,}746496$).</item>
+            </list>
+          </item>
+          <item>Com $\nabla J(w_1, w_2) = (2w_1,\; 8w_2)$ (mínimo em $(0, 0)$):
+            <list marker="dash">
+              <item><strong>Passo 1:</strong> em $\mathbf{w}_0 = (-2{,}5;\; 1{,}5)$ ($J = 15{,}25$), $\nabla J(\mathbf{w}_0) = (-5{,}0;\; 12{,}0)$, logo:
+                $$\mathbf{w}_1 = (-2{,}5;\; 1{,}5) - 0{,}10(-5{,}0;\; 12{,}0) = (-2{,}0;\; 0{,}3), \qquad J(\mathbf{w}_1) = 4{,}0 + 0{,}36 = 4{,}36.$$
+              </item>
+              <item><strong>Passo 2:</strong> em $\mathbf{w}_1 = (-2{,}0;\; 0{,}3)$, $\nabla J(\mathbf{w}_1) = (-4{,}0;\; 2{,}4)$, logo:
+                $$\mathbf{w}_2 = (-2{,}0;\; 0{,}3) - 0{,}10(-4{,}0;\; 2{,}4) = (-1{,}6;\; 0{,}06), \qquad J(\mathbf{w}_2) = 2{,}56 + 0{,}0144 = 2{,}5744.$$
+              </item>
+            </list>
+          </item>
+        </list>
+      </example>
+
+      <box type="tip">
+        <title>Nota sobre código Python</title>
+        Python é ensinado formalmente no <strong>Módulo 6</strong>. Os blocos abaixo são autocontidos e comentados em português para rodar direto no Google Colab usando apenas <c>numpy</c>.
+      </box>
+
+      Implementamos agora uma função genérica <c>gradiente_descendente</c> que recebe o gradiente, <c>w0</c>, <c>eta</c> e <c>n_passos</c>, guardando a trajetória completa.
+
+      <code lang="python" id="cod:4-3-gd-generico">
+import numpy as np  # Biblioteca numérica para vetores e matrizes
+
+
+def gradiente_j(w):
+    # Gradiente de J(w1, w2) = w1^2 + 4*w2^2: vetor [2*w1, 8*w2]
+    return np.array([2.0 * w[0], 8.0 * w[1]])
+
+
+def gradiente_descendente(grad_fn, w0, eta, n_passos):
+    w = np.array(w0, dtype=float)  # Cópia em ponto flutuante
+    trajetoria = [w.copy()]        # Guarda o ponto inicial e cada passo
+    for _ in range(n_passos):
+        w = w - eta * grad_fn(w)   # Regra w_{k+1} = w_k - eta * grad(J)
+        trajetoria.append(w.copy())
+    return np.array(trajetoria)
+
+
+traj = gradiente_descendente(gradiente_j, w0=[-2.5, 1.5], eta=0.10, n_passos=10)
+print(f"Passo 1: ({traj[1, 0]:.3f}, {traj[1, 1]:.3f})")    # saída: Passo 1: (-2.000, 0.300)
+print(f"Passo 2: ({traj[2, 0]:.3f}, {traj[2, 1]:.3f})")    # saída: Passo 2: (-1.600, 0.060)
+print(f"Passo 10: ({traj[10, 0]:.3f}, {traj[10, 1]:.3f})")  # saída: Passo 10: (-0.268, 0.000)
+      </code>
+
+      <example id="exm:4-3-gd-neuronio">
+        <title>Ajustando ganho e taxa espontânea de um neurônio por gradiente descendente</title>
+        Retome as $m = 4$ medições de taxa de disparo $y$ ($\text{Hz}$) pelo contraste $x$ do neurônio visual dos Temas 4.1 e 4.2: $(0{,}2;\; 21)$, $(0{,}4;\; 27)$, $(0{,}6;\; 43)$ e $(0{,}8;\; 49)$. Para $\hat{y} = ax + b$, com $\mathbf{w} = (a, b)$ e EQM $J(a, b) = \frac{1}{m}\sum_{i=1}^m (a x_i + b - y_i)^2$:
+        <list marker="a">
+          <item>Escreva o gradiente $\nabla J(a, b)$ explicitamente.</item>
+          <item>Partindo de $(a_0, b_0) = (40, 15)$ com $\eta = 0{,}5$, calcule o passo $1$ à mão.</item>
+          <item>Rode $500$ passos em NumPy e confira a convergência para o mínimo exato $(50, 10)$ ($J_{\min} = 5$) do Tema 4.2.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Pela regra da cadeia (como na Seção 3 do Tema 4.2):
+            <equation id="eq:4-3-grad-eqm">
+              \frac{\partial J}{\partial a} = \frac{2}{m}\sum_{i=1}^m (a x_i + b - y_i)\, x_i, \qquad \frac{\partial J}{\partial b} = \frac{2}{m}\sum_{i=1}^m (a x_i + b - y_i).
+            </equation>
+          </item>
+          <item>Em $(40, 15)$, as previsões para $x = 0{,}2;\; 0{,}4;\; 0{,}6;\; 0{,}8$ são $23,\; 31,\; 39,\; 47\text{ Hz}$, com resíduos $e_i = \hat{y}_i - y_i$ iguais a $+2,\; +4,\; -4,\; -2$ ($J = 10$). Pela <ref to="eq:4-3-grad-eqm"/> com $m = 4$:
+            $$\frac{\partial J}{\partial a} = \frac{2}{4}\bigl(2(0{,}2) + 4(0{,}4) - 4(0{,}6) - 2(0{,}8)\bigr) = -1{,}0, \qquad \frac{\partial J}{\partial b} = \frac{2}{4}(2 + 4 - 4 - 2) = 0.$$
+            Logo, $(a_1, b_1) = (40, 15) - 0{,}5(-1{,}0;\; 0) = (40{,}5;\; 15{,}0)$, onde os novos resíduos $+2{,}1;\; +4{,}2;\; -3{,}7;\; -1{,}6$ dão $J(40{,}5;\; 15{,}0) = \frac{4{,}41 + 17{,}64 + 13{,}69 + 2{,}56}{4} = 9{,}575 < 10$.</item>
+          <item>Como $\sum x_i^2 = 1{,}20$ é pequeno e $a$ e $b$ se compensam na diagonal, a Hessiana deste custo é mal condicionada (uma direção é cerca de $32$ vezes mais rasa que a outra). Isso impede usar $\eta$ grande (o teto é $\approx 0{,}79$) e exige centenas de passos; com $\eta = 0{,}5$ e $500$ iterações, o algoritmo converge ao mínimo exato:
+            <code lang="python" id="cod:4-3-neuronio">
+import numpy as np
+
+x = np.array([0.2, 0.4, 0.6, 0.8])
+y = np.array([21.0, 27.0, 43.0, 49.0])
+m = len(x)
+
+
+def custo_eqm(w):
+    return np.mean((w[0] * x + w[1] - y) ** 2)
+
+
+def grad_eqm(w):
+    erros = (w[0] * x + w[1]) - y
+    return np.array([
+        (2.0 / m) * np.sum(erros * x),
+        (2.0 / m) * np.sum(erros),
+    ])
+
+
+w = np.array([40.0, 15.0])  # Chute inicial (a0, b0)
+eta = 0.5
+
+for passo in range(1, 501):
+    w = w - eta * grad_eqm(w)
+    if passo == 1:
+        print(f"Passo 1: a={w[0]:.3f}, b={w[1]:.3f}, J={custo_eqm(w):.3f}")
+        # saída: Passo 1: a=40.500, b=15.000, J=9.575
+
+print(f"Passo 500: a={w[0]:.3f}, b={w[1]:.3f}, J={custo_eqm(w):.3f}")
+# saída: Passo 500: a=50.000, b=10.000, J=5.000
+            </code>
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:4-3-armadilha-sinal-custo">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Somar o gradiente em vez de subtrair:</strong> $\mathbf{w}_{k+1} = \mathbf{w}_k + \eta\,\nabla J$ sobe a encosta e faz o custo explodir.</item>
+          <item><strong>Esquecer o fator $\frac{2}{m}$ no gradiente do EQM:</strong> omitir o $2$ ou o $1/m$ altera a escala do gradiente e descalibra $\eta$.</item>
+          <item><strong>Parar só porque $J$ caiu pouco, sem checar $\nabla J$:</strong> em vales rasos, $\Delta J$ fica minúsculo mesmo longe do mínimo; acompanhe $\|\nabla J(\mathbf{w}_k)\|$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:4-3-1-1">
+        <title>Básico — Dois passos de gradiente descendente à mão</title>
+        Considere $J(w_1, w_2) = 2w_1^2 + w_2^2 - 4w_1 + 6$. Partindo de $\mathbf{w}_0 = (3, 4)$ com $\eta = 0{,}25$, calcule $\mathbf{w}_1$, $\mathbf{w}_2$ e os custos $J(\mathbf{w}_0)$, $J(\mathbf{w}_1)$ e $J(\mathbf{w}_2)$.
+        <hint><title>Ver dica</title>Calcule $\nabla J(w_1, w_2) = (4w_1 - 4,\; 2w_2)$ e subtraia $0{,}25\,\nabla J$ em cada passo.</hint>
+        <solution collapsible="true" collapsed="true">
+          Temos $\nabla J(w_1, w_2) = (4w_1 - 4,\; 2w_2)$ e $J(3, 4) = 18 + 16 - 12 + 6 = 28$.
+          <list marker="dash">
+            <item><strong>Passo 1:</strong> $\nabla J(3, 4) = (8, 8) \implies \mathbf{w}_1 = (3, 4) - 0{,}25(8, 8) = (1, 2)$, com $J(1, 2) = 2 + 4 - 4 + 6 = 8$.</item>
+            <item><strong>Passo 2:</strong> $\nabla J(1, 2) = (0, 4) \implies \mathbf{w}_2 = (1, 2) - 0{,}25(0, 4) = (1, 1)$, com $J(1, 1) = 2 + 1 - 4 + 6 = 5 < 8 < 28$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-3-1-2">
+        <title>Intermediário — Ajuste de membrana neuronal em Python</title>
+        No Tema 4.2, ajustamos $V = R_{\text{in}} I + E_L$ às medições $(I, V)$ em $\text{nA}$ e $\text{mV}$: $(0;\; -70)$, $(0{,}2;\; -58)$, $(0{,}4;\; -52)$ e $(0{,}6;\; -40)$, cujo mínimo exato é $R_{\text{in}}^* = 48\text{ M}\Omega$ e $E_L^* = -69{,}4\text{ mV}$ ($J_{\min} = 1{,}8\text{ mV}^2$).
+        <list marker="a">
+          <item>Partindo de $(R_0, E_0) = (40;\; -65)$ com $\eta = 0{,}5$, calcule $(R_1, E_1)$ à mão.</item>
+          <item>Escreva um código autocontido em NumPy que execute $1\,000$ passos a partir de $(40;\; -65)$ com $\eta = 0{,}5$, imprimindo o passo $1$ e o passo $1\,000$.</item>
+        </list>
+        <hint><title>Ver dica</title>Adapte <ref to="cod:4-3-neuronio"/> trocando os dados e o chute inicial.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Para $\hat{V}_i = 40 I_i - 65$, as previsões são $-65,\; -57,\; -49,\; -41\text{ mV}$, dando erros $+5,\; +1,\; +3,\; -1$. Logo:
+              $$\frac{\partial J}{\partial R_{\text{in}}} = 0{,}5\bigl(5(0) + 1(0{,}2) + 3(0{,}4) - 1(0{,}6)\bigr) = 0{,}4, \qquad \frac{\partial J}{\partial E_L} = 0{,}5(5 + 1 + 3 - 1) = 4{,}0,$$
+              de onde $(R_1, E_1) = (40;\; -65) - 0{,}5(0{,}4;\; 4{,}0) = (39{,}8;\; -67{,}0)$.</item>
+            <item>Código autocontido em NumPy:
+              <code lang="python" numbered="false">
+import numpy as np
+
+I = np.array([0.0, 0.2, 0.4, 0.6])
+V = np.array([-70.0, -58.0, -52.0, -40.0])
+m = len(I)
+
+w = np.array([40.0, -65.0])  # [R_in, E_L]
+eta = 0.5
+
+for passo in range(1, 1001):
+    erros = (w[0] * I + w[1]) - V
+    grad = np.array([(2.0 / m) * np.sum(erros * I), (2.0 / m) * np.sum(erros)])
+    w = w - eta * grad
+    if passo == 1:
+        print(f"Passo 1: R={w[0]:.3f}, E={w[1]:.3f}")
+        # saída: Passo 1: R=39.800, E=-67.000
+
+j_final = np.mean(((w[0] * I + w[1]) - V) ** 2)
+print(f"Passo 1000: R={w[0]:.3f}, E={w[1]:.3f}, J={j_final:.3f}")
+# saída: Passo 1000: R=48.000, E=-69.400, J=1.800
+              </code>
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-3-1-3">
+        <title>Avançado — Falso alarme ao parar apenas pela variação de $J$</title>
+        Considere $J(w) = 0{,}01\,w^2$, com $w_0 = 10$ e $\eta = 0{,}5$.
+        <list marker="a">
+          <item>Calcule $w_1$, $J(w_0)$, $J(w_1)$ e $\Delta J = J(w_0) - J(w_1)$.</item>
+          <item>Explique por que o critério $\Delta J < 0{,}02$ pararia cedo demais em $w_1$, enquanto checar $|J'(w_1)|$ acusa que ainda estamos longe de $w^* = 0$.</item>
+        </list>
+        <hint><title>Ver dica</title>Calcule $J'(w) = 0{,}02\,w$ e compare $\Delta J$ com $|J'(w_1)|$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$J'(w) = 0{,}02\,w$, logo $J(10) = 1{,}00$ e $J'(10) = 0{,}2$. Então $w_1 = 10 - 0{,}5(0{,}2) = 9{,}9$ e $J(9{,}9) = 0{,}01(98{,}01) = 0{,}9801$, dando $\Delta J = 1{,}00 - 0{,}9801 = 0{,}0199$.</item>
+            <item>Como $\Delta J = 0{,}0199 < 0{,}02$, o critério pararia em $w_1 = 9{,}9$ (ainda a $99\%$ da distância inicial até $w^* = 0$). Em vales rasos, $\Delta J \approx \eta (J')^2$ cai quadraticamente com a inclinação pequena; já $|J'(9{,}9)| = 0{,}198$ continua $10$ vezes acima de $0{,}02$, revelando que a descida apenas começou.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:4-3-2">
+      <eyebrow>Seção 2</eyebrow>
+      <title>A taxa de aprendizado</title>
+      <intro>
+        A taxa de aprendizado $\eta$ decide o destino da descida: pequena demais, trava; grande demais, ultrapassa o fundo do vale e diverge.
+      </intro>
+
+      Passos curtos demais tornam o treino lento; passos grandes demais saltam para a parede oposta do vale, onde a encosta mais íngreme gera um salto ainda maior no passo seguinte. Na quadrática unidimensional, obtemos uma fórmula exata para todos esses regimes.
+
+      <theorem id="thm:4-3-estabilidade-1d">
+        <title>Convergência exata na quadrática 1D</title>
+        Para $J(w) = \frac{c}{2}\,w^2$ com curvatura $c = J''(w) > 0$, $w_0 \ne 0$ e $\eta > 0$, o gradiente descendente produz:
+        <equation id="eq:4-3-potencia-1d">
+          w_k = (1 - \eta c)^k w_0.
+        </equation>
+        Logo, $w_k \to 0$ se, e somente se, $|1 - \eta c| < 1$, isto é:
+        <equation id="eq:4-3-condicao-eta">
+          0 < \eta < \frac{2}{c}.
+        </equation>
+        Os regimes organizam-se em quatro faixas:
+        <list marker="number">
+          <item><strong>$0 < \eta < \frac{1}{c}$:</strong> $0 < 1 - \eta c < 1$, convergência monotônica sem trocar de sinal (lenta se $\eta \ll 1/c$);</item>
+          <item><strong>$\eta = \frac{1}{c}$:</strong> $1 - \eta c = 0$, atinge $w_1 = 0$ em <strong>um passo</strong>;</item>
+          <item><strong>$\frac{1}{c} < \eta < \frac{2}{c}$:</strong> $-1 < 1 - \eta c < 0$, oscila de sinal mas com amplitude decrescente rumo a $0$;</item>
+          <item><strong>$\eta \ge \frac{2}{c}$:</strong> em $\eta = \frac{2}{c}$, $w_k = (-1)^k w_0$ oscila sem cair; para $\eta > \frac{2}{c}$, $|1 - \eta c| > 1$ e $|w_k| \to +\infty$ (<strong>divergência</strong>).</item>
+        </list>
+      </theorem>
+      <proof of="thm:4-3-estabilidade-1d" collapsible="true" collapsed="true">
+        Como $J'(w) = cw$, temos $w_{k+1} = w_k - \eta c w_k = (1 - \eta c)w_k$, donde $w_k = (1 - \eta c)^k w_0$ após $k$ passos. Para $w_0 \ne 0$, $w_k \to 0 \iff |1 - \eta c| < 1 \iff -1 < 1 - \eta c < 1$. Subtraindo $1$, $-2 < -\eta c < 0$; dividindo por $-c < 0$ (invertendo os sinais, Módulo 1), resulta $0 < \eta < \frac{2}{c}$. Os sinais de $1 - \eta c$ em cada intervalo fornecem os quatro regimes.
+      </proof>
+
+      Em duas variáveis, retome $J(w_1, w_2) = w_1^2 + 4w_2^2 = \frac{2}{2}w_1^2 + \frac{8}{2}w_2^2$. Suas curvaturas na Hessiana (<mark>Tema 4.2</mark>) são $c_1 = 2$ e $c_2 = 8$, logo:
+      $$w_{1,k} = (1 - 2\eta)^k w_{1,0}, \qquad w_{2,k} = (1 - 8\eta)^k w_{2,0}.$$
+      Enquanto $w_1$ tolera $\eta < 2/2 = 1$, a direção mais curvada $w_2$ exige $\eta < 2/8 = 0{,}25$: <strong>a curvatura máxima limita $\eta$</strong>. Quando as curvas de nível são elipses alongadas (<mark>Tema 4.1</mark>), a razão entre a maior e a menor curvatura da Hessiana — o <strong>número de condição</strong> (<em>condition number</em>) — é alta. Tentar acelerar com $\eta = 0{,}23$ coloca $w_2$ no regime oscilatório ($1 - 8\cdot 0{,}23 = -0{,}84$) enquanto $w_1$ avança devagar ($0{,}54$), gerando o <strong>zigue-zague</strong> da <ref to="fig:4-3-descida-gradiente"/>.
+
+      <figure src="fig/descida-gradiente.svg" alt="Curvas de nível elípticas de J(w1, w2) = w1^2 + 4w2^2 entre -3 e 3 em w1 e -2 e 2 em w2, com duas trajetórias partindo de (-2,5; 1,5) até (0, 0): a trajetória com eta = 0,10 desce suavemente e a trajetória com eta = 0,23 oscila em zigue-zague" id="fig:4-3-descida-gradiente">
+        <caption>Efeito de $\eta$ em um vale alongado $J(w_1, w_2) = w_1^2 + 4w_2^2$. Com $\eta = 0{,}10$, a descida é suave; com $\eta = 0{,}23$ (perto do teto $0{,}25$), a direção mais curvada $w_2$ entra em zigue-zague.</caption>
+      </figure>
+
+      <example id="exm:4-3-tres-taxas">
+        <title>Comparando três taxas de aprendizado na prática</title>
+        Para $J(w) = 2w^2$, parta de $w_0 = 8$ e compare $3$ passos com $\eta = 0{,}05$, $\eta = 0{,}20$ e $\eta = 0{,}60$, à mão e em NumPy.
+
+        <strong>Solução.</strong> Aqui $J(w) = 2w^2 = \frac{4}{2}w^2$, logo $c = J''(w) = 4$ e o teto de estabilidade pelo <ref to="thm:4-3-estabilidade-1d"/> é $\eta < \frac{2}{4} = 0{,}5$. Usando a <ref to="eq:4-3-potencia-1d"/>, $w_k = (1 - 4\eta)^k \cdot 8$:
+        <list marker="dash">
+          <item><strong>$\eta = 0{,}05$ (pequena):</strong> fator $0{,}8 \implies w_1 = 6{,}4$, $w_2 = 5{,}12$, $w_3 = 4{,}096$ (lento, monotônico).</item>
+          <item><strong>$\eta = 0{,}20$ (boa):</strong> fator $0{,}2 \implies w_1 = 1{,}6$, $w_2 = 0{,}32$, $w_3 = 0{,}064$ (converge rápido).</item>
+          <item><strong>$\eta = 0{,}60$ (grande demais):</strong> fator $-1{,}4 \implies w_1 = -11{,}2$, $w_2 = 15{,}68$, $w_3 = -21{,}952$ (diverge).</item>
+        </list>
+
+        <code lang="python" id="cod:4-3-taxas-1d">
+import numpy as np
+
+# Compara tres taxas para J(w) = 2*w^2 (J'(w) = 4*w)
+for eta in [0.05, 0.20, 0.60]:
+    w = 8.0
+    for _ in range(3):
+        w = w - eta * (4.0 * w)
+    print(f"eta={eta:.2f} -> w3 = {w:.3f}")
+
+# saída: eta=0.05 -> w3 = 4.096
+# saída: eta=0.20 -> w3 = 0.064
+# saída: eta=0.60 -> w3 = -21.952
+        </code>
+      </example>
+
+      <example id="exm:4-3-neuronio-diverge">
+        <title>Quando $\eta$ grande demais faz o ajuste do neurônio divergir</title>
+        No ajuste linear do neurônio visual (<ref to="exm:4-3-gd-neuronio"/>), o custo polinomial visto no Tema 4.1 é $J(a, b) = 0{,}3a^2 + ab + b^2 - 40a - 70b + 1\,355$, com Hessiana $\mathbf{H} = \begin{pmatrix} 0{,}6 & 1 \\ 1 & 2 \end{pmatrix}$. Partindo de $(a_0, b_0) = (50, 15)$ ($J = 30$):
+        <list marker="a">
+          <item>Calcule $1$ passo com $\eta = 0{,}5$ e confira a queda do custo.</item>
+          <item>Calcule $3$ passos com $\eta = 1{,}0$ e observe a divergência.</item>
+        </list>
+
+        <strong>Solução.</strong> Temos $\nabla J(a, b) = (0{,}6a + b - 40,\; a + 2b - 70)$, logo $\nabla J(50, 15) = (5, 10)$.
+        <list marker="a">
+          <item>Com $\eta = 0{,}5$: $(a_1, b_1) = (50, 15) - 0{,}5(5, 10) = (47{,}5;\; 10{,}0)$, onde as previsões são $19{,}5;\; 29{,}0;\; 38{,}5;\; 48{,}0$ (erros $-1{,}5;\; +2{,}0;\; -4{,}5;\; -1{,}0$) e $J = \frac{2{,}25 + 4 + 20{,}25 + 1}{4} = 6{,}875 < 30$.</item>
+          <item>Embora $J_{aa} = 0{,}6$ e $J_{bb} = 2$ pareçam sugerir $\eta < 1$, o acoplamento $J_{ab} = 1$ eleva a curvatura máxima de $\mathbf{H}$ para cerca de $2{,}52$, impondo $\eta < \frac{2}{2{,}52} \approx 0{,}793$. Com $\eta = 1{,}0$:
+            <list marker="dash">
+              <item><strong>Passo 1:</strong> $(a_1, b_1) = (50, 15) - (5, 10) = (45, 5)$, com $J(45, 5) = 62{,}5 > 30$.</item>
+              <item><strong>Passo 2:</strong> $\nabla J(45, 5) = (-8, -15) \implies (a_2, b_2) = (53, 20)$, com $J(53, 20) = 137{,}7$.</item>
+              <item><strong>Passo 3:</strong> $\nabla J(53, 20) = (11{,}8;\; 23) \implies (a_3, b_3) = (41{,}2;\; -3{,}0)$, com $J = 311{,}632$ (e taxa espontânea negativa $-3\text{ Hz}$).</item>
+            </list>
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:4-3-armadilha-eta">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Confundir o coeficiente de $w^2$ com $c$:</strong> em $J(w) = aw^2$, a curvatura é $c = J''(w) = 2a$, logo o teto é $\eta < \frac{1}{a}$.</item>
+          <item><strong>Escolher $\eta$ por tentativa sem olhar a curvatura e os termos cruzados:</strong> em várias variáveis, $J_{ab}$ pode elevar a curvatura máxima acima de $J_{aa}$ e $J_{bb}$, reduzindo o $\eta$ máximo estável (<ref to="exm:4-3-neuronio-diverge"/>).</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:4-3-2-1">
+        <title>Básico — Limite de estabilidade em 1D</title>
+        Considere $J(w) = 3(w - 2)^2$.
+        <list marker="a">
+          <item>Encontre $c = J''(w)$ e o intervalo de $\eta > 0$ para convergência rumo a $w^* = 2$.</item>
+          <item>Qual $\eta^*$ converge em um único passo?</item>
+          <item>Partindo de $w_0 = 5$ com $\eta = 0{,}25$, calcule $w_1$ e $w_2$ e classifique o regime.</item>
+        </list>
+        <hint><title>Ver dica</title>Use $c = J''(w)$ no <ref to="thm:4-3-estabilidade-1d"/>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$J'(w) = 6(w - 2)$ e $c = J''(w) = 6$, logo converge se, e somente se, $0 < \eta < \frac{2}{6} = \frac{1}{3} \approx 0{,}333$.</item>
+            <item>Passo único em $\eta^* = \frac{1}{c} = \frac{1}{6}$.</item>
+            <item>Como $\frac{1}{6} < 0{,}25 < \frac{1}{3}$, o regime é <strong>oscilatório convergente</strong> (fator $1 - 6(0{,}25) = -0{,}5$): $w_1 = 5 - 0{,}25\cdot 6(3) = 0{,}5$ e $w_2 = 0{,}5 - 0{,}25\cdot 6(-1{,}5) = 2{,}75$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-3-2-2">
+        <title>Intermediário — Curvatura máxima e zigue-zague em 2D</title>
+        Para $J(w_1, w_2) = 0{,}5\,w_1^2 + 5\,w_2^2$:
+        <list marker="a">
+          <item>Calcule $c_1 = J_{w_1 w_1}$ e $c_2 = J_{w_2 w_2}$ e ache o maior intervalo $0 < \eta < \eta_{\max}$ estável.</item>
+          <item>Partindo de $\mathbf{w}_0 = (10, 1)$ com $\eta = 0{,}18$, calcule $\mathbf{w}_1$ e $\mathbf{w}_2$ e explique a diferença entre os eixos.</item>
+        </list>
+        <hint><title>Ver dica</title>Os eixos são independentes: imponha $\eta < 2/c_i$ em cada coordenada.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$c_1 = 1$ ($\eta < 2$) e $c_2 = 10$ ($\eta < 2/10 = 0{,}2$), logo $0 < \eta < 0{,}2$ ($\eta_{\max} = 0{,}2$).</item>
+            <item>Com $\eta = 0{,}18$, os fatores são $1 - 0{,}18 = +0{,}82$ e $1 - 1{,}8 = -0{,}80$: $\mathbf{w}_1 = (8{,}2;\; -0{,}8)$ e $\mathbf{w}_2 = (6{,}724;\; 0{,}64)$. O eixo $w_1$ cai devagar sem trocar de sinal, enquanto $w_2$ oscila em zigue-zague.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-3-2-3">
+        <title>Avançado — Testando estabilidade no modelo do neurônio em Python</title>
+        No ajuste do neurônio visual (<ref to="exm:4-3-gd-neuronio"/>), parta de $(a_0, b_0) = (50, 11)$ ($J = 6{,}000$).
+        <list marker="a">
+          <item>Escreva um código autocontido em NumPy que rode $2$ passos para $\eta = 0{,}1$, $\eta = 0{,}5$ e $\eta = 1{,}0$, imprimindo $(a_2, b_2)$ e $J(a_2, b_2)$.</item>
+          <item>Confira à mão os resultados de $\eta = 0{,}5$ e $\eta = 1{,}0$.</item>
+        </list>
+        <hint><title>Ver dica</title>Use $\nabla J(a, b) = (0{,}6a + b - 40,\; a + 2b - 70)$, que vale $(1, 2)$ em $(50, 11)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Código autocontido em NumPy:
+              <code lang="python" numbered="false">
+import numpy as np
+
+x = np.array([0.2, 0.4, 0.6, 0.8])
+y = np.array([21.0, 27.0, 43.0, 49.0])
+m = len(x)
+
+
+def custo(w):
+    return np.mean((w[0] * x + w[1] - y) ** 2)
+
+
+def grad(w):
+    erros = (w[0] * x + w[1]) - y
+    return np.array([(2.0 / m) * np.sum(erros * x), (2.0 / m) * np.sum(erros)])
+
+
+for eta in [0.1, 0.5, 1.0]:
+    w = np.array([50.0, 11.0])
+    for _ in range(2):
+        w = w - eta * grad(w)
+    print(f"eta={eta:.1f} -> a2={w[0]:.3f}, b2={w[1]:.3f}, J={custo(w):.3f}")
+
+# saída: eta=0.1 -> a2=49.826, b2=10.650, J=5.318
+# saída: eta=0.5 -> a2=49.650, b2=10.250, J=5.012
+# saída: eta=1.0 -> a2=50.600, b2=12.000, J=10.308
+              </code>
+            </item>
+            <item>De $(50, 11)$ com $\nabla J = (1, 2)$: para $\eta = 0{,}5$, $\mathbf{w}_1 = (49{,}5;\; 10{,}0)$ ($\nabla J = (-0{,}3;\; -0{,}5)$) e $\mathbf{w}_2 = (49{,}65;\; 10{,}25)$ ($J \approx 5{,}012 < 6{,}000$); para $\eta = 1{,}0$, $\mathbf{w}_1 = (49, 9)$ ($\nabla J = (-1{,}6;\; -3{,}0)$) e $\mathbf{w}_2 = (50{,}6;\; 12{,}0)$ ($J = 10{,}308 > 6{,}000$, divergindo).</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:4-3-3">
+      <eyebrow>Seção 3</eyebrow>
+      <title>Mínimos locais, mínimo global e paisagens de energia</title>
+      <intro>
+        Na regressão linear existe apenas uma tigela convexa. Em modelos não lineares e redes biológicas, há vários vales — e uma descida local pode ficar presa no vale errado.
+      </intro>
+
+      Quando a função custo é <strong>não convexa</strong> e exibe vários vales separados por cristas, o gradiente descendente comporta-se como um método estritamente <strong>local</strong>: ele lê apenas $\nabla J(\mathbf{w}_k)$ sob os pés, desce até o fundo do vale onde começou e para, sem enxergar vales mais profundos além da barreira.
+
+      <definition id="def:4-3-bacia-atracao">
+        <title>Bacias de atração e múltiplas reinicializações</title>
+        Seja $J : \mathbb{R}^n \to \mathbb{R}$ com múltiplos mínimos locais.
+        <list marker="dash">
+          <item>A <strong>bacia de atração</strong> (<em>basin of attraction</em>) de um mínimo local $\mathbf{w}^*$ é o conjunto de todos os pontos iniciais $\mathbf{w}_0$ dos quais o gradiente descendente (com passo pequeno) converge para $\mathbf{w}^*$.</item>
+          <item>Para explorar várias bacias, usamos <strong>múltiplas reinicializações</strong> (<em>multiple restarts</em>): executamos a descida a partir de vários pontos iniciais e ficamos com o menor custo final.</item>
+        </list>
+        <intuition>
+          Como bacias hidrográficas separadas por um divisor de águas, dois chutes iniciais vizinhos em lados opostos de uma crista escorrem para vales distintos. Em altas dimensões, <strong>pontos de sela</strong> (<mark>Tema 4.2</mark>) também atrasam a descida por terem $\nabla J \approx \mathbf{0}$ antes de o algoritmo escapar numa direção descendente.
+        </intuition>
+      </definition>
+
+      <example id="exm:4-3-bacias-quartica">
+        <title>Duas bacias de atração em uma quártica 1D</title>
+        Considere $J(w) = w^4 - 4w^2 + w$.
+        <list marker="a">
+          <item>Calcule $J'(w)$ e $J''(w)$ e confira as aproximações numéricas dos pontos críticos: $w_{\text{glob}} \approx -1{,}473$, $w_{\text{max}} \approx 0{,}126$ e $w_{\text{loc}} \approx 1{,}347$.</item>
+          <item>Dê $1$ passo à mão ($\eta = 0{,}04$) a partir de $w_0 = -0{,}2$ e $w_0 = 0{,}4$, e rode $50$ passos em NumPy a partir de quatro chutes ($-2{,}0;\; -0{,}2;\; 0{,}4;\; 2{,}0$).</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Temos $J'(w) = 4w^3 - 8w + 1$ e $J''(w) = 12w^2 - 8$. Como $4w^3 - 8w + 1 = 0$ não tem raízes racionais simples, usamos aproximações numéricas:
+            <list marker="dash">
+              <item>$w_{\text{glob}} \approx -1{,}473$: $J' \approx -0{,}00004 \approx 0$, $J'' \approx +18{,}0 > 0$, $J \approx -5{,}444$ (<strong>mínimo global</strong>);</item>
+              <item>$w_{\text{max}} \approx 0{,}126$: $J' \approx +0{,}000002 \approx 0$, $J'' \approx -7{,}8 < 0$, $J \approx +0{,}063$ (<strong>máximo local</strong>, barreira);</item>
+              <item>$w_{\text{loc}} \approx 1{,}347$: $J' \approx +0{,}00004 \approx 0$, $J'' \approx +13{,}8 > 0$, $J \approx -2{,}619$ (<strong>mínimo local</strong>).</item>
+            </list>
+          </item>
+          <item>Com $\eta = 0{,}04$: de $w_0 = -0{,}2$, $J'(-0{,}2) = 2{,}568 \implies w_1 \approx -0{,}303$ (desce para $-1{,}473$); de $w_0 = 0{,}4$, $J'(0{,}4) = -1{,}944 \implies w_1 \approx 0{,}478$ (fica preso em $1{,}347$), como mostra a <ref to="fig:4-3-minimos-locais"/> e o código a seguir:
+            <code lang="python" id="cod:4-3-restarts">
+import numpy as np
+
+
+def custo(w):
+    return w ** 4 - 4.0 * w ** 2 + w
+
+
+def derivada(w):
+    return 4.0 * w ** 3 - 8.0 * w + 1.0
+
+
+eta = 0.04
+for w0 in [-2.0, -0.2, 0.4, 2.0]:
+    w = float(w0)
+    for _ in range(50):
+        w = w - eta * derivada(w)
+    print(f"w0 = {w0:4.1f} -> w_final = {w:6.3f}, J = {custo(w):6.3f}")
+
+# saída: w0 = -2.0 -> w_final = -1.473, J = -5.444
+# saída: w0 = -0.2 -> w_final = -1.473, J = -5.444
+# saída: w0 =  0.4 -> w_final =  1.347, J = -2.619
+# saída: w0 =  2.0 -> w_final =  1.347, J = -2.619
+            </code>
+          </item>
+        </list>
+      </example>
+
+      <figure src="fig/minimos-locais.svg" alt="Gráfico da quártica J(w) = w^4 - 4w^2 + w com mínimo global em w aproximado a -1,47, máximo local em 0,13 e mínimo local em 1,35; duas trajetórias partem de -0,2 e 0,4 e caem em vales diferentes" id="fig:4-3-minimos-locais">
+        <caption>Bacias de atração em $J(w) = w^4 - 4w^2 + w$. De $w_0 = -0{,}2$, a descida acha o mínimo global ($w \approx -1{,}47$); de $w_0 = 0{,}4$, fica presa no mínimo local ($w \approx 1{,}35$).</caption>
+      </figure>
+
+      Na neurociência computacional e na biofísica, a mesma geometria aparece quando acompanhamos os estados de um sistema rolando sobre uma <strong>paisagem de energia</strong> (<em>energy landscape</em>). Na <strong>rede atratora</strong> de Hopfield (1982), $N$ neurônios binários $s_i \in \{-1, +1\}$ conectam-se por pesos simétricos $w_{ij} = w_{ji}$ sem autoconexão ($w_{ii} = 0$).
+
+      <definition id="def:4-3-hopfield">
+        <title>Energia e dinâmica de uma rede de Hopfield</title>
+        Para $\mathbf{s} \in \{-1, +1\}^N$ e pesos simétricos $w_{ij} = w_{ji}$ ($w_{ii} = 0$), a <strong>função de energia</strong> é:
+        <equation id="eq:4-3-hopfield-energia">
+          E(\mathbf{s}) = -\frac{1}{2}\sum_{i \ne j} w_{ij}\,s_i s_j.
+        </equation>
+        Na atualização assíncrona (um neurônio $i$ por vez), aplicamos:
+        <equation id="eq:4-3-hopfield-regra">
+          s_i \leftarrow \operatorname{sinal}\!\left(\sum_{j \ne i} w_{ij} s_j\right),
+        </equation>
+        com $\operatorname{sinal}(h) = +1$ se $h \ge 0$ e $-1$ se $h < 0$.
+        <intuition>
+          Conexões positivas ($w_{ij} > 0$) reduzem a energia quando $s_i$ e $s_j$ concordam; conexões negativas ($w_{ij} < 0$), quando discordam. A regra local faz o estado $\mathbf{s}$ rolar morro abaixo em $E(\mathbf{s})$.
+        </intuition>
+      </definition>
+
+      <proposition id="prop:4-3-hopfield-energia">
+        <title>A energia de Hopfield nunca aumenta na atualização assíncrona</title>
+        Ao atualizar um único neurônio $i$ pela <ref to="eq:4-3-hopfield-regra"/> com $h_i = \sum_{j \ne i} w_{ij} s_j \ne 0$, $E(\mathbf{s})$ não aumenta — e cai estritamente quando $s_i$ inverte. Como há $2^N$ estados finitos, a rede sempre para num mínimo local de $E$.
+      </proposition>
+      <proof of="prop:4-3-hopfield-energia" collapsible="true" collapsed="true">
+        Pela simetria $w_{ij} = w_{ji}$ e $w_{ii} = 0$, os termos com $s_i$ somam $-s_i h_i$. Trocando apenas $s_i$ por $s_i' = \operatorname{sinal}(h_i)$, temos $\Delta E = -(s_i' - s_i)h_i$. Se $s_i' = s_i$, $\Delta E = 0$; se $s_i' = -s_i$, então $s_i' - s_i = 2s_i'$ tem o mesmo sinal de $h_i$, logo $\Delta E = -2|h_i| < 0$.
+      </proof>
+
+      Memórias armazenadas nos pesos formam vales profundos — os <strong>atratores</strong> (<em>attractors</em>) — e lembrar a partir de uma pista parcial significa rolar até o mínimo mais próximo. Contudo, ao armazenar vários padrões, interferências criam vales rasos indesejados, as <strong>memórias espúrias</strong> (<em>spurious memories</em>): mínimos locais que aprisionam a rede sem corresponder a nenhuma memória original.
+
+      <example id="exm:4-3-hopfield">
+        <title>Paisagem de energia em uma rede de Hopfield com 3 neurônios</title>
+        Considere $N = 3$ neurônios com pesos simétricos $w_{12} = 1$, $w_{13} = -1$ e $w_{23} = -1$ ($w_{ii} = 0$), armazenando $\boldsymbol{\xi} = (+1, +1, -1)$.
+        <list marker="a">
+          <item>Simplifique $E(s_1, s_2, s_3)$ e calcule a energia de todos os $8$ estados.</item>
+          <item>Recupere $\boldsymbol{\xi}$ a partir de $(+1, +1, +1)$ atualizando o neurônio $3$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Cada par $(i, j)$ aparece duas vezes na soma $i \ne j$, cancelando o $\frac{1}{2}$: $E(\mathbf{s}) = -(s_1 s_2 - s_1 s_3 - s_2 s_3)$. Os dois atratores $(+1, +1, -1)$ e $(-1, -1, +1)$ atingem $E = -3$, e os demais seis estados ficam em $E = +1$:
+            <table id="tbl:4-3-hopfield">
+              <title>Energia de todos os estados na rede de Hopfield de 3 neurônios</title>
+              <header>
+                <column>Estado $(s_1, s_2, s_3)$</column>
+                <column align="right">$s_1s_2 - s_1s_3 - s_2s_3$</column>
+                <column align="right">Energia $E(\mathbf{s})$</column>
+              </header>
+              <row><column>$(+1, +1, -1)$</column><column align="right">$+3$</column><column align="right">$-3$</column></row>
+              <row><column>$(-1, -1, +1)$</column><column align="right">$+3$</column><column align="right">$-3$</column></row>
+              <row><column>$(+1, +1, +1)$</column><column align="right">$-1$</column><column align="right">$+1$</column></row>
+              <row><column>$(-1, -1, -1)$</column><column align="right">$-1$</column><column align="right">$+1$</column></row>
+              <row><column>$(+1, -1, -1)$</column><column align="right">$-1$</column><column align="right">$+1$</column></row>
+              <row><column>$(-1, +1, +1)$</column><column align="right">$-1$</column><column align="right">$+1$</column></row>
+              <row><column>$(+1, -1, +1)$</column><column align="right">$-1$</column><column align="right">$+1$</column></row>
+              <row><column>$(-1, +1, -1)$</column><column align="right">$-1$</column><column align="right">$+1$</column></row>
+              <caption>Os dois estados de menor energia ($E = -3$) são os atratores da rede.</caption>
+            </table>
+          </item>
+          <item>Em $(+1, +1, +1)$ ($E = +1$), $h_3 = (-1)(+1) + (-1)(+1) = -2 < 0 \implies s_3 \leftarrow -1$. A rede cai para $(+1, +1, -1)$ com $E = -3$ ($\Delta E = -4$), onde $h_1 = +2 > 0$ e $h_2 = +2 > 0$ mantêm o atrator estável.</item>
+        </list>
+      </example>
+
+      O mesmo ocorre no <strong>enovelamento de proteínas</strong> (<em>protein folding</em>): a cadeia explora conformações sobre uma paisagem de energia livre cujo mínimo global é o <strong>estado nativo</strong> funcional, enquanto estados mal enovelados funcionam como mínimos locais separados por barreiras energéticas.
+
+      <box type="note">
+        <title>Conectando ao projeto do módulo</title>
+        Por que um método de descida de gradiente (ou atualização redutora de energia) pode ficar preso em um mínimo local? Porque suas decisões são estritamente <strong>locais</strong>: a cada passo ele segue apenas $-\nabla J(\mathbf{w}_k)$ sob os pés e nunca aceita subir uma crista. Se começar na bacia de atração de um vale secundário — como $w_0 = 0{,}4$ na <ref to="fig:4-3-minimos-locais"/>, uma memória espúria na rede de Hopfield ou uma conformação mal enovelada de uma proteína —, o algoritmo desce até o fundo daquele vale, onde $\nabla J = \mathbf{0}$, e para sem enxergar o mínimo global além da barreira.
+      </box>
+
+      <subsection id="sub:4-3-3-sgd">
+        <title>Gradiente estocástico</title>
+        Quando $J(\mathbf{w}) = \frac{1}{m}\sum_{i=1}^m J_i(\mathbf{w})$ soma milhões de dados, calcular $\nabla J(\mathbf{w})$ inteiro a cada passo é lento demais. No <strong>gradiente estocástico</strong> (<em>stochastic gradient descent</em>, SGD), sorteamos em cada passo um único exemplo ou um pequeno <strong>minilote</strong> (<em>mini-batch</em>) $B \subset \{1, \dots, m\}$ e atualizamos com $\mathbf{w}_{k+1} = \mathbf{w}_k - \eta\,\nabla J_B(\mathbf{w}_k)$.
+
+        Cada passo fica muito mais barato e gera uma trajetória <strong>ruidosa</strong>. Longe de ser apenas um defeito, esse ruído pode empurrar os pesos para fora de mínimos locais rasos e platôs de sela! A base probabilística dessa ideia virá no <strong>Módulo 7 (Estatística e Probabilidade)</strong>, e o SGD com minilotes será o padrão no <strong>Módulo 9 (Deep Learning)</strong>.
+      </subsection>
+
+      <remark id="rem:4-3-armadilha-local">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Achar que convergir significa achar o mínimo global:</strong> $\|\nabla J\| \approx 0$ indica apenas ponto estacionário (mínimo local ou sela); use múltiplas reinicializações.</item>
+          <item><strong>Atualizar todos os neurônios de Hopfield juntos esperando queda monotônica:</strong> a <ref to="prop:4-3-hopfield-energia"/> vale para atualização <em>assíncrona</em>; atualizações síncronas podem oscilar.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:4-3-3-1">
+        <title>Básico — Prevendo o destino pela bacia de atração</title>
+        Considere $J(w) = 3w^4 - 4w^3 - 12w^2 + 35$.
+        <list marker="a">
+          <item>Calcule $J'(w)$ e $J''(w)$ e classifique os pontos críticos $w = -1$, $w = 0$ e $w = 2$.</item>
+          <item>Com $\eta = 0{,}01$, indique para qual mínimo converge uma descida partindo de $w_0 = -0{,}5$, $w_0 = +0{,}5$ e $w_0 = +3{,}0$.</item>
+        </list>
+        <hint><title>Ver dica</title>Fatore $J'(w) = 12w(w + 1)(w - 2)$ e verifique o sinal de $J'(w_0)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$J'(w) = 12w(w + 1)(w - 2)$ e $J''(w) = 36w^2 - 24w - 24$. Assim: $w = -1$ tem $J(-1) = 30$ e $J''(-1) = 36 > 0$ (<strong>mínimo local</strong>); $w = 0$ tem $J(0) = 35$ e $J''(0) = -24 < 0$ (<strong>máximo local</strong>); $w = 2$ tem $J(2) = 3$ e $J''(2) = 72 > 0$ (<strong>mínimo global</strong>).</item>
+            <item>A barreira $w = 0$ separa as bacias $(-\infty, 0)$ e $(0, +\infty)$: $w_0 = -0{,}5$ ($J' = +7{,}5 > 0 \implies w_1 = -0{,}575$) converge ao <strong>mínimo local</strong> $w = -1$; $w_0 = +0{,}5$ ($J' = -13{,}5 < 0 \implies w_1 = 0{,}635$) e $w_0 = +3{,}0$ ($J' = +144 > 0 \implies w_1 = 1{,}56 > 0$) convergem ao <strong>mínimo global</strong> $w = 2$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-3-3-2">
+        <title>Intermediário — Múltiplas reinicializações em 2D com NumPy</title>
+        Para $J(w_1, w_2) = (w_1^2 - 1)^2 + 0{,}4\,w_1 + w_2^2$, escreva um código autocontido em NumPy que rode $150$ passos ($\eta = 0{,}05$) partindo de $\mathbf{w}_0^{(A)} = (1{,}2;\; 1{,}0)$ e $\mathbf{w}_0^{(B)} = (-1{,}2;\; 1{,}0)$, imprimindo os pontos finais e indicando qual encontra o mínimo global.
+        <hint><title>Ver dica</title>Use $\nabla J(w_1, w_2) = \bigl(4w_1(w_1^2 - 1) + 0{,}4,\; 2w_2\bigr)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+
+
+def custo_2d(w):
+    return (w[0] ** 2 - 1.0) ** 2 + 0.4 * w[0] + w[1] ** 2
+
+
+def grad_2d(w):
+    return np.array([4.0 * w[0] * (w[0] ** 2 - 1.0) + 0.4, 2.0 * w[1]])
+
+
+eta = 0.05
+for nome, w0 in [("A", [1.2, 1.0]), ("B", [-1.2, 1.0])]:
+    w = np.array(w0, dtype=float)
+    for _ in range(150):
+        w = w - eta * grad_2d(w)
+    print(f"Inicio {nome}: w_final=({w[0]:.3f}, {w[1]:.3f}), J={custo_2d(w):.3f}")
+
+# saída: Inicio A: w_final=(0.946, 0.000), J=0.389
+# saída: Inicio B: w_final=(-1.047, 0.000), J=-0.410
+          </code>
+          A tentativa A fica presa no mínimo local ($J \approx 0{,}389$), e a tentativa B encontra o mínimo global ($J \approx -0{,}410$).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-3-3-3">
+        <title>Avançado — Dinâmica e energia em uma rede de Hopfield</title>
+        Considere $N = 3$ neurônios de Hopfield com pesos simétricos $w_{12} = 2$, $w_{13} = 1$ e $w_{23} = 1$ ($w_{ii} = 0$).
+        <list marker="a">
+          <item>Escreva $E(s_1, s_2, s_3)$ e calcule-a em $(+1, +1, +1)$, $(+1, -1, +1)$ e $(-1, -1, -1)$.</item>
+          <item>De $\mathbf{s} = (+1, -1, +1)$, atualize assincronamente na ordem $1 \to 3 \to 2$, calculando $h_i$ e $E$ em cada etapa.</item>
+        </list>
+        <hint><title>Ver dica</title>Use $E(s_1, s_2, s_3) = -(2s_1s_2 + s_1s_3 + s_2s_3)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$E(s_1, s_2, s_3) = -(2s_1s_2 + s_1s_3 + s_2s_3)$: $E(+1, +1, +1) = -4$, $E(+1, -1, +1) = -(-2 + 1 - 1) = +2$ e $E(-1, -1, -1) = -4$.</item>
+            <item>Partindo de $(+1, -1, +1)$ ($E = +2$):
+              <list marker="dash">
+                <item><strong>Neurônio $1$:</strong> $h_1 = 2(-1) + 1(1) = -1 < 0 \implies s_1 \leftarrow -1$; estado $(-1, -1, +1)$ e $E = -(2 - 1 - 1) = 0$ ($\Delta E = -2$).</item>
+                <item><strong>Neurônio $3$:</strong> $h_3 = 1(-1) + 1(-1) = -2 < 0 \implies s_3 \leftarrow -1$; estado $(-1, -1, -1)$ e $E = -4$ ($\Delta E = -4$).</item>
+                <item><strong>Neurônio $2$:</strong> $h_2 = 2(-1) + 1(-1) = -3 < 0 \implies s_2 \leftarrow -1$ (já vale $-1$; permanece no atrator com $E = -4$).</item>
+              </list>
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:4-3-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Regra do gradiente descendente:</strong> $\mathbf{w}_{k+1} = \mathbf{w}_k - \eta\,\nabla J(\mathbf{w}_k)$, com parada por $K_{\max}$ e $\|\nabla J(\mathbf{w}_k)\| \le \varepsilon$ (não confie só em $\Delta J$ pequeno).</item>
+        <item><strong>Estabilidade em 1D ($J(w) = \frac{c}{2}w^2$, $c = J'' > 0$):</strong> $w_k = (1 - \eta c)^k w_0$ converge se, e somente se, $0 < \eta < \frac{2}{c}$ (monotônico em $\eta < 1/c$, um passo em $\eta = 1/c$, oscilatório convergente em $1/c < \eta < 2/c$, divergente para $\eta > 2/c$).</item>
+        <item><strong>Curvatura e zigue-zague:</strong> em várias variáveis, $\eta < 2/c_{\max}$ é ditado pela maior curvatura da Hessiana; vales alongados causam zigue-zagues.</item>
+        <item><strong>Bacias de atração:</strong> por ser local, o gradiente descendente cai no vale onde iniciou; múltiplas reinicializações ajudam a escapar de mínimos locais, e pontos de sela desaceleram a busca.</item>
+        <item><strong>Paisagens de energia:</strong> na rede de Hopfield, $E(\mathbf{s}) = -\frac{1}{2}\sum_{i\ne j} w_{ij}s_i s_j$ não cresce sob atualização assíncrona $s_i \leftarrow \operatorname{sinal}(\sum_{j\ne i} w_{ij}s_j)$; memórias espúrias e proteínas mal enoveladas ilustram mínimos locais.</item>
+        <item><strong>Gradiente estocástico (SGD):</strong> estimar o gradiente por minilotes sorteados reduz o custo por passo e adiciona ruído útil para escapar de mínimos locais rasos.</item>
+      </list>
+    </section>
+
+    <section id="sec:4-3-alem">
+      <title>Para ir além</title>
+      Com o gradiente descendente fechado, concluímos o Módulo 4 (Otimização). O próximo passo da trilha é o <strong>Módulo 5 — Álgebra Linear (Tema 5.1: Vetores, matrizes e operações)</strong>, que dá a linguagem matricial para trabalhar em muitas dimensões, preparando o Módulo 6 (Python) e o Módulo 9 (Deep Learning). Para aprofundar:
+      <list marker="dash">
+        <item><strong>Vídeo do módulo:</strong> <link to="https://www.youtube.com/watch?v=IHZwWFHWa-w">3Blue1Brown — Gradient Descent (série de Redes Neurais)</link>.</item>
+        <item><strong>Exploração visual:</strong> busque no YouTube por visualizações de <em>superfícies e paisagens de custo</em> (<em>cost landscapes</em>) em 3D.</item>
+        <item><strong>Referência técnica opcional:</strong> <link to="https://numpy.org/doc/stable/">documentação oficial do NumPy</link>.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 4 · Otimização — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

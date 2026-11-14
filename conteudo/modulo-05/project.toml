@@ -1,0 +1,9 @@
+# Módulo 05 — Álgebra Linear. Compile com: node scripts/compilar-aulas.mjs --modulo 5
+inputs = ["tema-01.dlt", "tema-02.dlt"]
+out = "../../aulas/modulo-05"
+
+[document]
+lang         = "pt-BR"
+type         = "book"
+theme-accent = "indigo"
+theme-mode   = "auto"

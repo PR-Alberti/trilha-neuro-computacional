@@ -1,0 +1,723 @@
+<document>
+  <title>Módulo 9 · Deep Learning</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-9-4">Voltar ao guia (Tema 9.4)</link></meta-item>
+    <meta-item key="Módulo">Módulo 9 · Deep Learning — O Estado da Arte da Neurociência Computacional</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-9-4">
+    <title>Representações</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Embeddings: como os modelos “resumem” dados complexos — e como compará-los com o cérebro (RSA).
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Um neurônio no córtex inferotemporal (IT) responde a um rosto, um modelo de expressão gênica resume vinte mil genes por tipo celular, e modelos de linguagem codificam palavras antes de prever uma frase. Em todos esses casos, o sistema — biológico ou artificial — comprime dados complexos em vetores numéricos que preservam relações funcionais. Na neurociência computacional, entender essas representações permite testar se o espaço interno de uma rede profunda (como CNNs na via visual V1→IT ou <em>Transformers</em> decodificando linguagem contínua a partir de fMRI) organiza estímulos da mesma forma que o cérebro real.
+
+    Em projetos com neuroimagem ou eletrofisiologia em larga escala, utilize instâncias de Cloud ou o Google Colab com placa de vídeo (GPU), pois seu computador comum aquecerá muito sem hardware compatível. Aqui, porém, todos os códigos Python foram dimensionados para rodar em CPU em poucos segundos.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>explicar as limitações da codificação <em>one-hot</em> e formular <em>embeddings</em> como tabela de consulta aprendida (<c>torch.nn.Embedding</c>);</item>
+      <item>descrever <em>autoencoders</em>, relacionar o caso linear ao subespaço da PCA e treinar um <em>autoencoder</em> não linear em PyTorch;</item>
+      <item>calcular distância euclidiana, similaridade de cossenos e correlação de Pearson, identificando suas invariâncias em dados neurais;</item>
+      <item>construir uma Matriz de Dissimilaridade Representacional (RDM) e comparar modelos e cérebros por Análise de Similaridade Representacional (RSA) com Spearman e teste de permutação;</item>
+      <item>evitar armadilhas comuns ao interpretar coordenadas latentes e correlacionar RDMs.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Retomamos camadas ocultas e ativações de <mark>9.1 Fundamentos</mark> e <mark>9.2 CNN</mark> (em continuidade com <mark>9.3 RNN</mark>), produtos internos, ortogonalidade e SVD/PCA do Módulo 5 (<mark>Vetores, matrizes e operações</mark>, <mark>Ortogonalidade</mark>, <mark>Decomposições</mark>), Python/PyTorch do Módulo 6, correlações de Pearson/Spearman e permutação do Módulo 7, e redução de dimensionalidade do Módulo 8 (<mark>Aprendizado não supervisionado</mark>).
+
+    <section id="sec:9-4-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Embeddings: de símbolos a vetores</title>
+      <intro>
+        Para que uma rede processe símbolos discretos — palavras, aminoácidos ou tipos celulares —, é preciso convertê-los em vetores contínuos cuja geometria reflita semelhanças funcionais.
+      </intro>
+
+      Boa parte da biologia lida com categorias discretas: os $20$ aminoácidos das proteínas, os $64$ códons do RNA, milhares de genes expressos em um tecido ou as palavras de um estímulo linguístico. Numerar categorias com inteiros ($\text{astrócito}=1$, $\text{micróglia}=2$, $\text{neurônio}=3$) falha porque impõe uma ordem numérica falsa, sugerindo que micróglia seja a média entre astrócito e neurônio. A saída clássica é a <strong>codificação <em>one-hot</em></strong>: um vetor com $1$ na posição do símbolo e $0$ nas demais.
+
+      Porém, a codificação <em>one-hot</em> cobra dois preços altos. Primeiro, a dimensão iguala o tamanho do vocabulário $V$: para $20\,000$ genes ou $50\,000$ palavras, os vetores ficam imensos e quase vazios. Segundo, todos os pares distintos são ortogonais e equidistantes: "sinapse" dista tanto de "neurônio" quanto de "cadeira". Para superar isso, usamos um <strong><em>embedding</em> denso</strong>: associamos cada símbolo a um vetor curto $\mathbf{e}_i \in \mathbb{R}^d$ ($d \ll V$) cujas coordenadas são aprendidas a partir dos dados.
+
+      <definition id="def:9-4-onehot-embedding">
+        <title>Codificação one-hot e matriz de embedding</title>
+        Para um vocabulário de $V$ símbolos indexados por $i \in \{1, \dots, V\}$:
+        <list marker="dash">
+          <item>O <strong>vetor <em>one-hot</em></strong> $\mathbf{o}_i \in \{0, 1\}^V$ vale $1$ na coordenada $i$ e $0$ nas restantes.</item>
+          <item>Uma <strong>matriz de <em>embedding</em></strong> $\mathbf{E} \in \mathbb{R}^{V \times d}$ armazena em cada <strong>linha</strong> $i$ o vetor $\mathbf{e}_i^\top \in \mathbb{R}^{1 \times d}$ do símbolo $i$ (convenção adotada em <c>torch.nn.Embedding</c>).</item>
+          <item>Como vetor coluna $\mathbf{e}_i \in \mathbb{R}^d$, o <em>embedding</em> obtém-se por:
+            <equation id="eq:9-4-embedding-lookup">\mathbf{e}_i = \mathbf{E}^\top \mathbf{o}_i</equation>
+            (equivalentemente, em forma de vetor linha, $\mathbf{e}_i^\top = \mathbf{o}_i^\top \mathbf{E}$).
+          </item>
+        </list>
+        <intuition>
+          A matriz $\mathbf{E}$ é um fichário com $V$ fichas empilhadas e $d$ números por ficha: multiplicar por $\mathbf{o}_i$ simplesmente puxa a $i$-ésima ficha da gaveta.
+        </intuition>
+      </definition>
+
+      <proposition id="prop:9-4-lookup">
+        <title>Equivalência entre multiplicação one-hot e consulta de tabela</title>
+        Se as linhas de $\mathbf{E} \in \mathbb{R}^{V \times d}$ são $\mathbf{e}_1^\top, \dots, \mathbf{e}_V^\top$, então $\mathbf{E}^\top \mathbf{o}_i = \mathbf{e}_i$. Além disso, para quaisquer $i \ne j$, vale $\mathbf{o}_i^\top \mathbf{o}_j = 0$ e $\|\mathbf{o}_i - \mathbf{o}_j\|_2 = \sqrt{2}$.
+      </proposition>
+      <proof of="prop:9-4-lookup" collapsible="true" collapsed="true">
+        As colunas de $\mathbf{E}^\top$ são $\mathbf{e}_1, \dots, \mathbf{e}_V$, logo $\mathbf{E}^\top \mathbf{o}_i = \sum_{k=1}^V o_{i,k}\mathbf{e}_k = 1\cdot\mathbf{e}_i = \mathbf{e}_i$. Para $i \ne j$, os uns ocupam posições distintas, dando $\mathbf{o}_i^\top \mathbf{o}_j = 0$, e $\mathbf{o}_i - \mathbf{o}_j$ tem uma entrada $+1$ e uma $-1$, donde $\|\mathbf{o}_i - \mathbf{o}_j\|_2 = \sqrt{1^2 + (-1)^2} = \sqrt{2}$.
+      </proof>
+
+      Na prática computacional, <c>torch.nn.Embedding(V, d)</c> evita multiplicar vetores gigantes cheios de zeros: ela recebe apenas o índice inteiro do símbolo e lê diretamente a linha correspondente em tempo $O(d)$. Durante a retropropagação (<em>backpropagation</em>), a matriz $\mathbf{E}$ funciona como uma camada de pesos comum, mas apenas as linhas efetivamente consultadas no mini-lote recebem gradiente e são atualizadas.
+
+      Mas como a rede descobre bons valores para $\mathbf{E}$? No algoritmo <strong>Word2Vec</strong> (Mikolov et al., 2013), o princípio vem da <strong>hipótese distribucional</strong> da linguística: "uma palavra é conhecida pelas companhias que mantém". Ao treinar uma rede neural rasa para prever palavras vizinhas no texto, palavras que frequentam os mesmos contextos ("neurônio" e "sinapse", ou "sódio" e "potássio") recebem gradientes semelhantes e acabam próximas em $\mathbb{R}^d$. Ilustrações clássicas mostram que certas relações aparecem como deslocamentos vetoriais ($\mathbf{e}_{\text{rei}} - \mathbf{e}_{\text{homem}} + \mathbf{e}_{\text{mulher}} \approx \mathbf{e}_{\text{rainha}}$), mas tenha cautela: essa aritmética <strong>não funciona sempre</strong>, depende fortemente do <em>corpus</em> de treinamento e frequentemente absorve vieses dos textos.
+
+      Na biologia, o conceito de <em>embedding</em> estende-se muito além de palavras:
+      <list marker="dash">
+        <item><strong>Proteínas e sequências:</strong> cada um dos $20$ aminoácidos ganha um vetor aprendido em modelos de linguagem proteica, aproximando resíduos com propriedades físico-químicas semelhantes (hidrofóbicos, polares ou carregados).</item>
+        <item><strong>Transcriptômica de célula única (scRNA-seq):</strong> perfis com dezenas de milhares de genes são comprimidos em <em>embeddings</em> de baixa dimensão nos quais tipos celulares (astrócitos, oligodendrócitos, interneurônios) formam aglomerados nítidos.</item>
+        <item><strong>Identidade neuronal:</strong> em simulações de circuitos heterogêneos, cada célula pode receber um <em>embedding</em> treinável que resume seu papel funcional.</item>
+      </list>
+
+      <example id="exm:9-4-lookup-mao">
+        <title>Multiplicação one-hot e distâncias à mão</title>
+        Para $V = 4$ termos ($1$: <em>axônio</em>, $2$: <em>dendrito</em>, $3$: <em>ribossomo</em>, $4$: <em>mitocôndria</em>) e $d = 3$, considere:
+        $$\mathbf{E} = \begin{pmatrix} 0{,}8 & 0{,}6 & 0{,}1 \\ 0{,}7 & 0{,}7 & 0{,}2 \\ -0{,}5 & 0{,}2 & 0{,}9 \\ -0{,}4 & 0{,}1 & 0{,}8 \end{pmatrix}.$$
+        Calcule $\mathbf{e}_2 = \mathbf{E}^\top \mathbf{o}_2$ e compare $\|\mathbf{e}_1 - \mathbf{e}_2\|_2$ e $\|\mathbf{e}_1 - \mathbf{e}_3\|_2$ com as distâncias <em>one-hot</em>.
+
+        <strong>Solução.</strong> Com $\mathbf{o}_2 = (0, 1, 0, 0)^\top$:
+        $$\mathbf{e}_2 = \begin{pmatrix} 0{,}8 & 0{,}7 & -0{,}5 & -0{,}4 \\ 0{,}6 & 0{,}7 & 0{,}2 & 0{,}1 \\ 0{,}1 & 0{,}2 & 0{,}9 & 0{,}8 \end{pmatrix} \begin{pmatrix} 0 \\ 1 \\ 0 \\ 0 \end{pmatrix} = \begin{pmatrix} 0{,}7 \\ 0{,}7 \\ 0{,}2 \end{pmatrix},$$
+        que é exatamente a $2^\text{a}$ linha de $\mathbf{E}$. No espaço <em>one-hot</em>, $\|\mathbf{o}_1 - \mathbf{o}_2\|_2 = \|\mathbf{o}_1 - \mathbf{o}_3\|_2 = \sqrt{2} \approx 1{,}414$. Já no <em>embedding</em>:
+        $$\|\mathbf{e}_1 - \mathbf{e}_2\|_2 = \sqrt{(0{,}8-0{,}7)^2 + (0{,}6-0{,}7)^2 + (0{,}1-0{,}2)^2} = \sqrt{0{,}03} \approx 0{,}173,$$
+        $$\|\mathbf{e}_1 - \mathbf{e}_3\|_2 = \sqrt{(0{,}8+0{,}5)^2 + (0{,}6-0{,}2)^2 + (0{,}1-0{,}9)^2} = \sqrt{1{,}69 + 0{,}16 + 0{,}64} = \sqrt{2{,}49} \approx 1{,}578.$$
+        Compartimentos neuronais (<em>axônio</em> e <em>dendrito</em>) ficam cerca de nove vezes mais próximos entre si do que de uma organela geral (<em>ribossomo</em>).
+      </example>
+
+      <example id="exm:9-4-codigo-populacional">
+        <title>Código populacional como embedding neural</title>
+        No cérebro (Dayan &amp; Abbott; Kandel), um estímulo é codificado pelas taxas de disparo simultâneas de $N$ neurônios — um <strong>código populacional</strong> em $\mathbb{R}^N$. Suponha $N = 4$ neurônios olfatórios (em $\text{Hz}$) respondendo a $s_1$ (banana), $s_2$ (abacaxi) e $s_3$ (queijo):
+        $$\mathbf{r}(s_1) = (45, 38, 5, 2)^\top, \qquad \mathbf{r}(s_2) = (40, 42, 8, 3)^\top, \qquad \mathbf{r}(s_3) = (4, 6, 52, 48)^\top.$$
+        Calculando as distâncias euclidianas no espaço neural:
+        $$\|\mathbf{r}(s_1) - \mathbf{r}(s_2)\|_2 = \sqrt{5^2 + (-4)^2 + (-3)^2 + (-1)^2} = \sqrt{51} \approx 7{,}14\text{ Hz},$$
+        $$\|\mathbf{r}(s_1) - \mathbf{r}(s_3)\|_2 = \sqrt{41^2 + 32^2 + (-47)^2 + (-46)^2} = \sqrt{1\,681 + 1\,024 + 2\,209 + 2\,116} = \sqrt{7\,030} \approx 83{,}85\text{ Hz}.$$
+        A população neural atua como um <em>embedding</em> natural do estímulo em $\mathbb{R}^4$: odores frutados semelhantes ficam vizinhos e categorias contrastantes se separam.
+      </example>
+
+      O bloco abaixo confirma em PyTorch que <c>nn.Embedding</c> equivale à multiplicação por um vetor <em>one-hot</em>.
+
+      <code lang="python" id="cod:9-4-embedding-pytorch">
+import torch
+import torch.nn as nn
+
+emb = nn.Embedding(num_embeddings=4, embedding_dim=3)
+E = torch.tensor([
+    [ 0.8,  0.6,  0.1],
+    [ 0.7,  0.7,  0.2],
+    [-0.5,  0.2,  0.9],
+    [-0.4,  0.1,  0.8],
+])
+with torch.no_grad():
+    emb.weight.copy_(E)
+
+idx = torch.tensor([1])  # índice 1 (dendrito) em base zero
+e_lookup = emb(idx)
+one_hot = torch.tensor([[0.0, 1.0, 0.0, 0.0]])
+e_matmul = one_hot @ emb.weight
+
+print("Via nn.Embedding:", e_lookup.detach().numpy())  # [[0.7 0.7 0.2]]
+print("Via one-hot @ E: ", e_matmul.detach().numpy())  # [[0.7 0.7 0.2]]
+print("Diferenca maxima:", torch.max(torch.abs(e_lookup - e_matmul)).item())  # 0.0
+      </code>
+
+      <remark id="rem:9-4-armadilha-emb">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Achar que dimensões individuais do <em>embedding</em> têm significado isolado:</strong> se girarmos todos os vetores por uma matriz ortogonal $\mathbf{Q}$, distâncias e ângulos não mudam, mas todas as coordenadas individuais se misturam. A informação mora na geometria relativa entre os vetores, não em um rótulo fixo da coordenada 1 ou 2.</item>
+          <item><strong>Passar índices inteiros diretamente a camadas lineares:</strong> tratar rótulos categóricos como números contínuos impõe uma ordenação artificial inexistente.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-4-1-1">
+        <title>Básico — Consulta e distâncias à mão</title>
+        Para três nucleotídeos ($1$: A, $2$: G, $3$: C), seja $\mathbf{E} = \begin{pmatrix} 1{,}0 & 0{,}2 \\ 0{,}8 & 0{,}4 \\ -0{,}6 & 0{,}9 \end{pmatrix}$. Calcule $\mathbf{e}_3 = \mathbf{E}^\top \mathbf{o}_3$ e as distâncias $\|\mathbf{e}_1 - \mathbf{e}_2\|_2$ e $\|\mathbf{e}_1 - \mathbf{e}_3\|_2$.
+        <hint><title>Ver dica</title>Use $\mathbf{o}_3 = (0, 0, 1)^\top$ e a fórmula da distância euclidiana em $\mathbb{R}^2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Multiplicando $\mathbf{E}^\top$ por $\mathbf{o}_3$:
+          $$\mathbf{e}_3 = \begin{pmatrix} 1{,}0 & 0{,}8 & -0{,}6 \\ 0{,}2 & 0{,}4 & 0{,}9 \end{pmatrix}\begin{pmatrix} 0 \\ 0 \\ 1 \end{pmatrix} = \begin{pmatrix} -0{,}6 \\ 0{,}9 \end{pmatrix}.$$
+          As distâncias são $\|\mathbf{e}_1 - \mathbf{e}_2\|_2 = \sqrt{0{,}2^2 + (-0{,}2)^2} = \sqrt{0{,}08} \approx 0{,}283$ (purinas próximas) e $\|\mathbf{e}_1 - \mathbf{e}_3\|_2 = \sqrt{1{,}6^2 + (-0{,}7)^2} = \sqrt{3{,}05} \approx 1{,}746$ (purina vs. pirimidina).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-4-1-2">
+        <title>Básico — Parâmetros de nn.Embedding em genômica</title>
+        Um modelo representa $V = 20\,000$ genes humanos usando <c>nn.Embedding(20000, 32)</c>. Calcule o número de parâmetros da camada e quantas vezes o vetor de entrada encolhe frente ao <em>one-hot</em>.
+        <hint><title>Ver dica</title>A matriz tem $V \times d$ pesos e não possui viés.</hint>
+        <solution collapsible="true" collapsed="true">
+          O total de parâmetros é $20\,000 \times 32 = 640\,000$. A dimensão cai de $20\,000$ para $32$, uma redução de $\frac{20\,000}{32} = 625$ vezes.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-4-1-3">
+        <title>Intermediário — Código populacional em V1</title>
+        Três neurônios de V1 respondem a barras a $0^\circ$, $15^\circ$ e $90^\circ$ com taxas (em $\text{Hz}$): $\mathbf{r}(0^\circ) = (60, 20, 4)^\top$, $\mathbf{r}(15^\circ) = (54, 28, 4)^\top$ e $\mathbf{r}(90^\circ) = (4, 16, 64)^\top$. Calcule as três distâncias euclidianas entre os pares e interprete o resultado.
+        <hint><title>Ver dica</title>Calcule $\|\mathbf{r}(a) - \mathbf{r}(b)\|_2$ coordenada a coordenada.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="dash">
+            <item>$d(0^\circ, 15^\circ) = \sqrt{6^2 + (-8)^2 + 0^2} = \sqrt{100} = 10{,}0\text{ Hz}$;</item>
+            <item>$d(0^\circ, 90^\circ) = \sqrt{56^2 + 4^2 + (-60)^2} = \sqrt{3\,136 + 16 + 3\,600} = \sqrt{6\,752} \approx 82{,}17\text{ Hz}$;</item>
+            <item>$d(15^\circ, 90^\circ) = \sqrt{50^2 + 12^2 + (-60)^2} = \sqrt{2\,500 + 144 + 3\,600} = \sqrt{6\,244} \approx 79{,}02\text{ Hz}$.</item>
+          </list>
+          Orientações próximas produzem vetores próximos, organizando a variável angular em uma geometria contínua em $\mathbb{R}^3$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-4-1-4">
+        <title>Avançado — Invariância ortogonal dos embeddings</title>
+        Seja $\mathbf{Q} \in \mathbb{R}^{d \times d}$ ortogonal ($\mathbf{Q}^\top \mathbf{Q} = \mathbf{I}_d$). Definindo $\tilde{\mathbf{e}}_i = \mathbf{Q}\mathbf{e}_i$, mostre que $\|\tilde{\mathbf{e}}_i - \tilde{\mathbf{e}}_j\|_2 = \|\mathbf{e}_i - \mathbf{e}_j\|_2$ e $\tilde{\mathbf{e}}_i^\top \tilde{\mathbf{e}}_j = \mathbf{e}_i^\top \mathbf{e}_j$.
+        <hint><title>Ver dica</title>Escreva $\|\mathbf{Q}\mathbf{u}\|_2^2 = (\mathbf{Q}\mathbf{u})^\top (\mathbf{Q}\mathbf{u}) = \mathbf{u}^\top \mathbf{Q}^\top \mathbf{Q} \mathbf{u}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para o produto interno: $\tilde{\mathbf{e}}_i^\top \tilde{\mathbf{e}}_j = (\mathbf{Q}\mathbf{e}_i)^\top (\mathbf{Q}\mathbf{e}_j) = \mathbf{e}_i^\top \mathbf{Q}^\top \mathbf{Q} \mathbf{e}_j = \mathbf{e}_i^\top \mathbf{e}_j$. Aplicando o mesmo passo a $\mathbf{u} = \mathbf{e}_i - \mathbf{e}_j$, temos $\|\tilde{\mathbf{e}}_i - \tilde{\mathbf{e}}_j\|_2^2 = \mathbf{u}^\top \mathbf{Q}^\top \mathbf{Q}\mathbf{u} = \|\mathbf{u}\|_2^2$, donde $\|\tilde{\mathbf{e}}_i - \tilde{\mathbf{e}}_j\|_2 = \|\mathbf{e}_i - \mathbf{e}_j\|_2$. Como qualquer rotação preserva todas as distâncias e ângulos, os eixos individuais não são únicos nem interpretáveis sem restrições adicionais.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-4-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Espaço latente e autoencoders</title>
+      <intro>
+        Quando a entrada já é contínua e de alta dimensão, uma rede em formato de ampulheta aprende sem rótulos a comprimir os dados em um gargalo compacto e reconstruí-los a partir dele.
+      </intro>
+
+      Em qualquer rede neural profunda, o vetor de ativações $\mathbf{a}^{(l)}$ de uma camada oculta atua como uma representação interna da entrada. Quando queremos descobrir um resumo compacto de vetores contínuos $\mathbf{x} \in \mathbb{R}^D$ (imagens, canais de EEG ou dezenas de neurônios) sem dispor de rótulos de classe (aprendizado não supervisionado, Módulo 8), construímos um <strong><em>autoencoder</em></strong>. Na retina ocorre um princípio semelhante: mais de cem milhões de fotorreceptores enviam sinais ao cérebro pelo nervo óptico através de apenas cerca de um milhão de células ganglionares, um funil anatômico que obriga o sistema a eliminar redundâncias entre pixels vizinhos e reter apenas a estrutura essencial da cena.
+
+      <definition id="def:9-4-autoencoder">
+        <title>Autoencoder, gargalo e perda de reconstrução</title>
+        Um <strong><em>autoencoder</em></strong> para entradas $\mathbf{x} \in \mathbb{R}^D$ acopla duas sub-redes:
+        <list marker="dash">
+          <item>um <strong>codificador</strong> (<em>encoder</em>) $f_{\boldsymbol{\theta}}: \mathbb{R}^D \to \mathbb{R}^d$, que mapeia a entrada para o vetor latente $\mathbf{h} = f_{\boldsymbol{\theta}}(\mathbf{x}) \in \mathbb{R}^d$ no <strong>espaço latente</strong>;</item>
+          <item>um <strong>decodificador</strong> (<em>decoder</em>) $g_{\boldsymbol{\psi}}: \mathbb{R}^d \to \mathbb{R}^D$, que gera a reconstrução $\hat{\mathbf{x}} = g_{\boldsymbol{\psi}}(\mathbf{h})$.</item>
+        </list>
+        Quando $d < D$, a camada central forma um <strong>gargalo</strong> (<em>bottleneck</em>). Os parâmetros $(\boldsymbol{\theta}, \boldsymbol{\psi})$ minimizam a <strong>perda de reconstrução</strong> quadrática:
+        <equation id="eq:9-4-ae-loss">\mathcal{L}_{\text{rec}} = \frac{1}{N} \sum_{i=1}^{N} \bigl\|\mathbf{x}_i - g_{\boldsymbol{\psi}}\bigl(f_{\boldsymbol{\theta}}(\mathbf{x}_i)\bigr)\bigr\|_2^2</equation>
+        (no PyTorch, <c>nn.MSELoss()</c> divide também pela dimensão $D$, medindo o erro quadrático médio por coordenada).
+        <intuition>
+          O gargalo $d < D$ impede a cópia trivial $\hat{\mathbf{x}} = \mathbf{x}$, obrigando o codificador a preservar apenas os padrões que mais explicam os dados.
+        </intuition>
+      </definition>
+
+      Qual é a relação dessa arquitetura com a <strong>PCA</strong> (Módulos 5 e 8)?
+
+      <proposition id="prop:9-4-ae-pca">
+        <title>Autoencoder linear e subespaço da PCA (Baldi &amp; Hornik, 1989)</title>
+        Para dados centrados na média ($\bar{\mathbf{x}} = \mathbf{0}$), um <em>autoencoder</em> linear com gargalo $d < D$ ($\mathbf{h} = \mathbf{W}_1 \mathbf{x}$, $\hat{\mathbf{x}} = \mathbf{W}_2 \mathbf{h}$) que minimiza a perda quadrática aprende exatamente o <strong>mesmo subespaço $d$-dimensional</strong> das $d$ primeiras componentes principais da PCA.
+      </proposition>
+
+      Esse resultado conhecido traz uma sutileza essencial: embora o autoencoder linear atinja o mesmo erro mínimo da PCA e capture o mesmo <em>subespaço</em>, os <strong>eixos individuais</strong> aprendidos em $\mathbf{h}$ em geral <strong>não coincidem</strong> com as componentes principais! Para qualquer matriz invertível $\mathbf{B} \in \mathbb{R}^{d \times d}$, trocar $(\mathbf{W}_1, \mathbf{W}_2)$ por $(\mathbf{B}\mathbf{W}_1,\, \mathbf{W}_2\mathbf{B}^{-1})$ produz exatamente a mesma reconstrução $\mathbf{W}_2 \mathbf{B}^{-1} \mathbf{B} \mathbf{W}_1 \mathbf{x} = \mathbf{W}_2 \mathbf{W}_1 \mathbf{x}$. A PCA impõe ortogonalidade e variância decrescente para fixar uma base única; o autoencoder não impõe.
+
+      Quando trocamos camadas lineares por ativações não lineares (como $\mathrm{ReLU}$), o autoencoder deixa de se restringir a um plano reto e consegue acompanhar <strong>variedades</strong> (<em>manifolds</em>) curvas de baixa dimensão — pense em uma folha de papel enrolada em espiral no espaço 3D: a variedade tem dimensão intrínseca $2$, mas nenhum corte plano de PCA consegue desenrolá-la sem erro. Por isso, um autoencoder não linear frequentemente alcança erro de reconstrução menor que a PCA para o mesmo $d$. Já para transformar esse espaço latente determinístico em um modelo probabilístico capaz de gerar amostras inéditas, veremos no <strong>Tema 9.7 (Generativos)</strong> o <em>Variational Autoencoder</em> (VAE).
+
+      <example id="exm:9-4-ae-linear-mao">
+        <title>Autoencoder linear à mão</title>
+        Para $\mathbf{x} = (2,\; 4,\; -2)^\top$, codificador $\mathbf{W}_1 = \begin{pmatrix} 0{,}5 & 0{,}5 & -0{,}5 \end{pmatrix}$ e decodificador $\mathbf{W}_2 = (0{,}6;\; 1{,}2;\; -0{,}6)^\top$, calcule $h$, $\hat{\mathbf{x}}$ e $\|\mathbf{x} - \hat{\mathbf{x}}\|_2^2$.
+
+        <strong>Solução.</strong>
+        <list marker="number">
+          <item>$h = \mathbf{W}_1 \mathbf{x} = 0{,}5(2) + 0{,}5(4) - 0{,}5(-2) = 1 + 2 + 1 = 4{,}0$.</item>
+          <item>$\hat{\mathbf{x}} = \mathbf{W}_2 h = 4{,}0\,(0{,}6;\; 1{,}2;\; -0{,}6)^\top = (2{,}4;\; 4{,}8;\; -2{,}4)^\top$.</item>
+          <item>$\mathbf{x} - \hat{\mathbf{x}} = (-0{,}4;\; -0{,}8;\; 0{,}4)^\top$, logo $\|\mathbf{x} - \hat{\mathbf{x}}\|_2^2 = (-0{,}4)^2 + (-0{,}8)^2 + 0{,}4^2 = 0{,}16 + 0{,}64 + 0{,}16 = 0{,}96$ (MSE por coordenada $= 0{,}96 / 3 = 0{,}32$).</item>
+        </list>
+      </example>
+
+      <example id="exm:9-4-manifold-neural">
+        <title>Variedades de baixa dimensão no córtex motor e em dígitos</title>
+        Ao registrar $D = 100$ neurônios do córtex motor durante movimentos de alcance em um plano, a atividade não preenche todo o $\mathbb{R}^{100}$: as correlações sinápticas confinam os estados a uma variedade curva de $d \approx 2$ ou $3$ dimensões ligada à cinemática da mão. Do mesmo modo, imagens $8 \times 8$ de <c>load_digits</c> vivem em $D = 64$ dimensões; comprimi-las para um gargalo 2D ($d = 2$) reduz a dimensionalidade em $\frac{64}{2} = 32$ vezes (apenas $3{,}125\%$ das dimensões originais), preservando ainda a separação entre classes no espaço latente.
+      </example>
+
+      O código a seguir treina em CPU um autoencoder não linear <c>64 → 16 → 2 → 16 → 64</c> em <c>load_digits</c> (dividido por $16$ para ficar em $[0, 1]$) com Adam e compara seu MSE com a PCA de $2$ componentes. Mantemos o gargalo 2D e a saída lineares para não bloquear coordenadas negativas, e marcamos os valores de treino com <c>≈</c> pois variam levemente entre versões e máquinas.
+
+      <code lang="python" id="cod:9-4-ae-digits">
+import numpy as np
+import torch
+import torch.nn as nn
+from sklearn.datasets import load_digits
+from sklearn.decomposition import PCA
+
+torch.manual_seed(0)
+digits = load_digits()
+X_np = (digits.data / 16.0).astype(np.float32)
+
+pca = PCA(n_components=2, random_state=0)
+X_rec_pca = pca.inverse_transform(pca.fit_transform(X_np))
+mse_pca = float(np.mean((X_np - X_rec_pca) ** 2))
+
+X_t = torch.from_numpy(X_np)
+autoencoder = nn.Sequential(
+    nn.Linear(64, 16),
+    nn.ReLU(),
+    nn.Linear(16, 2),
+    nn.Linear(2, 16),
+    nn.ReLU(),
+    nn.Linear(16, 64),
+)
+otim = torch.optim.Adam(autoencoder.parameters(), lr=0.01)
+criterio = nn.MSELoss()
+
+for _ in range(400):
+    otim.zero_grad()
+    loss = criterio(autoencoder(X_t), X_t)
+    loss.backward()
+    otim.step()
+
+with torch.no_grad():
+    mse_ae = float(criterio(autoencoder(X_t), X_t).item())
+
+print(f"MSE PCA (2 comp.):       {mse_pca:.4f}")  # ≈ 0.052 (varia pouco)
+print(f"MSE Autoencoder (d=2):   {mse_ae:.4f}")   # ≈ 0.04 (menor que o PCA; varia entre versões/máquinas)
+      </code>
+
+      <remark id="rem:9-4-armadilha-ae">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Autoencoder sem gargalo ($d \ge D$) e sem regularização:</strong> a rede aprende a função identidade e zera o erro sem extrair estrutura útil.</item>
+          <item><strong>Interpretar as dimensões $h_1, h_2$ do gargalo como variáveis independentes:</strong> os eixos podem sair rotacionados ou misturados; mesmo no caso linear, apenas o subespaço coincide com a PCA.</item>
+          <item><strong>Colocar <c>ReLU</c> na saída de dados que assumem valores negativos:</strong> valores negativos nunca serão reconstruídos e o erro estaciona alto.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-4-2-1">
+        <title>Básico — Parâmetros do autoencoder 64 → 16 → 2 → 16 → 64</title>
+        Conte o total de parâmetros treináveis (pesos e vieses) do modelo do <ref to="cod:9-4-ae-digits"/>, separando codificador e decodificador.
+        <hint><title>Ver dica</title>Cada <c>nn.Linear(m, n)</c> possui $(m + 1) \cdot n$ parâmetros.</hint>
+        <solution collapsible="true" collapsed="true">
+          Codificador: $(64+1)\cdot 16 + (16+1)\cdot 2 = 1\,040 + 34 = 1\,074$. Decodificador: $(2+1)\cdot 16 + (16+1)\cdot 64 = 48 + 1\,088 = 1\,136$. Total: $1\,074 + 1\,136 = 2\,210$ parâmetros.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-4-2-2">
+        <title>Básico — Autoencoder com ReLU à mão</title>
+        Com $h = \mathrm{ReLU}(\mathbf{w}_1^\top \mathbf{x} + b_1)$ e $\hat{\mathbf{x}} = \mathbf{w}_2 h$, dados $\mathbf{w}_1 = (1, 2, -1)^\top$, $b_1 = -1$ e $\mathbf{w}_2 = (0{,}5;\; 0;\; -0{,}5)^\top$, calcule $h$, $\hat{\mathbf{x}}$ e $\|\mathbf{x} - \hat{\mathbf{x}}\|_2^2$ para $\mathbf{x} = (1, 1, 0)^\top$ e para $\mathbf{x}' = (0, 0, 2)^\top$.
+        <hint><title>Ver dica</title>Lembre que $\mathrm{ReLU}(z) = \max(0, z)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para $\mathbf{x} = (1, 1, 0)^\top$: $z_1 = 1 + 2 + 0 - 1 = 2 \implies h = 2$, $\hat{\mathbf{x}} = (1, 0, -1)^\top$, erro $= 0^2 + 1^2 + 1^2 = 2$. Para $\mathbf{x}' = (0, 0, 2)^\top$: $z_1' = -2 - 1 = -3 \implies h' = \mathrm{ReLU}(-3) = 0$, $\hat{\mathbf{x}}' = (0, 0, 0)^\top$, erro $= 0^2 + 0^2 + 2^2 = 4$ (a <c>ReLU</c> no gargalo apagou toda a informação quando $z_1' < 0$).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-4-2-3">
+        <title>Intermediário — Erro mínimo em LFP e vantagem não linear</title>
+        Em um registro de LFP com $D = 16$ eletrodos (dados centrados), a variância média por eletrodo é $20\;\mu\text{V}^2$ e $3$ componentes principais explicam $85\%$ da variância. Qual é o menor MSE por eletrodo de um autoencoder linear com $d = 3$? Um autoencoder não linear pode superá-lo?
+        <hint><title>Ver dica</title>A variância não explicada pela PCA ($15\%$) equivale ao MSE de reconstrução linear.</hint>
+        <solution collapsible="true" collapsed="true">
+          Pela <ref to="prop:9-4-ae-pca"/>, o menor MSE linear é a fração residual da variância: $0{,}15 \times 20\;\mu\text{V}^2 = 3{,}0\;\mu\text{V}^2$. Um autoencoder não linear com <c>ReLU</c> pode atingir MSE menor se a dinâmica dos eletrodos formar uma variedade curva tridimensional em vez de um subespaço plano.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-4-2-4">
+        <title>Avançado — Autoencoders com gargalo largo ($d > D$)</title>
+        Explique por que minimizar apenas a perda quadrática falha quando $d = 128 > D = 64$, e apresente duas modificações matemáticas na perda ou na entrada que evitam a solução identidade.
+        <hint><title>Ver dica</title>Pense em penalização de esparsidade em $\mathbf{h}$ ou em corrupção da entrada por ruído.</hint>
+        <solution collapsible="true" collapsed="true">
+          Com $d > D$, o modelo pode copiar as $64$ entradas diretamente em $64$ unidades de $\mathbf{h}$ e obter erro zero sem aprender estrutura. Duas soluções clássicas são: (1) <strong>autoencoder esparso</strong>, somando $\lambda \|\mathbf{h}\|_1$ à perda para forçar poucas unidades ativas por amostra (codificação esparsa); e (2) <strong>autoencoder de remoção de ruído (<em>denoising</em>)</strong>, fornecendo $\tilde{\mathbf{x}} = \mathbf{x} + \boldsymbol{\varepsilon}$ na entrada mas exigindo a reconstrução de $\mathbf{x}$ limpo.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-4-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Medindo semelhança: cosseno, distância e correlação</title>
+      <intro>
+        Escolher como medir semelhança entre dois vetores de representação define a quais variações — como ganho global de excitabilidade ou disparo basal — o seu método será cego ou sensível.
+      </intro>
+
+      Suponha que um aumento global de atenção multiplique por $2$ as taxas de disparo de todos os neurônios de uma população, ou que o disparo espontâneo basal aumente em $+10\text{ Hz}$. A distância euclidiana dispara, mas o padrão relativo entre os neurônios continua o mesmo. Escolher a métrica certa significa escolher exatamente a quais transformações queremos ser invariantes.
+
+      <definition id="def:9-4-metricas-vetoriais">
+        <title>Distância euclidiana, cosseno e correlação de Pearson</title>
+        Para vetores não nulos $\mathbf{u}, \mathbf{v} \in \mathbb{R}^n$, com produto interno $\mathbf{u}^\top \mathbf{v} = \sum_{i=1}^n u_i v_i$ e norma $\|\mathbf{u}\|_2 = \sqrt{\mathbf{u}^\top \mathbf{u}}$:
+        <list marker="number">
+          <item><strong>Distância euclidiana</strong> (dissimilaridade): $d_2(\mathbf{u}, \mathbf{v}) = \|\mathbf{u} - \mathbf{v}\|_2 = \sqrt{\sum_{i=1}^n (u_i - v_i)^2} \in [0, +\infty)$.</item>
+          <item><strong>Similaridade de cossenos</strong> (similaridade):
+            <equation id="eq:9-4-cosseno">\cos(\mathbf{u}, \mathbf{v}) = \frac{\mathbf{u}^\top \mathbf{v}}{\|\mathbf{u}\|_2 \, \|\mathbf{v}\|_2} \in [-1, 1]</equation>
+            e a <strong>distância de cossenos</strong> associada é $1 - \cos(\mathbf{u}, \mathbf{v}) \in [0, 2]$.
+          </item>
+          <item><strong>Correlação de Pearson</strong> (similaridade centrada): usando $\tilde{\mathbf{u}} = \mathbf{u} - \bar{u}\mathbf{1}$ e $\tilde{\mathbf{v}} = \mathbf{v} - \bar{v}\mathbf{1}$ não nulos,
+            <equation id="eq:9-4-pearson">r(\mathbf{u}, \mathbf{v}) = \frac{\sum_{i=1}^{n} (u_i - \bar{u})(v_i - \bar{v})}{\sqrt{\sum_{i=1}^{n} (u_i - \bar{u})^2}\sqrt{\sum_{i=1}^{n} (v_i - \bar{v})^2}} = \cos(\tilde{\mathbf{u}}, \tilde{\mathbf{v}}) \in [-1, 1].</equation>
+          </item>
+        </list>
+        <intuition>
+          A correlação de Pearson é simplesmente a similaridade de cossenos calculada depois de centrar cada vetor em torno de sua própria média.
+        </intuition>
+      </definition>
+
+      A <ref to="tbl:9-4-invariancias"/> resume a reação de cada medida quando multiplicamos um vetor por um escalar positivo ($\alpha > 0$) ou somamos uma constante uniforme ($+c\mathbf{1}$).
+
+      <table id="tbl:9-4-invariancias">
+        <title>Comparação de invariâncias entre métricas</title>
+        <header>
+          <column>Métrica</column>
+          <column>Tipo</column>
+          <column>Intervalo</column>
+          <column>Invariante a $\alpha\mathbf{u}$ ($\alpha > 0$)?</column>
+          <column>Invariante a $\mathbf{u} + c\mathbf{1}$?</column>
+        </header>
+        <row>
+          <column>Distância euclidiana $d_2$</column>
+          <column>Dissimilaridade</column>
+          <column>$[0, +\infty)$</column>
+          <column>Não</column>
+          <column>Não</column>
+        </row>
+        <row>
+          <column>Similaridade de cossenos</column>
+          <column>Similaridade</column>
+          <column>$[-1, 1]$</column>
+          <column>Sim</column>
+          <column>Não</column>
+        </row>
+        <row>
+          <column>Correlação de Pearson $r$</column>
+          <column>Similaridade</column>
+          <column>$[-1, 1]$</column>
+          <column>Sim</column>
+          <column>Sim</column>
+        </row>
+        <caption>Invariâncias a ganho positivo ($\alpha > 0$) e deslocamento uniforme aplicado a um vetor.</caption>
+      </table>
+
+      Em bancos de <em>embeddings</em> e camadas de atenção, é prática padrão normalizar todos os vetores para a esfera unitária ($\|\mathbf{u}\|_2 = \|\mathbf{v}\|_2 = 1$). Quando isso é feito, distância euclidiana e similaridade de cossenos produzem exatamente a mesma ordenação de vizinhança:
+
+      <proposition id="prop:9-4-norma-cosseno">
+        <title>Distância euclidiana versus cosseno em vetores unitários</title>
+        Se $\|\mathbf{u}\|_2 = \|\mathbf{v}\|_2 = 1$, então:
+        <equation id="eq:9-4-norma-cosseno">\|\mathbf{u} - \mathbf{v}\|_2^2 = 2 - 2\cos(\mathbf{u}, \mathbf{v})</equation>
+      </proposition>
+      <proof of="prop:9-4-norma-cosseno" collapsible="true" collapsed="true">
+        Expandindo via produto interno: $\|\mathbf{u} - \mathbf{v}\|_2^2 = \|\mathbf{u}\|_2^2 + \|\mathbf{v}\|_2^2 - 2\mathbf{u}^\top \mathbf{v} = 1 + 1 - 2\cos(\mathbf{u}, \mathbf{v}) = 2 - 2\cos(\mathbf{u}, \mathbf{v})$.
+      </proof>
+
+      <example id="exm:9-4-cosseno-pearson-mao">
+        <title>Contas à mão em três dimensões</title>
+        Dados $\mathbf{u} = (1, 2, 3)^\top$, $\mathbf{v} = (2, 4, 6)^\top$ e $\mathbf{w} = (3, 4, 5)^\top$, calcule $d_2(\mathbf{u}, \mathbf{v})$, $\cos(\mathbf{u}, \mathbf{v})$, $\cos(\mathbf{u}, \mathbf{w})$ e $r(\mathbf{u}, \mathbf{w})$.
+
+        <strong>Solução.</strong>
+        <list marker="dash">
+          <item>$d_2(\mathbf{u}, \mathbf{v}) = \sqrt{1^2 + 2^2 + 3^2} = \sqrt{14} \approx 3{,}742$, mas $\mathbf{u}^\top \mathbf{v} = 28$, $\|\mathbf{u}\|_2 = \sqrt{14}$ e $\|\mathbf{v}\|_2 = 2\sqrt{14}$, logo $\cos(\mathbf{u}, \mathbf{v}) = \frac{28}{28} = 1{,}000$.</item>
+          <item>Para $\mathbf{w} = \mathbf{u} + 2\mathbf{1}$, temos $\mathbf{u}^\top \mathbf{w} = 26$ e $\|\mathbf{w}\|_2 = \sqrt{50}$, dando $\cos(\mathbf{u}, \mathbf{w}) = \frac{26}{\sqrt{700}} = \frac{26}{10\sqrt{7}} \approx 0{,}9827 < 1$. Porém, centrando pelas médias $\bar{u} = 2$ e $\bar{w} = 4$, obtemos $\tilde{\mathbf{u}} = \tilde{\mathbf{w}} = (-1, 0, 1)^\top$, donde $r(\mathbf{u}, \mathbf{w}) = 1{,}000$.</item>
+        </list>
+      </example>
+
+      <example id="exm:9-4-excitabilidade">
+        <title>Excitabilidade global e taxa basal em 4 neurônios</title>
+        Considere taxas em $\text{Hz}$ de $4$ neurônios: $\mathbf{r}_A = (10, 30, 20, 0)^\top$, $\mathbf{r}_B = (20, 60, 40, 0)^\top$ (dobro da excitabilidade global) e $\mathbf{r}_C = (20, 40, 30, 10)^\top$ (acréscimo basal uniforme de $+10\text{ Hz}$).
+        <list marker="dash">
+          <item>Entre $\mathbf{r}_A$ e $\mathbf{r}_B$: $d_2 = \sqrt{1\,400} \approx 37{,}42\text{ Hz}$, mas $\cos(\mathbf{r}_A, \mathbf{r}_B) = \frac{2\,800}{\sqrt{1\,400}\sqrt{5\,600}} = 1{,}000$ e $r = 1{,}000$.</item>
+          <item>Entre $\mathbf{r}_A$ e $\mathbf{r}_C$: $\mathbf{r}_A^\top \mathbf{r}_C = 2\,000$, $\|\mathbf{r}_A\|_2 = \sqrt{1\,400}$ e $\|\mathbf{r}_C\|_2 = \sqrt{3\,000}$, donde $\cos(\mathbf{r}_A, \mathbf{r}_C) = \frac{20}{\sqrt{420}} \approx 0{,}9759$. Centrando ($\bar{r}_A = 15$, $\bar{r}_C = 25$), ambos dão $(-5, 15, 5, -15)^\top$, logo $r(\mathbf{r}_A, \mathbf{r}_C) = 1{,}000$.</item>
+        </list>
+      </example>
+
+      Abaixo, calculamos em NumPy as matrizes $4 \times 4$ de cosseno e Pearson incluindo um quarto padrão $\mathbf{r}_D = (0, 10, 20, 30)^\top$. Note que, como todas as taxas são $\ge 0$, o cosseno entre $A$ e $D$ ainda é positivo ($+0{,}5$), mas a correlação de Pearson revela o contraste negativo real ($-0{,}4$).
+
+      <code lang="python" id="cod:9-4-matriz-similaridade">
+import numpy as np
+
+X = np.array([
+    [10.0, 30.0, 20.0,  0.0],  # A
+    [20.0, 60.0, 40.0,  0.0],  # B (= 2 * A)
+    [20.0, 40.0, 30.0, 10.0],  # C (= A + 10)
+    [ 0.0, 10.0, 20.0, 30.0],  # D (perfil invertido)
+])
+
+X_norm = X / np.linalg.norm(X, axis=1, keepdims=True)
+S_cos = X_norm @ X_norm.T
+R_pearson = np.corrcoef(X)
+
+print("Similaridade de cossenos:\n", np.round(S_cos, 4))
+# [[1.     1.     0.9759 0.5   ]
+#  [1.     1.     0.9759 0.5   ]
+#  [0.9759 0.9759 1.     0.6343]
+#  [0.5    0.5    0.6343 1.    ]]
+
+print("\nCorrelacao de Pearson:\n", np.round(R_pearson, 4))
+# [[ 1.   1.   1.  -0.4]
+#  [ 1.   1.   1.  -0.4]
+#  [ 1.   1.   1.  -0.4]
+#  [-0.4 -0.4 -0.4  1. ]]
+      </code>
+
+      <remark id="rem:9-4-armadilha-semelhanca">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Confundir similaridade com dissimilaridade:</strong> em $\cos$ ou $r$, valores altos significam proximidade; em $d_2$, $1 - \cos$ ou $1 - r$, $0$ significa idêntico e valores altos significam distância. Trocar as duas escalas inverte toda a análise.</item>
+          <item><strong>Ignorar o sinal não negativo de disparos e ReLUs:</strong> para vetores $\ge 0$, o cosseno nunca fica negativo; centrar via Pearson evita achar que padrões opostos estão positivamente alinhados.</item>
+          <item><strong>Dividir por zero em vetores nulos ou constantes:</strong> se todos os neurônios dispararem exatamente à mesma taxa, a variância vale zero e a correlação de Pearson fica indefinida ($0/0$).</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-4-3-1">
+        <title>Básico — Métricas à mão</title>
+        Para $\mathbf{u} = (1, 2, 3)^\top$ e $\mathbf{v} = (3, 2, 1)^\top$, calcule $d_2(\mathbf{u}, \mathbf{v})$, $\cos(\mathbf{u}, \mathbf{v})$ e $r(\mathbf{u}, \mathbf{v})$, explicando por que o cosseno é positivo enquanto Pearson vale $-1$.
+        <hint><title>Ver dica</title>Subtraia a média $2$ de cada vetor para obter a correlação de Pearson.</hint>
+        <solution collapsible="true" collapsed="true">
+          $d_2 = \sqrt{(-2)^2 + 0 + 2^2} = \sqrt{8} \approx 2{,}828$. Como $\mathbf{u}^\top\mathbf{v} = 10$ e $\|\mathbf{u}\|_2 = \|\mathbf{v}\|_2 = \sqrt{14}$, temos $\cos(\mathbf{u}, \mathbf{v}) = \frac{10}{14} = \frac{5}{7} \approx 0{,}7143$. Centrando ($\tilde{\mathbf{u}} = (-1,0,1)^\top$, $\tilde{\mathbf{v}} = (1,0,-1)^\top$), obtemos $r(\mathbf{u}, \mathbf{v}) = \frac{-2}{2} = -1$. Como todas as coordenadas são positivas, ambas as setas apontam no mesmo octante (cosseno positivo), mas variam em sentidos opostos ao redor da média ($r = -1$).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-4-3-2">
+        <title>Básico — Distância pela identidade unitária</title>
+        Dois <em>embeddings</em> unitários ($\|\mathbf{u}\|_2 = \|\mathbf{v}\|_2 = 1$) têm $\cos(\mathbf{u}, \mathbf{v}) = 0{,}60$. Calcule $d_2(\mathbf{u}, \mathbf{v})$ usando a <ref to="eq:9-4-norma-cosseno"/>, e repita para vetores unitários ortogonais ($\cos = 0$).
+        <hint><title>Ver dica</title>Substitua em $\|\mathbf{u} - \mathbf{v}\|_2^2 = 2 - 2\cos(\mathbf{u}, \mathbf{v})$ e tire a raiz quadrada.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para $\cos = 0{,}60$: $d_2^2 = 2 - 2(0{,}60) = 0{,}80 \implies d_2 = \sqrt{0{,}80} \approx 0{,}8944$. Para vetores ortogonais ($\cos = 0$): $d_2^2 = 2 \implies d_2 = \sqrt{2} \approx 1{,}414$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-4-3-3">
+        <title>Intermediário — Prova da invariância a deslocamento basal</title>
+        Mostre que somar uma constante $c$ a todos os neurônios de $\mathbf{r} \in \mathbb{R}^n$, formando $\mathbf{r}' = \mathbf{r} + c\mathbf{1}$, não altera o vetor centrado ($\tilde{\mathbf{r}}' = \tilde{\mathbf{r}}$) nem a correlação de Pearson $r(\mathbf{r}', \mathbf{s})$.
+        <hint><title>Ver dica</title>Calcule primeiro $\bar{r}' = \frac{1}{n}\sum_{i=1}^n (r_i + c) = \bar{r} + c$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Temos $\bar{r}' = \frac{1}{n}\sum_{i=1}^n (r_i + c) = \bar{r} + c$. Logo $\tilde{\mathbf{r}}' = (\mathbf{r} + c\mathbf{1}) - (\bar{r} + c)\mathbf{1} = \mathbf{r} - \bar{r}\mathbf{1} = \tilde{\mathbf{r}}$, mantendo idêntico $\cos(\tilde{\mathbf{r}}', \tilde{\mathbf{s}}) = r(\mathbf{r}, \mathbf{s})$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-4-3-4">
+        <title>Avançado — Vizinho mais próximo por distância de cossenos em NumPy</title>
+        Escreva um código em Python/NumPy para a matriz de <em>embeddings</em> <c>E = np.array([[1.0, 2.0, 0.0], [-1.0, -2.0, 0.0], [2.0, 4.0, 0.0], [0.0, 0.0, 3.0]])</c>: normalize as linhas, calcule a matriz de distância de cossenos $1 - \cos$ e imprima o índice do vizinho mais próximo do item $0$ (excluindo ele mesmo).
+        <hint><title>Ver dica</title>Preencha a diagonal com <c>np.inf</c> (<c>np.fill_diagonal(D_busca, np.inf)</c>) antes de usar <c>np.argmin</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+
+E = np.array([
+    [ 1.0,  2.0,  0.0],
+    [-1.0, -2.0,  0.0],
+    [ 2.0,  4.0,  0.0],
+    [ 0.0,  0.0,  3.0],
+])
+E_norm = E / np.linalg.norm(E, axis=1, keepdims=True)
+D_cos = 1.0 - (E_norm @ E_norm.T)
+D_busca = D_cos.copy()
+np.fill_diagonal(D_busca, np.inf)
+
+print("Distancias do item 0:", np.round(D_cos[0], 3))      # [0. 2. 0. 1.]
+print("Vizinho mais proximo:", int(np.argmin(D_busca[0])))  # 2
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-4-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>RSA: comparando modelos e cérebros</title>
+      <intro>
+        Quando um modelo tem $512$ unidades e o cérebro tem $10\,000$ voxels, não dá para casar unidade a unidade. A solução é comparar a geometria das distâncias entre os mesmos $K$ estímulos dentro de cada sistema.
+      </intro>
+
+      Como saber se a camada oculta de uma CNN ($512$ unidades) representa estímulos visuais da mesma maneira que o córtex inferotemporal humano ($10\,000$ voxels de fMRI) ou o de macacos ($100$ neurônios)? Não existe correspondência um-para-um entre unidades artificiais e voxels, e as dimensões são incompatíveis. Em 2008, Nikolaus Kriegeskorte, Marieke Mur e Peter Bandettini (<em>Frontiers in Systems Neuroscience</em>) propuseram a <strong>Análise de Similaridade Representacional</strong> (<strong>RSA</strong>): apresentamos o mesmo conjunto de $K$ estímulos aos dois sistemas e calculamos, dentro de cada um, a matriz $K \times K$ de dissimilaridades entre todos os pares de padrões. Como essa matriz é indexada apenas pelos $K$ estímulos, modelo e cérebro passam a falar a mesma língua geométrica.
+
+      <definition id="def:9-4-rdm">
+        <title>Matriz de Dissimilaridade Representacional (RDM)</title>
+        Para $K$ estímulos $\{s_1, \dots, s_K\}$ com vetores de resposta $\mathbf{r}_1, \dots, \mathbf{r}_K \in \mathbb{R}^N$, a <strong>RDM</strong> é a matriz $\mathbf{D} \in \mathbb{R}^{K \times K}$ definida tipicamente por:
+        <equation id="eq:9-4-rdm">D_{ij} = 1 - r(\mathbf{r}_i, \mathbf{r}_j) \in [0, 2]</equation>
+        Ela é <strong>simétrica</strong> ($D_{ij} = D_{ji}$), possui <strong>diagonal nula</strong> ($D_{ii} = 0$) e contém exatamente $\frac{K(K - 1)}{2}$ valores não redundantes no <strong>triângulo superior estrito</strong> ($i < j$).
+        <intuition>
+          A RDM funciona como uma tabela de distâncias rodoviárias entre $K$ cidades: dois mapas em escalas ou orientações diferentes não têm as mesmas coordenadas $(x, y)$, mas preservam quais cidades estão próximas ou distantes entre si.
+        </intuition>
+      </definition>
+
+      Para comparar a $\mathbf{D}_{\text{modelo}}$ com a $\mathbf{D}_{\text{cérebro}}$, seguimos três etapas rigorosas:
+      <list marker="number">
+        <item><strong>Extrair apenas o triângulo superior (sem a diagonal):</strong> reunimos somente os $\frac{K(K-1)}{2}$ pares únicos com $i < j$ nos vetores $\mathbf{d}_{\text{modelo}}$ e $\mathbf{d}_{\text{cérebro}}$.</item>
+        <item><strong>Correlação de Spearman ($\rho$):</strong> usamos correlação ordinal (Módulo 7) porque medidas físicas distintas (sinal BOLD do fMRI versus ativações <c>ReLU</c>) frequentemente mantêm uma relação <strong>monotônica, mas não linear</strong> — a ordem das distâncias se preserva mesmo sob compressão ou saturação de escala.</item>
+        <item><strong>Permutação e teto de ruído:</strong> como os $\frac{K(K-1)}{2}$ pares compartilham estímulos entre si (o estímulo $1$ participa de $K-1$ pares), eles não são independentes, o que invalida o $p$-valor paramétrico comum. Avaliamos a significância por um <strong>teste de permutação</strong> dos rótulos dos $K$ estímulos (embaralhando linhas e colunas igualmente). Além disso, devido ao ruído fisiológico entre repetições e participantes, nem o modelo teórico perfeito atingiria $\rho = 1$; o <strong>teto de ruído</strong> (<em>noise ceiling</em>) estima a faixa máxima de correlação esperada dada a variabilidade dos próprios dados cerebrais.</item>
+      </list>
+
+      Em um estudo clássico na revista <em>Neuron</em> (Kriegeskorte et al., 2008), apresentando as mesmas $92$ imagens naturais a humanos (fMRI) e macacos (eletrofisiologia no córtex IT), as RDMs de ambas as espécies revelaram a mesma organização hierárquica: uma separação nítida entre estímulos <strong>animados</strong> e <strong>inanimados</strong>, com um agrupamento compacto de <strong>faces</strong> dentro dos animados.
+
+      A <ref to="fig:9-4-rdm"/> mostra a RDM $10 \times 10$ em espaço de pixels dos $10$ dígitos de <c>load_digits</c>: note a diagonal nula ($0{,}00$), a simetria e agrupamentos visualmente coerentes, como a menor dissimilaridade entre $3$ e $9$ ou $5$ e $8$ em comparação com $0$ e $1$.
+
+      <figure src="fig/t04-rdm.svg" alt="Mapa de calor 10 por 10 da RDM dos dígitos 0 a 9 em espaço de pixels, com diagonal igual a zero" id="fig:9-4-rdm">
+        <caption>RDM $10 \times 10$ ($1 - r$ de Pearson) das imagens médias dos dígitos de <c>load_digits</c>. Apenas as $45$ células acima da diagonal são comparadas na RSA.</caption>
+      </figure>
+
+      <example id="exm:9-4-rdm-mao">
+        <title>RDM 3 × 3 à mão com 4 neurônios</title>
+        Três estímulos evocam em $4$ neurônios ($\text{Hz}$) os padrões $\mathbf{r}_1 = (5, 35, 25, 15)^\top$, $\mathbf{r}_2 = (15, 35, 25, 5)^\top$ e $\mathbf{r}_3 = (35, 15, 5, 25)^\top$. Construa a RDM com $D_{ij} = 1 - r(\mathbf{r}_i, \mathbf{r}_j)$.
+
+        <strong>Solução.</strong> Os três vetores têm média $20$, donde os vetores centrados são $\tilde{\mathbf{r}}_1 = (-15, 15, 5, -5)^\top$, $\tilde{\mathbf{r}}_2 = (-5, 15, 5, -15)^\top$ e $\tilde{\mathbf{r}}_3 = (15, -5, -15, 5)^\top$, todos com norma ao quadrado $225 + 225 + 25 + 25 = 500$. Assim:
+        <list marker="dash">
+          <item>$r_{12} = \frac{(-15)(-5) + 15^2 + 5^2 + (-5)(-15)}{500} = \frac{400}{500} = 0{,}80 \implies D_{12} = 0{,}20$;</item>
+          <item>$r_{13} = \frac{-225 - 75 - 75 - 25}{500} = \frac{-400}{500} = -0{,}80 \implies D_{13} = 1{,}80$;</item>
+          <item>$r_{23} = \frac{-75 - 75 - 75 - 75}{500} = \frac{-300}{500} = -0{,}60 \implies D_{23} = 1{,}60$.</item>
+        </list>
+        Logo:
+        $$\mathbf{D} = \begin{pmatrix} 0 & 0{,}20 & 1{,}80 \\ 0{,}20 & 0 & 1{,}60 \\ 1{,}80 & 1{,}60 & 0 \end{pmatrix}, \qquad \mathbf{d}_{\text{tri}} = (0{,}20;\; 1{,}80;\; 1{,}60)^\top.$$
+      </example>
+
+      <example id="exm:9-4-rsa-modelo-cerebro">
+        <title>Comparando modelos à RDM neural com Spearman</title>
+        Usando $\mathbf{d}_{\text{cérebro}} = (0{,}20;\; 1{,}80;\; 1{,}60)^\top$ (postos $1, 3, 2$), compare os modelos $\mathbf{d}_A = (0{,}10;\; 0{,}90;\; 0{,}70)^\top$ e $\mathbf{d}_B = (0{,}10;\; 0{,}50;\; 0{,}90)^\top$.
+
+        <strong>Solução.</strong> O Modelo A tem postos $(1, 3, 2)$, idênticos aos do cérebro, dando $\rho_A = +1{,}00$. O Modelo B tem postos $(1, 2, 3)$; com $m = 3$ e diferenças de postos $(0, 1, -1)$, $\sum d_i^2 = 2$ e $\rho_B = 1 - \frac{6 \cdot 2}{3(9 - 1)} = 1 - 0{,}50 = +0{,}50$.
+      </example>
+
+      No código abaixo, usamos as imagens médias dos $10$ dígitos de <c>load_digits</c>, treinamos um MLP (<c>64 → 32 → 10</c>) em CPU — medindo a acurácia nos próprios dados de treino — e comparamos a RDM dos pixels com a RDM da camada oculta do MLP treinado usando <c>spearmanr</c> no triângulo superior ($\rho \approx 0{,}86$) e $500$ permutações.
+
+      <code lang="python" id="cod:9-4-rsa-digits">
+import numpy as np
+import torch
+import torch.nn as nn
+from scipy.stats import spearmanr
+from sklearn.datasets import load_digits
+
+torch.manual_seed(0)
+rng = np.random.default_rng(0)
+
+digits = load_digits()
+X_np = (digits.data / 16.0).astype(np.float32)
+y_np = digits.target
+prototipos_px = np.array([X_np[y_np == d].mean(axis=0) for d in range(10)])
+
+X_t = torch.from_numpy(X_np)
+y_t = torch.from_numpy(y_np).long()
+oculta = nn.Sequential(nn.Linear(64, 32), nn.ReLU())
+modelo = nn.Sequential(oculta, nn.Linear(32, 10))
+otim = torch.optim.Adam(modelo.parameters(), lr=0.02)
+criterio = nn.CrossEntropyLoss()
+
+for _ in range(150):
+    otim.zero_grad()
+    loss = criterio(modelo(X_t), y_t)
+    loss.backward()
+    otim.step()
+
+with torch.no_grad():
+    acc = (modelo(X_t).argmax(dim=1) == y_t).float().mean().item()
+    prototipos_mlp = oculta(torch.from_numpy(prototipos_px)).numpy()
+
+rdm_px = 1.0 - np.corrcoef(prototipos_px)
+rdm_mlp = 1.0 - np.corrcoef(prototipos_mlp)
+
+idx = np.triu_indices(10, k=1)  # K*(K-1)/2 = 45 pares sem a diagonal
+tri_px, tri_mlp = rdm_px[idx], rdm_mlp[idx]
+rho, _ = spearmanr(tri_px, tri_mlp)
+
+n_perm = 500
+contagem = 0
+for _ in range(n_perm):
+    perm = rng.permutation(10)
+    rho_perm, _ = spearmanr(tri_px, rdm_mlp[np.ix_(perm, perm)][idx])
+    if rho_perm >= rho:
+        contagem += 1
+p_perm = (contagem + 1) / (n_perm + 1)
+
+print(f"Acuracia MLP (treino):    {acc:.3f}")       # ≈ 0.999
+print(f"Pares unicos:             {len(tri_px)}")  # 45
+print(f"Spearman pixels vs. MLP:  {rho:.3f}")       # ≈ 0.86 (varia entre versões/máquinas)
+print(f"p-valor permutacao:       {p_perm:.4f}")   # ≈ 0.0020 (< 0.01)
+      </code>
+
+      <remark id="rem:9-4-armadilha-rsa">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Incluir a diagonal (zeros) ao correlacionar RDMs:</strong> achatar a matriz inteira inclui os $K$ zeros da diagonal (que casam perfeitamente entre si!) e ainda duplica os pares fora da diagonal, inflando artificialmente a correlação. Use sempre <c>np.triu_indices(K, k=1)</c>.</item>
+          <item><strong>Comparar RDMs com Pearson quando a relação é monotônica mas não linear:</strong> diferenças de escala não lineares entre medidas cerebrais e modelos derrubam o Pearson; use Spearman.</item>
+          <item><strong>Usar o $p$-valor paramétrico padrão de <c>spearmanr</c>:</strong> como os pares compartilham estímulos e não são independentes, valide a significância sempre por permutação dos $K$ estímulos.</item>
+          <item><strong>Confundir similaridade com dissimilaridade:</strong> a RDM mede dissimilaridade ($0$ na diagonal), não correlação direta ($1$ na diagonal).</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-4-4-1">
+        <title>Básico — Pares únicos e peso da diagonal</title>
+        Calcule o total de células ($K^2$) e de pares únicos ($\frac{K(K-1)}{2}$) para $K = 10$ e $K = 92$. Para $K = 4$, que fração da matriz completa são zeros da diagonal?
+        <hint><title>Ver dica</title>Substitua em $\frac{K(K-1)}{2}$ e, para $K=4$, divida $K$ por $K^2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para $K = 10$: $100$ células totais e $\frac{10\cdot 9}{2} = 45$ pares únicos. Para $K = 92$: $8\,464$ células totais e $\frac{92\cdot 91}{2} = 4\,186$ pares únicos. Para $K = 4$, os $4$ zeros da diagonal correspondem a $\frac{4}{16} = 25\%$ de toda a matriz (além de os $6$ pares restantes aparecerem dobrados).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-4-4-2">
+        <title>Básico — RDM 3 × 3 à mão</title>
+        Para $\mathbf{r}_1 = (10, 20, 30, 20)^\top$, $\mathbf{r}_2 = (14, 28, 26, 12)^\top$ e $\mathbf{r}_3 = (30, 20, 10, 20)^\top$, calcule a RDM $3 \times 3$ com $D_{ij} = 1 - r_{ij}$.
+        <hint><title>Ver dica</title>Todos têm média $20$ e norma centrada ao quadrado igual a $200$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Centrando: $\tilde{\mathbf{r}}_1 = (-10, 0, 10, 0)^\top$, $\tilde{\mathbf{r}}_2 = (-6, 8, 6, -8)^\top$ e $\tilde{\mathbf{r}}_3 = (10, 0, -10, 0)^\top$, com $\|\tilde{\mathbf{r}}_i\|_2^2 = 200$. Então $r_{12} = \frac{120}{200} = 0{,}60$ ($D_{12} = 0{,}40$), $r_{13} = \frac{-200}{200} = -1{,}00$ ($D_{13} = 2{,}00$) e $r_{23} = \frac{-120}{200} = -0{,}60$ ($D_{23} = 1{,}60$). Logo:
+          $$\mathbf{D} = \begin{pmatrix} 0 & 0{,}40 & 2{,}00 \\ 0{,}40 & 0 & 1{,}60 \\ 2{,}00 & 1{,}60 & 0 \end{pmatrix}.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-4-4-3">
+        <title>Intermediário — Spearman versus Pearson em RDM não linear</title>
+        Sejam $\mathbf{d}_{\text{mod}} = (0{,}10;\; 0{,}20;\; 0{,}30;\; 0{,}40;\; 0{,}50;\; 0{,}60)^\top$ e $\mathbf{d}_{\text{cer}} = (0{,}05;\; 0{,}10;\; 0{,}15;\; 0{,}20;\; 0{,}25;\; 1{,}05)^\top$. Calcule à mão $\rho$ de Spearman e $r$ de Pearson entre os dois vetores.
+        <hint><title>Ver dica</title>Observe que ambos crescem na mesma ordem; para Pearson, use as médias $0{,}35$ e $0{,}30$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Como ambos estão em ordem estritamente crescente, seus postos são idênticos $(1,2,3,4,5,6)$ e $\rho_{\text{Spearman}} = 1{,}000$. Para Pearson, centrando pelas médias $0{,}35$ e $0{,}30$, temos $\tilde{\mathbf{d}}_{\text{mod}} = (-0{,}25;-0{,}15;-0{,}05;0{,}05;0{,}15;0{,}25)^\top$ ($\|\cdot\|_2^2 = 0{,}175$) e $\tilde{\mathbf{d}}_{\text{cer}} = (-0{,}25;-0{,}20;-0{,}15;-0{,}10;-0{,}05;0{,}75)^\top$ ($\|\cdot\|_2^2 = 0{,}700$). O produto interno vale $0{,}275$ e $\sqrt{0{,}175 \cdot 0{,}700} = \sqrt{0{,}1225} = 0{,}35$, logo $r_{\text{Pearson}} = \frac{0{,}275}{0{,}35} = \frac{11}{14} \approx 0{,}786 < 1$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-4-4-4">
+        <title>Avançado — Efeito da diagonal em código sobre load_digits</title>
+        Compare em código a RDM dos pixels de <c>load_digits</c> com a RDM de uma projeção aleatória <c>ReLU</c> não treinada (<c>64 → 32</c>), medindo Spearman tanto no triângulo superior ($45$ pares) quanto na matriz achatada com diagonal ($100$ entradas).
+        <hint><title>Ver dica</title>Use <c>np.triu_indices(10, k=1)</c> para o cálculo correto e <c>ravel()</c> para observar o viés.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+import torch
+import torch.nn as nn
+from scipy.stats import spearmanr
+from sklearn.datasets import load_digits
+
+torch.manual_seed(0)
+digits = load_digits()
+X_np = (digits.data / 16.0).astype(np.float32)
+prototipos_px = np.array([X_np[digits.target == d].mean(axis=0) for d in range(10)])
+
+camada = nn.Sequential(nn.Linear(64, 32), nn.ReLU())
+with torch.no_grad():
+    prototipos_aleat = camada(torch.from_numpy(prototipos_px)).numpy()
+
+rdm_px = 1.0 - np.corrcoef(prototipos_px)
+rdm_aleat = 1.0 - np.corrcoef(prototipos_aleat)
+idx = np.triu_indices(10, k=1)
+
+rho_ok, _ = spearmanr(rdm_px[idx], rdm_aleat[idx])
+rho_err, _ = spearmanr(rdm_px.ravel(), rdm_aleat.ravel())
+
+print(f"Spearman correto (45 pares): {rho_ok:.3f}")   # ≈ 0.78 (varia entre versões)
+print(f"Spearman com diagonal (100): {rho_err:.3f}")  # ≈ 0.84 (inflado pelos 10 zeros da diagonal)
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-4-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Embeddings versus one-hot:</strong> vetores <em>one-hot</em> têm dimensão $V$ e pares equidistantes ($\sqrt{2}$); um <em>embedding</em> $\mathbf{e}_i = \mathbf{E}^\top \mathbf{o}_i \in \mathbb{R}^d$ ($d \ll V$) seleciona a $i$-ésima linha de uma matriz aprendida $\mathbf{E} \in \mathbb{R}^{V \times d}$ (<c>nn.Embedding</c>).</item>
+        <item><strong>Hipótese distribucional e biologia:</strong> modelos como Word2Vec aproximam itens de contextos semelhantes; na neurobiologia, o código populacional de $N$ neurônios atua como um <em>embedding</em> natural em $\mathbb{R}^N$.</item>
+        <item><strong>Autoencoders:</strong> codificador $f$ e decodificador $g$ passam por um gargalo $d < D$ minimizando $\mathcal{L}_{\text{rec}} = \frac{1}{N}\sum_{i=1}^N \|\mathbf{x}_i - g(f(\mathbf{x}_i))\|_2^2$.</item>
+        <item><strong>Autoencoder linear e PCA:</strong> o caso linear com perda quadrática aprende o mesmo subespaço da PCA (com eixos possivelmente rotacionados); ativações não lineares capturam variedades curvas.</item>
+        <item><strong>Cosseno e distância unitária:</strong> $\cos(\mathbf{u}, \mathbf{v}) = \frac{\mathbf{u}^\top \mathbf{v}}{\|\mathbf{u}\|_2\|\mathbf{v}\|_2}$ é invariante a escala positiva; para vetores unitários, $\|\mathbf{u} - \mathbf{v}\|_2^2 = 2 - 2\cos(\mathbf{u}, \mathbf{v})$.</item>
+        <item><strong>Correlação de Pearson:</strong> equivale ao cosseno dos vetores centrados, sendo invariante a ganho multiplicativo ($\alpha > 0$) e a deslocamento basal ($+c\mathbf{1}$).</item>
+        <item><strong>RDM e RSA:</strong> a RDM $D_{ij} = 1 - r(\mathbf{r}_i, \mathbf{r}_j)$ é simétrica com diagonal nula e tem $\frac{K(K-1)}{2}$ pares únicos; modelos e cérebros são comparados por Spearman sobre os triângulos superiores, validados por permutação dos $K$ estímulos e limitados pelo teto de ruído.</item>
+      </list>
+    </section>
+
+    <section id="sec:9-4-alem">
+      <title>Para ir além</title>
+      Os <em>embeddings</em> e a geometria de representações deste tema preparam diretamente o próximo passo — <strong>9.5 Transformers (Attention)</strong> —, no qual produtos internos entre representações passam a ponderar dinamicamente toda a sequência. Para aprofundar este módulo, consulte:
+      <list marker="dash">
+        <item><strong>Referência teórica do módulo:</strong> Deep Learning Book — Ian Goodfellow (capítulos sobre aprendizado de representações e autoencoders).</item>
+        <item><strong>Aulas práticas em vídeo:</strong> Andrej Karpathy — aulas de LLM e backprop no YouTube.</item>
+        <item><strong>Documentação oficial:</strong> veja detalhes de <c>torch.nn.Embedding</c> na <link to="https://pytorch.org/docs/stable/index.html">documentação do PyTorch</link> e da <c>PCA</c> na <link to="https://scikit-learn.org/stable/">documentação do scikit-learn</link>.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 9 · Deep Learning — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

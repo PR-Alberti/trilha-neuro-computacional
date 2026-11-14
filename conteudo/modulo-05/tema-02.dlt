@@ -1,0 +1,1036 @@
+<document>
+  <title>Módulo 5 · Álgebra Linear</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-5-2">Voltar ao guia (Tema 5.2)</link></meta-item>
+    <meta-item key="Módulo">Módulo 5 · Álgebra Linear — A Linguagem dos Dados na Computação</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-5-2">
+    <title>Sistemas lineares e transformações</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Resolver sistemas e enxergar matrizes como transformações do espaço.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> No Tema 5.1, aprendemos a caminhar para a frente: dados os disparos de uma camada pré-sináptica $\mathbf{r}_{\text{pré}}$ e a matriz de pesos $\mathbf{W}$, calculamos as taxas pós-sinápticas $\mathbf{r}_{\text{pós}} = \mathbf{W}\mathbf{r}_{\text{pré}}$. No laboratório, porém, quase sempre enfrentamos o problema inverso. Medimos a resposta de saída — potenciais em eletrodos de EEG no couro cabeludo, concentrações finais em uma mistura ou taxas de neurônios a jusante — e queremos reconstruir as causas ocultas que a geraram. Isso significa resolver uma equação matricial $\mathbf{A}\mathbf{x} = \mathbf{b}$ para descobrir quem é o vetor desconhecido $\mathbf{x}$.
+
+    Além disso, uma matriz não é apenas uma tabela estática para guardar dados: ela é uma máquina geométrica que estica, gira, cisalha ou achata o espaço. Enxergar matrizes como transformações lineares explica imediatamente quando um problema inverso tem resposta única e quando a rede ou o experimento destruiu informação ao comprimir duas dimensões em uma só. Essa intuição geométrica prepara o terreno diretamente para espaços vetoriais (Tema 5.3), autovalores e autovetores (Tema 5.5) e decomposições como PCA e SVD (Tema 5.6), usadas para reduzir milhares de neurônios registrados simultaneamente a poucas dimensões interpretáveis.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>escrever sistemas de equações lineares na forma matricial $\mathbf{A}\mathbf{x} = \mathbf{b}$ e interpretá-los em 2D tanto pela leitura por linhas (interseção de retas) quanto pela leitura por colunas (combinação linear);</item>
+      <item>classificar sistemas em possível e determinado, possível e indeterminado ou impossível, e resolvê-los passo a passo pela eliminação de Gauss;</item>
+      <item>interpretar matrizes $2 \times 2$ como transformações lineares do plano construídas a partir das imagens de $\mathbf{e}_1$ e $\mathbf{e}_2$, compor transformações via produto de matrizes e calcular o determinante $2 \times 2$ como fator de mudança de área e orientação;</item>
+      <item>calcular a inversa de matrizes $2 \times 2$, entender a relação entre invertibilidade e determinante não nulo e aplicar a inversão matricial à desmistura de fontes corticais no EEG;</item>
+      <item>conferir soluções, determinantes e inversas em Python com NumPy (usando <c>np.linalg.solve</c>), reconhecendo o perigo numérico de matrizes quase singulares.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Tema 5.1 (<em>Vetores, matrizes e operações</em>), no Módulo 5, para produto matriz-vetor, combinação linear, produto de matrizes e convenção de vetores-coluna; Geometria Analítica e Trigonometria do Módulo 1 (<em>Pré-Cálculo</em>), para equações de retas no plano e valores de seno e cosseno; e Tema 3.3 (<em>Integrais múltiplas</em>, no Módulo 3, <em>Cálculo Multivariável</em>), onde o jacobiano apareceu como fator local de distorção de área. Python e NumPy só são ensinados formalmente no Módulo 6 (<em>Programação</em>), portanto os blocos de código desta aula servem apenas para conferir suas contas à mão.
+
+    <section id="sec:5-2-1">
+      <eyebrow>Seção 1</eyebrow>
+      <title>Sistemas lineares na forma matricial</title>
+      <intro>
+        Um sistema de equações lineares pergunta qual combinação de entradas desconhecidas produz exatamente um vetor de medições observado. Em notação matricial, várias equações acopladas viram uma única equação $\mathbf{A}\mathbf{x} = \mathbf{b}$, com duas leituras geométricas complementares.
+      </intro>
+
+      Suponha que dois neurônios pré-sinápticos disparam às taxas desconhecidas $x_1$ e $x_2$ (em $\text{Hz}$) e projetam para dois neurônios pós-sinápticos. Sabemos quanto cada sinapse pesa e medimos as taxas pós-sinápticas finais. Escrevendo o balanço sináptico de cada neurônio pós-sináptico, obtemos um par de equações do primeiro grau em $x_1$ e $x_2$ — sem quadrados, raízes ou produtos $x_1 x_2$. Um conjunto de equações desse tipo é um <strong>sistema linear</strong> (<em>linear system</em>).
+
+      <definition id="def:5-2-sistema-matricial">
+        <title>Sistema linear na forma matricial e matriz aumentada</title>
+        Uma <strong>equação linear</strong> nas incógnitas $x_1, x_2, \dots, x_n$ tem a forma $a_1 x_1 + a_2 x_2 + \dots + a_n x_n = b$, em que $a_1, \dots, a_n$ e $b$ são números reais dados. Um <strong>sistema linear $m \times n$</strong> reúne $m$ equações lineares em $n$ incógnitas:
+        $$\begin{cases} a_{11} x_1 + a_{12} x_2 + \dots + a_{1n} x_n = b_1 \\ a_{21} x_1 + a_{22} x_2 + \dots + a_{2n} x_n = b_2 \\ \qquad\vdots \\ a_{m1} x_1 + a_{m2} x_2 + \dots + a_{mn} x_n = b_m \end{cases}$$
+        Reunindo os coeficientes na matriz $\mathbf{A} \in \mathbb{R}^{m \times n}$, as incógnitas no vetor-coluna $\mathbf{x} \in \mathbb{R}^n$ e os termos independentes em $\mathbf{b} \in \mathbb{R}^m$, o sistema escreve-se de modo compacto como:
+        <equation id="eq:5-2-axb">
+          \mathbf{A}\mathbf{x} = \mathbf{b}.
+        </equation>
+        Quando queremos manipular os números do sistema em bloco, empilhamos $\mathbf{b}$ ao lado de $\mathbf{A}$ formando a <strong>matriz aumentada</strong> (<em>augmented matrix</em>):
+        $$[\mathbf{A} \mid \mathbf{b}] = \left(\begin{array}{cccc|c} a_{11} & a_{12} & \cdots & a_{1n} & b_1 \\ a_{21} & a_{22} & \cdots & a_{2n} & b_2 \\ \vdots & \vdots & \ddots & \vdots & \vdots \\ a_{m1} & a_{m2} & \cdots & a_{mn} & b_m \end{array}\right).$$
+        <intuition>
+          A matriz $\mathbf{A}$ guarda o "mecanismo" do sistema (os pesos sinápticos ou as concentrações dos estoques); o vetor $\mathbf{b}$ guarda o "resultado desejado ou medido"; e o vetor $\mathbf{x}$ guarda as "causas" que queremos descobrir.
+        </intuition>
+      </definition>
+
+      No plano ($\mathbb{R}^2$, sistema $2 \times 2$), a equação $\mathbf{A}\mathbf{x} = \mathbf{b}$ ganha vida quando aplicamos as <strong>duas leituras</strong> do produto matriz-vetor vistas no Tema 5.1:
+      <list marker="number">
+        <item><strong>Leitura por linhas (interseção de retas):</strong> cada linha $a_{i1} x_1 + a_{i2} x_2 = b_i$ define uma reta no plano cartesiano $(x_1, x_2)$, como vimos em Geometria Analítica no Módulo 1. Uma solução $(x_1, x_2)^\top$ é um ponto que pertence simultaneamente às duas retas. Duas retas no plano podem se cruzar em um único ponto (uma solução), coincidir uma sobre a outra (infinitas soluções) ou ser paralelas distintas (nenhuma solução).</item>
+        <item><strong>Leitura por colunas (combinação linear):</strong> escrevendo as colunas de $\mathbf{A}$ como $\mathbf{a}_{:,1}$ e $\mathbf{a}_{:,2}$, a <ref to="eq:5-2-axb"/> diz:
+          $$x_1 \mathbf{a}_{:,1} + x_2 \mathbf{a}_{:,2} = \mathbf{b}.$$
+          Resolver o sistema significa descobrir quais pesos $x_1$ e $x_2$ misturam as colunas de $\mathbf{A}$ para atingir exatamente o vetor alvo $\mathbf{b}$. Se $\mathbf{a}_{:,1}$ e $\mathbf{a}_{:,2}$ apontam em direções distintas, eles alcançam qualquer alvo $\mathbf{b}$ do plano de modo único. Se apontarem na mesma direção (colunas proporcionais), todas as combinações ficam presas sobre uma única reta: se $\mathbf{b}$ estiver sobre essa reta, há infinitos jeitos de montá-lo; se $\mathbf{b}$ estiver fora dela, é impossível alcançá-lo.</item>
+      </list>
+
+      Esses três cenários geométricos correspondem exatamente à classificação clássica dos sistemas lineares — válida não só em 2D, mas para qualquer dimensão $m \times n$.
+
+      <definition id="def:5-2-classificacao">
+        <title>Classificação de um sistema linear</title>
+        Quanto ao número de soluções, todo sistema linear $\mathbf{A}\mathbf{x} = \mathbf{b}$ enquadra-se em exatamente um dos três casos:
+        <list marker="dash">
+          <item><strong>Sistema possível e determinado (SPD):</strong> possui <strong>uma única</strong> solução;</item>
+          <item><strong>Sistema possível e indeterminado (SPI):</strong> possui <strong>infinitas</strong> soluções;</item>
+          <item><strong>Sistema impossível (SI):</strong> não possui <strong>nenhuma</strong> solução (as equações são incompatíveis entre si).</item>
+        </list>
+        Um caso especial importante é o <strong>sistema homogêneo</strong> $\mathbf{A}\mathbf{x} = \mathbf{0}$, que sempre tem pelo menos a solução trivial $\mathbf{x} = \mathbf{0}$ (logo, nunca é impossível: ou é SPD com solução única $\mathbf{x} = \mathbf{0}$, ou é SPI com infinitas soluções).
+      </definition>
+
+      <example id="exm:5-2-inverter-rede">
+        <title>Invertendo uma rede sináptica 2×2 pelas duas leituras</title>
+        Em uma pequena rede linear, dois neurônios pré-sinápticos conectam-se a dois neurônios pós-sinápticos segundo a matriz de pesos
+        $$\mathbf{W} = \begin{pmatrix} 2 & 1 \\ 1 & 3 \end{pmatrix}.$$
+        Sabe-se que os neurônios pós-sinápticos dispararam às taxas $\mathbf{r}_{\text{pós}} = (26, 33)^\top\text{ Hz}$.
+        <list marker="a">
+          <item>Escreva o sistema $\mathbf{W}\mathbf{r}_{\text{pré}} = \mathbf{r}_{\text{pós}}$ na forma de equações e como matriz aumentada.</item>
+          <item>Determine as taxas pré-sinápticas $\mathbf{r}_{\text{pré}} = (r_1, r_2)^\top$ e confira o resultado pelas leituras por linhas e por colunas.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Expandindo $\mathbf{W}\mathbf{r}_{\text{pré}} = \mathbf{r}_{\text{pós}}$, temos o sistema e sua matriz aumentada:
+            $$\begin{cases} 2r_1 + r_2 = 26 \\ r_1 + 3r_2 = 33 \end{cases} \qquad \Longleftrightarrow \qquad \left(\begin{array}{cc|c} 2 & 1 & 26 \\ 1 & 3 & 33 \end{array}\right).$$
+          </item>
+          <item>Isolando $r_2$ na primeira equação, obtemos $r_2 = 26 - 2r_1$. Substituindo na segunda equação:
+            $$r_1 + 3(26 - 2r_1) = 33 \implies r_1 + 78 - 6r_1 = 33 \implies -5r_1 = -45 \implies r_1 = 9\text{ Hz}.$$
+            Logo, $r_2 = 26 - 2(9) = 8\text{ Hz}$, ou seja, $\mathbf{r}_{\text{pré}} = (9, 8)^\top\text{ Hz}$ (sistema possível e determinado).
+            <list marker="dash">
+              <item><em>Leitura por linhas:</em> o ponto $(9, 8)$ satisfaz ambas as retas ($2(9) + 8 = 26$ e $9 + 3(8) = 33$), sendo a única interseção entre elas.</item>
+              <item><em>Leitura por colunas:</em> combinando as colunas de $\mathbf{W}$ com pesos $9$ e $8$, recuperamos exatamente o vetor alvo:
+                $$9\begin{pmatrix} 2 \\ 1 \end{pmatrix} + 8\begin{pmatrix} 1 \\ 3 \end{pmatrix} = \begin{pmatrix} 18 \\ 9 \end{pmatrix} + \begin{pmatrix} 8 \\ 24 \end{pmatrix} = \begin{pmatrix} 26 \\ 33 \end{pmatrix}.$$
+              </item>
+            </list>
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:5-2-mistura-regimes">
+        <title>Mistura de soluções iônicas e os três regimes de solução</title>
+        Um laboratório prepara soluções salinas misturando $x_1\text{ mL}$ de uma solução estoque $A$ e $x_2\text{ mL}$ de uma solução estoque $B$. Lembre que uma concentração em $\text{mM}$ equivale a $\mu\text{mol/mL}$, de modo que multiplicar concentração ($\text{mM}$) por volume ($\text{mL}$) fornece a quantidade total de matéria ($\mu\text{mol}$).
+        <list marker="a">
+          <item>Se a solução $A$ contém $10\text{ mM}$ de $\text{Na}^+$ e $2\text{ mM}$ de $\text{K}^+$, e a solução $B$ contém $4\text{ mM}$ de $\text{Na}^+$ e $8\text{ mM}$ de $\text{K}^+$, quantos $\text{mL}$ de cada estoque produzem uma mistura com $76\;\mu\text{mol}$ de $\text{Na}^+$ e $44\;\mu\text{mol}$ de $\text{K}^+$?</item>
+          <item>Suponha agora um estoque defeituoso $B'$ com $20\text{ mM}$ de $\text{Na}^+$ e $4\text{ mM}$ de $\text{K}^+$ (exatamente o dobro das concentrações de $A$). O que ocorre ao tentar obter $(50, 10)^\top\;\mu\text{mol}$ de $(\text{Na}^+, \text{K}^+)$? E $(50, 12)^\top\;\mu\text{mol}$?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Montando o balanço de $\text{Na}^+$ e $\text{K}^+$ em $\mu\text{mol}$:
+            $$\begin{pmatrix} 10 & 4 \\ 2 & 8 \end{pmatrix}\begin{pmatrix} x_1 \\ x_2 \end{pmatrix} = \begin{pmatrix} 76 \\ 44 \end{pmatrix} \iff \begin{cases} 10x_1 + 4x_2 = 76 \\ 2x_1 + 8x_2 = 44 \end{cases}.$$
+            Dividindo ambas as equações por $2$, ficamos com $5x_1 + 2x_2 = 38$ e $x_1 + 4x_2 = 22$. Isolando $x_1 = 22 - 4x_2$ na segunda equação e substituindo na primeira:
+            $$5(22 - 4x_2) + 2x_2 = 38 \implies 110 - 18x_2 = 38 \implies 18x_2 = 72 \implies x_2 = 4\text{ mL}.$$
+            Portanto, $x_1 = 22 - 4(4) = 6\text{ mL}$. <em>Conferência:</em> $10(6) + 4(4) = 76\;\mu\text{mol}$ de $\text{Na}^+$ e $2(6) + 8(4) = 44\;\mu\text{mol}$ de $\text{K}^+$ (sistema SPD).
+          </item>
+          <item>Com o estoque $B'$, a matriz fica $\mathbf{A}' = \begin{pmatrix} 10 & 20 \\ 2 & 4 \end{pmatrix}$. Repare pela leitura por colunas que a segunda coluna $(20, 4)^\top$ é o dobro da primeira $(10, 2)^\top$: qualquer mistura de $A$ e $B'$ mantém sempre a razão $\text{Na}^+ / \text{K}^+ = 5$.
+            <list marker="dash">
+              <item>Para o alvo $(50, 10)^\top$, o sistema é $\begin{cases} 10x_1 + 20x_2 = 50 \\ 2x_1 + 4x_2 = 10 \end{cases}$. Dividindo a primeira equação por $10$ e a segunda por $2$, ambas viram a <em>mesma</em> reta $x_1 + 2x_2 = 5$. Há infinitas soluções (SPI): tomando $x_2 = t$, temos $x_1 = 5 - 2t$ (por exemplo, $(5, 0)^\top$, $(3, 1)^\top$ ou $(1, 2)^\top\text{ mL}$).</item>
+              <item>Para o alvo $(50, 12)^\top$, temos $\begin{cases} 10x_1 + 20x_2 = 50 \\ 2x_1 + 4x_2 = 12 \end{cases}$, que simplifica para $x_1 + 2x_2 = 5$ e $x_1 + 2x_2 = 6$. São duas retas paralelas distintas — contradição ($5 = 6$). O sistema é impossível (SI), pois o vetor $(50, 12)^\top$ não respeita a proporção fixa $5:1$ das colunas.</item>
+            </list>
+          </item>
+        </list>
+      </example>
+
+      <box type="tip">
+        <title>Sobre os blocos de código Python nesta aula</title>
+        Python e a biblioteca NumPy só são ensinados formalmente no <strong>Módulo 6 (Programação)</strong>. Aqui no Módulo 5, usamos blocos curtos e autocontidos apenas para você conferir rapidamente suas contas à mão — basta colar o código em uma célula do Google Colab e executar. Leia os comentários linha a linha como um roteiro de conferência.
+      </box>
+
+      <code lang="python" id="cod:5-2-sistema">
+import numpy as np  # importa a biblioteca numérica NumPy
+
+# Rede sináptica 2x2: W @ r_pre = r_pos
+W = np.array([[2, 1], [1, 3]], dtype=float)
+r_pos = np.array([26.0, 33.0])
+
+# np.linalg.solve(A, b) resolve o sistema linear A @ x = b
+r_pre = np.linalg.solve(W, r_pos)
+print("Taxas pré-sinápticas:", np.round(r_pre, 3).tolist())  # saída: Taxas pré-sinápticas: [9.0, 8.0]
+
+# Conferência pela leitura por colunas: 9 * col1 + 8 * col2
+comb_colunas = r_pre[0] * W[:, 0] + r_pre[1] * W[:, 1]
+print("Combinação das colunas:", np.round(comb_colunas, 3).tolist())  # saída: Combinação das colunas: [26.0, 33.0]
+
+# Conferência da mistura de soluções iônicas
+A_sol = np.array([[10, 4], [2, 8]], dtype=float)
+b_sol = np.array([76.0, 44.0])
+volumes = np.linalg.solve(A_sol, b_sol)
+print("Volumes (mL):", np.round(volumes, 3).tolist())  # saída: Volumes (mL): [6.0, 4.0]
+      </code>
+
+      <remark id="rem:5-2-armadilha-sec1">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Pular variável ausente ao montar a matriz:</strong> se uma equação é $2x_1 - x_3 = 5$ (sem $x_2$), a segunda entrada dessa linha na matriz $\mathbf{A}$ deve ser $0$ ($[2, 0, -1]$), e não $-1$ deslocado para a esquerda.</item>
+          <item><strong>Trocar linhas por colunas ao escrever $\mathbf{A}\mathbf{x} = \mathbf{b}$:</strong> cada <em>equação</em> do sistema forma uma <em>linha</em> de $\mathbf{A}$; cada <em>incógnita</em> corresponde a uma <em>coluna</em> de $\mathbf{A}$. Na leitura por colunas, são os coeficientes de uma mesma incógnita através das várias equações que formam o vetor coluna $\mathbf{a}_{:,j}$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:5-2-1-1">
+        <title>Básico — Forma matricial, matriz aumentada e resolução</title>
+        Considere o sistema linear:
+        $$\begin{cases} 2x_1 - x_2 = 5 \\ x_1 + 3x_2 = 6 \end{cases}$$
+        <list marker="a">
+          <item>Escreva o sistema na forma matricial $\mathbf{A}\mathbf{x} = \mathbf{b}$ e monte a matriz aumentada $[\mathbf{A} \mid \mathbf{b}]$.</item>
+          <item>Encontre a solução $(x_1, x_2)^\top$, classifique o sistema e confira sua resposta pela leitura por colunas.</item>
+        </list>
+        <hint><title>Ver dica</title>Isole $x_2$ na primeira equação ($x_2 = 2x_1 - 5$) e substitua na segunda. Depois confira calculando $x_1 \mathbf{a}_{:,1} + x_2 \mathbf{a}_{:,2}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>A forma matricial e a matriz aumentada são:
+              $$\begin{pmatrix} 2 & -1 \\ 1 & 3 \end{pmatrix}\begin{pmatrix} x_1 \\ x_2 \end{pmatrix} = \begin{pmatrix} 5 \\ 6 \end{pmatrix}, \qquad \left(\begin{array}{cc|c} 2 & -1 & 5 \\ 1 & 3 & 6 \end{array}\right).$$
+            </item>
+            <item>Da primeira equação, $x_2 = 2x_1 - 5$. Substituindo na segunda:
+              $$x_1 + 3(2x_1 - 5) = 6 \implies 7x_1 - 15 = 6 \implies 7x_1 = 21 \implies x_1 = 3.$$
+              Voltando para $x_2$: $x_2 = 2(3) - 5 = 1$. Como a solução $\mathbf{x} = (3, 1)^\top$ é única, o sistema é <strong>possível e determinado (SPD)</strong>.
+              <em>Conferência por colunas:</em>
+              $$3\begin{pmatrix} 2 \\ 1 \end{pmatrix} + 1\begin{pmatrix} -1 \\ 3 \end{pmatrix} = \begin{pmatrix} 6 - 1 \\ 3 + 3 \end{pmatrix} = \begin{pmatrix} 5 \\ 6 \end{pmatrix}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-2-1-2">
+        <title>Básico — Reconstruindo taxas pré-sinápticas</title>
+        Em um microcircuito de dois neurônios pré-sinápticos e dois pós-sinápticos, a matriz de pesos sinápticos é $\mathbf{W} = \begin{pmatrix} 3 & -1 \\ 1 & 2 \end{pmatrix}$. Em um ensaio, mediram-se as taxas pós-sinápticas $\mathbf{r}_{\text{pós}} = (22, 19)^\top\text{ Hz}$. Calcule o vetor de taxas pré-sinápticas $\mathbf{r}_{\text{pré}} = (r_1, r_2)^\top$ e confira usando a leitura por colunas.
+        <hint><title>Ver dica</title>Monte as duas equações lineares $3r_1 - r_2 = 22$ e $r_1 + 2r_2 = 19$, isole $r_2$ na primeira e substitua na segunda.</hint>
+        <solution collapsible="true" collapsed="true">
+          O sistema correspondente a $\mathbf{W}\mathbf{r}_{\text{pré}} = \mathbf{r}_{\text{pós}}$ é:
+          $$\begin{cases} 3r_1 - r_2 = 22 \\ r_1 + 2r_2 = 19 \end{cases}.$$
+          Da primeira equação, $r_2 = 3r_1 - 22$. Substituindo na segunda:
+          $$r_1 + 2(3r_1 - 22) = 19 \implies 7r_1 - 44 = 19 \implies 7r_1 = 63 \implies r_1 = 9\text{ Hz}.$$
+          Portanto, $r_2 = 3(9) - 22 = 27 - 22 = 5\text{ Hz}$, dando $\mathbf{r}_{\text{pré}} = (9, 5)^\top\text{ Hz}$.
+          <em>Conferência pela leitura por colunas:</em>
+          $$9\begin{pmatrix} 3 \\ 1 \end{pmatrix} + 5\begin{pmatrix} -1 \\ 2 \end{pmatrix} = \begin{pmatrix} 27 - 5 \\ 9 + 10 \end{pmatrix} = \begin{pmatrix} 22 \\ 19 \end{pmatrix}\text{ Hz}.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-2-1-3">
+        <title>Intermediário — Classificação em função de um parâmetro</title>
+        Considere o sistema linear nas incógnitas $x$ e $y$, com parâmetro real $k$:
+        $$\begin{cases} 2x + 4y = 10 \\ 3x + 6y = k \end{cases}.$$
+        <list marker="a">
+          <item>Explique, pela leitura por colunas e pela leitura por linhas, por que esse sistema nunca pode ser possível e determinado (SPD).</item>
+          <item>Para qual valor de $k$ o sistema é possível e indeterminado (SPI)? Escreva a solução geral parametrizada nesse caso. Para quais valores de $k$ ele é impossível (SI)?</item>
+        </list>
+        <hint><title>Ver dica</title>Divida a primeira equação por $2$ e compare com a segunda dividida por $3$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item><em>Pela leitura por colunas:</em> as colunas de $\mathbf{A}$ são $\mathbf{a}_{:,1} = (2, 3)^\top$ e $\mathbf{a}_{:,2} = (4, 6)^\top = 2\mathbf{a}_{:,1}$, ou seja, são proporcionais. Toda combinação linear $x\mathbf{a}_{:,1} + y\mathbf{a}_{:,2} = (x + 2y)(2, 3)^\top$ cai sobre uma única reta que passa pela origem. Assim, ou o alvo $(10, k)^\top$ não pertence a essa reta (zero soluções), ou pertence a ela e pode ser atingido de infinitos modos alterando $x$ e $y$ mantendo $x + 2y$ constante (infinitas soluções). <em>Pela leitura por linhas:</em> dividindo a primeira equação por $2$, obtemos $x + 2y = 5$; dividindo a segunda por $3$, obtemos $x + 2y = k/3$. As duas retas têm o mesmo coeficiente angular ($-\frac{1}{2}$), logo são paralelas ou coincidentes, nunca se cruzam em um único ponto.</item>
+            <item>As retas coincidem quando $k/3 = 5$, ou seja, $k = 15$. Nesse caso (SPI), a única exigência é $x + 2y = 5$: tomando $y = t \in \mathbb{R}$ como parâmetro, temos $(x, y)^\top = (5 - 2t,\; t)^\top$. Para qualquer $k \ne 15$, as retas são paralelas distintas e o sistema é impossível (SI).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-2-1-4">
+        <title>Avançado — Balanço excitação-inibição degenerado</title>
+        Dois neurônios pós-sinápticos recebem sinapses de uma população excitatória ($r_1 \ge 0$) e de uma população inibitória ($r_2 \ge 0$) segundo a matriz de pesos
+        $$\mathbf{W} = \begin{pmatrix} 4 & -2 \\ 2 & -1 \end{pmatrix}.$$
+        <list marker="a">
+          <item>É possível produzir a resposta pós-sináptica $\mathbf{r}_{\text{pós}} = (10, 5)^\top\text{ Hz}$? Em caso positivo, encontre todas as combinações biologicamente válidas ($r_1 \ge 0$ e $r_2 \ge 0$) que geram essa saída.</item>
+          <item>É possível produzir $\mathbf{r}_{\text{pós}} = (10, 8)^\top\text{ Hz}$? Explique algebricamente e geometricamente por que esse circuito não consegue controlar os dois neurônios pós-sinápticos de forma independente.</item>
+        </list>
+        <hint><title>Ver dica</title>Observe que a primeira linha de $\mathbf{W}$ é o dobro da segunda: portanto, para qualquer entrada, $r_{\text{pós},1} = 2\,r_{\text{pós},2}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>O sistema é $\begin{cases} 4r_1 - 2r_2 = 10 \\ 2r_1 - r_2 = 5 \end{cases}$. Como a primeira equação é exatamente o dobro da segunda, ambas reduzem-se a $2r_1 - r_2 = 5$, ou seja, $r_2 = 2r_1 - 5$. Exigindo taxas não negativas ($r_1 \ge 0$ e $r_2 \ge 0$), precisamos de $2r_1 - 5 \ge 0 \implies r_1 \ge 2{,}5\text{ Hz}$. Portanto, existem infinitas combinações válidas dadas por $(r_1,\, 2r_1 - 5)^\top$ com $r_1 \ge 2{,}5\text{ Hz}$ (por exemplo, $r_1 = 4\text{ Hz}$ e $r_2 = 3\text{ Hz}$ produzem $(10, 5)^\top\text{ Hz}$).</item>
+            <item>Para $\mathbf{r}_{\text{pós}} = (10, 8)^\top$, precisaríamos simultaneamente de $4r_1 - 2r_2 = 10$ (logo $2r_1 - r_2 = 5$) e $2r_1 - r_2 = 8$, o que é uma contradição ($5 = 8$). Geometricamente, as duas colunas de $\mathbf{W}$, $(4, 2)^\top$ e $(-2, -1)^\top$, são múltiplas entre si e geram apenas a reta $y_1 = 2y_2$. Como o neurônio pós-sináptico $1$ recebe exatamente o dobro de cada peso que chega ao neurônio $2$, ele sempre disparará com o dobro da taxa do neurônio $2$; o alvo $(10, 8)^\top$ está fora dessa reta e é inalcançável.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:5-2-2">
+      <eyebrow>Seção 2</eyebrow>
+      <title>Eliminação de Gauss</title>
+      <intro>
+        Quando o sistema tem três, dez ou mil variáveis, isolar incógnitas "no olho" vira um labirinto. A eliminação de Gauss transforma qualquer matriz aumentada numa escada organizada que revela imediatamente se há solução única, infinitas ou nenhuma.
+      </intro>
+
+      A ideia da <strong>eliminação de Gauss</strong> (<em>Gaussian elimination</em>) é simples: queremos substituir o sistema original por outro sistema <em>equivalente</em> (isto é, com exatamente o mesmo conjunto de soluções), mas em forma de escada triangular, onde a última equação já tem uma única incógnita. Para não alterar o conjunto de soluções pelo caminho, só podemos aplicar três movimentos seguros sobre as linhas da matriz aumentada $[\mathbf{A} \mid \mathbf{b}]$.
+
+      <definition id="def:5-2-operacoes-elementares">
+        <title>Operações elementares de linha</title>
+        Dada a matriz aumentada $[\mathbf{A} \mid \mathbf{b}]$, chamam-se <strong>operações elementares de linha</strong>:
+        <list marker="number">
+          <item><strong>Trocar duas linhas</strong> ($L_i \leftrightarrow L_j$): equivale a reescrever as mesmas equações em outra ordem;</item>
+          <item><strong>Multiplicar uma linha por um escalar não nulo</strong> ($L_i \leftarrow c\,L_i$, com $c \ne 0$): equivale a multiplicar os dois lados de uma igualdade pelo mesmo número diferente de zero;</item>
+          <item><strong>Somar a uma linha um múltiplo de outra</strong> ($L_i \leftarrow L_i + k\,L_j$, com $i \ne j$): equivale a somar à equação $i$ um múltiplo da igualdade $j$.</item>
+        </list>
+        Cada uma dessas três operações é reversível e produz um sistema linear com <strong>exatamente as mesmas soluções</strong> do original.
+        <intuition>
+          Por que somar um múltiplo da equação $L_j$ à equação $L_i$ não cria nem apaga soluções? Se um vetor $\mathbf{x}$ satisfaz $L_j$ e $L_i$, então ele obviamente satisfaz $L_i + k\,L_j$. Reciprocamente, como $L_i = (L_i + k\,L_j) - k\,L_j$, qualquer $\mathbf{x}$ que satisfaça a nova equação e $L_j$ também satisfaz a equação original $L_i$.
+        </intuition>
+      </definition>
+
+      Usando essas operações de cima para baixo e da esquerda para a direita, zeramos todas as entradas abaixo do primeiro coeficiente não nulo de cada linha. O formato final chama-se forma escalonada.
+
+      <definition id="def:5-2-escalonada">
+        <title>Forma escalonada, pivôs e substituição regressiva</title>
+        Uma matriz aumentada está na <strong>forma escalonada</strong> (<em>row echelon form</em>) quando:
+        <list marker="dash">
+          <item>eventuais linhas inteiramente nulas ficam no fundo da matriz;</item>
+          <item>em cada linha não nula, o primeiro número diferente de zero da esquerda para a direita — chamado <strong>pivô</strong> (<em>pivot</em>) — está estritamente à direita do pivô da linha acima.</item>
+        </list>
+        As colunas de $\mathbf{A}$ que possuem pivô correspondem às <strong>variáveis básicas</strong> (<em>basic variables</em>); colunas de $\mathbf{A}$ sem pivô correspondem a <strong>variáveis livres</strong> (<em>free variables</em>). Quando o sistema é compatível, encontramos as variáveis básicas de baixo para cima — processo chamado <strong>substituição regressiva</strong> (<em>back substitution</em>).
+      </definition>
+
+      O escalonamento não apenas resolve o sistema: ele diagnostica automaticamente em qual dos três regimes da <ref to="def:5-2-classificacao"/> o sistema se encontra, sem deixar margem para dúvida.
+
+      <proposition id="prop:5-2-diagnostico-gauss">
+        <title>Diagnóstico dos três regimes pela forma escalonada</title>
+        Após reduzir $[\mathbf{A} \mid \mathbf{b}]$ à forma escalonada:
+        <list marker="number">
+          <item><strong>Sistema impossível (SI):</strong> ocorre se, e somente se, aparecer alguma linha da forma $[0\; 0\; \cdots\; 0 \mid c]$ com $c \ne 0$ (isto é, um pivô na última coluna, representando a contradição $0 = c$).</item>
+          <item><strong>Sistema possível e determinado (SPD):</strong> ocorre quando não há contradição e <strong>todas</strong> as $n$ colunas de $\mathbf{A}$ possuem pivô (zero variáveis livres); a solução única sai pela substituição regressiva.</item>
+          <item><strong>Sistema possível e indeterminado (SPI):</strong> ocorre quando não há contradição, mas pelo menos uma coluna de $\mathbf{A}$ fica sem pivô (há variáveis livres, por exemplo devido a uma linha $[0\; 0\; \cdots\; 0 \mid 0]$ em um sistema quadrado). Atribuindo parâmetros reais às variáveis livres, expressamos infinitas soluções.</item>
+        </list>
+      </proposition>
+
+      Vejamos o método completo em ação em um sistema $3 \times 3$ em que precisaremos usar todas as três operações elementares — inclusive a troca de linhas para escapar de um pivô inicial nulo.
+
+      <example id="exm:5-2-gauss-3x3">
+        <title>Eliminação de Gauss completa num sistema 3×3 com troca de linhas</title>
+        Resolva o sistema abaixo por eliminação de Gauss e confira a solução:
+        $$\begin{cases} 2y + z = 3 \\ x - y + 2z = -3 \\ 2x + y - z = 5 \end{cases}.$$
+
+        <strong>Solução.</strong> Montamos a matriz aumentada (com $0$ na posição $(1, 1)$ porque $x$ não aparece na primeira equação):
+        $$\left(\begin{array}{ccc|c} 0 & 2 & 1 & 3 \\ 1 & -1 & 2 & -3 \\ 2 & 1 & -1 & 5 \end{array}\right).$$
+        Como a entrada $(1, 1)$ é $0$, não podemos usá-la como pivô. Trocamos as linhas $L_1 \leftrightarrow L_2$:
+        $$\left(\begin{array}{ccc|c} 1 & -1 & 2 & -3 \\ 0 & 2 & 1 & 3 \\ 2 & 1 & -1 & 5 \end{array}\right).$$
+        Agora o primeiro pivô é $1$. A segunda linha já começa com $0$; falta zerar o $2$ da terceira linha fazendo $L_3 \leftarrow L_3 - 2L_1$:
+        <list marker="dash">
+          <item>$L_3 - 2L_1 = [2 - 2(1),\; 1 - 2(-1),\; -1 - 2(2) \mid 5 - 2(-3)] = [0,\; 3,\; -5 \mid 11]$.</item>
+        </list>
+        $$\left(\begin{array}{ccc|c} 1 & -1 & 2 & -3 \\ 0 & 2 & 1 & 3 \\ 0 & 3 & -5 & 11 \end{array}\right).$$
+        Para tornar o segundo pivô igual a $1$, aplicamos $L_2 \leftarrow \frac{1}{2}L_2$, obtendo $[0,\; 1,\; \frac{1}{2} \mid \frac{3}{2}]$, e em seguida zeramos o $3$ abaixo dele com $L_3 \leftarrow L_3 - 3L_2$:
+        <list marker="dash">
+          <item>$L_3 - 3L_2 = \left[0,\; 3 - 3(1),\; -5 - 3\!\left(\frac{1}{2}\right) \;\middle|\; 11 - 3\!\left(\frac{3}{2}\right)\right] = \left[0,\; 0,\; -\frac{13}{2} \;\middle|\; \frac{13}{2}\right]$.</item>
+        </list>
+        Chegamos à forma escalonada (pivôs $1$, $1$ e $-\frac{13}{2}$, um em cada coluna de $\mathbf{A}$):
+        $$\left(\begin{array}{ccc|c} 1 & -1 & 2 & -3 \\ 0 & 1 & 1/2 & 3/2 \\ 0 & 0 & -13/2 & 13/2 \end{array}\right).$$
+        Agora fazemos a <strong>substituição regressiva</strong> de baixo para cima:
+        <list marker="number">
+          <item>Da linha $3$: $-\dfrac{13}{2}z = \dfrac{13}{2} \implies z = -1$.</item>
+          <item>Da linha $2$: $y + \dfrac{1}{2}(-1) = \dfrac{3}{2} \implies y = \dfrac{3}{2} + \dfrac{1}{2} = 2$.</item>
+          <item>Da linha $1$: $x - 2 + 2(-1) = -3 \implies x - 4 = -3 \implies x = 1$.</item>
+        </list>
+        Logo, a solução única é $(x, y, z)^\top = (1, 2, -1)^\top$. <em>Conferência nas equações originais:</em>
+        $$2(2) + (-1) = 3, \qquad 1 - 2 + 2(-1) = -3, \qquad 2(1) + 2 - (-1) = 5.$$
+        Todas as três igualdades fecham exatamente.
+      </example>
+
+      <example id="exm:5-2-olfatorio-3x3">
+        <title>Decodificando concentrações de três odorantes no sistema olfatório</title>
+        Suponha que três neurônios olfatórios têm variações de taxa de disparo $\Delta r_1, \Delta r_2, \Delta r_3$ (em $\text{Hz}$ acima da taxa basal) dadas aproximadamente por combinações lineares das concentrações $c_1, c_2, c_3$ (em $\mu\text{M}$) de três compostos odorantes:
+        $$\begin{pmatrix} 1 & 2 & 1 \\ 2 & 5 & 1 \\ -1 & 1 & 3 \end{pmatrix}\begin{pmatrix} c_1 \\ c_2 \\ c_3 \end{pmatrix} = \begin{pmatrix} 7 \\ 13 \\ 4 \end{pmatrix}.$$
+        Use a eliminação de Gauss para estimar as concentrações $c_1, c_2, c_3$ e confira a resposta.
+
+        <strong>Solução.</strong> Partimos da matriz aumentada:
+        $$\left(\begin{array}{ccc|c} 1 & 2 & 1 & 7 \\ 2 & 5 & 1 & 13 \\ -1 & 1 & 3 & 4 \end{array}\right).$$
+        Usando o pivô $(1, 1) = 1$, eliminamos a primeira coluna nas linhas $2$ e $3$ com $L_2 \leftarrow L_2 - 2L_1$ e $L_3 \leftarrow L_3 + L_1$:
+        $$\left(\begin{array}{ccc|c} 1 & 2 & 1 & 7 \\ 0 & 1 & -1 & -1 \\ 0 & 3 & 4 & 11 \end{array}\right).$$
+        Agora o pivô $(2, 2)$ vale $1$. Eliminamos o $3$ abaixo dele fazendo $L_3 \leftarrow L_3 - 3L_2$:
+        <list marker="dash">
+          <item>$L_3 - 3L_2 = [0,\; 3 - 3(1),\; 4 - 3(-1) \mid 11 - 3(-1)] = [0,\; 0,\; 7 \mid 14]$.</item>
+        </list>
+        $$\left(\begin{array}{ccc|c} 1 & 2 & 1 & 7 \\ 0 & 1 & -1 & -1 \\ 0 & 0 & 7 & 14 \end{array}\right).$$
+        Pela substituição regressiva:
+        <list marker="number">
+          <item>$7c_3 = 14 \implies c_3 = 2\;\mu\text{M}$;</item>
+          <item>$c_2 - 2 = -1 \implies c_2 = 1\;\mu\text{M}$;</item>
+          <item>$c_1 + 2(1) + 2 = 7 \implies c_1 = 3\;\mu\text{M}$.</item>
+        </list>
+        <em>Conferência:</em> $3 + 2(1) + 2 = 7\text{ Hz}$, $2(3) + 5(1) + 2 = 13\text{ Hz}$ e $-3 + 1 + 3(2) = 4\text{ Hz}$.
+      </example>
+
+      <example id="exm:5-2-gauss-degenerado">
+        <title>Detectando casos degenerados no escalonamento</title>
+        Aplique a eliminação de Gauss ao sistema abaixo para dois valores distintos do termo final $b_3$:
+        $$\left(\begin{array}{ccc|c} 1 & 2 & -1 & 4 \\ 2 & 5 & 1 & 11 \\ 1 & 3 & 2 & b_3 \end{array}\right).$$
+        Analise o que acontece quando (a) $b_3 = 7$ e (b) $b_3 = 9$.
+
+        <strong>Solução.</strong> Eliminamos a primeira coluna com $L_2 \leftarrow L_2 - 2L_1$ e $L_3 \leftarrow L_3 - L_1$:
+        $$\left(\begin{array}{ccc|c} 1 & 2 & -1 & 4 \\ 0 & 1 & 3 & 3 \\ 0 & 1 & 3 & b_3 - 4 \end{array}\right).$$
+        Em seguida fazemos $L_3 \leftarrow L_3 - L_2$:
+        $$\left(\begin{array}{ccc|c} 1 & 2 & -1 & 4 \\ 0 & 1 & 3 & 3 \\ 0 & 0 & 0 & b_3 - 7 \end{array}\right).$$
+        <list marker="a">
+          <item><strong>Quando $b_3 = 7$:</strong> a última linha vira $[0\; 0\; 0 \mid 0]$. Não há contradição, mas a coluna $3$ ficou sem pivô — logo $z$ é uma <strong>variável livre</strong> ($z = t \in \mathbb{R}$). Pela substituição regressiva nas duas primeiras linhas:
+            $$y + 3t = 3 \implies y = 3 - 3t,$$
+            $$x + 2(3 - 3t) - t = 4 \implies x + 6 - 7t = 4 \implies x = 7t - 2.$$
+            O sistema é <strong>possível e indeterminado (SPI)</strong>, com infinitas soluções $(7t - 2,\; 3 - 3t,\; t)^\top$ (para $t = 1$, por exemplo, $(5, 0, 1)^\top$; confira: $5 + 0 - 1 = 4$, $10 + 0 + 1 = 11$, $5 + 0 + 2 = 7$).
+          </item>
+          <item><strong>Quando $b_3 = 9$:</strong> a última linha vira $[0\; 0\; 0 \mid 2]$, que significa $0x + 0y + 0z = 2$. Como isso é impossível, o sistema é <strong>impossível (SI)</strong> e não tem solução.</item>
+        </list>
+      </example>
+
+      Na prática computacional, <c>np.linalg.solve(A, b)</c> usa uma versão otimizada e numericamente estável da eliminação de Gauss. Porém, quando a matriz $\mathbf{A}$ é <strong>singular</strong> (isto é, perde pelo menos um pivô no escalonamento, como no <ref to="exm:5-2-gauss-degenerado"/>), não existe solução única e o NumPy interrompe a função levantando o erro <c>LinAlgError</c>.
+
+      <code lang="python" id="cod:5-2-gauss">
+import numpy as np
+
+# 1) Sistema 3x3 com troca de linhas
+A1 = np.array([[0, 2, 1], [1, -1, 2], [2, 1, -1]], dtype=float)
+b1 = np.array([3.0, -3.0, 5.0])
+sol1 = np.linalg.solve(A1, b1)
+print("Solução 3x3:", np.round(sol1, 3).tolist())  # saída: Solução 3x3: [1.0, 2.0, -1.0]
+
+# 2) Decodificação de odorantes
+A2 = np.array([[1, 2, 1], [2, 5, 1], [-1, 1, 3]], dtype=float)
+b2 = np.array([7.0, 13.0, 4.0])
+sol2 = np.linalg.solve(A2, b2)
+print("Concentrações (uM):", np.round(sol2, 3).tolist())  # saída: Concentrações (uM): [3.0, 1.0, 2.0]
+
+# 3) Matriz singular: np.linalg.solve levanta LinAlgError
+A_sing = np.array([[1, 2, -1], [2, 5, 1], [1, 3, 2]], dtype=float)
+b_sing = np.array([4.0, 11.0, 7.0])
+try:
+    np.linalg.solve(A_sing, b_sing)
+except np.linalg.LinAlgError:
+    print("LinAlgError capturado: matriz singular (sem solução única).")  # saída: LinAlgError capturado: matriz singular (sem solução única).
+      </code>
+
+      <remark id="rem:5-2-armadilha-gauss">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Dividir por um pivô nulo sem trocar linhas:</strong> se a entrada na diagonal valer $0$, nunca divida por ela; troque a linha atual por alguma linha abaixo que tenha entrada não nula naquela coluna (como fizemos no <ref to="exm:5-2-gauss-3x3"/>). Se todas as entradas da coluna dali para baixo forem zero, aquela coluna simplesmente não tem pivô e gera uma variável livre.</item>
+          <item><strong>Esquecer a coluna $\mathbf{b}$ ao fazer uma operação de linha:</strong> toda operação aplicada às entradas de $\mathbf{A}$ precisa ser aplicada também à entrada correspondente de $\mathbf{b}$ na mesma linha. Alterar só o lado esquerdo destrói a igualdade.</item>
+          <item><strong>Misturar operações de coluna no escalonamento:</strong> na eliminação de Gauss, opere <em>apenas nas linhas</em>. Trocar ou combinar colunas troca ou mistura as incógnitas entre si, mudando o vetor solução.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:5-2-2-1">
+        <title>Básico — Escalonamento e substituição regressiva 3×3</title>
+        Resolva o sistema linear abaixo por eliminação de Gauss e confira a solução nas três equações originais:
+        $$\begin{cases} x + 3y - z = 4 \\ 2x + 7y + z = 12 \\ -x - 2y + 3z = -1 \end{cases}.$$
+        <hint><title>Ver dica</title>Use $L_2 \leftarrow L_2 - 2L_1$ e $L_3 \leftarrow L_3 + L_1$ para zerar a primeira coluna abaixo do pivô $1$; em seguida, use o novo pivô da linha $2$ para zerar a segunda coluna da linha $3$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Montando a matriz aumentada:
+          $$\left(\begin{array}{ccc|c} 1 & 3 & -1 & 4 \\ 2 & 7 & 1 & 12 \\ -1 & -2 & 3 & -1 \end{array}\right).$$
+          Fazemos $L_2 \leftarrow L_2 - 2L_1$ e $L_3 \leftarrow L_3 + L_1$:
+          $$\left(\begin{array}{ccc|c} 1 & 3 & -1 & 4 \\ 0 & 1 & 3 & 4 \\ 0 & 1 & 2 & 3 \end{array}\right).$$
+          Agora fazemos $L_3 \leftarrow L_3 - L_2$:
+          $$\left(\begin{array}{ccc|c} 1 & 3 & -1 & 4 \\ 0 & 1 & 3 & 4 \\ 0 & 0 & -1 & -1 \end{array}\right).$$
+          Substituição regressiva:
+          <list marker="number">
+            <item>$-z = -1 \implies z = 1$;</item>
+            <item>$y + 3(1) = 4 \implies y = 1$;</item>
+            <item>$x + 3(1) - 1 = 4 \implies x + 2 = 4 \implies x = 2$.</item>
+          </list>
+          <em>Conferência:</em> $2 + 3(1) - 1 = 4$, $2(2) + 7(1) + 1 = 12$ e $-2 - 2(1) + 3(1) = -1$. Solução $(2, 1, 1)^\top$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-2-2-2">
+        <title>Básico — Suplementos em meio de cultura celular</title>
+        Para preparar um meio de cultura neuronal, misturam-se $v_A$, $v_B$ e $v_C$ mililitros ($\text{mL}$) de três soluções estoque com as seguintes concentrações (em $\text{mM} = \mu\text{mol/mL}$):
+        <list marker="dash">
+          <item><strong>Estoque A:</strong> $2\text{ mM}$ de glicose, $1\text{ mM}$ de glutamina, $0\text{ mM}$ de piruvato;</item>
+          <item><strong>Estoque B:</strong> $1\text{ mM}$ de glicose, $2\text{ mM}$ de glutamina, $1\text{ mM}$ de piruvato;</item>
+          <item><strong>Estoque C:</strong> $0\text{ mM}$ de glicose, $1\text{ mM}$ de glutamina, $2\text{ mM}$ de piruvato.</item>
+        </list>
+        Deseja-se obter exatamente $10\;\mu\text{mol}$ de glicose, $16\;\mu\text{mol}$ de glutamina e $14\;\mu\text{mol}$ de piruvato. Monte o sistema e encontre $v_A, v_B, v_C$ por eliminação de Gauss.
+        <hint><title>Ver dica</title>Ao montar a matriz aumentada, você pode trocar $L_1 \leftrightarrow L_2$ logo no início para trabalhar com pivô $1$ sem precisar de frações.</hint>
+        <solution collapsible="true" collapsed="true">
+          Cada estoque contribui como uma coluna da matriz de coeficientes:
+          $$\left(\begin{array}{ccc|c} 2 & 1 & 0 & 10 \\ 1 & 2 & 1 & 16 \\ 0 & 1 & 2 & 14 \end{array}\right).$$
+          Trocando $L_1 \leftrightarrow L_2$ para colocar o pivô $1$ no topo:
+          $$\left(\begin{array}{ccc|c} 1 & 2 & 1 & 16 \\ 2 & 1 & 0 & 10 \\ 0 & 1 & 2 & 14 \end{array}\right).$$
+          Fazendo $L_2 \leftarrow L_2 - 2L_1$:
+          $$\left(\begin{array}{ccc|c} 1 & 2 & 1 & 16 \\ 0 & -3 & -2 & -22 \\ 0 & 1 & 2 & 14 \end{array}\right).$$
+          Trocamos $L_2 \leftrightarrow L_3$ e depois fazemos $L_3 \leftarrow L_3 + 3L_2$:
+          $$\left(\begin{array}{ccc|c} 1 & 2 & 1 & 16 \\ 0 & 1 & 2 & 14 \\ 0 & -3 & -2 & -22 \end{array}\right) \longrightarrow \left(\begin{array}{ccc|c} 1 & 2 & 1 & 16 \\ 0 & 1 & 2 & 14 \\ 0 & 0 & 4 & 20 \end{array}\right).$$
+          Substituição regressiva: $4v_C = 20 \implies v_C = 5\text{ mL}$; $v_B + 2(5) = 14 \implies v_B = 4\text{ mL}$; $v_A + 2(4) + 5 = 16 \implies v_A = 3\text{ mL}$.
+          <em>Conferência:</em> glicose $2(3) + 4 = 10\;\mu\text{mol}$; glutamina $3 + 2(4) + 5 = 16\;\mu\text{mol}$; piruvato $4 + 2(5) = 14\;\mu\text{mol}$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-2-2-3">
+        <title>Intermediário — Variável livre e condição de compatibilidade</title>
+        Considere a matriz aumentada:
+        $$\left(\begin{array}{ccc|c} 1 & -2 & 1 & 3 \\ 2 & -3 & 4 & 8 \\ 3 & -5 & 5 & b_3 \end{array}\right).$$
+        <list marker="a">
+          <item>Para $b_3 = 11$, leve à forma escalonada, identifique as variáveis básicas e livres e escreva a solução geral em função de um parâmetro $t \in \mathbb{R}$.</item>
+          <item>Para $b_3 = 12$, mostre o resultado da última linha no escalonamento e classifique o sistema.</item>
+        </list>
+        <hint><title>Ver dica</title>Execute $L_2 \leftarrow L_2 - 2L_1$ e $L_3 \leftarrow L_3 - 3L_1$, depois $L_3 \leftarrow L_3 - L_2$, mantendo $b_3$ simbólico até o final.</hint>
+        <solution collapsible="true" collapsed="true">
+          Aplicando $L_2 \leftarrow L_2 - 2L_1$ e $L_3 \leftarrow L_3 - 3L_1$:
+          $$\left(\begin{array}{ccc|c} 1 & -2 & 1 & 3 \\ 0 & 1 & 2 & 2 \\ 0 & 1 & 2 & b_3 - 9 \end{array}\right).$$
+          Aplicando $L_3 \leftarrow L_3 - L_2$:
+          $$\left(\begin{array}{ccc|c} 1 & -2 & 1 & 3 \\ 0 & 1 & 2 & 2 \\ 0 & 0 & 0 & b_3 - 11 \end{array}\right).$$
+          <list marker="a">
+            <item>Com $b_3 = 11$, a última linha torna-se $[0\; 0\; 0 \mid 0]$. Os pivôs estão nas colunas $1$ e $2$, logo $x$ e $y$ são variáveis básicas e $z = t \in \mathbb{R}$ é variável livre. Da linha $2$, $y + 2t = 2 \implies y = 2 - 2t$. Da linha $1$, $x - 2(2 - 2t) + t = 3 \implies x - 4 + 5t = 3 \implies x = 7 - 5t$. Assim, a solução geral (SPI) é $(7 - 5t,\; 2 - 2t,\; t)^\top$ (para $t = 1$, por exemplo, $(2, 0, 1)^\top$ satisfaz as três equações).</item>
+            <item>Com $b_3 = 12$, a última linha vira $[0\; 0\; 0 \mid 1]$, que representa a contradição $0 = 1$; portanto, o sistema é impossível (SI).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-2-2-4">
+        <title>Avançado — Por que três voltagens não separam três condutâncias</title>
+        Em um modelo passivo de membrana com canais de sódio, potássio e vazamento abertos de modo constante, a corrente estacionária total $I$ (em $\text{pA}$) sob potencial fixado $V$ (em $\text{mV}$) obedece a:
+        $$I(V) = g_{\text{Na}}(V - 50) + g_{\text{K}}(V + 80) + g_{\text{L}}(V + 60),$$
+        em que as condutâncias $g_{\text{Na}}, g_{\text{K}}, g_{\text{L}}$ estão em $\text{nS}$ (lembre que $\text{nS} \cdot \text{mV} = \text{pA}$). Suponha que medimos $I(-70) = -440\text{ pA}$, $I(-20) = 160\text{ pA}$ e $I(+30) = 760\text{ pA}$.
+        <list marker="a">
+          <item>Monte o sistema nas incógnitas $(g_{\text{Na}}, g_{\text{K}}, g_{\text{L}})$, divida cada equação por $10$ para simplificar os coeficientes e aplique operações elementares de linha para mostrar que a terceira linha zera completamente ($[0\; 0\; 0 \mid 0]$), revelando infinitas soluções (entre elas $(4, 6, 2)^\top\text{ nS}$).</item>
+          <item>Explique matematicamente e biologicamente por que três medidas de $I(V)$ com potenciais de equilíbrio fixos nunca identificam três condutâncias de forma única, e diga que intervenção experimental quebraria essa degenerescência.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), após dividir por $10$, experimente fazer $L_2 \leftarrow L_2 - L_1$ e $L_3 \leftarrow L_3 - L_1$ antes de escalonar. Em (b), reagrupe $I(V)$ como $A\cdot V + B$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Substituindo $V = -70, -20, +30$ e dividindo cada equação por $10$:
+              $$\left(\begin{array}{ccc|c} -12 & 1 & -1 & -44 \\ -7 & 6 & 4 & 16 \\ -2 & 11 & 9 & 76 \end{array}\right).$$
+              Aplicando $L_2 \leftarrow L_2 - L_1$ e $L_3 \leftarrow L_3 - L_1$:
+              $$\left(\begin{array}{ccc|c} -12 & 1 & -1 & -44 \\ 5 & 5 & 5 & 60 \\ 10 & 10 & 10 & 120 \end{array}\right).$$
+              Fazendo $L_3 \leftarrow L_3 - 2L_2$, trocando $L_1 \leftrightarrow L_2$ e multiplicando $L_1$ por $\frac{1}{5}$, obtemos:
+              $$\left(\begin{array}{ccc|c} 1 & 1 & 1 & 12 \\ -12 & 1 & -1 & -44 \\ 0 & 0 & 0 & 0 \end{array}\right) \xrightarrow{L_2 \leftarrow L_2 + 12L_1} \left(\begin{array}{ccc|c} 1 & 1 & 1 & 12 \\ 0 & 13 & 11 & 100 \\ 0 & 0 & 0 & 0 \end{array}\right).$$
+              Como a terceira linha zerou, $g_{\text{L}} = t$ é variável livre (por exemplo, $t = 2\text{ nS}$ dá $13g_{\text{K}} = 100 - 22 = 78 \implies g_{\text{K}} = 6\text{ nS}$ e $g_{\text{Na}} = 12 - 6 - 2 = 4\text{ nS}$, mas há infinitas outras soluções físicas para $t \in [0,\, 100/11]$).
+            </item>
+            <item>Reagrupando os termos da fórmula, temos $I(V) = (g_{\text{Na}} + g_{\text{K}} + g_{\text{L}})V - (50g_{\text{Na}} - 80g_{\text{K}} - 60g_{\text{L}})$: o gráfico de $I(V)$ é uma <em>única reta</em> determinada por apenas dois números (sua inclinação total $g_{\text{tot}}$ e seu intercepto). Três pontos sobre uma mesma reta fornecem no máximo duas equações independentes, insuficientes para determinar três incógnitas. Experimentalmente, podemos quebrar essa dependência aplicando um bloqueador seletivo (como tetrodotoxina, TTX, para zerar $g_{\text{Na}}$) ou alterando a concentração extracelular de $\text{K}^+$ para mudar $E_{\text{K}}$ e obter outra reta independente.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:5-2-3">
+      <eyebrow>Seção 3</eyebrow>
+      <title>A matriz como transformação do plano</title>
+      <intro>
+        Chegou o momento da virada visual deste módulo: deixar de ver uma matriz apenas como uma tabela e enxergá-la como uma função que move todos os pontos do plano de forma rígida ou elástica — preservando retas e mantendo a origem parada.
+      </intro>
+
+      No Tema 5.1, vimos que multiplicar uma matriz $\mathbf{A}$ por um vetor $\mathbf{x}$ devolve outro vetor $\mathbf{y} = \mathbf{A}\mathbf{x}$ e que essa operação respeita somas e escalares. Se aplicarmos $\mathbf{A}$ a <em>todo</em> ponto $\mathbf{x} \in \mathbb{R}^2$ de uma grade cartesiana, a grade inteira é deformada para uma nova posição: esticada, girada, inclinada ou comprimida. Uma função que age assim sobre vetores chama-se <strong>transformação linear</strong> (<em>linear transformation</em>).
+
+      <definition id="def:5-2-transf-linear">
+        <title>Transformação linear</title>
+        Uma função $T: \mathbb{R}^n \to \mathbb{R}^m$ é uma <strong>transformação linear</strong> quando satisfaz duas propriedades para quaisquer vetores $\mathbf{u}, \mathbf{v} \in \mathbb{R}^n$ e qualquer escalar $c \in \mathbb{R}$:
+        <list marker="number">
+          <item><strong>Aditividade:</strong> $T(\mathbf{u} + \mathbf{v}) = T(\mathbf{u}) + T(\mathbf{v})$; </item>
+          <item><strong>Homogeneidade:</strong> $T(c\mathbf{u}) = c\,T(\mathbf{u})$.</item>
+        </list>
+        <intuition>
+          Geometricamente no plano, essas duas regras proíbem curvas e translações: a origem fica fixa ($T(\mathbf{0}) = T(0\mathbf{u}) = 0\mathbf{u} = \mathbf{0}$), toda linha reta continua sendo uma linha reta (ou colapsa em um ponto) e todas as linhas paralelas da grade permanecem paralelas e igualmente espaçadas após a transformação.
+        </intuition>
+      </definition>
+
+      Por trás de toda transformação linear em $\mathbb{R}^2$ existe um truque poderoso que permite descobrir a matriz $\mathbf{A}$ sem decorar nenhuma fórmula. Lembre que qualquer vetor $\mathbf{x} = (x_1, x_2)^\top$ é uma combinação linear dos vetores da base canônica $\mathbf{e}_1 = (1, 0)^\top$ e $\mathbf{e}_2 = (0, 1)^\top$:
+      $$\mathbf{x} = x_1 \mathbf{e}_1 + x_2 \mathbf{e}_2.$$
+      Se sabemos apenas para onde $T$ leva esses dois vetores básicos, a linearidade decide automaticamente o destino de todos os outros pontos do plano!
+
+      <theorem id="thm:5-2-matriz-da-transf">
+        <title>As colunas da matriz são as imagens da base canônica</title>
+        Toda transformação linear $T: \mathbb{R}^2 \to \mathbb{R}^2$ escreve-se na forma $T(\mathbf{x}) = \mathbf{A}\mathbf{x}$, onde a primeira coluna de $\mathbf{A}$ é $T(\mathbf{e}_1)$ e a segunda coluna é $T(\mathbf{e}_2)$:
+        <equation id="eq:5-2-colunas-base">
+          \mathbf{A} = \begin{pmatrix} \vert & \vert \\ T(\mathbf{e}_1) & T(\mathbf{e}_2) \\ \vert & \vert \end{pmatrix}.
+        </equation>
+        (De forma análoga, em $\mathbb{R}^n$, a $j$-ésima coluna de $\mathbf{A}$ é sempre $T(\mathbf{e}_j)$.)
+        <intuition>
+          Quer construir a matriz de qualquer transformação geométrica? Basta responder a duas perguntas simples: "para onde vai $(1, 0)^\top$?" (primeira coluna) e "para onde vai $(0, 1)^\top$?" (segunda coluna).
+        </intuition>
+      </theorem>
+      <proof of="thm:5-2-matriz-da-transf" collapsible="true" collapsed="true">
+        Escrevemos qualquer $\mathbf{x} = (x_1, x_2)^\top \in \mathbb{R}^2$ como $\mathbf{x} = x_1 \mathbf{e}_1 + x_2 \mathbf{e}_2$. Aplicando as duas propriedades da <ref to="def:5-2-transf-linear"/>:
+        $$T(\mathbf{x}) = T(x_1 \mathbf{e}_1 + x_2 \mathbf{e}_2) = T(x_1 \mathbf{e}_1) + T(x_2 \mathbf{e}_2) = x_1 T(\mathbf{e}_1) + x_2 T(\mathbf{e}_2).$$
+        Pela leitura por colunas do produto matriz-vetor (Tema 5.1), $x_1 T(\mathbf{e}_1) + x_2 T(\mathbf{e}_2)$ é exatamente o produto $\mathbf{A}\mathbf{x}$ em que as colunas de $\mathbf{A}$ são $T(\mathbf{e}_1)$ e $T(\mathbf{e}_2)$.
+      </proof>
+
+      Com o <ref to="thm:5-2-matriz-da-transf"/> na mão, montamos facilmente uma <strong>galeria de transformações do plano</strong> apenas acompanhando para onde vão $\mathbf{e}_1 = (1, 0)^\top$ e $\mathbf{e}_2 = (0, 1)^\top$:
+      <list marker="dash">
+        <item><strong>Escala (esticamento/compressão):</strong> multiplica o eixo horizontal por $s_x$ e o vertical por $s_y$, levando $\mathbf{e}_1 \mapsto (s_x, 0)^\top$ e $\mathbf{e}_2 \mapsto (0, s_y)^\top$:
+          $$\mathbf{S} = \begin{pmatrix} s_x & 0 \\ 0 & s_y \end{pmatrix}.$$
+        </item>
+        <item><strong>Reflexão (espelhamento):</strong> a reflexão em torno do eixo vertical $y$ inverte $\mathbf{e}_1 \mapsto (-1, 0)^\top$ e fixa $\mathbf{e}_2 \mapsto (0, 1)^\top$, dando $\begin{pmatrix} -1 & 0 \\ 0 & 1 \end{pmatrix}$; já a reflexão pela diagonal $y = x$ troca os dois eixos ($\mathbf{e}_1 \leftrightarrow \mathbf{e}_2$), dando $\begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}$.</item>
+        <item><strong>Rotação anti-horária por ângulo $\theta$:</strong> pela Trigonometria do Módulo 1, girar $\mathbf{e}_1$ de comprimento $1$ por um ângulo $\theta$ leva-o para $(\cos\theta,\; \operatorname{sen}\theta)^\top$; girar $\mathbf{e}_2$ por $\theta$ (partindo de $90^\circ$ até $90^\circ + \theta$) leva-o para $(-\operatorname{sen}\theta,\; \cos\theta)^\top$:
+          <equation id="eq:5-2-rotacao">
+            \mathbf{R}_\theta = \begin{pmatrix} \cos\theta & -\operatorname{sen}\theta \\ \operatorname{sen}\theta & \cos\theta \end{pmatrix}.
+          </equation>
+        </item>
+        <item><strong>Cisalhamento (<em>shear</em>) horizontal de fator $k$:</strong> deixa $\mathbf{e}_1 \mapsto (1, 0)^\top$ fixo e inclina $\mathbf{e}_2 \mapsto (k, 1)^\top$:
+          $$\mathbf{C}_k = \begin{pmatrix} 1 & k \\ 0 & 1 \end{pmatrix}.$$
+        </item>
+        <item><strong>Projeção ortogonal no eixo horizontal $x$:</strong> mantém $\mathbf{e}_1 \mapsto (1, 0)^\top$ e esmaga $\mathbf{e}_2 \mapsto (0, 0)^\top$ na origem:
+          $$\mathbf{P}_x = \begin{pmatrix} 1 & 0 \\ 0 & 0 \end{pmatrix}.$$
+        </item>
+      </list>
+
+      E se aplicarmos <em>duas</em> transformações em sequência — primeiro $\mathbf{A}$ e depois $\mathbf{B}$? Como vimos no Tema 5.1, aplicar $\mathbf{A}$ em $\mathbf{x}$ dá $\mathbf{A}\mathbf{x}$, e aplicar $\mathbf{B}$ no resultado dá $\mathbf{B}(\mathbf{A}\mathbf{x}) = (\mathbf{B}\mathbf{A})\mathbf{x}$. Portanto, <strong>compor transformações equivale a multiplicar suas matrizes</strong> — e a ordem importa: a transformação aplicada primeiro fica à direita ($\mathbf{B}\mathbf{A}$ aplica $\mathbf{A}$ primeiro e $\mathbf{B}$ depois).
+
+      Quando transformamos a grade do plano, o quadrado unitário formado por $\mathbf{e}_1$ e $\mathbf{e}_2$ (de área $1$) vira um paralelogramo formado pelas colunas $\mathbf{A}\mathbf{e}_1$ e $\mathbf{A}\mathbf{e}_2$. Quanto a área desse quadrado cresceu ou encolheu? Quem mede isso exatamente é o <strong>determinante</strong> (<em>determinant</em>).
+
+      <definition id="def:5-2-determinante">
+        <title>Determinante 2×2 e interpretação geométrica</title>
+        Para uma matriz $\mathbf{A} = \begin{pmatrix} a & b \\ c & d \end{pmatrix}$, definimos seu <strong>determinante</strong> por:
+        <equation id="eq:5-2-det2x2">
+          \det\mathbf{A} = ad - bc.
+        </equation>
+        Geometricamente:
+        <list marker="dash">
+          <item><strong>Fator de escala de área:</strong> $|\det\mathbf{A}|$ é o fator pelo qual $\mathbf{A}$ multiplica a área de qualquer região do plano (o quadrado unitário de área $1$ vira um paralelogramo de área $|ad - bc|$).</item>
+          <item><strong>Sinal e orientação:</strong> se $\det\mathbf{A} > 0$, a orientação é preservada (o giro mais curto de $\mathbf{A}\mathbf{e}_1$ até $\mathbf{A}\mathbf{e}_2$ continua anti-horário); se $\det\mathbf{A} < 0$, a orientação é invertida (como ao olhar no espelho).</item>
+          <item><strong>Colapso de dimensão ($\det\mathbf{A} = 0$):</strong> ocorre se, e somente se, $\mathbf{A}\mathbf{e}_1$ e $\mathbf{A}\mathbf{e}_2$ são colineares (ou nulos), achatando o plano inteiro em uma reta ou em um único ponto — nesse caso a área vai a zero e perde-se informação irreversivelmente.</item>
+        </list>
+        <intuition>
+          Você já encontrou exatamente essa ideia no <strong>Tema 3.3 (Integrais múltiplas, Módulo 3)</strong>: ao mudar de coordenadas em uma integral dupla, o valor absoluto do determinante da matriz jacobiana, $|\det\mathbf{J}|$, aparece como fator corretivo porque mede quanto um quadradinho infinitesimal de área $du\,dv$ é esticado ou encolhido localmente pela transformação!
+        </intuition>
+      </definition>
+
+      A <ref to="fig:5-2-transformacao-plano"/> ilustra quatro transformações $2 \times 2$ lado a lado, destacando como as colunas da matriz governam o destino de $\mathbf{e}_1$ e $\mathbf{e}_2$ e como o determinante acompanha a área e a orientação do quadrado unitário.
+
+      <figure src="fig/transformacao-plano.svg" alt="Quatro painéis em grade 2 por 2 mostrando o quadrado unitário e os vetores e1 e e2 transformados: identidade com determinante 1, rotação de 45 graus com determinante 1, cisalhamento horizontal com determinante 1, e matriz de soma e diferença com determinante menos 2 invertendo a orientação" id="fig:5-2-transformacao-plano">
+        <caption>Quatro transformações do plano. Na identidade, na rotação de $45^\circ$ e no cisalhamento horizontal ($\det = 1$), a área do quadrado unitário e o sentido anti-horário de $\mathbf{e}_1$ para $\mathbf{e}_2$ são preservados. No último painel, a matriz de soma e diferença dobra a área e inverte a orientação ($\det = -2$).</caption>
+      </figure>
+
+      <example id="exm:5-2-arena-rato">
+        <title>Corrigindo coordenadas de uma câmera em experimento comportamental</title>
+        Um sistema de vídeo rastreia a posição de um camundongo em uma arena circular. A câmera está girada em $90^\circ$ no sentido anti-horário em relação aos eixos reais da sala, e cada eixo do vídeo precisa ser convertido para centímetros com escalas diferentes ($s_x = 2$ e $s_y = 3$).
+        <list marker="a">
+          <item>Escreva a matriz de rotação $\mathbf{R}_{90^\circ}$ e a matriz de escala $\mathbf{S}$.</item>
+          <item>Compare a composição "girar primeiro, escalar depois" ($\mathbf{S}\mathbf{R}_{90^\circ}$) com "escalar primeiro, girar depois" ($\mathbf{R}_{90^\circ}\mathbf{S}$) aplicando ambas ao ponto $\mathbf{p} = (1, 1)^\top$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Substituindo $\theta = 90^\circ$ ($\cos 90^\circ = 0$, $\operatorname{sen} 90^\circ = 1$) na <ref to="eq:5-2-rotacao"/>, e montando a escala diagonal:
+            $$\mathbf{R}_{90^\circ} = \begin{pmatrix} 0 & -1 \\ 1 & 0 \end{pmatrix}, \qquad \mathbf{S} = \begin{pmatrix} 2 & 0 \\ 0 & 3 \end{pmatrix}.$$
+          </item>
+          <item>Calculando os dois produtos:
+            $$\mathbf{S}\mathbf{R}_{90^\circ} = \begin{pmatrix} 2 & 0 \\ 0 & 3 \end{pmatrix}\begin{pmatrix} 0 & -1 \\ 1 & 0 \end{pmatrix} = \begin{pmatrix} 0 & -2 \\ 3 & 0 \end{pmatrix}, \qquad \mathbf{R}_{90^\circ}\mathbf{S} = \begin{pmatrix} 0 & -1 \\ 1 & 0 \end{pmatrix}\begin{pmatrix} 2 & 0 \\ 0 & 3 \end{pmatrix} = \begin{pmatrix} 0 & -3 \\ 2 & 0 \end{pmatrix}.$$
+            Aplicando ao ponto $\mathbf{p} = (1, 1)^\top$:
+            $$(\mathbf{S}\mathbf{R}_{90^\circ})\mathbf{p} = \begin{pmatrix} -2 \\ 3 \end{pmatrix}, \qquad (\mathbf{R}_{90^\circ}\mathbf{S})\mathbf{p} = \begin{pmatrix} -3 \\ 2 \end{pmatrix}.$$
+            A ordem importa! Ambas têm $\det = 0(0) - (-2)(3) = 6$, multiplicando áreas por $6$, mas trocam quanto é esticado na horizontal e na vertical.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:5-2-soma-diferenca-det">
+        <title>Modos de soma e diferença em dois neurônios e colapso de dimensão</title>
+        Na análise de dois neurônios com taxas $\mathbf{r} = (r_1, r_2)^\top$, é comum transformar as coordenadas individuais para o modo comum (soma) e o modo diferencial (diferença) por meio da matriz
+        $$\mathbf{M} = \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}.$$
+        <list marker="a">
+          <item>Aplique $\mathbf{M}$ a $\mathbf{r} = (20, 12)^\top\text{ Hz}$, calcule $\det\mathbf{M}$ e interprete o resultado geométrico (como no quarto painel da <ref to="fig:5-2-transformacao-plano"/>).</item>
+          <item>Compare $\mathbf{M}$ com uma matriz degenerada $\mathbf{D} = \begin{pmatrix} 1 & 2 \\ 2 & 4 \end{pmatrix}$: calcule $\det\mathbf{D}$ e mostre para onde $\mathbf{D}$ leva todos os vetores do plano.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Calculando $\mathbf{M}\mathbf{r}$:
+            $$\mathbf{M}\begin{pmatrix} 20 \\ 12 \end{pmatrix} = \begin{pmatrix} 20 + 12 \\ 20 - 12 \end{pmatrix} = \begin{pmatrix} 32 \\ 8 \end{pmatrix}\text{ Hz}.$$
+            A primeira coordenada ($32\text{ Hz}$) captura a atividade total do par e a segunda ($8\text{ Hz}$) mede o contraste entre os dois neurônios. O determinante vale:
+            $$\det\mathbf{M} = 1(-1) - 1(1) = -1 - 1 = -2.$$
+            Logo, $\mathbf{M}$ dobra as áreas ($|\det\mathbf{M}| = 2$) e inverte a orientação ($\det\mathbf{M} < 0$), como se vê no quarto painel da <ref to="fig:5-2-transformacao-plano"/>: $\mathbf{M}\mathbf{e}_1 = (1, 1)^\top$ e $\mathbf{M}\mathbf{e}_2 = (1, -1)^\top$ ficam em sentido horário.
+          </item>
+          <item>Para a matriz $\mathbf{D}$, temos:
+            $$\det\mathbf{D} = 1(4) - 2(2) = 4 - 4 = 0.$$
+            Como a segunda coluna $(2, 4)^\top$ é o dobro da primeira $(1, 2)^\top$, para qualquer $\mathbf{r} = (r_1, r_2)^\top$:
+            $$\mathbf{D}\mathbf{r} = r_1\begin{pmatrix} 1 \\ 2 \end{pmatrix} + r_2\begin{pmatrix} 2 \\ 4 \end{pmatrix} = (r_1 + 2r_2)\begin{pmatrix} 1 \\ 2 \end{pmatrix}.$$
+            Ou seja, $\mathbf{D}$ achata o plano inteiro sobre a única reta gerada por $(1, 2)^\top$ (a reta $y = 2x$). Qualquer região de área positiva colapsa para área zero.
+          </item>
+        </list>
+      </example>
+
+      <code lang="python" id="cod:5-2-transformacoes">
+import numpy as np
+
+# Composição: rotação de 90 graus e escala
+theta = np.deg2rad(90.0)
+R90 = np.array([[np.cos(theta), -np.sin(theta)],
+                [np.sin(theta),  np.cos(theta)]])
+S = np.array([[2.0, 0.0],
+              [0.0, 3.0]])
+p = np.array([1.0, 1.0])
+
+print("S @ R90 em p:", np.round(S @ R90 @ p, 3).tolist())  # saída: S @ R90 em p: [-2.0, 3.0]
+print("R90 @ S em p:", np.round(R90 @ S @ p, 3).tolist())  # saída: R90 @ S em p: [-3.0, 2.0]
+
+# Conferindo determinantes com np.linalg.det
+M = np.array([[1.0, 1.0], [1.0, -1.0]])
+D = np.array([[1.0, 2.0], [2.0, 4.0]])
+print(f"det(S @ R90) = {np.linalg.det(S @ R90):.3f}")     # saída: det(S @ R90) = 6.000
+print(f"det(M) = {np.linalg.det(M):.3f}")                 # saída: det(M) = -2.000
+print(f"det(D) = {np.linalg.det(D):.3f}")                 # saída: det(D) = 0.000
+      </code>
+
+      <remark id="rem:5-2-armadilha-comp">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Trocar a ordem ao compor transformações:</strong> para aplicar primeiro $\mathbf{A}$ e depois $\mathbf{B}$, o produto correto é $\mathbf{B}\mathbf{A}$ (leia da direita para a esquerda, perto do vetor $\mathbf{x}$), e nunca $\mathbf{A}\mathbf{B}$.</item>
+          <item><strong>Sinal do determinante $2 \times 2$ e significado de $\det < 0$:</strong> a fórmula é $ad - bc$ (diagonal principal menos diagonal secundária), nunca $ad + bc$. Além disso, um determinante negativo não significa "erro" nem "área negativa": a área cresce pelo fator $|\det\mathbf{A}|$, e o sinal negativo apenas avisa que a transformação espelhou a orientação do plano.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:5-2-3-1">
+        <title>Básico — Montando a matriz pelas imagens da base canônica</title>
+        Uma transformação linear $T: \mathbb{R}^2 \to \mathbb{R}^2$ leva $\mathbf{e}_1 = (1, 0)^\top$ em $(3, 1)^\top$ e $\mathbf{e}_2 = (0, 1)^\top$ em $(-1, 2)^\top$.
+        <list marker="a">
+          <item>Escreva a matriz $\mathbf{A}$ de $T$ e calcule $T\bigl((2, -3)^\top\bigr)$.</item>
+          <item>Calcule $\det\mathbf{A}$ e diga o que acontece com as áreas e com a orientação do plano.</item>
+        </list>
+        <hint><title>Ver dica</title>Pelo <ref to="thm:5-2-matriz-da-transf"/>, basta colocar $T(\mathbf{e}_1)$ como primeira coluna e $T(\mathbf{e}_2)$ como segunda coluna.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Colocando as imagens como colunas de $\mathbf{A}$:
+              $$\mathbf{A} = \begin{pmatrix} 3 & -1 \\ 1 & 2 \end{pmatrix}.$$
+              Aplicando em $(2, -3)^\top$:
+              $$T\!\begin{pmatrix} 2 \\ -3 \end{pmatrix} = \begin{pmatrix} 3 & -1 \\ 1 & 2 \end{pmatrix}\begin{pmatrix} 2 \\ -3 \end{pmatrix} = \begin{pmatrix} 3(2) + (-1)(-3) \\ 1(2) + 2(-3) \end{pmatrix} = \begin{pmatrix} 9 \\ -4 \end{pmatrix}.$$
+            </item>
+            <item>Calculando o determinante: $\det\mathbf{A} = 3(2) - (-1)(1) = 6 + 1 = 7$. A transformação multiplica todas as áreas por $7$ e preserva a orientação do plano ($\det\mathbf{A} > 0$).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-2-3-2">
+        <title>Básico — Alinhando coordenadas de rastreamento por rotação</title>
+        Um programa de vídeo registra a posição de um animal na arena como $\mathbf{p} = (2,\; 2\sqrt{3})^\top\text{ cm}$, mas o eixo horizontal da câmera está inclinado $+60^\circ$ em relação ao eixo real da arena. Para corrigir essa inclinação, giramos as coordenadas pelo ângulo $\theta = -60^\circ$.
+        <list marker="a">
+          <item>Monte a matriz de rotação $\mathbf{R}_{-60^\circ}$ usando $\cos(-60^\circ) = \frac{1}{2}$ e $\operatorname{sen}(-60^\circ) = -\frac{\sqrt{3}}{2}$.</item>
+          <item>Calcule a posição corrigida $\mathbf{p}' = \mathbf{R}_{-60^\circ}\mathbf{p}$, verifique que a distância até a origem ($\|\mathbf{p}\|$ e $\|\mathbf{p}'\|$) não mudou e calcule $\det\mathbf{R}_{-60^\circ}$.</item>
+        </list>
+        <hint><title>Ver dica</title>Substitua $\theta = -60^\circ$ diretamente na <ref to="eq:5-2-rotacao"/> cuidando dos sinais menos.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Substituindo na fórmula da rotação:
+              $$\mathbf{R}_{-60^\circ} = \begin{pmatrix} \cos(-60^\circ) & -\operatorname{sen}(-60^\circ) \\ \operatorname{sen}(-60^\circ) & \cos(-60^\circ) \end{pmatrix} = \begin{pmatrix} \frac{1}{2} & \frac{\sqrt{3}}{2} \\ -\frac{\sqrt{3}}{2} & \frac{1}{2} \end{pmatrix}.$$
+            </item>
+            <item>Multiplicando por $\mathbf{p} = (2,\; 2\sqrt{3})^\top$:
+              $$\mathbf{p}' = \begin{pmatrix} \frac{1}{2}(2) + \frac{\sqrt{3}}{2}(2\sqrt{3}) \\ -\frac{\sqrt{3}}{2}(2) + \frac{1}{2}(2\sqrt{3}) \end{pmatrix} = \begin{pmatrix} 1 + 3 \\ -\sqrt{3} + \sqrt{3} \end{pmatrix} = \begin{pmatrix} 4 \\ 0 \end{pmatrix}\text{ cm}.$$
+              Conferindo as normas: $\|\mathbf{p}\| = \sqrt{2^2 + (2\sqrt{3})^2} = \sqrt{4 + 12} = 4\text{ cm}$, idêntico a $\|\mathbf{p}'\| = 4\text{ cm}$ (rotações preservam distâncias). O determinante vale:
+              $$\det\mathbf{R}_{-60^\circ} = \left(\frac{1}{2}\right)\!\left(\frac{1}{2}\right) - \left(\frac{\sqrt{3}}{2}\right)\!\left(-\frac{\sqrt{3}}{2}\right) = \frac{1}{4} + \frac{3}{4} = 1,$$
+              confirmando que toda rotação preserva áreas e orientação.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-2-3-3">
+        <title>Intermediário — Ordem da composição entre reflexão e cisalhamento</title>
+        Sejam $\mathbf{F} = \begin{pmatrix} -1 & 0 \\ 0 & 1 \end{pmatrix}$ (reflexão no eixo vertical $y$) e $\mathbf{C} = \begin{pmatrix} 1 & 2 \\ 0 & 1 \end{pmatrix}$ (cisalhamento horizontal de fator $2$).
+        <list marker="a">
+          <item>Calcule as matrizes compostas $\mathbf{C}\mathbf{F}$ (refletir primeiro, cisalhar depois) e $\mathbf{F}\mathbf{C}$ (cisalhar primeiro, refletir depois), e aplique ambas ao ponto $\mathbf{v} = (1, 1)^\top$.</item>
+          <item>Calcule $\det\mathbf{F}$, $\det\mathbf{C}$, $\det(\mathbf{C}\mathbf{F})$ e $\det(\mathbf{F}\mathbf{C})$, verificando que $\det(\mathbf{A}\mathbf{B}) = (\det\mathbf{A})(\det\mathbf{B})$.</item>
+        </list>
+        <hint><title>Ver dica</title>Lembre que o fator à direita age primeiro sobre o vetor $\mathbf{v}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Multiplicando nas duas ordens:
+              $$\mathbf{C}\mathbf{F} = \begin{pmatrix} 1 & 2 \\ 0 & 1 \end{pmatrix}\begin{pmatrix} -1 & 0 \\ 0 & 1 \end{pmatrix} = \begin{pmatrix} -1 & 2 \\ 0 & 1 \end{pmatrix}, \qquad \mathbf{F}\mathbf{C} = \begin{pmatrix} -1 & 0 \\ 0 & 1 \end{pmatrix}\begin{pmatrix} 1 & 2 \\ 0 & 1 \end{pmatrix} = \begin{pmatrix} -1 & -2 \\ 0 & 1 \end{pmatrix}.$$
+              Aplicando a $\mathbf{v} = (1, 1)^\top$: $(\mathbf{C}\mathbf{F})\mathbf{v} = (-1 + 2,\; 1)^\top = (1, 1)^\top$, enquanto $(\mathbf{F}\mathbf{C})\mathbf{v} = (-1 - 2,\; 1)^\top = (-3, 1)^\top$.
+            </item>
+            <item>Temos $\det\mathbf{F} = (-1)(1) - 0 = -1$ e $\det\mathbf{C} = 1(1) - 0 = 1$. Para as compostas:
+              $$\det(\mathbf{C}\mathbf{F}) = (-1)(1) - 2(0) = -1, \qquad \det(\mathbf{F}\mathbf{C}) = (-1)(1) - (-2)(0) = -1.$$
+              Nos dois casos o resultado iguala $(\det\mathbf{F})(\det\mathbf{C}) = (-1)(1) = -1$: mesmo quando a ordem muda o formato final, o fator de distorção de área e orientação da composta é sempre o produto dos determinantes individuais.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-2-3-4">
+        <title>Avançado — Projeção neural que apaga dimensões versus preservação de área</title>
+        Considere duas matrizes de leitura aplicadas às taxas $\mathbf{r} = (r_1, r_2)^\top$ de um par de neurônios:
+        $$\mathbf{P} = \begin{pmatrix} 1/2 & 1/2 \\ 1/2 & 1/2 \end{pmatrix} \qquad \text{e} \qquad \mathbf{Q} = \begin{pmatrix} 2 & 1 \\ 1 & 1 \end{pmatrix}.$$
+        <list marker="a">
+          <item>Calcule $\det\mathbf{P}$ e $\det\mathbf{Q}$. Qual matriz colapsa o plano sobre uma reta e qual preserva áreas e orientação?</item>
+          <item>Mostre que $\mathbf{P}^2 = \mathbf{P}$ e explique o sentido geométrico dessa identidade. Em seguida, dê dois vetores de disparo distintos $\mathbf{r}_a \ne \mathbf{r}_b$ que geram exatamente a mesma saída $\mathbf{P}\mathbf{r}_a = \mathbf{P}\mathbf{r}_b$ e explique que informação neural foi perdida.</item>
+        </list>
+        <hint><title>Ver dica</title>Observe que $\mathbf{P}\mathbf{r}$ coloca a média $\frac{r_1 + r_2}{2}$ nas duas entradas; dois vetores com a mesma soma dão a mesma saída.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Temos $\det\mathbf{P} = \frac{1}{4} - \frac{1}{4} = 0$ e $\det\mathbf{Q} = 2(1) - 1(1) = 1$. Logo, $\mathbf{P}$ achata todo o plano sobre a reta $y_1 = y_2$, enquanto $\mathbf{Q}$ é invertível e preserva perfeitamente áreas e orientação ($\det\mathbf{Q} = 1$).</item>
+            <item>Calculando $\mathbf{P}^2 = \mathbf{P}\mathbf{P}$:
+              $$\mathbf{P}^2 = \begin{pmatrix} 1/2 & 1/2 \\ 1/2 & 1/2 \end{pmatrix}\begin{pmatrix} 1/2 & 1/2 \\ 1/2 & 1/2 \end{pmatrix} = \begin{pmatrix} 1/4 + 1/4 & 1/4 + 1/4 \\ 1/4 + 1/4 & 1/4 + 1/4 \end{pmatrix} = \begin{pmatrix} 1/2 & 1/2 \\ 1/2 & 1/2 \end{pmatrix} = \mathbf{P}.$$
+              Geometricamente, $\mathbf{P}$ é uma projeção ortogonal sobre a reta $y_1 = y_2$: projetar uma segunda vez um ponto que já caiu sobre a reta não o move de lugar. Tomando, por exemplo, $\mathbf{r}_a = (20, 10)^\top\text{ Hz}$ e $\mathbf{r}_b = (15, 15)^\top\text{ Hz}$, obtemos em ambos os casos $\mathbf{P}\mathbf{r}_a = \mathbf{P}\mathbf{r}_b = (15, 15)^\top\text{ Hz}$. Como $\mathbf{P}$ retém apenas a média populacional $\frac{r_1 + r_2}{2}$, toda informação sobre a diferença $r_1 - r_2$ entre os dois neurônios foi destruída e não pode ser recuperada a partir da saída.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:5-2-4">
+      <eyebrow>Seção 4</eyebrow>
+      <title>Matriz inversa e a mistura de fontes no EEG</title>
+      <intro>
+        Se uma matriz $\mathbf{A}$ transforma causas $\mathbf{s}$ em medições $\mathbf{x} = \mathbf{A}\mathbf{s}$, a matriz inversa $\mathbf{A}^{-1}$ é o botão de "desfazer" que reconstrói $\mathbf{s}$ a partir de $\mathbf{x}$ — exatamente o que acontece quando tentamos separar fontes corticais misturadas em eletrodos de EEG.
+      </intro>
+
+      Pense em uma transformação linear quadrada $\mathbf{A} \in \mathbb{R}^{n \times n}$ que leva o plano em si mesmo sem achatá-lo em uma reta ($\det\mathbf{A} \ne 0$). Como nenhum par de entradas distintas colidiu na mesma saída, existe uma transformação contrária que devolve cada ponto exatamente ao seu lugar de origem. Chamamos essa matriz contrária de <strong>matriz inversa</strong> (<em>inverse matrix</em>).
+
+      <definition id="def:5-2-inversa">
+        <title>Matriz inversa</title>
+        Dizemos que uma matriz quadrada $\mathbf{A} \in \mathbb{R}^{n \times n}$ é <strong>invertível</strong> (ou <strong>não singular</strong>) quando existe uma matriz $\mathbf{A}^{-1} \in \mathbb{R}^{n \times n}$, chamada <strong>inversa</strong> de $\mathbf{A}$, tal que:
+        <equation id="eq:5-2-def-inversa">
+          \mathbf{A}\mathbf{A}^{-1} = \mathbf{A}^{-1}\mathbf{A} = \mathbf{I}_n,
+        </equation>
+        onde $\mathbf{I}_n$ é a matriz identidade de ordem $n$. Quando não existe tal matriz, dizemos que $\mathbf{A}$ é <strong>singular</strong> (ou não invertível).
+        <intuition>
+          Se $\mathbf{A}$ gira o plano por $+45^\circ$, sua inversa $\mathbf{A}^{-1}$ gira por $-45^\circ$; se $\mathbf{A}$ estica os eixos por $2$, $\mathbf{A}^{-1}$ encolhe por $\frac{1}{2}$. Aplicar uma depois da outra equivale a não fazer nada ($\mathbf{I}_n$). Por outro lado, se $\mathbf{A}$ achatou o plano em uma reta ($\det\mathbf{A} = 0$), infinitos pontos caíram em cima do mesmo ponto na reta, e não há "Ctrl+Z" capaz de adivinhar de onde cada um veio.
+        </intuition>
+      </definition>
+
+      Para matrizes $2 \times 2$, há uma fórmula fechada simples para construir $\mathbf{A}^{-1}$ — e ela confirma imediatamente a conexão vital com o determinante.
+
+      <theorem id="thm:5-2-inversa-2x2">
+        <title>Critério e fórmula da inversa 2×2</title>
+        Seja $\mathbf{A} = \begin{pmatrix} a & b \\ c & d \end{pmatrix}$. A matriz $\mathbf{A}$ é invertível se, e somente se, $\det\mathbf{A} = ad - bc \ne 0$. Nesse caso, sua inversa é dada por:
+        <equation id="eq:5-2-inversa-2x2">
+          \mathbf{A}^{-1} = \frac{1}{ad - bc}\begin{pmatrix} d & -b \\ -c & a \end{pmatrix}.
+        </equation>
+      </theorem>
+      <proof of="thm:5-2-inversa-2x2" collapsible="true" collapsed="true">
+        Se $ad - bc \ne 0$, definimos $\mathbf{B} = \frac{1}{ad - bc}\begin{pmatrix} d & -b \\ -c & a \end{pmatrix}$ e multiplicamos pelas duas ordens:
+        $$\mathbf{A}\mathbf{B} = \frac{1}{ad - bc}\begin{pmatrix} a & b \\ c & d \end{pmatrix}\begin{pmatrix} d & -b \\ -c & a \end{pmatrix} = \frac{1}{ad - bc}\begin{pmatrix} ad - bc & -ab + ba \\ cd - dc & -cb + da \end{pmatrix} = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix} = \mathbf{I}_2,$$
+        $$\mathbf{B}\mathbf{A} = \frac{1}{ad - bc}\begin{pmatrix} d & -b \\ -c & a \end{pmatrix}\begin{pmatrix} a & b \\ c & d \end{pmatrix} = \frac{1}{ad - bc}\begin{pmatrix} da - bc & db - bd \\ -ca + ac & -cb + ad \end{pmatrix} = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix} = \mathbf{I}_2.$$
+        Logo $\mathbf{B} = \mathbf{A}^{-1}$. Reciprocamente, se $ad - bc = 0$, as colunas de $\mathbf{A}$ são proporcionais e $\mathbf{A}\mathbf{x}$ nunca atinge todo o $\mathbb{R}^2$ (se $\mathbf{A}$ tivesse inversa $\mathbf{A}^{-1}$, então para todo $\mathbf{y} \in \mathbb{R}^2$ valeria $\mathbf{A}(\mathbf{A}^{-1}\mathbf{y}) = \mathbf{y}$, o que é impossível quando todas as saídas de $\mathbf{A}$ estão presas numa reta ou na origem).
+      </proof>
+
+      Repare no truque mnemônico da <ref to="eq:5-2-inversa-2x2"/>: trocam-se os elementos da diagonal principal ($a \leftrightarrow d$), inverte-se o sinal da diagonal secundária ($b \mapsto -b$, $c \mapsto -c$) e divide-se tudo por $\det\mathbf{A} = ad - bc$.
+
+      <proposition id="prop:5-2-prop-inversa">
+        <title>Propriedades da matriz inversa e solução de sistemas</title>
+        Se $\mathbf{A}$ e $\mathbf{B}$ são matrizes $n \times n$ invertíveis:
+        <list marker="number">
+          <item><strong>Unicidade:</strong> a inversa $\mathbf{A}^{-1}$ é única;</item>
+          <item><strong>Inversa da inversa:</strong> $(\mathbf{A}^{-1})^{-1} = \mathbf{A}$;</item>
+          <item><strong>Inversa do produto (ordem invertida):</strong> $(\mathbf{A}\mathbf{B})^{-1} = \mathbf{B}^{-1}\mathbf{A}^{-1}$;</item>
+          <item><strong>Solução de $\mathbf{A}\mathbf{x} = \mathbf{b}$:</strong> multiplicando os dois lados à esquerda por $\mathbf{A}^{-1}$, obtemos a solução única $\mathbf{x} = \mathbf{A}^{-1}\mathbf{b}$. Da mesma forma, para várias colunas reunidas numa matriz $\mathbf{X} = \mathbf{A}\mathbf{S}$, recuperamos todas de uma vez por $\mathbf{S} = \mathbf{A}^{-1}\mathbf{X}$.</item>
+        </list>
+        <intuition>
+          Por que $(\mathbf{A}\mathbf{B})^{-1}$ inverte a ordem para $\mathbf{B}^{-1}\mathbf{A}^{-1}$? Pense na analogia de calçar meias e sapatos (ou aplicar $\mathbf{B}$ e depois $\mathbf{A}$): para desfazer, você precisa primeiro tirar os sapatos ($\mathbf{A}^{-1}$) e só depois tirar as meias ($\mathbf{B}^{-1}$). De fato, $(\mathbf{A}\mathbf{B})(\mathbf{B}^{-1}\mathbf{A}^{-1}) = \mathbf{A}(\mathbf{B}\mathbf{B}^{-1})\mathbf{A}^{-1} = \mathbf{A}\mathbf{I}\mathbf{A}^{-1} = \mathbf{I}$.
+        </intuition>
+      </proposition>
+
+      <box type="note">
+        <title>Na prática computacional, use solve e não inv</title>
+        Embora escrever $\mathbf{x} = \mathbf{A}^{-1}\mathbf{b}$ seja excelente para pensar e deduzir fórmulas, em computação científica (especialmente para matrizes grandes) <strong>não</strong> calculamos <c>np.linalg.inv(A) @ b</c>. Em vez disso, chamamos <c>np.linalg.solve(A, b)</c>, que resolve o sistema por fatoração/eliminação direta — sendo mais rápido e numericamente mais preciso.
+      </box>
+
+      Agora vamos ao problema central da neurociência de sistemas nesta seção: a <strong>mistura de fontes no EEG</strong>. Quando populações neuronais no córtex geram correntes elétricas sincrônicas, os campos elétricos propagam-se através do tecido cerebral, do líquor, do crânio e do couro cabeludo pelo fenômeno físico chamado <strong>condução de volume</strong> (<em>volume conduction</em>). Nas frequências usuais do EEG, essa propagação é praticamente instantânea e linear: cada eletrodo colocado no couro cabeludo registra uma soma ponderada da atividade de diversas fontes corticais subjacentes.
+
+      Organizando as atividades de $K$ fontes no instante $t$ no vetor $\mathbf{s}(t) \in \mathbb{R}^K$ e as medições nos $M$ eletrodos em $\mathbf{x}(t) \in \mathbb{R}^M$, o modelo físico da gravação é:
+      <equation id="eq:5-2-eeg-mistura">
+        \mathbf{x}(t) = \mathbf{A}\,\mathbf{s}(t),
+      </equation>
+      em que $\mathbf{A} \in \mathbb{R}^{M \times K}$ é a <strong>matriz de mistura</strong> (<em>mixing matrix</em>, eletrodos × fontes). Como vimos no Tema 5.1, empilhando todos os $T$ instantes da gravação lado a lado nas matrizes de dados $\mathbf{S} \in \mathbb{R}^{K \times T}$ e $\mathbf{X} \in \mathbb{R}^{M \times T}$, a mistura da gravação inteira escreve-se em uma única linha:
+      $$\mathbf{X} = \mathbf{A}\mathbf{S}.$$
+      No caso ideal em que há o mesmo número de eletrodos e fontes ($M = K$) e a matriz $\mathbf{A}$ é conhecida e invertível, desmisturamos todos os instantes simultaneamente calculando $\mathbf{S} = \mathbf{A}^{-1}\mathbf{X}$.
+
+      Com honestidade científica, vale destacar duas limitações reais: na prática clínica e experimental, a matriz $\mathbf{A}$ quase nunca é conhecida com precisão exata e costuma haver muito mais fontes corticais ou artefatos do que eletrodos no couro cabeludo. Para enfrentar o caso em que $\mathbf{A}$ é desconhecida, a análise de EEG utiliza métodos avançados como a análise de componentes independentes (<em>Independent Component Analysis</em>, ICA), que estima a matriz de desmistura a partir de propriedades estatísticas dos sinais — assunto que vai além deste módulo introdutório.
+
+      <example id="exm:5-2-inversa-comp">
+        <title>Inversa 2×2 e verificação da inversa do produto</title>
+        Dadas as matrizes $\mathbf{A} = \begin{pmatrix} 2 & 1 \\ 1 & 1 \end{pmatrix}$ e $\mathbf{B} = \begin{pmatrix} 1 & 2 \\ 0 & 1 \end{pmatrix}$:
+        <list marker="a">
+          <item>Calcule $\mathbf{A}^{-1}$ e $\mathbf{B}^{-1}$, conferindo $\mathbf{A}\mathbf{A}^{-1} = \mathbf{I}_2$.</item>
+          <item>Calcule $\mathbf{A}\mathbf{B}$, encontre $(\mathbf{A}\mathbf{B})^{-1}$ diretamente pela fórmula $2 \times 2$ e verifique que $(\mathbf{A}\mathbf{B})^{-1} = \mathbf{B}^{-1}\mathbf{A}^{-1} \ne \mathbf{A}^{-1}\mathbf{B}^{-1}$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Como $\det\mathbf{A} = 2(1) - 1(1) = 1$ e $\det\mathbf{B} = 1(1) - 2(0) = 1$, pela <ref to="eq:5-2-inversa-2x2"/>:
+            $$\mathbf{A}^{-1} = \frac{1}{1}\begin{pmatrix} 1 & -1 \\ -1 & 2 \end{pmatrix} = \begin{pmatrix} 1 & -1 \\ -1 & 2 \end{pmatrix}, \qquad \mathbf{B}^{-1} = \frac{1}{1}\begin{pmatrix} 1 & -2 \\ 0 & 1 \end{pmatrix} = \begin{pmatrix} 1 & -2 \\ 0 & 1 \end{pmatrix}.$$
+            <em>Conferência:</em> $\mathbf{A}\mathbf{A}^{-1} = \begin{pmatrix} 2(1)+1(-1) & 2(-1)+1(2) \\ 1(1)+1(-1) & 1(-1)+1(2) \end{pmatrix} = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix} = \mathbf{I}_2$.
+          </item>
+          <item>Multiplicando $\mathbf{A}\mathbf{B}$:
+            $$\mathbf{A}\mathbf{B} = \begin{pmatrix} 2 & 1 \\ 1 & 1 \end{pmatrix}\begin{pmatrix} 1 & 2 \\ 0 & 1 \end{pmatrix} = \begin{pmatrix} 2 & 5 \\ 1 & 3 \end{pmatrix}.$$
+            Como $\det(\mathbf{A}\mathbf{B}) = 2(3) - 5(1) = 1$, temos $(\mathbf{A}\mathbf{B})^{-1} = \begin{pmatrix} 3 & -5 \\ -1 & 2 \end{pmatrix}$. Calculando na ordem invertida:
+            $$\mathbf{B}^{-1}\mathbf{A}^{-1} = \begin{pmatrix} 1 & -2 \\ 0 & 1 \end{pmatrix}\begin{pmatrix} 1 & -1 \\ -1 & 2 \end{pmatrix} = \begin{pmatrix} 1 + 2 & -1 - 4 \\ -1 & 2 \end{pmatrix} = \begin{pmatrix} 3 & -5 \\ -1 & 2 \end{pmatrix} = (\mathbf{A}\mathbf{B})^{-1}.$$
+            Já na ordem errada, $\mathbf{A}^{-1}\mathbf{B}^{-1} = \begin{pmatrix} 1 & -1 \\ -1 & 2 \end{pmatrix}\begin{pmatrix} 1 & -2 \\ 0 & 1 \end{pmatrix} = \begin{pmatrix} 1 & -3 \\ -1 & 4 \end{pmatrix} \ne (\mathbf{A}\mathbf{B})^{-1}$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:5-2-eeg-desmistura">
+        <title>Desmisturando duas fontes corticais em eletrodos de EEG</title>
+        Dois eletrodos no couro cabeludo registram a mistura $\mathbf{x}(t) = \mathbf{A}\mathbf{s}(t)$ de duas fontes corticais (por exemplo, um gerador occipital de ritmo alfa e um gerador central de faixa beta) segundo a matriz de mistura:
+        $$\mathbf{A} = \begin{pmatrix} 0{,}8 & 0{,}4 \\ 0{,}2 & 0{,}6 \end{pmatrix}.$$
+        <list marker="a">
+          <item>Calcule $\det\mathbf{A}$ e obtenha a matriz de desmistura $\mathbf{A}^{-1}$, conferindo $\mathbf{A}\mathbf{A}^{-1} = \mathbf{I}_2$.</item>
+          <item>Durante $3$ instantes consecutivos, os eletrodos mediram a matriz $\mathbf{X} = \begin{pmatrix} 10 & 14 & -2 \\ 5 & 1 & 7 \end{pmatrix}\;\mu\text{V}$. Reconstrua a matriz de atividade das fontes corticais $\mathbf{S} = \mathbf{A}^{-1}\mathbf{X}$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Calculando o determinante:
+            $$\det\mathbf{A} = (0{,}8)(0{,}6) - (0{,}4)(0{,}2) = 0{,}48 - 0{,}08 = 0{,}4 \ne 0.$$
+            Como $\frac{1}{0{,}4} = 2{,}5$, aplicamos a <ref to="eq:5-2-inversa-2x2"/>:
+            $$\mathbf{A}^{-1} = \frac{1}{0{,}4}\begin{pmatrix} 0{,}6 & -0{,}4 \\ -0{,}2 & 0{,}8 \end{pmatrix} = 2{,}5\begin{pmatrix} 0{,}6 & -0{,}4 \\ -0{,}2 & 0{,}8 \end{pmatrix} = \begin{pmatrix} 1{,}5 & -1{,}0 \\ -0{,}5 & 2{,}0 \end{pmatrix}.$$
+            <em>Conferência:</em>
+            $$\mathbf{A}\mathbf{A}^{-1} = \begin{pmatrix} 0{,}8(1{,}5) + 0{,}4(-0{,}5) & 0{,}8(-1{,}0) + 0{,}4(2{,}0) \\ 0{,}2(1{,}5) + 0{,}6(-0{,}5) & 0{,}2(-1{,}0) + 0{,}6(2{,}0) \end{pmatrix} = \begin{pmatrix} 1{,}2 - 0{,}2 & -0{,}8 + 0{,}8 \\ 0{,}3 - 0{,}3 & -0{,}2 + 1{,}2 \end{pmatrix} = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}.$$
+          </item>
+          <item>Multiplicamos $\mathbf{A}^{-1}$ pela matriz $\mathbf{X}$ inteira (desmisturando todos os $3$ instantes de uma só vez):
+            $$\mathbf{S} = \begin{pmatrix} 1{,}5 & -1{,}0 \\ -0{,}5 & 2{,}0 \end{pmatrix}\begin{pmatrix} 10 & 14 & -2 \\ 5 & 1 & 7 \end{pmatrix} = \begin{pmatrix} 15 - 5 & 21 - 1 & -3 - 7 \\ -5 + 10 & -7 + 2 & 1 + 14 \end{pmatrix} = \begin{pmatrix} 10 & 20 & -10 \\ 5 & -5 & 15 \end{pmatrix}\;\mu\text{V}.$$
+            Assim, no instante $t = 2$, por exemplo, a fonte $1$ estava em $+20\;\mu\text{V}$ e a fonte $2$ em $-5\;\mu\text{V}$, embora ambos os eletrodos registrassem valores positivos ($+14$ e $+1\;\mu\text{V}$).
+          </item>
+        </list>
+      </example>
+
+      No código abaixo, além de conferir o <ref to="exm:5-2-eeg-desmistura"/>, simulamos um segundo de gravação sintética de EEG a $250\text{ Hz}$ misturando um ritmo alfa ($10\text{ Hz}$) e um ritmo beta ($20\text{ Hz}$), e recuperamos todas as $250$ amostras de uma vez usando <c>np.linalg.solve</c>.
+
+      <code lang="python" id="cod:5-2-eeg">
+import numpy as np
+
+# 1) Desmistura de EEG (3 instantes à mão)
+A = np.array([[0.8, 0.4],
+              [0.2, 0.6]])
+X_amostra = np.array([[10.0, 14.0, -2.0],
+                      [ 5.0,  1.0,  7.0]])
+
+print("Inversa A^{-1}:", np.round(np.linalg.inv(A), 3).tolist())  # saída: Inversa A^{-1}: [[1.5, -1.0], [-0.5, 2.0]]
+S_amostra = np.linalg.solve(A, X_amostra)
+print("Fontes reconstruídas:", np.round(S_amostra, 3).tolist())  # saída: Fontes reconstruídas: [[10.0, 20.0, -10.0], [5.0, -5.0, 15.0]]
+
+# 2) Simulação contínua: 1 segundo a 250 Hz com ritmo alfa (10 Hz) e beta (20 Hz)
+t = np.linspace(0.0, 1.0, 250, endpoint=False)
+s1_alfa = 20.0 * np.sin(2.0 * np.pi * 10.0 * t)  # fonte 1: oscilação alfa (uV)
+s2_beta = 10.0 * np.cos(2.0 * np.pi * 20.0 * t)  # fonte 2: oscilação beta (uV)
+S = np.vstack([s1_alfa, s2_beta])                # matriz fontes x tempo (2 x 250)
+
+# Mistura nos eletrodos e desmistura direta com np.linalg.solve
+X = A @ S
+S_rec = np.linalg.solve(A, X)
+print("Recuperação exata (allclose):", np.allclose(S, S_rec))  # saída: Recuperação exata (allclose): True
+      </code>
+
+      <remark id="rem:5-2-armadilha-inversa">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Achar que toda matriz quadrada tem inversa:</strong> só existe $\mathbf{A}^{-1}$ quando $\det\mathbf{A} \ne 0$. Se $\det\mathbf{A} = 0$, a fórmula $1/(ad-bc)$ divide por zero porque a transformação colapsou dimensões.</item>
+          <item><strong>Calcular $\mathbf{A}^{-1}\mathbf{b}$ quando basta resolver o sistema:</strong> no código, prefira sempre <c>np.linalg.solve(A, b)</c> em vez de <c>np.linalg.inv(A) @ b</c>, especialmente em sistemas maiores.</item>
+          <item><strong>Matriz quase singular amplifica ruído:</strong> se dois eletrodos de EEG ficam quase colados, eles registram misturas quase idênticas das fontes e $\det\mathbf{A}$ fica muito perto de zero (por exemplo, $0{,}01$). Como $\mathbf{A}^{-1}$ divide tudo por $\det\mathbf{A}$, qualquer pequeno ruído de sensor é multiplicado por dezenas ou centenas de vezes, corrompendo as fontes reconstruídas (como você verá no <ref to="exr:5-2-4-4"/>).</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:5-2-4-1">
+        <title>Básico — Invertibilidade e cálculo da inversa 2×2</title>
+        Para cada matriz abaixo, calcule o determinante, decida se ela é invertível e, quando for, determine sua inversa e confira calculando $\mathbf{M}\mathbf{M}^{-1}$:
+        <list marker="a">
+          <item>$\mathbf{A} = \begin{pmatrix} 4 & 2 \\ 3 & 2 \end{pmatrix}$</item>
+          <item>$\mathbf{B} = \begin{pmatrix} 6 & -3 \\ -4 & 2 \end{pmatrix}$</item>
+        </list>
+        <hint><title>Ver dica</title>Use a <ref to="eq:5-2-inversa-2x2"/>: calcule $ad - bc$ primeiro; se for zero, a matriz é singular.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Temos $\det\mathbf{A} = 4(2) - 2(3) = 8 - 6 = 2 \ne 0$; logo $\mathbf{A}$ é invertível. Aplicando a fórmula $2 \times 2$:
+              $$\mathbf{A}^{-1} = \frac{1}{2}\begin{pmatrix} 2 & -2 \\ -3 & 4 \end{pmatrix} = \begin{pmatrix} 1 & -1 \\ -3/2 & 2 \end{pmatrix}.$$
+              <em>Conferência:</em>
+              $$\mathbf{A}\mathbf{A}^{-1} = \begin{pmatrix} 4(1) + 2(-3/2) & 4(-1) + 2(2) \\ 3(1) + 2(-3/2) & 3(-1) + 2(2) \end{pmatrix} = \begin{pmatrix} 4 - 3 & -4 + 4 \\ 3 - 3 & -3 + 4 \end{pmatrix} = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}.$$
+            </item>
+            <item>Temos $\det\mathbf{B} = 6(2) - (-3)(-4) = 12 - 12 = 0$. Portanto, $\mathbf{B}$ é singular (não possui inversa).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-2-4-2">
+        <title>Básico — Desmistura em dois eletrodos de EEG</title>
+        Suponha que dois eletrodos de EEG registram duas fontes corticais segundo $\mathbf{x}(t) = \mathbf{A}\mathbf{s}(t)$ com matriz de mistura
+        $$\mathbf{A} = \begin{pmatrix} 0{,}9 & 0{,}3 \\ 0{,}1 & 0{,}7 \end{pmatrix}.$$
+        <list marker="a">
+          <item>Calcule $\det\mathbf{A}$ e escreva a matriz inversa $\mathbf{A}^{-1}$.</item>
+          <item>Em $3$ instantes, os eletrodos registraram $\mathbf{X} = \begin{pmatrix} 15 & 9 & -3 \\ 5 & 7 & 11 \end{pmatrix}\;\mu\text{V}$. Recupere a matriz de fontes $\mathbf{S} = \mathbf{A}^{-1}\mathbf{X}$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), note que $\frac{1}{0{,}6} = \frac{10}{6}$; multiplicar por $10$ antes de dividir por $6$ deixa todas as entradas da matriz como inteiros simples.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>O determinante é $\det\mathbf{A} = (0{,}9)(0{,}7) - (0{,}3)(0{,}1) = 0{,}63 - 0{,}03 = 0{,}6$. Pela fórmula da inversa:
+              $$\mathbf{A}^{-1} = \frac{1}{0{,}6}\begin{pmatrix} 0{,}7 & -0{,}3 \\ -0{,}1 & 0{,}9 \end{pmatrix} = \frac{1}{6}\begin{pmatrix} 7 & -3 \\ -1 & 9 \end{pmatrix}.$$
+            </item>
+            <item>Multiplicando $\mathbf{A}^{-1}$ por $\mathbf{X}$:
+              $$\mathbf{S} = \frac{1}{6}\begin{pmatrix} 7 & -3 \\ -1 & 9 \end{pmatrix}\begin{pmatrix} 15 & 9 & -3 \\ 5 & 7 & 11 \end{pmatrix} = \frac{1}{6}\begin{pmatrix} 105 - 15 & 63 - 21 & -21 - 33 \\ -15 + 45 & -9 + 63 & 3 + 99 \end{pmatrix} = \frac{1}{6}\begin{pmatrix} 90 & 42 & -54 \\ 30 & 54 & 102 \end{pmatrix} = \begin{pmatrix} 15 & 7 & -9 \\ 5 & 9 & 17 \end{pmatrix}\;\mu\text{V}.$$
+              <em>Conferência no instante $3$:</em> $0{,}9(-9) + 0{,}3(17) = -8{,}1 + 5{,}1 = -3\;\mu\text{V}$ e $0{,}1(-9) + 0{,}7(17) = -0{,}9 + 11{,}9 = 11\;\mu\text{V}$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-2-4-3">
+        <title>Intermediário — Inversa do produto e resolução de sistema composto</title>
+        Sejam $\mathbf{P} = \begin{pmatrix} 1 & 3 \\ 0 & 1 \end{pmatrix}$ e $\mathbf{Q} = \begin{pmatrix} 2 & 1 \\ 1 & 1 \end{pmatrix}$.
+        <list marker="a">
+          <item>Calcule $\mathbf{P}^{-1}$ e $\mathbf{Q}^{-1}$, e verifique diretamente que $(\mathbf{P}\mathbf{Q})^{-1} = \mathbf{Q}^{-1}\mathbf{P}^{-1}$.</item>
+          <item>Use $(\mathbf{P}\mathbf{Q})^{-1}$ para resolver o sistema $(\mathbf{P}\mathbf{Q})\mathbf{x} = \begin{pmatrix} 17 \\ 5 \end{pmatrix}$ e confira o resultado.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), calcule o produto $\mathbf{P}\mathbf{Q}$ primeiro, aplique a fórmula $2 \times 2$ para achar $(\mathbf{P}\mathbf{Q})^{-1}$ e compare com $\mathbf{Q}^{-1}\mathbf{P}^{-1}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como $\det\mathbf{P} = 1$ e $\det\mathbf{Q} = 2 - 1 = 1$, temos:
+              $$\mathbf{P}^{-1} = \begin{pmatrix} 1 & -3 \\ 0 & 1 \end{pmatrix}, \qquad \mathbf{Q}^{-1} = \begin{pmatrix} 1 & -1 \\ -1 & 2 \end{pmatrix}.$$
+              Calculando $\mathbf{P}\mathbf{Q}$:
+              $$\mathbf{P}\mathbf{Q} = \begin{pmatrix} 1(2) + 3(1) & 1(1) + 3(1) \\ 0(2) + 1(1) & 0(1) + 1(1) \end{pmatrix} = \begin{pmatrix} 5 & 4 \\ 1 & 1 \end{pmatrix}.$$
+              Como $\det(\mathbf{P}\mathbf{Q}) = 5 - 4 = 1$, segue $(\mathbf{P}\mathbf{Q})^{-1} = \begin{pmatrix} 1 & -4 \\ -1 & 5 \end{pmatrix}$. Conferindo pela regra do produto invertido:
+              $$\mathbf{Q}^{-1}\mathbf{P}^{-1} = \begin{pmatrix} 1 & -1 \\ -1 & 2 \end{pmatrix}\begin{pmatrix} 1 & -3 \\ 0 & 1 \end{pmatrix} = \begin{pmatrix} 1 & -4 \\ -1 & 5 \end{pmatrix} = (\mathbf{P}\mathbf{Q})^{-1}.$$
+            </item>
+            <item>Multiplicando $(\mathbf{P}\mathbf{Q})^{-1}$ pelo vetor dado:
+              $$\mathbf{x} = \begin{pmatrix} 1 & -4 \\ -1 & 5 \end{pmatrix}\begin{pmatrix} 17 \\ 5 \end{pmatrix} = \begin{pmatrix} 17 - 20 \\ -17 + 25 \end{pmatrix} = \begin{pmatrix} -3 \\ 8 \end{pmatrix}.$$
+              <em>Conferência:</em> $\begin{pmatrix} 5 & 4 \\ 1 & 1 \end{pmatrix}\begin{pmatrix} -3 \\ 8 \end{pmatrix} = \begin{pmatrix} -15 + 32 \\ -3 + 8 \end{pmatrix} = \begin{pmatrix} 17 \\ 5 \end{pmatrix}$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-2-4-4">
+        <title>Avançado — Eletrodos próximos e amplificação de ruído</title>
+        Suponha que dois eletrodos de EEG estão posicionados muito próximos um do outro no couro cabeludo, captando quase a mesma mistura de duas fontes corticais:
+        $$\mathbf{A} = \begin{pmatrix} 0{,}50 & 0{,}50 \\ 0{,}49 & 0{,}51 \end{pmatrix}.$$
+        <list marker="a">
+          <item>Calcule $\det\mathbf{A}$ e encontre a matriz inversa $\mathbf{A}^{-1}$.</item>
+          <item>Se a atividade verdadeira das fontes for $\mathbf{s} = (20, 10)^\top\;\mu\text{V}$, calcule a leitura sem ruído $\mathbf{x}_{\text{limpo}} = \mathbf{A}\mathbf{s}$.</item>
+          <item>Agora suponha que um pequeno ruído eletrônico adicione $\boldsymbol{\varepsilon} = (0{,}5;\; -0{,}5)^\top\;\mu\text{V}$ às medições ($\mathbf{x}_{\text{medido}} = \mathbf{x}_{\text{limpo}} + \boldsymbol{\varepsilon}$). Calcule as fontes reconstruídas $\hat{\mathbf{s}} = \mathbf{A}^{-1}\mathbf{x}_{\text{medido}}$, compare a norma do erro $\|\hat{\mathbf{s}} - \mathbf{s}\|$ com a norma do ruído $\|\boldsymbol{\varepsilon}\|$ e explique por que eletrodos quase redundantes tornam a desmistura frágil.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (c), pela linearidade de $\mathbf{A}^{-1}$, o erro na reconstrução vale exatamente $\hat{\mathbf{s}} - \mathbf{s} = \mathbf{A}^{-1}\boldsymbol{\varepsilon}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Calculando o determinante:
+              $$\det\mathbf{A} = (0{,}50)(0{,}51) - (0{,}50)(0{,}49) = 0{,}50(0{,}51 - 0{,}49) = 0{,}50(0{,}02) = 0{,}01.$$
+              Dividindo por $0{,}01$ (isto é, multiplicando por $100$):
+              $$\mathbf{A}^{-1} = 100\begin{pmatrix} 0{,}51 & -0{,}50 \\ -0{,}49 & 0{,}50 \end{pmatrix} = \begin{pmatrix} 51 & -50 \\ -49 & 50 \end{pmatrix}.$$
+            </item>
+            <item>A medição sem ruído seria:
+              $$\mathbf{x}_{\text{limpo}} = \begin{pmatrix} 0{,}50(20) + 0{,}50(10) \\ 0{,}49(20) + 0{,}51(10) \end{pmatrix} = \begin{pmatrix} 10 + 5 \\ 9{,}8 + 5{,}1 \end{pmatrix} = \begin{pmatrix} 15{,}0 \\ 14{,}9 \end{pmatrix}\;\mu\text{V}.$$
+            </item>
+            <item>Com o ruído, temos $\mathbf{x}_{\text{medido}} = (15{,}5;\; 14{,}4)^\top\;\mu\text{V}$. Aplicando $\mathbf{A}^{-1}$:
+              $$\hat{\mathbf{s}} = \begin{pmatrix} 51(15{,}5) - 50(14{,}4) \\ -49(15{,}5) + 50(14{,}4) \end{pmatrix} = \begin{pmatrix} 790{,}5 - 720{,}0 \\ -759{,}5 + 720{,}0 \end{pmatrix} = \begin{pmatrix} 70{,}5 \\ -39{,}5 \end{pmatrix}\;\mu\text{V}.$$
+              Logo, o erro é $\hat{\mathbf{s}} - \mathbf{s} = (50{,}5;\; -49{,}5)^\top\;\mu\text{V}$ (o mesmo que $\mathbf{A}^{-1}\boldsymbol{\varepsilon}$). Enquanto a norma do ruído de entrada é $\|\boldsymbol{\varepsilon}\| = \sqrt{0{,}5^2 + (-0{,}5)^2} = \sqrt{0{,}5} \approx 0{,}707\;\mu\text{V}$, a norma do erro reconstruído explode para:
+              $$\|\hat{\mathbf{s}} - \mathbf{s}\| = \sqrt{50{,}5^2 + (-49{,}5)^2} = \sqrt{2\,550{,}25 + 2\,450{,}25} = \sqrt{5\,000{,}5} \approx 70{,}71\;\mu\text{V}.$$
+              Um ruído minúsculo de $0{,}71\;\mu\text{V}$ foi amplificado exatamente $100$ vezes, produzindo um erro maior do que os próprios sinais neurais originais! Isso ocorre porque eletrodos quase redundantes deixam as linhas de $\mathbf{A}$ quase iguais ($\det\mathbf{A} \approx 0$), obrigando $\mathbf{A}^{-1}$ a amplificar enormemente qualquer pequena diferença ruidosa entre os dois canais.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:5-2-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Sistema linear na forma matricial ($\mathbf{A}\mathbf{x} = \mathbf{b}$):</strong> reúne $m$ equações em $n$ incógnitas e pode ser representado pela matriz aumentada $[\mathbf{A} \mid \mathbf{b}]$. Em 2D, lê-se <em>por linhas</em> (interseção de retas) ou <em>por colunas</em> (pesos da combinação linear das colunas que gera $\mathbf{b}$).</item>
+        <item><strong>As três classificações:</strong> todo sistema é <strong>possível e determinado</strong> (SPD, solução única), <strong>possível e indeterminado</strong> (SPI, infinitas soluções) ou <strong>impossível</strong> (SI, nenhuma solução).</item>
+        <item><strong>Eliminação de Gauss:</strong> usa operações elementares de linha (trocar duas linhas, multiplicar linha por escalar não nulo, somar múltiplo de outra linha) para chegar à forma escalonada sem alterar as soluções; uma linha $[0\;\dots\;0 \mid c]$ ($c \ne 0$) denuncia sistema impossível, enquanto colunas sem pivô geram variáveis livres e infinitas soluções.</item>
+        <item><strong>Matriz como transformação do plano:</strong> uma transformação linear $T(\mathbf{x}) = \mathbf{A}\mathbf{x}$ preserva retas e fixa a origem, e as colunas de $\mathbf{A}$ são sempre $T(\mathbf{e}_1)$ e $T(\mathbf{e}_2)$. Compor transformações ($T_1$ depois $T_2$) equivale a multiplicar na ordem $\mathbf{B}\mathbf{A}$.</item>
+        <item><strong>Rotação e galeria 2×2:</strong> a rotação anti-horária por $\theta$ é $\mathbf{R}_\theta = \begin{pmatrix} \cos\theta & -\operatorname{sen}\theta \\ \operatorname{sen}\theta & \cos\theta \end{pmatrix}$; escalas, reflexões, cisalhamentos e projeções montam-se acompanhando $\mathbf{e}_1$ e $\mathbf{e}_2$.</item>
+        <item><strong>Determinante 2×2 ($\det\mathbf{A} = ad - bc$):</strong> $|\det\mathbf{A}|$ mede o fator de escala de área (o mesmo papel do jacobiano no Tema 3.3); o sinal negativo indica inversão de orientação e $\det\mathbf{A} = 0$ indica colapso do plano em uma reta ou ponto.</item>
+        <item><strong>Matriz inversa ($\mathbf{A}^{-1}$):</strong> satisfaz $\mathbf{A}\mathbf{A}^{-1} = \mathbf{A}^{-1}\mathbf{A} = \mathbf{I}$ e existe em $2 \times 2$ se, e somente se, $ad - bc \ne 0$, valendo $\mathbf{A}^{-1} = \frac{1}{ad-bc}\begin{pmatrix} d & -b \\ -c & a \end{pmatrix}$ e $(\mathbf{A}\mathbf{B})^{-1} = \mathbf{B}^{-1}\mathbf{A}^{-1}$. Em Python, resolva sistemas com <c>np.linalg.solve</c> em vez de calcular a inversa.</item>
+        <item><strong>Mistura e desmistura no EEG ($\mathbf{x} = \mathbf{A}\mathbf{s}$):</strong> pela condução de volume, eletrodos misturam linearmente fontes corticais ($\mathbf{X} = \mathbf{A}\mathbf{S}$); quando $\mathbf{A}$ é conhecida e invertível, $\mathbf{S} = \mathbf{A}^{-1}\mathbf{X}$ recupera as fontes — mas matrizes quase singulares ($\det\mathbf{A} \approx 0$) amplificam fortemente o ruído.</item>
+      </list>
+    </section>
+
+    <section id="sec:5-2-alem">
+      <title>Para ir além</title>
+      <box type="warning">
+        <title>Aviso didático importante</title>
+        Ver o plano se esticar, girar e colapsar numa reta faz toda a diferença entre decorar fórmulas de determinantes e realmente entendê-las. <strong>Assista aos vídeos de visualização primeiro</strong> antes de avançar para o próximo tema — <strong>Tema 5.3: Bases e espaços vetoriais</strong>.
+      </box>
+
+      Consulte os materiais autorizados do Módulo 5 para aprofundar a intuição geométrica e a prática com NumPy:
+      <list marker="dash">
+        <item><strong>Visualização essencial (vídeo):</strong> <link to="https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab">3Blue1Brown — Essência da Álgebra Linear</link> (assista especialmente aos capítulos sobre transformações lineares e matrizes, multiplicação de matrizes como composição, determinante e sistemas lineares/inversa).</item>
+        <item><strong>Referência computacional:</strong> <link to="https://numpy.org/doc/stable/reference/routines.linalg.html">Documentação oficial do NumPy — Álgebra Linear (numpy.linalg)</link>, para consultar <c>solve</c>, <c>det</c>, <c>inv</c> e os diagnósticos de matrizes singulares.</item>
+        <item><strong>Estudo por livro-texto:</strong> <em>Linear Algebra and Its Applications</em>, de Gilbert Strang (capítulos sobre eliminação gaussiana, matrizes inversas e determinantes).</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 5 · Álgebra Linear — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

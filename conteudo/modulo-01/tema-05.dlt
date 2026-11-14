@@ -1,0 +1,801 @@
+<document>
+  <title>Módulo 1 · Pré-Cálculo</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-1-5">Voltar ao guia (Tema 1.5)</link></meta-item>
+    <meta-item key="Módulo">Módulo 1 · Pré-Cálculo — O Alicerce Matemático</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-1-5">
+    <title>Geometria Analítica</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Traduzir geometria em equações — o primeiro passo para pensar em “espaços”.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Até aqui, você estudou ferramentas que costumam aparecer separadas na escola: equações na Álgebra, triângulos e ângulos na Geometria, gráficos em Funções e o círculo unitário na Trigonometria. A <strong>Geometria Analítica</strong> junta tudo isso em um único idioma: pontos viram listas de números, retas viram equações lineares e regiões circulares viram desigualdades quadráticas. Na neurofisiologia, essa tradução aparece a cada passo: a relação entre corrente iônica e voltagem na membrana desenha uma reta cuja inclinação é a condutância do canal e cujo cruzamento no eixo horizontal revela o potencial de reversão; já o campo receptivo circular de uma célula ganglionar da retina é descrito exatamente pelas inequações de dois círculos concêntricos.
+
+    Mais importante ainda, a Geometria Analítica inaugura a ideia de <strong>espaço de estados</strong> ou <strong>espaço de atividade</strong>. Quando registramos as taxas de disparo de dois neurônios simultaneamente — digamos, $r_1$ e $r_2$, entre $0$ e $200\text{ Hz}$ —, o estado da população em resposta a um estímulo vira um ponto $(r_1, r_2)$ no plano, e a distância entre dois pontos mede quão diferentes são duas respostas neurais. Com $3$ neurônios, ganhamos uma terceira coordenada; com centenas de neurônios ou milhares de voxels de fMRI, passamos a trabalhar com pontos em dimensões altas. Esse é o último tema do Módulo 1: ele amarra o <mark>Pré-Cálculo</mark> inteiro e prepara a entrada para a reta tangente no Módulo 2 (<mark>Cálculo Real</mark>) e para os vetores no Módulo 5 (<mark>Álgebra Linear</mark>).
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>localizar pontos no plano cartesiano e no espaço tridimensional, calcular distâncias euclidianas e encontrar pontos médios;</item>
+      <item>interpretar taxas de disparo simultâneas de $2$ ou $3$ neurônios como pontos em um espaço de atividade e medir a separação entre padrões neurais;</item>
+      <item>escrever e converter equações da reta (ponto-inclinação, reduzida e por dois pontos), relacionar inclinação e ângulo via tangente, e identificar retas horizontais, verticais, paralelas e perpendiculares;</item>
+      <item>modelar curvas corrente-voltagem ($I$-$V$) lineares de canais iônicos e determinar o potencial de repouso como interseção de retas;</item>
+      <item>escrever a equação do círculo, completar quadrados a partir da forma expandida, classificar pontos (dentro, sobre, fora) em modelos como campos receptivos retinianos e achar interseções entre retas e círculos.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Álgebra (Tema 1.1: equações do 1º e 2º graus com Bhaskara, lei de Ohm na membrana e desigualdades), Geometria (Tema 1.2: teorema de Pitágoras, ângulos e retas paralelas), Funções (Tema 1.3: funções afins e leitura de gráficos) e Trigonometria (Tema 1.4: círculo unitário, $\operatorname{sen}^2\theta + \cos^2\theta = 1$ e $\arctan$).
+
+    <section id="sec:1-5-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Introdução</title>
+      <intro>
+        Um par de números coloca um neurônio no mapa do microscópio — e coloca o estado de toda uma população neural em um ponto geométrico cuja distância a outros pontos mede o quanto dois estímulos diferem.
+      </intro>
+
+      Imagine que você esteja observando uma fatia fina de hipocampo ao microscópio e queira informar a um colega exatamente onde estão dois neurônios que você marcou com fluorescência. Se você escolher um canto de referência como ponto zero e estender duas réguas perpendiculares — uma na horizontal e outra na vertical —, a posição de cada célula fica completamente determinada por dois números: o quanto você anda para a direita (ou esquerda) e o quanto sobe (ou desce). Essa ideia simples, atribuída a René Descartes no século XVII, transformou figuras geométricas em pares de números e contas algébricas.
+
+      <definition id="def:1-5-plano-cartesiano">
+        <title>Plano cartesiano, coordenadas e quadrantes</title>
+        O <strong>plano cartesiano</strong> (denotado por $\mathbb{R}^2$) é formado por duas retas numéricas reais perpendiculares que se cruzam no ponto $O = (0, 0)$, chamado de <strong>origem</strong>:
+        <list marker="dash">
+          <item>o eixo horizontal é o <strong>eixo das abscissas</strong> (eixo $x$);</item>
+          <item>o eixo vertical é o <strong>eixo das ordenadas</strong> (eixo $y$).</item>
+        </list>
+        Cada ponto $P$ do plano corresponde a um único <strong>par ordenado</strong> $(x, y) \in \mathbb{R}^2$, onde a ordem importa: em geral, $(2, 5) \ne (5, 2)$. Os dois eixos dividem o plano em quatro regiões chamadas <strong>quadrantes</strong> (numerados no sentido anti-horário):
+        <list marker="dash">
+          <item><strong>I quadrante:</strong> $x > 0$ e $y > 0$;</item>
+          <item><strong>II quadrante:</strong> $x < 0$ e $y > 0$;</item>
+          <item><strong>III quadrante:</strong> $x < 0$ e $y < 0$;</item>
+          <item><strong>IV quadrante:</strong> $x > 0$ e $y < 0$.</item>
+        </list>
+        Pontos com $x = 0$ ou $y = 0$ estão sobre os eixos e não pertencem a nenhum quadrante.
+        <intuition>
+          Pense em $(x, y)$ como um endereço em grade: $x$ diz em qual avenida leste-oeste você está, e $y$ diz em qual rua norte-sul. Trocar a ordem $(x, y)$ por $(y, x)$ muda completamente o endereço.
+        </intuition>
+      </definition>
+
+      Agora, como calcular a distância em linha reta entre dois pontos $P = (x_1, y_1)$ e $Q = (x_2, y_2)$ no plano? Basta desenhar um triângulo retângulo cujos catetos acompanham os eixos: o deslocamento horizontal mede $\Delta x = x_2 - x_1$ (comprimento $|\Delta x|$) e o deslocamento vertical mede $\Delta y = y_2 - y_1$ (comprimento $|\Delta y|$). O teorema de Pitágoras, visto no Tema 1.2 (Geometria), entrega a hipotenusa imediatamente.
+
+      <proposition id="prop:1-5-distancia-2d">
+        <title>Distância entre dois pontos no plano</title>
+        A distância euclidiana $d(P, Q)$ entre dois pontos $P = (x_1, y_1)$ e $Q = (x_2, y_2)$ em $\mathbb{R}^2$ é dada por:
+        <equation id="eq:1-5-dist2d">
+          d(P, Q) = \sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}
+        </equation>
+        <intuition>
+          Não importa se $x_2 - x_1$ ou $y_2 - y_1$ dão negativos: ao elevar ao quadrado, o sinal desaparece. Por isso também vale $d(P, Q) = d(Q, P)$ — a distância de $P$ até $Q$ é a mesma que de $Q$ até $P$.
+        </intuition>
+      </proposition>
+      <proof of="prop:1-5-distancia-2d" collapsible="true" collapsed="true">
+        Se $x_1 = x_2$, os pontos estão na mesma reta vertical e a distância é $|y_2 - y_1| = \sqrt{0 + (y_2 - y_1)^2}$; de forma análoga, se $y_1 = y_2$, a distância é $|x_2 - x_1| = \sqrt{(x_2 - x_1)^2 + 0}$.
+
+        Quando $x_1 \ne x_2$ e $y_1 \ne y_2$, o ponto auxiliar $R = (x_2, y_1)$ forma com $P$ e $Q$ um triângulo retângulo em $R$, pois o segmento $PR$ é horizontal e o segmento $RQ$ é vertical. Os catetos medem $|x_2 - x_1|$ e $|y_2 - y_1|$. Pelo teorema de Pitágoras:
+        $$d(P, Q)^2 = |x_2 - x_1|^2 + |y_2 - y_1|^2 = (x_2 - x_1)^2 + (y_2 - y_1)^2.$$
+        Como uma distância é sempre não negativa ($d(P, Q) \ge 0$), extraímos a raiz quadrada principal e obtemos $d(P, Q) = \sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}$.
+      </proof>
+
+      Além da distância, muitas vezes queremos encontrar o ponto exatamente na metade do caminho entre $P$ e $Q$ — por exemplo, para posicionar um eletrodo estimulador bem no meio entre duas células ou achar o centro de massa de dois registros. A coordenada $x$ desse ponto fica na metade entre $x_1$ e $x_2$, e a coordenada $y$ fica na metade entre $y_1$ e $y_2$: basta tirar a média aritmética de cada coordenada.
+
+      <definition id="def:1-5-ponto-medio">
+        <title>Ponto médio de um segmento</title>
+        O <strong>ponto médio</strong> $M$ do segmento que liga $P = (x_1, y_1)$ a $Q = (x_2, y_2)$ é:
+        <equation id="eq:1-5-medio">
+          M = \left(\frac{x_1 + x_2}{2},\; \frac{y_1 + y_2}{2}\right)
+        </equation>
+        <intuition>
+          Em cada eixo separado, o meio do caminho entre dois números é a sua média simples. Por exemplo, o ponto médio entre $2$ e $8$ na reta real é $\frac{2 + 8}{2} = 5$.
+        </intuition>
+      </definition>
+
+      E quando duas coordenadas não bastam? Um tecido biológico tem espessura, um crânio tem altura e uma população cortical tem dezenas ou milhares de neurônios disparando juntos. A beleza da Geometria Analítica é que basta acrescentar um terceiro eixo perpendicular $z$ para obter o espaço tridimensional $\mathbb{R}^3$, onde cada ponto é uma terna $(x, y, z)$. Aplicando o teorema de Pitágoras duas vezes, a fórmula da distância ganha simplesmente mais um quadrado dentro da raiz.
+
+      <proposition id="prop:1-5-distancia-3d">
+        <title>Distância e ponto médio no espaço tridimensional</title>
+        Dados dois pontos $P = (x_1, y_1, z_1)$ e $Q = (x_2, y_2, z_2)$ em $\mathbb{R}^3$, a distância euclidiana e o ponto médio entre eles são:
+        <equation id="eq:1-5-dist3d">
+          d(P, Q) = \sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2 + (z_2 - z_1)^2}, \qquad M = \left(\frac{x_1 + x_2}{2},\; \frac{y_1 + y_2}{2},\; \frac{z_1 + z_2}{2}\right)
+        </equation>
+      </proposition>
+      <proof of="prop:1-5-distancia-3d" collapsible="true" collapsed="true">
+        Projete $P$ e $Q$ no plano $z = z_1$, obtendo $Q' = (x_2, y_2, z_1)$. No plano horizontal $z = z_1$, a distância entre $P$ e $Q'$ vem da <ref to="prop:1-5-distancia-2d"/>:
+        $$d(P, Q')^2 = (x_2 - x_1)^2 + (y_2 - y_1)^2.$$
+        Como o segmento $Q'Q$ é vertical (perpendicular ao plano horizontal) e mede $|z_2 - z_1|$, o triângulo $PQ'Q$ é retângulo em $Q'$. Aplicando Pitágoras mais uma vez:
+        $$d(P, Q)^2 = d(P, Q')^2 + |z_2 - z_1|^2 = (x_2 - x_1)^2 + (y_2 - y_1)^2 + (z_2 - z_1)^2.$$
+        Extraindo a raiz quadrada não negativa, chegamos à fórmula em $\mathbb{R}^3$. Para o ponto médio $M$, o argumento é o mesmo eixo a eixo: tiramos a média de $x$, de $y$ e de $z$.
+      </proof>
+
+      Repare no padrão: em $2$ dimensões somamos $2$ quadrados dentro da raiz; em $3$ dimensões somamos $3$ quadrados. E se registrarmos $n$ neurônios ao mesmo tempo, ou $10\,000$ voxels de um exame de fMRI? Embora não possamos desenhar $n$ eixos perpendiculares no papel quando $n > 3$, a matemática continua idêntica: um ponto passa a ser uma lista $(x_1, x_2, \dots, x_n)$ em $\mathbb{R}^n$, e a distância euclidiana soma $(y_1 - x_1)^2 + (y_2 - x_2)^2 + \cdots + (y_n - x_n)^2$ sob a raiz. No Módulo 5 (<mark>Álgebra Linear</mark>), esses pontos passarão a ser chamados de <strong>vetores</strong> (escritos em negrito, como $\mathbf{x}$) e toda essa geometria ganhará ferramentas matriciais poderosas.
+
+      <example id="exm:1-5-fatia">
+        <title>Coordenadas de neurônios em uma fatia cortical</title>
+        Em uma imagem de microscopia de uma fatia de córtex cerebral, o centro da lâmina de vidro é tomado como origem $(0, 0)$ em micrômetros ($\mu\text{m}$). Dois interneurônios marcados com proteína fluorescente aparecem em $A = (-40, 20)\;\mu\text{m}$ e $B = (80, 70)\;\mu\text{m}$.
+        <list marker="a">
+          <item>Em quais quadrantes se encontram os neurônios $A$ e $B$?</item>
+          <item>Qual é a distância em linha reta entre eles?</item>
+          <item>Se um microeletrodo for posicionado no centroide (ponto médio) entre $A$ e $B$, quais serão suas coordenadas?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Para $A = (-40, 20)$, temos $x = -40 < 0$ e $y = 20 > 0$, logo $A$ está no <strong>II quadrante</strong>. Para $B = (80, 70)$, temos $x = 80 > 0$ e $y = 70 > 0$, logo $B$ está no <strong>I quadrante</strong>.</item>
+          <item>Aplicando a <ref to="eq:1-5-dist2d"/>:
+            $$\Delta x = 80 - (-40) = 120\;\mu\text{m}, \qquad \Delta y = 70 - 20 = 50\;\mu\text{m}.$$
+            $$d(A, B) = \sqrt{120^2 + 50^2} = \sqrt{14\,400 + 2\,500} = \sqrt{16\,900} = 130\;\mu\text{m}.$$
+          </item>
+          <item>Pela <ref to="eq:1-5-medio"/>:
+            $$M = \left(\frac{-40 + 80}{2},\; \frac{20 + 70}{2}\right) = \left(\frac{40}{2},\; \frac{90}{2}\right) = (20, 45)\;\mu\text{m}.$$
+            <em>Conferência:</em> a distância de $A = (-40, 20)$ até $M = (20, 45)$ é $\sqrt{(20 - (-40))^2 + (45 - 20)^2} = \sqrt{60^2 + 25^2} = \sqrt{3\,600 + 625} = \sqrt{4\,225} = 65\;\mu\text{m}$, exatamente metade de $130\;\mu\text{m}$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:1-5-espaco-atividade">
+        <title>Distância entre padrões de atividade neural</title>
+        Em neurociência de sistemas, os eixos de um gráfico não precisam representar centímetros ou micrômetros no espaço físico: eles podem representar as taxas de disparo de diferentes neurônios! As taxas de disparo registradas simultaneamente formam um ponto no <strong>espaço de atividade</strong> (<em>activity space</em>). Quanto maior a distância entre os pontos correspondentes a dois estímulos, mais distintas são as respostas da população — e mais fácil fica para o cérebro (ou para um algoritmo de Machine Learning) distinguir um estímulo do outro.
+        <list marker="a">
+          <item>Considere $2$ neurônios cujas taxas $(r_1, r_2)$ em resposta ao estímulo A são $P_A = (10, 20)\text{ Hz}$ e em resposta ao estímulo B são $P_B = (16, 28)\text{ Hz}$. Calcule a distância $d(P_A, P_B)$ nesse espaço de atividade.</item>
+          <item>Agora incluímos um $3^\circ$ neurônio no registro, obtendo pontos em $\mathbb{R}^3$ para três estímulos: $Q_A = (10, 20, 15)\text{ Hz}$, $Q_B = (16, 28, 39)\text{ Hz}$ e $Q_C = (12, 23, 21)\text{ Hz}$. Calcule $d(Q_A, Q_B)$ e $d(Q_A, Q_C)$ e indique qual par de estímulos a população separa melhor.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Calculando as diferenças em cada neurônio: $\Delta r_1 = 16 - 10 = 6\text{ Hz}$ e $\Delta r_2 = 28 - 20 = 8\text{ Hz}$. Pela fórmula da distância em $\mathbb{R}^2$:
+            $$d(P_A, P_B) = \sqrt{6^2 + 8^2} = \sqrt{36 + 64} = \sqrt{100} = 10\text{ Hz}.$$
+          </item>
+          <item>Usando a <ref to="eq:1-5-dist3d"/> para $\mathbb{R}^3$:
+            $$d(Q_A, Q_B) = \sqrt{(16 - 10)^2 + (28 - 20)^2 + (39 - 15)^2} = \sqrt{6^2 + 8^2 + 24^2} = \sqrt{36 + 64 + 576} = \sqrt{676} = 26\text{ Hz}.$$
+            $$d(Q_A, Q_C) = \sqrt{(12 - 10)^2 + (23 - 20)^2 + (21 - 15)^2} = \sqrt{2^2 + 3^2 + 6^2} = \sqrt{4 + 9 + 36} = \sqrt{49} = 7\text{ Hz}.$$
+            Como $26\text{ Hz} > 7\text{ Hz}$, os padrões de atividade para A e B estão quase quatro vezes mais afastados do que os padrões para A e C; portanto, essa população de $3$ neurônios distingue A de B com muito mais facilidade do que A de C. (Repare também que, no Módulo 5, esses pontos $(r_1, r_2, r_3)$ serão formalizados como vetores de disparo!)
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:1-5-armadilha-dist">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Distribuir a raiz quadrada sobre a soma:</strong> $\sqrt{a^2 + b^2} \ne a + b$ (e $\sqrt{a^2 + b^2} \ne |a| + |b|$). Teste com $a = 3$ e $b = 4$: $\sqrt{3^2 + 4^2} = \sqrt{25} = 5$, enquanto $3 + 4 = 7$. A linha reta (hipotenusa) é sempre mais curta que a soma dos desvios pelos dois eixos.</item>
+          <item><strong>Errar sinais ao subtrair coordenadas negativas:</strong> na distância entre $(-3, 2)$ e $(5, 2)$, a variação horizontal é $5 - (-3) = 5 + 3 = 8$, e <em>não</em> $5 - 3 = 2$. Sempre coloque parênteses ao substituir valores negativos.</item>
+          <item><strong>Trocar $+$ por $-$ no ponto médio:</strong> o ponto médio usa a <em>soma</em> das coordenadas dividida por $2$, e não a diferença.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:1-5-1-1">
+        <title>Básico — Quadrantes, distância e ponto médio</title>
+        Dados os pontos $A = (-2, 7)$ e $B = (4, -1)$ no plano cartesiano:
+        <list marker="a">
+          <item>em quais quadrantes estão $A$ e $B$?</item>
+          <item>calcule a distância $d(A, B)$;</item>
+          <item>determine as coordenadas do ponto médio $M$ do segmento $AB$.</item>
+        </list>
+        <hint><title>Ver dica</title>Confira os sinais de $x$ e $y$ para o quadrante; na distância, escreva $4 - (-2)$ e $-1 - 7$ com cuidado antes de elevar ao quadrado.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Em $A = (-2, 7)$, $x < 0$ e $y > 0$, logo $A$ pertence ao <strong>II quadrante</strong>. Em $B = (4, -1)$, $x > 0$ e $y < 0$, logo $B$ pertence ao <strong>IV quadrante</strong>.</item>
+            <item>Calculamos as diferenças: $\Delta x = 4 - (-2) = 6$ e $\Delta y = -1 - 7 = -8$. Pela fórmula da distância:
+              $$d(A, B) = \sqrt{6^2 + (-8)^2} = \sqrt{36 + 64} = \sqrt{100} = 10.$$
+            </item>
+            <item>Aplicando a fórmula do ponto médio:
+              $$M = \left(\frac{-2 + 4}{2},\; \frac{7 + (-1)}{2}\right) = \left(\frac{2}{2},\; \frac{6}{2}\right) = (1, 3).$$
+              <em>Conferência:</em> $d(A, M) = \sqrt{(1 - (-2))^2 + (3 - 7)^2} = \sqrt{3^2 + (-4)^2} = \sqrt{25} = 5$, que é exatamente a metade de $10$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-5-1-2">
+        <title>Básico — Eletrodos em uma matriz cortical</title>
+        Em uma matriz plana de microeletrodos (MEA) usada para registrar atividade elétrica em cultura de neurônios, o eletrodo $E_1$ ocupa a posição $(150, 200)\;\mu\text{m}$ e o eletrodo $E_2$ ocupa a posição $(450, 600)\;\mu\text{m}$.
+        <list marker="a">
+          <item>Qual é a distância física entre $E_1$ e $E_2$?</item>
+          <item>Se um neurônio estiver situado exatamente no ponto médio entre $E_1$ e $E_2$, quais serão suas coordenadas?</item>
+        </list>
+        <hint><title>Ver dica</title>Subtraia as coordenadas de $E_1$ e $E_2$ para achar os catetos $\Delta x$ e $\Delta y$, e tire a média das coordenadas para o ponto médio.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Temos $\Delta x = 450 - 150 = 300\;\mu\text{m}$ e $\Delta y = 600 - 200 = 400\;\mu\text{m}$. Logo:
+              $$d(E_1, E_2) = \sqrt{300^2 + 400^2} = \sqrt{90\,000 + 160\,000} = \sqrt{250\,000} = 500\;\mu\text{m}.$$
+            </item>
+            <item>O ponto médio entre os dois eletrodos é:
+              $$M = \left(\frac{150 + 450}{2},\; \frac{200 + 600}{2}\right) = \left(\frac{600}{2},\; \frac{800}{2}\right) = (300, 400)\;\mu\text{m}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-5-1-3">
+        <title>Intermediário — Ponto equidistante sobre o eixo x</title>
+        Encontre as coordenadas do ponto $P = (x, 0)$ situado sobre o eixo das abscissas que está à mesma distância dos pontos $A = (1, 4)$ e $B = (7, 2)$.
+        <hint><title>Ver dica</title>Iguale as distâncias ao quadrado $d(P, A)^2 = d(P, B)^2$ para evitar raízes quadradas e resolva a equação resultante para $x$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Como $d(P, A) \ge 0$ e $d(P, B) \ge 0$, exigir $d(P, A) = d(P, B)$ equivale a exigir $d(P, A)^2 = d(P, B)^2$:
+          $$(x - 1)^2 + (0 - 4)^2 = (x - 7)^2 + (0 - 2)^2.$$
+          Expandindo os quadrados em ambos os lados:
+          $$(x^2 - 2x + 1) + 16 = (x^2 - 14x + 49) + 4 \implies x^2 - 2x + 17 = x^2 - 14x + 53.$$
+          Cancelando $x^2$ nos dois lados e isolando $x$:
+          $$-2x + 14x = 53 - 17 \implies 12x = 36 \implies x = 3.$$
+          Portanto, $P = (3, 0)$.
+
+          <em>Conferência:</em> $d(P, A) = \sqrt{(3 - 1)^2 + (0 - 4)^2} = \sqrt{4 + 16} = \sqrt{20}$ e $d(P, B) = \sqrt{(3 - 7)^2 + (0 - 2)^2} = \sqrt{16 + 4} = \sqrt{20}$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-5-1-4">
+        <title>Avançado — Espaço de atividade em 3D e perda de informação ao projetar</title>
+        As taxas de disparo de três neurônios corticais $(r_1, r_2, r_3)$ são registradas durante um estímulo de referência $S_0 = (20, 15, 30)\text{ Hz}$ e dois estímulos de teste: $S_1 = (24, 18, 42)\text{ Hz}$ e $S_2 = (28, 21, 30)\text{ Hz}$.
+        <list marker="a">
+          <item>Calcule as distâncias $d(S_0, S_1)$ e $d(S_0, S_2)$ no espaço de atividade $\mathbb{R}^3$. Qual estímulo gera a resposta global mais distante de $S_0$?</item>
+          <item>Suponha agora que o eletrodo do $3^\circ$ neurônio tenha falhado, deixando apenas as taxas $(r_1, r_2)$ em $\mathbb{R}^2$. Recalcule as distâncias em 2D e explique por que a conclusão sobre qual estímulo se separa melhor de $S_0$ se inverte.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), use os três termos quadráticos na distância 3D. Em (b), use apenas as duas primeiras coordenadas $(r_1, r_2)$ de cada estímulo.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>No espaço $\mathbb{R}^3$:
+              $$d(S_0, S_1) = \sqrt{(24 - 20)^2 + (18 - 15)^2 + (42 - 30)^2} = \sqrt{4^2 + 3^2 + 12^2} = \sqrt{16 + 9 + 144} = \sqrt{169} = 13\text{ Hz}.$$
+              $$d(S_0, S_2) = \sqrt{(28 - 20)^2 + (21 - 15)^2 + (30 - 30)^2} = \sqrt{8^2 + 6^2 + 0^2} = \sqrt{64 + 36} = \sqrt{100} = 10\text{ Hz}.$$
+              Com os três neurônios medidos, $S_1$ produz a resposta mais distante de $S_0$ ($13\text{ Hz} > 10\text{ Hz}$).
+            </item>
+            <item>Observando apenas $(r_1, r_2)$ em $\mathbb{R}^2$:
+              $$d_{2\text{D}}(S_0, S_1) = \sqrt{4^2 + 3^2} = \sqrt{25} = 5\text{ Hz}, \qquad d_{2\text{D}}(S_0, S_2) = \sqrt{8^2 + 6^2} = \sqrt{100} = 10\text{ Hz}.$$
+              Em 2D, $S_2$ pareceria duas vezes mais distante de $S_0$ do que $S_1$. Isso ocorre porque toda a grande diferença entre $S_0$ e $S_1$ estava codificada principalmente no $3^\circ$ neurônio ($30\text{ Hz}$ contra $42\text{ Hz}$), informação que desaparece quando olhamos apenas para uma projeção de dimensão menor.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:1-5-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Equação da reta</title>
+      <intro>
+        Uma reta codifica uma taxa de variação constante — como a condutância constante de um canal iônico aberto, cuja curva corrente-voltagem permite descobrir onde o fluxo de íons inverte de sentido.
+      </intro>
+
+      No Tema 1.3 (Funções), você viu que funções afins $f(x) = mx + b$ desenham linhas retas no plano cartesiano. Agora vamos olhar para a reta pelo ponto de vista da Geometria Analítica: o que define uma reta única é a sua direção (o quanto ela sobe ou desce a cada passo horizontal) combinada com um ponto por onde ela passa. Essa visão é tão versátil que descreve desde rampas e retas verticais (que nem sequer são gráficos de funções) até o comportamento elétrico passivo de canais iônicos na membrana neuronal.
+
+      <definition id="def:1-5-inclinacao">
+        <title>Inclinação (coeficiente angular) e ângulo da reta</title>
+        Sejam $P = (x_1, y_1)$ e $Q = (x_2, y_2)$ dois pontos distintos de uma reta não vertical ($x_1 \ne x_2$). A <strong>inclinação</strong> ou <strong>coeficiente angular</strong> (<em>slope</em>) da reta é a razão:
+        <equation id="eq:1-5-inclinacao">
+          m = \frac{\Delta y}{\Delta x} = \frac{y_2 - y_1}{x_2 - x_1}
+        </equation>
+        Se $\alpha \in [0^\circ, 180^\circ)$ com $\alpha \ne 90^\circ$ é o ângulo medido no sentido anti-horário do eixo $x$ positivo até a reta, então, pela definição de tangente na Trigonometria (Tema 1.4):
+        $$m = \tan \alpha.$$
+        <list marker="dash">
+          <item>Se $m > 0$ ($0^\circ < \alpha < 90^\circ$), a reta é <strong>crescente</strong>.</item>
+          <item>Se $m < 0$ ($90^\circ < \alpha < 180^\circ$), a reta é <strong>decrescente</strong>.</item>
+          <item>Se $m = 0$ ($\alpha = 0^\circ$), a reta é <strong>horizontal</strong> ($\Delta y = 0$).</item>
+          <item>Se a reta for <strong>vertical</strong> ($x_1 = x_2$, $\alpha = 90^\circ$), $\Delta x = 0$ e a inclinação <strong>não está definida</strong> (não se divide por zero).</item>
+        </list>
+        <intuition>
+          A inclinação $m$ diz quantas unidades $y$ varia quando $x$ avança exatamente $1$ unidade para a direita. Uma reta de inclinação $m = 3$ sobe $3$ unidades a cada passo horizontal de $1$; já $m = -0{,}5$ desce $0{,}5$ unidade a cada passo.
+        </intuition>
+      </definition>
+
+      Note um detalhe importante sobre a reta vertical: nela, todos os pontos têm a mesma abscissa, $x = c$ (por exemplo, $x = 4$). Como ao único valor $x = 4$ correspondem infinitos valores de $y$, uma reta vertical <strong>não é gráfico de nenhuma função</strong> $y = f(x)$, pois viola a definição de função (Tema 1.3). Mesmo assim, na Geometria Analítica ela possui uma equação perfeitamente legítima: $x = c$.
+
+      <proposition id="prop:1-5-equacoes-reta">
+        <title>Formas da equação da reta</title>
+        <list marker="number">
+          <item><strong>Forma ponto-inclinação:</strong> a reta não vertical de inclinação $m$ que passa por $(x_0, y_0)$ tem equação:
+            <equation id="eq:1-5-ponto-inc">
+              y - y_0 = m(x - x_0)
+            </equation>
+          </item>
+          <item><strong>Forma reduzida (inclinação-intercepto):</strong> isolando $y$, quando a reta corta o eixo vertical no ponto $(0, b)$, obtemos:
+            <equation id="eq:1-5-reduzida">
+              y = mx + b
+            </equation>
+          </item>
+          <item><strong>Reta por dois pontos distintos $(x_1, y_1)$ e $(x_2, y_2)$:</strong> se $x_1 = x_2$, a reta é vertical, $x = x_1$; se $x_1 \ne x_2$, calculamos $m = \dfrac{y_2 - y_1}{x_2 - x_1}$ e substituímos na forma ponto-inclinação.</item>
+          <item><strong>Retas horizontais e verticais:</strong> $y = k$ representa uma reta horizontal ($m = 0$) e $x = c$ representa uma reta vertical (sem inclinação definida).</item>
+        </list>
+      </proposition>
+      <proof of="prop:1-5-equacoes-reta" collapsible="true" collapsed="true">
+        Um ponto genérico $(x, y)$ distinto de $(x_0, y_0)$ pertence à reta não vertical que passa por $(x_0, y_0)$ com inclinação $m$ se, e somente se, o quociente $\frac{y - y_0}{x - x_0}$ for igual a $m$. Multiplicando ambos os lados por $(x - x_0)$, obtemos $y - y_0 = m(x - x_0)$ — equação que também é satisfeita pelo próprio ponto $(x_0, y_0)$, pois $0 = m \cdot 0$.
+
+        Tomando o ponto particular sobre o eixo $y$, $(x_0, y_0) = (0, b)$, a equação vira $y - b = m(x - 0)$, ou seja, $y = mx + b$.
+      </proof>
+
+      Quando comparamos duas retas no mesmo plano, suas inclinações revelam imediatamente a posição relativa entre elas: se mantêm a mesma inclinação, apontam na mesma direção e nunca se cruzam (a menos que sejam a mesma reta); se formam ângulo reto ($90^\circ$), suas inclinações têm sinais opostos e são inversas multiplicativas uma da outra.
+
+      <proposition id="prop:1-5-paralelas-perp">
+        <title>Retas paralelas e perpendiculares</title>
+        Sejam duas retas não verticais $r_1: y = m_1 x + b_1$ e $r_2: y = m_2 x + b_2$.
+        <list marker="dash">
+          <item><strong>Paralelismo:</strong> $r_1$ e $r_2$ são paralelas (ou coincidentes) se, e somente se, possuem a mesma inclinação:
+            $$m_1 = m_2.$$
+            (Duas retas verticais distintas $x = c_1$ e $x = c_2$ também são paralelas entre si.)
+          </item>
+          <item><strong>Perpendicularidade:</strong> $r_1$ e $r_2$ são perpendiculares ($90^\circ$) se, e somente se, o produto de suas inclinações é $-1$:
+            <equation id="eq:1-5-perp">
+              m_1 \cdot m_2 = -1 \qquad \text{(isto é, } m_2 = -\frac{1}{m_1}\text{ para } m_1 \ne 0\text{)}
+            </equation>
+            (Uma reta horizontal $y = k$ e uma reta vertical $x = c$ também são perpendiculares entre si.)
+          </item>
+        </list>
+        <intuition>
+          Se uma reta sobe rápido ($m_1 = 3$), uma reta perpendicular a ela precisa descer devagar ($m_2 = -1/3$): quem era o cateto vertical vira o cateto horizontal, invertendo a fração $\Delta y / \Delta x$, e a rotação de $90^\circ$ troca o sentido de subida por descida.
+        </intuition>
+      </proposition>
+      <proof of="prop:1-5-paralelas-perp" collapsible="true" collapsed="true">
+        Para o paralelismo, $m_1 = m_2$ significa $\tan\alpha_1 = \tan\alpha_2$ com $\alpha_1, \alpha_2 \in [0^\circ, 180^\circ)$, logo $\alpha_1 = \alpha_2$. Pelo critério de ângulos correspondentes iguais (Tema 1.2), as retas são paralelas (ou coincidentes se $b_1 = b_2$).
+
+        Para a perpendicularidade, podemos transladar ambas as retas para passarem pela origem sem alterar o ângulo entre elas, obtendo $y = m_1 x$ e $y = m_2 x$. Considere os pontos $P = (1, m_1)$ sobre a primeira e $Q = (1, m_2)$ sobre a segunda, além da origem $O = (0, 0)$. Pelo teorema de Pitágoras e sua recíproca (Tema 1.2), o ângulo $\angle POQ$ é reto ($90^\circ$) se, e somente se, $d(O, P)^2 + d(O, Q)^2 = d(P, Q)^2$. Usando a <ref to="eq:1-5-dist2d"/>:
+        $$(1^2 + m_1^2) + (1^2 + m_2^2) = (1 - 1)^2 + (m_2 - m_1)^2$$
+        $$2 + m_1^2 + m_2^2 = m_2^2 - 2m_1 m_2 + m_1^2.$$
+        Cancelando $m_1^2 + m_2^2$ em ambos os lados, sobra $2 = -2m_1 m_2$, ou seja, $m_1 m_2 = -1$.
+      </proof>
+
+      Por fim, como encontramos o ponto onde duas retas $y = m_1 x + b_1$ e $y = m_2 x + b_2$ se cruzam? Um ponto $(x, y)$ está em ambas as retas quando suas coordenadas satisfazem as duas equações ao mesmo tempo — ou seja, resolver a <strong>interseção de duas retas</strong> é resolver um sistema de duas equações do 1º grau (Tema 1.1). Quando $m_1 \ne m_2$, igualamos $m_1 x + b_1 = m_2 x + b_2$ para achar o único $x$ de encontro e depois substituímos em qualquer uma das equações para obter $y$.
+
+      <example id="exm:1-5-reta-basica">
+        <title>Reta por dois pontos, perpendicular e interseção</title>
+        Considere os pontos $A = (1, 3)$ e $B = (5, 11)$.
+        <list marker="a">
+          <item>Determine a equação reduzida da reta $r$ que passa por $A$ e $B$ e calcule o ângulo aproximado que ela faz com o eixo $x$.</item>
+          <item>Determine a equação reduzida da reta $s$ perpendicular a $r$ que passa por $C = (4, 4)$ e encontre o ponto de interseção $P$ entre $r$ e $s$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Calculamos primeiro a inclinação de $r$:
+            $$m_r = \frac{11 - 3}{5 - 1} = \frac{8}{4} = 2.$$
+            Usando a forma ponto-inclinação <ref to="eq:1-5-ponto-inc"/> com o ponto $A = (1, 3)$:
+            $$y - 3 = 2(x - 1) \implies y - 3 = 2x - 2 \implies y = 2x + 1.$$
+            <em>Conferência em $B$:</em> $2(5) + 1 = 11$ (correto). Como $\tan\alpha = 2$, o ângulo com o eixo $x$ é $\alpha = \arctan(2) \approx 63{,}4^\circ$.
+          </item>
+          <item>Pela <ref to="eq:1-5-perp"/>, a inclinação de $s$ satisfaz $m_r \cdot m_s = -1$, logo:
+            $$m_s = -\frac{1}{2}.$$
+            Passando por $C = (4, 4)$:
+            $$y - 4 = -\frac{1}{2}(x - 4) \implies y - 4 = -\frac{1}{2}x + 2 \implies y = -\frac{1}{2}x + 6.$$
+            Para achar a interseção $P$ entre $r$ e $s$, igualamos as expressões de $y$:
+            $$2x + 1 = -\frac{1}{2}x + 6 \implies 2x + \frac{1}{2}x = 6 - 1 \implies \frac{5}{2}x = 5 \implies x = 2.$$
+            Substituindo $x = 2$ na reta $r$: $y = 2(2) + 1 = 5$. (Conferindo em $s$: $y = -\frac{1}{2}(2) + 6 = 5$.) Portanto, $P = (2, 5)$.
+          </item>
+        </list>
+      </example>
+
+      Agora vamos levar a equação da reta para o coração da biofisiologia celular. Na eletrofisiologia, medimos como a corrente elétrica que atravessa canais iônicos abertos varia com a voltagem da membrana. Antes da conta, fixamos a convenção de sinal usada na neurofisiologia: <strong>uma corrente positiva ($I > 0$) representa saída de cargas positivas da célula</strong> (corrente externa), enquanto <strong>uma corrente negativa ($I < 0$) representa entrada de cargas positivas na célula</strong> (corrente interna).
+
+      <example id="exm:1-5-curva-iv">
+        <title>Curvas corrente-voltagem ($I$-$V$) de canais iônicos</title>
+        No modelo linear (ôhmico) de um canal iônico aberto, a corrente $I$ varia com o potencial de membrana $V$ segundo a reta:
+        <equation id="eq:1-5-iv">
+          I = g \cdot (V - E)
+        </equation>
+        onde $g$ é a condutância do canal e $E$ é o <strong>potencial de reversão</strong> (o valor de $V$ em que a corrente se anula e troca de sinal). Quando medimos $g$ em nanosiemens ($\text{nS} = 10^{-9}\text{ S}$) e $V, E$ em milivolts ($\text{mV} = 10^{-3}\text{ V}$), a corrente sai diretamente em picoamperes ($\text{pA} = 10^{-12}\text{ A}$), pois $10^{-9} \cdot 10^{-3} = 10^{-12}$.
+
+        Considere um neurônio com canais de vazamento de potássio ($g_{\text{K}} = 25\text{ nS}$, $E_{\text{K}} = -90\text{ mV}$) e de sódio ($g_{\text{Na}} = 4\text{ nS}$, $E_{\text{Na}} = +55\text{ mV}$).
+        <list marker="a">
+          <item>Escreva $I_{\text{K}}(V)$ e $I_{\text{Na}}(V)$ na forma reduzida $I = mV + b$, identificando a inclinação e o intercepto horizontal de cada reta.</item>
+          <item>Calcule $I_{\text{K}}$ e $I_{\text{Na}}$ quando a membrana está em $V = -70\text{ mV}$ e verifique qual é a corrente total $I_{\text{total}} = I_{\text{K}} + I_{\text{Na}}$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Aplicando $I = g(V - E)$ (que é exatamente a forma ponto-inclinação passando por $(E, 0)$ com inclinação $g$):
+            $$I_{\text{K}}(V) = 25\bigl(V - (-90)\bigr) = 25(V + 90) = 25V + 2\,250\text{ pA}.$$
+            $$I_{\text{Na}}(V) = 4(V - 55) = 4V - 220\text{ pA}.$$
+            Na reta do potássio, a inclinação é a condutância $g_{\text{K}} = 25\text{ nS}$ e o intercepto no eixo horizontal ($I_{\text{K}} = 0$) ocorre em $V = E_{\text{K}} = -90\text{ mV}$. Na reta do sódio, a inclinação é $g_{\text{Na}} = 4\text{ nS}$ e o intercepto horizontal ocorre em $V = E_{\text{Na}} = +55\text{ mV}$.
+          </item>
+          <item>Substituindo $V = -70\text{ mV}$ em ambas as equações:
+            $$I_{\text{K}}(-70) = 25(-70 + 90) = 25 \cdot 20 = +500\text{ pA},$$
+            $$I_{\text{Na}}(-70) = 4(-70 - 55) = 4 \cdot (-125) = -500\text{ pA}.$$
+            Pela convenção de sinal, em $-70\text{ mV}$ saem $+500\text{ pA}$ de cargas positivas pelos canais de $\text{K}^+$ e entram $-500\text{ pA}$ pelos canais de $\text{Na}^+$. Somando as duas correntes:
+            $$I_{\text{total}}(-70) = +500 + (-500) = 0\text{ pA}.$$
+            Como a corrente líquida é nula, $-70\text{ mV}$ é exatamente o potencial de repouso estacionário dessa célula!
+          </item>
+        </list>
+      </example>
+
+      A <ref to="fig:1-5-curva-iv"/> mostra essas duas retas $I$-$V$ com os mesmos parâmetros do <ref to="exm:1-5-curva-iv"/>, destacando os potenciais de reversão no eixo $V$ e o balanço exato de correntes em $V = -70\text{ mV}$.
+
+      <figure src="fig/curva-iv.svg" alt="Gráfico das retas corrente-voltagem I = g(V - E) para canais de potássio (g_K = 25 nS, E_K = -90 mV) e sódio (g_Na = 4 nS, E_Na = +55 mV), além da corrente total tracejada cruzando zero em V = -70 mV" id="fig:1-5-curva-iv">
+        <caption>Curvas $I$-$V$ lineares para $\text{K}^+$ ($g_{\text{K}} = 25\text{ nS}$, $E_{\text{K}} = -90\text{ mV}$) e $\text{Na}^+$ ($g_{\text{Na}} = 4\text{ nS}$, $E_{\text{Na}} = +55\text{ mV}$). A inclinação de cada reta é a condutância do canal e o cruzamento com o eixo $I = 0$ é o potencial de reversão. Em $V = -70\text{ mV}$, a saída de $\text{K}^+$ ($+500\text{ pA}$) cancela a entrada de $\text{Na}^+$ ($-500\text{ pA}$), anulando a corrente total.</caption>
+      </figure>
+
+      <remark id="rem:1-5-armadilha-reta">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Trocar $\Delta y / \Delta x$ por $\Delta x / \Delta y$:</strong> a inclinação mede sempre a variação <em>vertical</em> dividida pela variação <em>horizontal</em>. Inverter a fração transforma $m$ em $1/m$.</item>
+          <item><strong>Confundir reta vertical com inclinação zero:</strong> reta horizontal ($y = k$) tem inclinação $m = 0$; reta vertical ($x = c$) <em>não tem inclinação</em> ($\Delta x = 0$ no denominador) e não representa uma função.</item>
+          <item><strong>Achar que perpendicular é só trocar o sinal de $m$:</strong> se uma reta tem inclinação $m_1 = 2$, a perpendicular tem inclinação $m_2 = -\frac{1}{2}$, e <em>não</em> $-2$ (porque $2 \cdot (-2) = -4 \ne -1$).</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:1-5-2-1">
+        <title>Básico — Reta por dois pontos, horizontal e vertical</title>
+        Considere os pontos $A = (2, -3)$ e $B = (6, 5)$.
+        <list marker="a">
+          <item>Determine a equação reduzida da reta que passa por $A$ e $B$.</item>
+          <item>Escreva a equação da reta horizontal e da reta vertical que passam por $A = (2, -3)$, indicando qual delas não é gráfico de função.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), calcule $m = \frac{5 - (-3)}{6 - 2}$ e use $y - y_0 = m(x - x_0)$. Em (b), lembre que uma reta horizontal fixa $y$ e uma vertical fixa $x$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Calculamos a inclinação:
+              $$m = \frac{5 - (-3)}{6 - 2} = \frac{8}{4} = 2.$$
+              Usando $A = (2, -3)$ na forma ponto-inclinação:
+              $$y - (-3) = 2(x - 2) \implies y + 3 = 2x - 4 \implies y = 2x - 7.$$
+              <em>Conferência em $B$:</em> $2(6) - 7 = 12 - 7 = 5$.
+            </item>
+            <item>A reta horizontal por $(2, -3)$ tem equação $y = -3$ (inclinação $m = 0$, gráfico da função constante $f(x) = -3$). A reta vertical por $(2, -3)$ tem equação $x = 2$ (inclinação não definida); ela <strong>não é gráfico de função</strong>, pois associa infinitos valores de $y$ a uma única entrada $x = 2$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-5-2-2">
+        <title>Básico — Paralelas, perpendiculares e interseção</title>
+        Dada a reta $r$ de equação $y = 3x - 4$:
+        <list marker="a">
+          <item>encontre a equação reduzida da reta $s$ paralela a $r$ que passa por $(2, 5)$;</item>
+          <item>encontre a equação reduzida da reta $t$ perpendicular a $r$ que passa por $(3, 4)$ e calcule o ponto de interseção entre $r$ e $t$.</item>
+        </list>
+        <hint><title>Ver dica</title>Para a reta paralela, mantenha $m_s = 3$. Para a perpendicular, use $m_t = -1/m_r$ e depois iguale as expressões de $y$ de $r$ e $t$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como $s$ é paralela a $r$, tem a mesma inclinação $m_s = 3$. Passando por $(2, 5)$:
+              $$y - 5 = 3(x - 2) \implies y = 3x - 6 + 5 \implies y = 3x - 1.$$
+            </item>
+            <item>Como $t$ é perpendicular a $r$, temos $m_t = -\frac{1}{3}$. Passando por $(3, 4)$:
+              $$y - 4 = -\frac{1}{3}(x - 3) \implies y = -\frac{1}{3}x + 1 + 4 \implies y = -\frac{1}{3}x + 5.$$
+              Para encontrar a interseção entre $r$ e $t$, igualamos os dois valores de $y$:
+              $$3x - 4 = -\frac{1}{3}x + 5 \implies 3x + \frac{1}{3}x = 9 \implies \frac{10}{3}x = 9 \implies x = \frac{27}{10} = 2{,}7.$$
+              Substituindo em $r$: $y = 3(2{,}7) - 4 = 8{,}1 - 4 = 4{,}1$. (Conferindo em $t$: $-\frac{1}{3}(2{,}7) + 5 = -0{,}9 + 5 = 4{,}1$.) Logo, o ponto de interseção é $(2{,}7;\; 4{,}1)$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-5-2-3">
+        <title>Intermediário — Curva $I$-$V$ experimental em patch-clamp</title>
+        Em um experimento de eletrofisiologia com um canal iônico desconhecido, mede-se a corrente líquida em dois potenciais fixados: em $V_1 = -60\text{ mV}$, a corrente é $I_1 = -120\text{ pA}$; em $V_2 = +20\text{ mV}$, a corrente é $I_2 = +200\text{ pA}$. Assumindo comportamento linear $I = g(V - E)$:
+        <list marker="a">
+          <item>calcule a condutância $g$ do canal (em $\text{nS}$) e escreva a equação reduzida $I(V)$;</item>
+          <item>determine o potencial de reversão $E$ (em $\text{mV}$).</item>
+        </list>
+        <hint><title>Ver dica</title>A condutância $g$ é a inclinação $\frac{I_2 - I_1}{V_2 - V_1}$, e o potencial de reversão $E$ é o valor de $V$ onde $I = 0$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como $I$ está em $\text{pA}$ e $V$ em $\text{mV}$, a razão $\Delta I / \Delta V$ sai diretamente em $\text{nS}$:
+              $$g = \frac{I_2 - I_1}{V_2 - V_1} = \frac{200 - (-120)}{20 - (-60)} = \frac{320\text{ pA}}{80\text{ mV}} = 4\text{ nS}.$$
+              Usando a forma ponto-inclinação com $(V_2, I_2) = (20, 200)$:
+              $$I - 200 = 4(V - 20) \implies I(V) = 4V + 120\text{ pA}.$$
+              <em>Conferência em $V_1 = -60\text{ mV}$:</em> $4(-60) + 120 = -240 + 120 = -120\text{ pA}$.
+            </item>
+            <item>O potencial de reversão é a raiz onde $I(E) = 0$:
+              $$4E + 120 = 0 \implies 4E = -120 \implies E = -30\text{ mV}.$$
+              Podemos reescrever a reta na forma $I = 4\bigl(V - (-30)\bigr) = 4(V + 30)\text{ pA}$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-5-2-4">
+        <title>Avançado — Dois canais em paralelo como interseção de retas</title>
+        Quando canais de potássio ($g_{\text{K}}$, $E_{\text{K}}$) e de sódio ($g_{\text{Na}}$, $E_{\text{Na}}$) conduzem em paralelo, a corrente total é $I_{\text{total}}(V) = g_{\text{K}}(V - E_{\text{K}}) + g_{\text{Na}}(V - E_{\text{Na}})$. O potencial de equilíbrio da membrana $V_{\text{eq}}$ ocorre quando $I_{\text{total}} = 0$.
+        <list marker="a">
+          <item>Mostre algebricamente que $I_{\text{total}}(V_{\text{eq}}) = 0$ produz a média ponderada pelas condutâncias:
+            $$V_{\text{eq}} = \frac{g_{\text{K}} E_{\text{K}} + g_{\text{Na}} E_{\text{Na}}}{g_{\text{K}} + g_{\text{Na}}}$$
+            e explique por que $V_{\text{eq}}$ é a coordenada $V$ da interseção entre as retas $y = I_{\text{K}}(V)$ e $y = -I_{\text{Na}}(V)$.
+          </item>
+          <item>No início de um potencial de ação, canais de sódio dependentes de voltagem se abrem massivamente, elevando $g_{\text{Na}}$ de $4\text{ nS}$ para $100\text{ nS}$, enquanto $g_{\text{K}} = 25\text{ nS}$, $E_{\text{K}} = -90\text{ mV}$ e $E_{\text{Na}} = +55\text{ mV}$. Calcule o novo potencial de equilíbrio $V_{\text{eq}}'$ e indique se a membrana despolarizou ou hiperpolarizou em relação ao repouso ($-70\text{ mV}$).</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), expanda os parênteses em $g_{\text{K}}(V - E_{\text{K}}) + g_{\text{Na}}(V - E_{\text{Na}}) = 0$ e isole $V$. Em (b), substitua os valores na fórmula da média ponderada.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Partindo de $g_{\text{K}}(V_{\text{eq}} - E_{\text{K}}) + g_{\text{Na}}(V_{\text{eq}} - E_{\text{Na}}) = 0$:
+              $$g_{\text{K}} V_{\text{eq}} - g_{\text{K}} E_{\text{K}} + g_{\text{Na}} V_{\text{eq}} - g_{\text{Na}} E_{\text{Na}} = 0$$
+              $$(g_{\text{K}} + g_{\text{Na}}) V_{\text{eq}} = g_{\text{K}} E_{\text{K}} + g_{\text{Na}} E_{\text{Na}} \implies V_{\text{eq}} = \frac{g_{\text{K}} E_{\text{K}} + g_{\text{Na}} E_{\text{Na}}}{g_{\text{K}} + g_{\text{Na}}}.$$
+              Geometricamente, exigir $I_{\text{K}}(V) + I_{\text{Na}}(V) = 0$ equivale a exigir $I_{\text{K}}(V) = -I_{\text{Na}}(V)$. Logo, $V_{\text{eq}}$ é exatamente a abscissa onde a reta crescente $y = g_{\text{K}}(V - E_{\text{K}})$ cruza a reta decrescente $y = -g_{\text{Na}}(V - E_{\text{Na}})$.
+            </item>
+            <item>Substituindo $g_{\text{K}} = 25\text{ nS}$, $g_{\text{Na}} = 100\text{ nS}$, $E_{\text{K}} = -90\text{ mV}$ e $E_{\text{Na}} = +55\text{ mV}$:
+              $$V_{\text{eq}}' = \frac{25(-90) + 100(55)}{25 + 100} = \frac{-2\,250 + 5\,500}{125} = \frac{3\,250}{125} = +26\text{ mV}.$$
+              <em>Conferência:</em> $I_{\text{K}}(26) = 25(26 - (-90)) = 25 \cdot 116 = +2\,900\text{ pA}$ e $I_{\text{Na}}(26) = 100(26 - 55) = 100 \cdot (-29) = -2\,900\text{ pA}$, cuja soma é $0\text{ pA}$. Como o potencial subiu de $-70\text{ mV}$ para $+26\text{ mV}$, a membrana sofreu uma forte <strong>despolarização</strong> (aproximando-se de $E_{\text{Na}}$, já que a condutância de sódio passou a dominar a soma).
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:1-5-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Equação do círculo</title>
+      <intro>
+        Quando traduzimos “estar a uma distância fixa de um centro” usando a fórmula da distância, nasce a equação do círculo — base para campos receptivos na retina, regiões de tolerância no espaço de atividade e retas tangentes no Cálculo.
+      </intro>
+
+      Suponha que você projete um pequeno ponto de luz sobre uma tela para estimular uma célula ganglionar da retina. Essa célula só responde quando a luz cai até certa distância de um ponto central no campo visual — região chamada de <strong>campo receptivo</strong>. Como escrever, apenas com álgebra, a fronteira dessa região circular? Basta juntar a definição geométrica de círculo (todos os pontos a uma mesma distância $r$ do centro $C$) com a fórmula da distância que deduzimos no Subtema 1.
+
+      <definition id="def:1-5-circulo">
+        <title>Equação reduzida do círculo e regiões do plano</title>
+        O <strong>círculo</strong> (ou circunferência) de centro $C = (a, b)$ e raio $r > 0$ é o conjunto de todos os pontos $P = (x, y) \in \mathbb{R}^2$ cuja distância até $C$ vale $r$. Elevando $d(P, C) = r$ ao quadrado, obtemos sua <strong>equação reduzida</strong>:
+        <equation id="eq:1-5-circulo">
+          (x - a)^2 + (y - b)^2 = r^2
+        </equation>
+        Um ponto $P = (x, y)$ é classificado em relação ao círculo comparando sua distância ao quadrado com $r^2$:
+        <list marker="dash">
+          <item><strong>Dentro (interior):</strong> $(x - a)^2 + (y - b)^2 < r^2$;</item>
+          <item><strong>Sobre a borda:</strong> $(x - a)^2 + (y - b)^2 = r^2$;</item>
+          <item><strong>Fora (exterior):</strong> $(x - a)^2 + (y - b)^2 > r^2$.</item>
+        </list>
+        No caso especial de centro na origem $(0, 0)$ e raio $r = 1$, temos o <strong>círculo unitário</strong> $x^2 + y^2 = 1$. Em $3$ dimensões, a mesma ideia define uma <strong>esfera</strong> de centro $(a, b, c)$ e raio $r$:
+        $$(x - a)^2 + (y - b)^2 + (z - c)^2 = r^2.$$
+        <intuition>
+          Compare $(x - a)^2 + (y - b)^2 < r^2$ com a desigualdade $|x - a| < r$ do Tema 1.1 (Álgebra). Em $1$ dimensão, “estar a menos de $r$ de distância de $a$” cria o intervalo $(a - r, a + r)$; em $2$ dimensões, cria o interior de um círculo de raio $r$; em $3$ dimensões, cria o interior de uma esfera.
+        </intuition>
+      </definition>
+
+      Repare na ligação imediata com a Trigonometria (Tema 1.4): cada ponto sobre o círculo unitário $x^2 + y^2 = 1$ associado ao ângulo $\theta$ tem coordenadas $x = \cos\theta$ e $y = \operatorname{sen}\theta$. Substituindo essas expressões na equação do círculo, obtemos $\cos^2\theta + \operatorname{sen}^2\theta = 1$ — ou seja, a identidade trigonométrica fundamental nada mais é do que a equação do círculo unitário!
+
+      Muitas vezes, porém, a equação do círculo não vem pronta na forma reduzida $(x - a)^2 + (y - b)^2 = r^2$, e sim com os parênteses expandidos. Como voltar da forma expandida para o centro e o raio — e ter certeza de que a equação realmente desenha um círculo?
+
+      <proposition id="prop:1-5-forma-geral-circulo">
+        <title>Forma expandida do círculo e completamento de quadrados</title>
+        Expandindo $(x - a)^2 + (y - b)^2 = r^2$, todo círculo pode ser escrito na <strong>forma geral (expandida)</strong>:
+        <equation id="eq:1-5-circ-geral">
+          x^2 + y^2 + Dx + Ey + F = 0
+        </equation>
+        Completando os quadrados em $x$ e $y$, a equação é equivalente a:
+        $$\left(x + \frac{D}{2}\right)^2 + \left(y + \frac{E}{2}\right)^2 = K, \qquad \text{onde } K = \frac{D^2 + E^2 - 4F}{4}.$$
+        O conjunto de soluções reais depende do sinal de $K$:
+        <list marker="dash">
+          <item>se $K > 0$, é um <strong>círculo de verdade</strong> com centro $C = \left(-\dfrac{D}{2},\; -\dfrac{E}{2}\right)$ e raio $r = \sqrt{K}$;</item>
+          <item>se $K = 0$, reduz-se a um <strong>único ponto</strong> $\left(-\dfrac{D}{2},\; -\dfrac{E}{2}\right)$; </item>
+          <item>se $K < 0$, o conjunto solução é <strong>vazio</strong> (nenhum ponto real tem soma de quadrados negativa).</item>
+        </list>
+      </proposition>
+      <proof of="prop:1-5-forma-geral-circulo" collapsible="true" collapsed="true">
+        Agrupamos os termos em $x$ e os termos em $y$ passando $F$ para o lado direito:
+        $$(x^2 + Dx) + (y^2 + Ey) = -F.$$
+        Para completar um quadrado perfeito em $x^2 + Dx$, somamos $\left(\frac{D}{2}\right)^2 = \frac{D^2}{4}$; para $y^2 + Ey$, somamos $\left(\frac{E}{2}\right)^2 = \frac{E^2}{4}$. Somando essas duas quantidades a <em>ambos</em> os lados da igualdade para preservá-la:
+        $$\left(x^2 + Dx + \frac{D^2}{4}\right) + \left(y^2 + Ey + \frac{E^2}{4}\right) = \frac{D^2}{4} + \frac{E^2}{4} - F$$
+        $$\left(x + \frac{D}{2}\right)^2 + \left(y + \frac{E}{2}\right)^2 = \frac{D^2 + E^2 - 4F}{4} = K.$$
+        Como quadrados de números reais são sempre $\ge 0$, se $K < 0$ não há solução real; se $K = 0$, ambos os quadrados precisam zerar simultaneamente, dando apenas o ponto $(-D/2, -E/2)$; se $K > 0$, reconhecemos a forma reduzida <ref to="eq:1-5-circulo"/> com $a = -D/2$, $b = -E/2$ e $r = \sqrt{K}$.
+      </proof>
+
+      E quando queremos encontrar a <strong>interseção entre uma reta e um círculo</strong>? O método algébrico é direto: isolamos $y$ (ou $x$) na equação da reta e substituímos na equação do círculo. Isso elimina uma das variáveis e gera uma <strong>equação do 2º grau</strong> em uma única incógnita. Como vimos na fórmula de Bhaskara (Tema 1.1), o discriminante $\Delta = b^2 - 4ac$ decide a geometria do encontro:
+      <list marker="dash">
+        <item>$\Delta > 0$: $2$ soluções reais distintas $\implies$ a reta corta o círculo em $2$ pontos (<strong>reta secante</strong>);</item>
+        <item>$\Delta = 0$: $1$ solução real dupla $\implies$ a reta toca o círculo em um único ponto (<strong>reta tangente</strong>);</item>
+        <item>$\Delta < 0$: nenhuma solução real $\implies$ a reta não encontra o círculo (<strong>reta exterior</strong>).</item>
+      </list>
+      Guarde essa distinção entre reta secante e reta tangente: no Módulo 2 (<mark>Cálculo Real</mark>), a derivada nascerá justamente ao fazer uma reta secante se aproximar de uma reta tangente!
+
+      <example id="exm:1-5-completar-quadrados">
+        <title>Completando quadrados e interseção de reta com círculo</title>
+        <list marker="a">
+          <item>Verifique se a equação $x^2 + y^2 - 6x + 4y - 12 = 0$ representa um círculo e, em caso afirmativo, determine seu centro e seu raio.</item>
+          <item>Encontre os pontos de interseção entre essa curva e a reta $y = x - 4$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Agrupamos $x$ e $y$ e isolamos a constante $-12$ à direita:
+            $$(x^2 - 6x) + (y^2 + 4y) = 12.$$
+            Para completar os quadrados, pegamos metade de $-6$ (que é $-3$, cujo quadrado é $(-3)^2 = 9$) e metade de $4$ (que é $2$, cujo quadrado é $2^2 = 4$). Somamos $9 + 4$ aos dois lados:
+            $$(x^2 - 6x + 9) + (y^2 + 4y + 4) = 12 + 9 + 4$$
+            $$(x - 3)^2 + (y + 2)^2 = 25.$$
+            Como $r^2 = 25 > 0$, trata-se de um círculo de verdade com centro $C = (3, -2)$ e raio $r = \sqrt{25} = 5$.
+          </item>
+          <item>Substituímos $y = x - 4$ na equação reduzida $(x - 3)^2 + (y + 2)^2 = 25$:
+            $$(x - 3)^2 + \bigl((x - 4) + 2\bigr)^2 = 25 \implies (x - 3)^2 + (x - 2)^2 = 25.$$
+            Expandindo os dois quadrados:
+            $$(x^2 - 6x + 9) + (x^2 - 4x + 4) = 25 \implies 2x^2 - 10x + 13 = 25 \implies 2x^2 - 10x - 12 = 0.$$
+            Dividindo toda a equação por $2$:
+            $$x^2 - 5x - 6 = 0.$$
+            Aplicando Bhaskara ($a = 1$, $b = -5$, $c = -6$):
+            $$\Delta = (-5)^2 - 4(1)(-6) = 25 + 24 = 49 > 0,$$
+            $$x = \frac{-(-5) \pm \sqrt{49}}{2 \cdot 1} = \frac{5 \pm 7}{2} \implies x_1 = 6, \quad x_2 = -1.$$
+            Calculando as ordenadas na reta $y = x - 4$: para $x_1 = 6$, $y_1 = 6 - 4 = 2$; para $x_2 = -1$, $y_2 = -1 - 4 = -5$. Assim, a reta é secante e corta o círculo em $(6, 2)$ e $(-1, -5)$.
+
+            <em>Conferência no círculo:</em> para $(6, 2)$, $(6 - 3)^2 + (2 + 2)^2 = 3^2 + 4^2 = 25$; para $(-1, -5)$, $(-1 - 3)^2 + (-5 + 2)^2 = (-4)^2 + (-3)^2 = 25$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:1-5-campo-receptivo">
+        <title>Campo receptivo centro-periferia na retina</title>
+        Muitas células ganglionares da retina possuem um campo receptivo circular com organização <strong>centro-periferia</strong> (<em>center-surround</em>): a luz que incide no disco central excita o neurônio, enquanto a luz que incide em um anel ao redor (a periferia) o inibe. Suponha que, sobre uma tela de estimulação com coordenadas $(x, y)$ em milímetros, o campo receptivo de uma célula esteja centrado em $C = (3, -1)$, com centro de raio $r_{\text{c}} = 2\text{ mm}$ e borda externa da periferia de raio $r_{\text{p}} = 5\text{ mm}$.
+        <list marker="a">
+          <item>Escreva as desigualdades que caracterizam quando um ponto luminoso $(x, y)$ atinge o centro ($d \le 2$), a periferia ($2 < d \le 5$) ou fica fora do campo receptivo ($d > 5$).</item>
+          <item>Classifique os três estímulos pontuais $P_1 = (4, 0)$, $P_2 = (6, 3)$ e $P_3 = (-2, 4)$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>O quadrado da distância até o centro $C = (3, -1)$ é $d^2 = (x - 3)^2 + (y + 1)^2$. Como $r_{\text{c}}^2 = 2^2 = 4$ e $r_{\text{p}}^2 = 5^2 = 25$:
+            <list marker="dash">
+              <item><strong>Centro:</strong> $(x - 3)^2 + (y + 1)^2 \le 4$;</item>
+              <item><strong>Periferia (anel):</strong> $4 < (x - 3)^2 + (y + 1)^2 \le 25$;</item>
+              <item><strong>Fora do campo receptivo:</strong> $(x - 3)^2 + (y + 1)^2 > 25$.</item>
+            </list>
+          </item>
+          <item>Calculamos $(x - 3)^2 + (y + 1)^2$ para cada ponto de luz:
+            <list marker="dash">
+              <item>Para $P_1 = (4, 0)$: $(4 - 3)^2 + (0 + 1)^2 = 1^2 + 1^2 = 2 \le 4$. Logo, $P_1$ incide no <strong>centro</strong> excitatório ($d = \sqrt{2} \approx 1{,}41\text{ mm}$).</item>
+              <item>Para $P_2 = (6, 3)$: $(6 - 3)^2 + (3 + 1)^2 = 3^2 + 4^2 = 9 + 16 = 25$. Como $4 < 25 \le 25$, $P_2$ incide sobre a borda externa da <strong>periferia</strong> inibitória ($d = 5\text{ mm}$).</item>
+              <item>Para $P_3 = (-2, 4)$: $(-2 - 3)^2 + (4 + 1)^2 = (-5)^2 + 5^2 = 25 + 25 = 50 > 25$. Logo, $P_3$ cai <strong>fora</strong> do campo receptivo ($d = \sqrt{50} \approx 7{,}07\text{ mm}$).</item>
+            </list>
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:1-5-esfera-atividade">
+        <title>Círculo e esfera de tolerância no espaço de atividade</title>
+        Retomando o espaço de atividade do Subtema 1, suponha que um estímulo de referência provoque as taxas médias $R_0 = (20, 30)\text{ Hz}$ em $2$ neurônios e que variações aleatórias de tentativa para tentativa mantenham a resposta indistinguível de $R_0$ sempre que a distância euclidiana até $R_0$ for no máximo $5\text{ Hz}$.
+        <list marker="a">
+          <item>Que figura geométrica delimita todos os padrões $(r_1, r_2)$ exatamente à distância $5\text{ Hz}$ de $R_0$, e qual é sua equação?</item>
+          <item>Se incluirmos um $3^\circ$ neurônio com referência $R_0 = (20, 30, 15)\text{ Hz}$, verifique se os padrões observados $R_1 = (22, 33, 19)\text{ Hz}$ e $R_2 = (23, 34, 15)\text{ Hz}$ estão dentro da esfera de tolerância de raio $5\text{ Hz}$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>O conjunto dos padrões a distância fixa $5\text{ Hz}$ de $R_0 = (20, 30)$ é o <strong>círculo</strong> de centro $(20, 30)$ e raio $5$, dado por:
+            $$(r_1 - 20)^2 + (r_2 - 30)^2 = 25.$$
+            A região de tolerância completa (distância $\le 5\text{ Hz}$) corresponde ao disco fechado $(r_1 - 20)^2 + (r_2 - 30)^2 \le 25$.
+          </item>
+          <item>Em $3$ dimensões, a esfera de tolerância de raio $5\text{ Hz}$ centrada em $R_0 = (20, 30, 15)$ é definida por $(r_1 - 20)^2 + (r_2 - 30)^2 + (r_3 - 15)^2 \le 25$. Testando os dois padrões:
+            <list marker="dash">
+              <item>Para $R_1 = (22, 33, 19)$: $(22 - 20)^2 + (33 - 30)^2 + (19 - 15)^2 = 2^2 + 3^2 + 4^2 = 4 + 9 + 16 = 29 > 25$. Logo, $R_1$ está <strong>fora</strong> da esfera de tolerância ($d = \sqrt{29} \approx 5{,}39\text{ Hz}$).</item>
+              <item>Para $R_2 = (23, 34, 15)$: $(23 - 20)^2 + (34 - 30)^2 + (15 - 15)^2 = 3^2 + 4^2 + 0^2 = 9 + 16 + 0 = 25 \le 25$. Logo, $R_2$ está exatamente <strong>sobre a superfície</strong> da esfera ($d = 5\text{ Hz}$), no limite da tolerância.</item>
+            </list>
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:1-5-armadilha-circ">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Inverter os sinais do centro $(a, b)$:</strong> na equação $(x + 2)^2 + (y - 1)^2 = 9$, o centro é $(-2, 1)$, e <em>não</em> $(2, -1)$! Como a forma reduzida traz sinais de subtração $(x - a)^2 + (y - b)^2$, reescrevemos $x + 2 = x - (-2)$, de onde sai $a = -2$.</item>
+          <item><strong>Confundir o raio $r$ com $r^2$:</strong> na equação $x^2 + y^2 = 16$, o raio é $r = \sqrt{16} = 4$, e <em>não</em> $16$.</item>
+          <item><strong>Completar o quadrado só de um lado:</strong> ao acrescentar $+9$ para transformar $x^2 + 6x$ em $(x + 3)^2$, é obrigatório somar $+9$ também do outro lado da equação.</item>
+          <item><strong>Assumir que toda equação $x^2 + y^2 + Dx + Ey + F = 0$ é um círculo:</strong> sempre conclua o completamento de quadrados para conferir se o lado direito é estritamente positivo ($r^2 > 0$).</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:1-5-3-1">
+        <title>Básico — Centro, raio e posição de pontos</title>
+        Considere o círculo de equação $(x + 4)^2 + (y - 3)^2 = 25$.
+        <list marker="a">
+          <item>Determine as coordenadas do centro $C$ e o valor do raio $r$.</item>
+          <item>Classifique os pontos $P = (-1, 7)$, $Q = (0, 1)$ e $R = (2, 3)$ como dentro, sobre ou fora do círculo.</item>
+        </list>
+        <hint><title>Ver dica</title>Reescreva $x + 4$ como $x - (-4)$ e lembre que $25 = r^2$. Depois substitua cada ponto no lado esquerdo e compare o valor obtido com $25$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Comparando com $(x - a)^2 + (y - b)^2 = r^2$, temos $a = -4$, $b = 3$ e $r^2 = 25$. Logo, o centro é $C = (-4, 3)$ e o raio é $r = \sqrt{25} = 5$.</item>
+            <item>Substituindo cada ponto em $(x + 4)^2 + (y - 3)^2$:
+              <list marker="dash">
+                <item>$P = (-1, 7)$: $(-1 + 4)^2 + (7 - 3)^2 = 3^2 + 4^2 = 9 + 16 = 25$ $\implies$ <strong>sobre</strong> o círculo.</item>
+                <item>$Q = (0, 1)$: $(0 + 4)^2 + (1 - 3)^2 = 4^2 + (-2)^2 = 16 + 4 = 20 < 25$ $\implies$ <strong>dentro</strong> do círculo.</item>
+                <item>$R = (2, 3)$: $(2 + 4)^2 + (3 - 3)^2 = 6^2 + 0^2 = 36 > 25$ $\implies$ <strong>fora</strong> do círculo.</item>
+              </list>
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-5-3-2">
+        <title>Intermediário — Completando quadrados na forma geral</title>
+        Complete os quadrados em cada equação abaixo e diga se ela representa um círculo (indicando centro e raio), um único ponto ou o conjunto vazio:
+        <list marker="a">
+          <item>$x^2 + y^2 + 8x - 6y + 9 = 0$</item>
+          <item>$x^2 + y^2 - 2x + 4y + 10 = 0$</item>
+        </list>
+        <hint><title>Ver dica</title>Agrupe os termos em $x$ e em $y$, passe o termo independente para a direita e some o quadrado da metade de cada coeficiente nos dois lados da equação.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Agrupando e isolando o termo constante:
+              $$(x^2 + 8x) + (y^2 - 6y) = -9.$$
+              Metade de $8$ é $4$ ($4^2 = 16$) e metade de $-6$ é $-3$ ($(-3)^2 = 9$). Somando $16 + 9$ nos dois lados:
+              $$(x^2 + 8x + 16) + (y^2 - 6y + 9) = -9 + 16 + 9 \implies (x + 4)^2 + (y - 3)^2 = 16.$$
+              Como $16 > 0$, é um <strong>círculo</strong> com centro $C = (-4, 3)$ e raio $r = \sqrt{16} = 4$.
+            </item>
+            <item>Agrupando os termos:
+              $$(x^2 - 2x) + (y^2 + 4y) = -10.$$
+              Metade de $-2$ é $-1$ ($(-1)^2 = 1$) e metade de $4$ é $2$ ($2^2 = 4$). Somando $1 + 4$ nos dois lados:
+              $$(x^2 - 2x + 1) + (y^2 + 4y + 4) = -10 + 1 + 4 \implies (x - 1)^2 + (y + 2)^2 = -5.$$
+              Como a soma de dois quadrados reais nunca pode ser igual a $-5 < 0$, o conjunto solução é <strong>vazio</strong> (não representa nenhum ponto do plano).
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-5-3-3">
+        <title>Intermediário — Campo receptivo na retina e círculo unitário</title>
+        <list marker="a">
+          <item>Uma célula ganglionar da retina possui campo receptivo centrado em $(2, 5)\text{ mm}$, com centro excitatório de raio $r_{\text{c}} = 1{,}5\text{ mm}$ e periferia inibitória entre $1{,}5\text{ mm}$ e $4\text{ mm}$. Se um feixe luminoso atingir $(3, 3)\text{ mm}$, ele estimula o centro, a periferia ou fica fora do campo receptivo?</item>
+          <item>No círculo unitário $x^2 + y^2 = 1$, determine as coordenadas $(\cos\theta, \operatorname{sen}\theta)$ do ponto correspondente a $\theta = 150^\circ$ e confira que o ponto satisfaz a equação do círculo.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), compare $d^2 = (3 - 2)^2 + (3 - 5)^2$ com $r_{\text{c}}^2 = 1{,}5^2 = 2{,}25$ e $r_{\text{p}}^2 = 4^2 = 16$. Em (b), lembre dos valores trigonométricos no II quadrante (Tema 1.4).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Calculamos a distância ao quadrado entre o estímulo $(3, 3)$ e o centro $(2, 5)$:
+              $$d^2 = (3 - 2)^2 + (3 - 5)^2 = 1^2 + (-2)^2 = 1 + 4 = 5.$$
+              Como $r_{\text{c}}^2 = (1{,}5)^2 = 2{,}25$ e $r_{\text{p}}^2 = 4^2 = 16$, temos $2{,}25 < 5 \le 16$ (isto é, $d = \sqrt{5} \approx 2{,}24\text{ mm}$ está entre $1{,}5\text{ mm}$ e $4\text{ mm}$). Portanto, o feixe atinge a <strong>periferia</strong> inibitória.
+            </item>
+            <item>Para $\theta = 150^\circ$ (no II quadrante, suplemento de $30^\circ$), temos $\cos 150^\circ = -\cos 30^\circ = -\frac{\sqrt{3}}{2}$ e $\operatorname{sen} 150^\circ = \operatorname{sen} 30^\circ = \frac{1}{2}$. Assim, o ponto é $P = \left(-\dfrac{\sqrt{3}}{2},\; \dfrac{1}{2}\right)$.
+              <em>Conferência:</em>
+              $$x^2 + y^2 = \left(-\frac{\sqrt{3}}{2}\right)^2 + \left(\frac{1}{2}\right)^2 = \frac{3}{4} + \frac{1}{4} = \frac{4}{4} = 1.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-5-3-4">
+        <title>Avançado — Reta tangente ao círculo (prévia do Cálculo)</title>
+        Considere o círculo $x^2 + y^2 = 25$ (centro $O = (0, 0)$, raio $5$) e o ponto $P = (3, 4)$ pertencente a ele.
+        <list marker="a">
+          <item>Calcule a inclinação do raio $OP$ e, sabendo que a reta tangente ao círculo em $P$ é perpendicular ao raio $OP$, determine a equação reduzida da reta tangente $t$ em $P$.</item>
+          <item>Substitua a equação da reta $t$ em $x^2 + y^2 = 25$ e mostre que o discriminante $\Delta$ da equação do 2º grau obtida é exatamente zero, confirmando um único ponto de encontro em $P = (3, 4)$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), encontre $m_{OP} = \frac{4 - 0}{3 - 0}$ e use $m_t = -1/m_{OP}$. Em (b), multiplique a equação após a substituição por $16$ para eliminar frações antes de calcular $\Delta$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>A inclinação do segmento radial de $O = (0, 0)$ até $P = (3, 4)$ é:
+              $$m_{OP} = \frac{4 - 0}{3 - 0} = \frac{4}{3}.$$
+              Pela condição de perpendicularidade $m_{OP} \cdot m_t = -1$, a reta tangente $t$ tem inclinação:
+              $$m_t = -\frac{3}{4}.$$
+              Passando por $P = (3, 4)$:
+              $$y - 4 = -\frac{3}{4}(x - 3) \implies y = -\frac{3}{4}x + \frac{9}{4} + 4 \implies y = -\frac{3}{4}x + \frac{25}{4}.$$
+            </item>
+            <item>Substituindo $y = \frac{25 - 3x}{4}$ em $x^2 + y^2 = 25$:
+              $$x^2 + \left(\frac{25 - 3x}{4}\right)^2 = 25.$$
+              Multiplicando ambos os lados por $16$:
+              $$16x^2 + (25 - 3x)^2 = 400 \implies 16x^2 + 625 - 150x + 9x^2 = 400 \implies 25x^2 - 150x + 225 = 0.$$
+              Dividindo toda a equação por $25$:
+              $$x^2 - 6x + 9 = 0.$$
+              Calculando o discriminante de Bhaskara ($a = 1$, $b = -6$, $c = 9$):
+              $$\Delta = (-6)^2 - 4(1)(9) = 36 - 36 = 0.$$
+              Como $\Delta = 0$, existe uma única raiz real $x = \frac{-(-6)}{2(1)} = 3$, que gera $y = -\frac{3}{4}(3) + \frac{25}{4} = \frac{16}{4} = 4$, confirmando o ponto único de tangência $P = (3, 4)$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:1-5-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Distância euclidiana em 2D e 3D:</strong> para $P = (x_1, y_1)$ e $Q = (x_2, y_2)$, $d(P, Q) = \sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}$; em $\mathbb{R}^3$, soma-se $+(z_2 - z_1)^2$ sob a raiz (e a mesma ideia se estende a $n$ dimensões).</item>
+        <item><strong>Ponto médio:</strong> $M = \left(\dfrac{x_1 + x_2}{2},\; \dfrac{y_1 + y_2}{2}\right)$ em $\mathbb{R}^2$, estendendo-se pela média da terceira coordenada em $\mathbb{R}^3$.</item>
+        <item><strong>Espaço de atividade neural:</strong> taxas de disparo $(r_1, r_2, \dots, r_n)$ definem pontos em um espaço geométrico onde a distância mede a dissimilaridade entre padrões neurais (no Módulo 5, esses pontos serão tratados como vetores).</item>
+        <item><strong>Inclinação da reta:</strong> $m = \dfrac{\Delta y}{\Delta x} = \dfrac{y_2 - y_1}{x_2 - x_1} = \tan\alpha$ ($x_1 \ne x_2$). Retas horizontais ($y = k$) têm $m = 0$; retas verticais ($x = c$) não têm inclinação nem são gráficos de função.</item>
+        <item><strong>Equações da reta:</strong> ponto-inclinação $y - y_0 = m(x - x_0)$ e reduzida $y = mx + b$.</item>
+        <item><strong>Paralelismo, perpendicularidade e interseção:</strong> retas não verticais paralelas têm $m_1 = m_2$; perpendiculares satisfazem $m_1 \cdot m_2 = -1$. A interseção resolve um sistema de duas equações lineares — como no equilíbrio $g_{\text{K}}(V - E_{\text{K}}) + g_{\text{Na}}(V - E_{\text{Na}}) = 0$, que resulta em $V_{\text{eq}} = \dfrac{g_{\text{K}} E_{\text{K}} + g_{\text{Na}} E_{\text{Na}}}{g_{\text{K}} + g_{\text{Na}}}$.</item>
+        <item><strong>Equação do círculo:</strong> $(x - a)^2 + (y - b)^2 = r^2$ (centro $(a, b)$, raio $r > 0$). Na forma geral $x^2 + y^2 + Dx + Ey + F = 0$, complete os quadrados e verifique se o termo constante à direita satisfaz $r^2 > 0$.</item>
+        <item><strong>Regiões, interseção com reta e círculo unitário:</strong> $(x - a)^2 + (y - b)^2 < r^2$ (dentro), $= r^2$ (sobre) e $> r^2$ (fora); a interseção de reta e círculo cai numa equação do 2º grau (secante se $\Delta > 0$, tangente se $\Delta = 0$, exterior se $\Delta < 0$); e o círculo unitário $x^2 + y^2 = 1$ liga geometria e trigonometria por $(\cos\theta, \operatorname{sen}\theta)$.</item>
+      </list>
+    </section>
+
+    <section id="sec:1-5-alem">
+      <title>Para ir além</title>
+      Para consolidar todos os tópicos de Geometria Analítica antes de encerrar o Módulo 1 e avançar para o Módulo 2, explore os recursos do módulo:
+      <list marker="dash">
+        <item><strong>Material essencial:</strong> <link to="https://pt.khanacademy.org/math/precalculus">Khan Academy — Pré-Cálculo</link>, com prática interativa em retas, distâncias e seções cônicas.</item>
+        <item><strong>Aprofundamento em vídeo:</strong> <link to="https://www.youtube.com/playlist?list=PL83s8LGM84J62ahewE-sVGbnJdOqGp8lJ">Playlist YouTube — Base Matemática</link>, ótima para revisar álgebra de equações, inclinação e gráficos.</item>
+        <item><strong>Treino direcionado:</strong> após cada aula (subseção), peça a uma IA para criar $3$ questões do tema aplicadas à neurociência para você resolver.</item>
+      </list>
+
+      Com este tema você conclui o <strong>Módulo 1 · Pré-Cálculo</strong>! Antes de seguir para o <strong>Módulo 2 (Cálculo Real)</strong> — que começa com a definição de <strong>Limite</strong> e transforma a ideia de reta secante e tangente em derivadas —, vale encarar o projeto final do módulo: <em>criar e desenhar o gráfico analítico de uma função que modela a taxa de disparo de um neurônio em função da intensidade do estímulo</em>. Tudo o que você reuniu aqui (equações, intervalos, funções, ângulos e gráficos no plano) já é suficiente para construí-lo com segurança.
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 1 · Pré-Cálculo — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

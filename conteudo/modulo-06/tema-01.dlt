@@ -1,0 +1,787 @@
+<document>
+  <title>Módulo 6 · Programação (Python)</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-6-1">Voltar ao guia (Tema 6.1)</link></meta-item>
+    <meta-item key="Módulo">Módulo 6 · Programação (Python) — Saindo da Teoria para a Prática Ferramental</meta-item>
+    <meta-item key="Nível">Básico</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-6-1">
+    <title>Ambientes</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Antes de escrever algoritmos, você precisa montar sua bancada digital: saber onde o código mora, quem o executa e como isolar projetos sem conflitos.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Da análise de disparos neuronais (<em>spikes</em>) ao pré-processamento de EEG (amostrado entre $250\text{ Hz}$ e $1\,000\text{ Hz}$) e fMRI (com tempo de repetição $\text{TR} \approx 2\text{ s}$), a neurociência computacional vive em Python. Bibliotecas como MNE (EEG/MEG) e nilearn (neuroimagem) transformam registros brutos em medidas fisiológicas e gráficos reprodutíveis.
+
+    Para um biólogo, montar o ambiente computacional é como preparar a bancada antes de pipetar: você separa protocolos incompatíveis e registra cada etapa para que outro pesquisador — ou você mesmo no futuro — repita o experimento. Reprodutibilidade e organização são exigências de laboratórios e revistas científicas, não detalhes opcionais. Depois da base matemática dos Módulos 1 a 5, entramos agora na prática ferramental rumo ao projeto final deste módulo: baixar dados neurais públicos via API, limpá-los, gerar gráficos e publicá-los no GitHub.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>distinguir Python, seu interpretador e os principais ambientes de execução;</item>
+      <item>criar e executar células de código e Markdown no Google Colab, controlando a ordem de execução;</item>
+      <item>explicar o papel do <em>kernel</em> no Jupyter local (<c>.ipynb</c>) e evitar estado oculto;</item>
+      <item>escrever e rodar scripts <c>.py</c> no VS Code, escolhendo entre notebook e script;</item>
+      <item>isolar pacotes por projeto com <c>venv</c> e <c>conda</c> usando <c>python -m pip</c>;</item>
+      <item>inspecionar sua bancada pelo terminal do sistema e com <c>!</c> no Colab.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Nenhum conhecimento prévio de programação é necessário. Este é o primeiro tema do Módulo 6 (<mark>Programação (Python)</mark>) e parte do zero na prática computacional.
+
+    <section id="sec:6-1-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Google Colab: o ponto de partida</title>
+      <intro>
+        Você não precisa instalar nada no computador para escrever e rodar seu primeiro código em Python: basta um navegador web para abrir um laboratório computacional na nuvem.
+      </intro>
+
+      Imagine redigir um protocolo experimental e pedir a um técnico que leia uma linha por vez e execute cada instrução na hora. Na programação, o protocolo é o <strong>código-fonte</strong> em <strong>Python</strong>, e o programa que lê e executa essas instruções passo a passo é o <strong>interpretador</strong> (<em>interpreter</em>).
+
+      <definition id="def:6-1-interpretador">
+        <title>Python e interpretador</title>
+        <strong>Python</strong> é uma linguagem de programação de alto nível, projetada para leitura clara. O <strong>interpretador</strong> Python é o programa que lê seu código linha a linha, verifica a sintaxe e executa cada instrução imediatamente.
+        <intuition>
+          Você escreve comandos legíveis em Python, e o interpretador traduz cada instrução em cálculos, gravações na memória e saídas na tela.
+        </intuition>
+      </definition>
+
+      Para começar sem configurar nada no seu computador, usamos o <strong>Google Colab</strong>, um serviço gratuito que roda Python em servidores na nuvem diretamente pelo navegador. Basta entrar com uma conta Google, clicar em <em>Novo notebook</em> e começar. Seus arquivos ficam salvos no Google Drive (na pasta <c>Colab Notebooks</c>).
+
+      <definition id="def:6-1-notebook">
+        <title>Notebook, células e última linha</title>
+        Um <strong>notebook</strong> (<em>notebook</em>) é um documento interativo dividido em blocos chamados <strong>células</strong> (<em>cells</em>):
+        <list marker="dash">
+          <item><strong>Células de código:</strong> contêm Python enviado ao interpretador pelo botão <em>Play</em> ou pelo atalho <c>Shift+Enter</c>.</item>
+          <item><strong>Células de texto:</strong> usam <strong>Markdown</strong> (<em>Markdown</em>) para títulos, explicações e equações, funcionando como caderno de laboratório.</item>
+        </list>
+        A função <c>print(...)</c> exibe valores explicitamente; além disso, se a <strong>última linha</strong> de uma célula for uma expressão com valor, o notebook exibe esse resultado automaticamente mesmo sem <c>print</c>.
+      </definition>
+
+      Ao rodar a primeira célula, o Colab aloca uma máquina virtual temporária chamada <strong>ambiente de execução</strong> (<em>runtime</em>), que guarda suas variáveis na memória durante a sessão. Ao lado esquerdo de cada célula executada aparece um contador entre colchetes (<c>[1]</c>, <c>[2]</c>, <c>[3]</c>). Ele mostra a <strong>ordem cronológica real</strong> em que as células foram rodadas — não a posição visual na página.
+
+      Para zerar todas as variáveis da memória sem apagar o código, use o menu <em>Ambiente de execução</em> → <em>Reiniciar sessão</em> (<em>Restart runtime</em>). E, se precisar de um pacote externo ausente (como <c>mne</c> para EEG), instale-o em uma célula com o prefixo <c>!</c>, que envia o comando ao sistema da máquina virtual:
+
+      <code lang="bash" numbered="false">
+!pip install mne
+      </code>
+
+      Como o ambiente de execução é temporário, ao fechar a sessão por horas ou reiniciar o <em>runtime</em>, pacotes instalados via <c>!pip install</c> e variáveis em memória precisam ser recarregados.
+
+      <example id="exm:6-1-primeira-celula">
+        <title>Sua primeira célula no Colab e a regra da última linha</title>
+        Esta célula imprime uma mensagem, armazena os potenciais típicos de repouso ($-70\text{ mV}$) e limiar ($-55\text{ mV}$) de um neurônio e calcula a despolarização necessária para o disparo:
+
+        <code lang="python" numbered="false">
+print("Bancada de neurociência pronta!")  # Bancada de neurociência pronta!
+potencial_repouso = -70
+potencial_limiar = -55
+potencial_limiar - potencial_repouso  # No notebook, a última linha exibe: 15
+        </code>
+
+        <strong>Passo a passo:</strong> a linha 1 imprime o texto; as linhas 2 e 3 gravam as variáveis na memória; a linha 4 calcula $-55 - (-70) = 15$ e, por ser a última linha da célula, o Colab exibe <c>15</c> automaticamente.
+      </example>
+
+      <example id="exm:6-1-taxa-disparo">
+        <title>Convertendo duração de registro e calculando taxa de disparo</title>
+        Um neurônio disparou $30$ vezes em um registro de $1\,500\text{ ms}$. Convertemos o tempo para segundos e calculamos a taxa média em $\text{Hz}$:
+
+        <code lang="python" numbered="false">
+num_spikes = 30
+duracao_ms = 1500
+
+duracao_s = duracao_ms / 1000
+taxa_hz = num_spikes / duracao_s
+
+print("Duração (s):", duracao_s)  # Duração (s): 1.5
+print("Taxa de disparo (Hz):", taxa_hz)  # Taxa de disparo (Hz): 20.0
+        </code>
+
+        <strong>Passo a passo:</strong> dividindo $1\,500$ por $1\,000$ obtemos <c>1.5</c> segundos (sempre com ponto dentro do código). Dividindo $30$ por $1{,}5$, encontramos a taxa realista de <c>20.0</c> Hz. As duas chamadas a <c>print(...)</c> garantem que ambos os valores apareçam na saída.
+      </example>
+
+      <remark id="rem:6-1-armadilha-colab">
+        <title>Armadilha comum</title>
+        Dois erros frequentes no Colab: (1) achar que salvar no Google Drive preserva as variáveis em memória — após inatividade, o <em>runtime</em> reinicia e você precisa rodar as células de novo; (2) editar uma célula no topo e rodar só ela, esquecendo de reexecutar as células de baixo que dependem daquela variável.
+      </remark>
+
+      <exercise id="exr:6-1-1-1">
+        <title>Básico — Inspecionando a versão do Python no Colab</title>
+        Escreva uma célula autocontida que importe o módulo <c>sys</c> e imprima <c>sys.version</c>, explicando brevemente o que a saída informa.
+        <hint><title>Ver dica</title>Use <c>import sys</c> e passe <c>sys.version</c> para <c>print(...)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import sys
+
+print(sys.version)  # saída varia conforme o ambiente, por exemplo: 3.11.x (...)
+          </code>
+          <strong>Explicação:</strong> <c>import sys</c> carrega o módulo de sistema da biblioteca padrão, e <c>sys.version</c> informa a versão exata do interpretador Python ativo no servidor (por exemplo, Python 3.11.x), além da data e do compilador de construção.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-1-1-2">
+        <title>Básico — Despolarização e distância até o limiar</title>
+        Um neurônio em repouso a $-70\text{ mV}$ despolariza até $-58\text{ mV}$. Escreva uma célula que guarde esses valores e o limiar ($-55\text{ mV}$), imprima a despolarização ocorrida com <c>print(...)</c> e exiba quantos $\text{mV}$ faltam para o limiar usando a regra da última linha.
+        <hint><title>Ver dica</title>Calcule <c>v_medido - v_repouso</c> para o <c>print</c> e deixe <c>v_limiar - v_medido</c> sozinho na última linha.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+v_repouso = -70
+v_medido = -58
+v_limiar = -55
+
+despolarizacao = v_medido - v_repouso
+falta_para_limiar = v_limiar - v_medido
+
+print("Despolarização (mV):", despolarizacao)  # Despolarização (mV): 12
+falta_para_limiar  # No notebook, exibe: 3
+          </code>
+          <strong>Raciocínio:</strong> o potencial subiu $-58 - (-70) = 12\text{ mV}$ (impresso por <c>print</c>). A última linha avalia $-55 - (-58) = 3\text{ mV}$, exibido automaticamente pelo notebook.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-1-1-3">
+        <title>Intermediário — Comparando taxa basal e evocada</title>
+        Um neurônio disparou $45$ vezes em $1\,500\text{ ms}$ na linha de base e $90$ vezes em $750\text{ ms}$ durante um estímulo visual. Escreva um bloco autocontido que converta ambas as durações para segundos, calcule as duas taxas em $\text{Hz}$ e imprima a razão entre a taxa evocada e a basal.
+        <hint><title>Ver dica</title>Divida cada duração em milissegundos por <c>1000</c> antes de calcular as taxas e, depois, divida a taxa com estímulo pela basal.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+spikes_basal = 45
+duracao_basal_ms = 1500
+
+spikes_estimulo = 90
+duracao_estimulo_ms = 750
+
+taxa_basal_hz = spikes_basal / (duracao_basal_ms / 1000)
+taxa_estimulo_hz = spikes_estimulo / (duracao_estimulo_ms / 1000)
+razao = taxa_estimulo_hz / taxa_basal_hz
+
+print("Taxa basal (Hz):", taxa_basal_hz)  # Taxa basal (Hz): 30.0
+print("Taxa com estímulo (Hz):", taxa_estimulo_hz)  # Taxa com estímulo (Hz): 120.0
+print("Razão estímulo/basal:", razao)  # Razão estímulo/basal: 4.0
+          </code>
+          <strong>Raciocínio:</strong> $1\,500\text{ ms} = 1{,}5\text{ s}$ dá $45 / 1{,}5 = 30{,}0\text{ Hz}$; $750\text{ ms} = 0{,}75\text{ s}$ dá $90 / 0{,}75 = 120{,}0\text{ Hz}$, uma resposta $4{,}0$ vezes maior.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-1-1-4">
+        <title>Avançado — Ordem de execução e pacote externo no Colab</title>
+        Um notebook tem três células nesta ordem: (1) <c>duracao_s = 2</c>; (2) <c>amostras = 500 * duracao_s</c>; (3) <c>print(amostras)</c>. Você rodou as três em ordem, depois mudou a célula 1 para <c>duracao_s = 4</c>, rodou apenas a célula 1 e em seguida rodou a célula 3. (a) O que a célula 3 imprime? (b) O que ocorre se você reiniciar a sessão e rodar só a célula 3? (c) Como instalar o pacote <c>mne</c> no Colab?
+        <hint><title>Ver dica</title>Acompanhe quais variáveis estão na memória após cada clique e lembre do prefixo <c>!</c> para instalações no Colab.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Imprime <c>1000</c>: a célula 2 não foi reexecutada, então <c>amostras</c> manteve o valor calculado quando <c>duracao_s</c> ainda era <c>2</c>.</item>
+            <item>Ocorre <c>NameError: name 'amostras' is not defined</c>, pois reiniciar o <em>runtime</em> apaga todas as variáveis da memória.</item>
+            <item>Execute em uma célula:
+              <code lang="bash" numbered="false">
+!pip install mne
+              </code>
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-1-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Jupyter e notebooks locais</title>
+      <intro>
+        Quando os arquivos neurais são grandes demais para a nuvem — ou têm sigilo clínico —, o mesmo modelo de notebook roda localmente na sua máquina com o Jupyter.
+      </intro>
+
+      O Colab é uma versão hospedada do ecossistema <strong>Jupyter</strong>. O arquivo padrão desses notebooks tem extensão <c>.ipynb</c> (<em>IPython Notebook</em>): internamente, é um arquivo JSON que armazena código, texto Markdown e as saídas já geradas (números, tabelas e gráficos).
+
+      No seu computador, há duas interfaces principais para abrir <c>.ipynb</c>: o <strong>Jupyter Notebook</strong> (clássico, focado em um documento por aba) e o <strong>JupyterLab</strong> (workspace moderno com explorador de arquivos, múltiplas abas e terminal integrado). Em ambos, o código é executado por um <em>kernel</em>.
+
+      <definition id="def:6-1-kernel">
+        <title>Kernel</title>
+        O <strong>kernel</strong> (<em>kernel</em>) é o processo Python em segundo plano conectado à interface do notebook. Enquanto o arquivo <c>.ipynb</c> fica salvo no disco, o kernel mantém variáveis, funções e pacotes importados vivos na memória RAM durante a sessão.
+        <intuition>
+          O <c>.ipynb</c> é o caderno de anotações na mesa; o kernel é a bancada ligada. Reiniciar o kernel limpa a bancada (memória), mantendo o texto do caderno intacto.
+        </intuition>
+      </definition>
+
+      Notebooks são excelentes para análise exploratória (<em>exploratory data analysis</em>): permitem testar filtros em EEG, visualizar espectros ao lado do código e registrar interpretações no mesmo documento. Porém, executar células em ordem livre cria o risco do <strong>estado oculto</strong> (<em>hidden state</em>): variáveis antigas ou de células apagadas permanecem na memória do kernel e mascaram erros.
+
+      <proposition id="prop:6-1-reexecucao">
+        <title>Critério de reprodutibilidade de um notebook</title>
+        Um notebook <c>.ipynb</c> só é confiável quando o comando <strong>Reiniciar e executar tudo</strong> (<em>Restart Kernel and Run All Cells</em>) percorre todas as células de cima para baixo sem erros e reproduz as mesmas saídas.
+      </proposition>
+
+      <example id="exm:6-1-sessao-eeg">
+        <title>Notebook de análise de uma sessão multimodal</title>
+        Um notebook no JupyterLab resume uma sessão combinando $10\text{ s}$ de EEG a $250\text{ Hz}$ e $150$ volumes de fMRI com $\text{TR} = 2{,}0\text{ s}$. Executado linearmente:
+
+        <code lang="python" numbered="false">
+taxa_eeg_hz = 250
+duracao_eeg_s = 10
+total_amostras_eeg = taxa_eeg_hz * duracao_eeg_s
+
+tr_fmri_s = 2.0
+n_volumes = 150
+duracao_fmri_min = (n_volumes * tr_fmri_s) / 60
+
+print("Amostras de EEG:", total_amostras_eeg)  # Amostras de EEG: 2500
+print("Duração do fMRI (min):", duracao_fmri_min)  # Duração do fMRI (min): 5.0
+        </code>
+
+        <strong>Passo a passo:</strong> $250 \times 10 = 2\,500$ amostras de EEG, e $(150 \times 2{,}0) / 60 = 5{,}0$ minutos de fMRI. Como cada variável é definida antes de ser usada, reiniciar e executar tudo gera sempre os mesmos números.
+      </example>
+
+      <example id="exm:6-1-estado-oculto">
+        <title>Rastreando um estado oculto</title>
+        Veja a tela de um notebook após um teste apressado em que uma célula antiga com <c>fator = 10</c> foi apagada:
+
+        <code lang="text" numbered="false">
+[3]  fator = 2
+[1]  potencial = -70
+[2]  resultado = potencial + fator * 5
+     print(resultado)
+     Saída exibida: -20
+        </code>
+
+        <strong>Por que saiu <c>-20</c>?</strong> No passo <c>[1]</c>, <c>potencial</c> recebeu <c>-70</c>. No passo <c>[2]</c>, a terceira célula usou o <c>fator = 10</c> antigo que ainda morava no kernel, calculando $-70 + 10 \times 5 = -20$. Só no passo <c>[3]</c> o autor atualizou <c>fator = 2</c>, sem reexecutar a terceira célula. Lido de cima para baixo, o código sugere $-60$, mas a saída congelada diz $-20$.
+      </example>
+
+      <remark id="rem:6-1-armadilha-estado">
+        <title>Armadilha comum</title>
+        O bug mais traiçoeiro em notebooks é o código que "funciona" só porque uma variável de uma célula deletada ou editada continuou na memória do kernel. Quando outro colega abre o arquivo, ocorre <c>NameError</c> ou um resultado diferente. A cura, conforme a <ref to="prop:6-1-reexecucao"/>, é sempre clicar em <strong>Reiniciar e executar tudo</strong> antes de fechar ou compartilhar o <c>.ipynb</c>.
+      </remark>
+
+      <exercise id="exr:6-1-2-1">
+        <title>Básico — Arquivo .ipynb versus kernel</title>
+        Você salvou um notebook <c>analise.ipynb</c> com dois gráficos no JupyterLab e clicou em <em>Restart Kernel</em> sem rodar nada depois. O que acontece com (a) o código das células, (b) as variáveis em memória RAM e (c) as figuras já salvas no <c>.ipynb</c>?
+        <hint><title>Ver dica</title>Separe o arquivo salvo em disco do processo ativo em memória.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item><strong>Código:</strong> continua salvo intacto no arquivo <c>.ipynb</c>.</item>
+            <item><strong>Variáveis na RAM:</strong> são apagadas pelo reinício do kernel e só voltam se você reexecutar as células.</item>
+            <item><strong>Figuras salvas:</strong> permanecem visíveis dentro do <c>.ipynb</c> até você limpar ou reexecutar as saídas.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-1-2-2">
+        <title>Básico — Amostras de EEG em uma sessão</title>
+        Um registro de EEG durou $12\text{ s}$ a uma taxa de amostragem de $500\text{ Hz}$. Escreva um bloco Python autocontido que calcule e imprima o total de amostras coletadas e a duração em milissegundos.
+        <hint><title>Ver dica</title>Multiplique a frequência pela duração em segundos para achar as amostras, e os segundos por <c>1000</c> para milissegundos.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+freq_amostragem_hz = 500
+duracao_s = 12
+
+total_amostras = freq_amostragem_hz * duracao_s
+duracao_ms = duracao_s * 1000
+
+print("Total de amostras:", total_amostras)  # Total de amostras: 6000
+print("Duração (ms):", duracao_ms)  # Duração (ms): 12000
+          </code>
+          <strong>Raciocínio:</strong> $500$ amostras por segundo durante $12\text{ s}$ totalizam $6\,000$ amostras, e $12\text{ s} \times 1\,000 = 12\,000\text{ ms}$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-1-2-3">
+        <title>Intermediário — Diagnosticando execução na ordem [3], [1], [2]</title>
+        Considere três células de cima para baixo: Célula A (<c>taxa_hz = 20</c>), Célula B (<c>duracao_s = 3</c>) e Célula C (<c>n_spikes = taxa_hz * duracao_s</c>; <c>print(n_spikes)</c>). Supondo que o kernel ainda guardava <c>taxa_hz = 10</c> de antes e as células foram rodadas na ordem <c>[3]</c> (A), <c>[1]</c> (B), <c>[2]</c> (C): (a) o que a Célula C imprimiu em <c>[2]</c>? (b) O que imprimirá após <em>Reiniciar e executar tudo</em>?
+        <hint><title>Ver dica</title>Siga a ordem cronológica <c>[1]</c> → <c>[2]</c> → <c>[3]</c> anotando o valor de <c>taxa_hz</c> na memória em cada passo.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item><strong>Em <c>[2]</c>, imprimiu <c>30</c>:</strong> em <c>[1]</c> definiu-se <c>duracao_s = 3</c> enquanto <c>taxa_hz</c> ainda era <c>10</c>; em <c>[2]</c> calculou-se $10 \times 3 = 30$; só em <c>[3]</c> atualizou-se <c>taxa_hz = 20</c>.</item>
+            <item><strong>Após reiniciar e executar tudo, imprimirá <c>60</c>:</strong> com kernel limpo e ordem linear A → B → C, calcula-se $20 \times 3 = 60$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-1-2-4">
+        <title>Avançado — Limpando um notebook com estado oculto</title>
+        Um aluno deixou seu notebook dependente de uma célula deletada que definia <c>v_limiar = -55</c>. Reescreva o código em um único bloco linear e autocontido usando <c>v_repouso = -70</c>, <c>v_limiar = -55</c> e <c>v_registrado = -61</c>, imprimindo a despolarização a partir do repouso e a distância restante até o limiar.
+        <hint><title>Ver dica</title>Defina as três constantes fisiológicas no início antes de subtrair.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+v_repouso = -70
+v_limiar = -55
+v_registrado = -61
+
+despolarizacao = v_registrado - v_repouso
+distancia_limiar = v_limiar - v_registrado
+
+print("Despolarização (mV):", despolarizacao)  # Despolarização (mV): 9
+print("Distância até o limiar (mV):", distancia_limiar)  # Distância até o limiar (mV): 6
+          </code>
+          <strong>Raciocínio:</strong> definindo todas as variáveis no topo em ordem sequencial, o código passa em <em>Reiniciar e executar tudo</em>: de $-70\text{ mV}$ para $-61\text{ mV}$ são $9\text{ mV}$ de despolarização, faltando $6\text{ mV}$ até $-55\text{ mV}$.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-1-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>VS Code e scripts .py</title>
+      <intro>
+        Para pipelines confiáveis de laboratório que precisam rodar de ponta a ponta sem memória residual, saímos dos notebooks e escrevemos scripts <c>.py</c> em um editor profissional.
+      </intro>
+
+      Um editor comum apenas altera texto, enquanto uma <strong>IDE</strong> (<em>Integrated Development Environment</em>) integra destaque de sintaxe, autocompletar, detecção de erros, depurador e terminal. O <strong>VS Code</strong> começa como um editor leve e, com a extensão oficial <strong>Python</strong> instalada, funciona como uma IDE completa — além de também abrir e rodar notebooks <c>.ipynb</c>.
+
+      <definition id="def:6-1-script">
+        <title>Script Python (<c>.py</c>)</title>
+        Um <strong>script</strong> Python é um arquivo de texto puro com extensão <c>.py</c> executado <strong>de cima para baixo</strong> em um processo novo a cada execução, sem células fora de ordem nem estado oculto de rodadas anteriores.
+        <intuition>
+          Se o notebook é uma lousa interativa, o script <c>.py</c> é um protocolo automatizado: sempre começa com a bancada vazia na linha 1 e vai até a última linha.
+        </intuition>
+      </definition>
+
+      No VS Code, você roda um script clicando no botão <em>Play</em> (<em>Run Python File</em>) no canto superior direito ou digitando <c>python analise.py</c> no terminal integrado. Prefira <strong>notebooks (<c>.ipynb</c>)</strong> para exploração visual e prototipagem; prefira <strong>scripts (<c>.py</c>)</strong> para <em>pipelines</em> repetitivos (processar dezenas de sujeitos), reprodutibilidade rigorosa, código modular e versionamento limpo no Git.
+
+      <example id="exm:6-1-conteudo-gc">
+        <title>Script completo: conteúdo GC de uma sequência de DNA</title>
+        O percentual de guanina e citosina (conteúdo GC) afeta a estabilidade térmica do DNA. Veja um script <c>.py</c> curto e completo (detalharemos <c>len</c> e <c>.count</c> nos dois próximos temas):
+
+        <code lang="python" numbered="false">
+sequencia = "ATGCGATAGC"
+total_bases = len(sequencia)
+contagem_g = sequencia.count("G")
+contagem_c = sequencia.count("C")
+conteudo_gc = ((contagem_g + contagem_c) / total_bases) * 100
+
+print("Sequência:", sequencia)  # Sequência: ATGCGATAGC
+print("Tamanho (pb):", total_bases)  # Tamanho (pb): 10
+print("Conteúdo GC (%):", conteudo_gc)  # Conteúdo GC (%): 50.0
+        </code>
+
+        <strong>Passo a passo:</strong> em <c>"ATGCGATAGC"</c> ($10$ bases), há $3$ guaninas e $2$ citosinas ($5/10 = 50{,}0\%$). Tudo usa <c>print(...)</c>, pois scripts <c>.py</c> não imprimem a última linha sozinhos.
+      </example>
+
+      <example id="exm:6-1-pipeline-fmri">
+        <title>Script de duração de exame de fMRI</title>
+        Para um exame de fMRI com $180$ volumes e $\text{TR} = 2{,}0\text{ s}$, este script calcula e formata a duração usando <em>f-strings</em> (que veremos no próximo tema, <mark>Comandos iniciais e lógica básica</mark>):
+
+        <code lang="python" numbered="false">
+n_volumes = 180
+tr_segundos = 2.0
+
+duracao_total_s = n_volumes * tr_segundos
+duracao_total_min = duracao_total_s / 60
+
+print(f"Volumes: {n_volumes} | TR: {tr_segundos} s")  # Volumes: 180 | TR: 2.0 s
+print(f"Duração total: {duracao_total_s} s ({duracao_total_min} min)")  # Duração total: 360.0 s (6.0 min)
+        </code>
+
+        <strong>Passo a passo:</strong> $180 \times 2{,}0 = 360{,}0\text{ s}$, que equivalem a $6{,}0\text{ min}$. Toda execução do script produz exatamente essas duas linhas.
+      </example>
+
+      <remark id="rem:6-1-armadilha-script">
+        <title>Armadilha comum</title>
+        Ao passar de notebooks para scripts <c>.py</c>, dois descuidos são clássicos: (1) esquecer <c>print()</c> na última linha — sem <c>print()</c>, o script roda em silêncio e nada aparece no terminal; (2) editar o arquivo no VS Code e rodar no terminal sem salvar (<c>Ctrl+S</c>, ou <c>Cmd+S</c> no macOS), executando a versão antiga do disco.
+      </remark>
+
+      <exercise id="exr:6-1-3-1">
+        <title>Básico — Escolhendo entre Colab, Jupyter local e script no VS Code</title>
+        Escolha e justifique a melhor ferramenta (<strong>Google Colab</strong>, <strong>Jupyter local</strong> ou <strong>script <c>.py</c> no VS Code</strong>) para cada cenário:
+        <list marker="a">
+          <item>Um estudante quer praticar Python em casa sem instalar nada, com acesso à internet.</item>
+          <item>Uma pesquisadora precisa explorar gráficos de EEG clínico confidencial que não pode sair do computador do hospital.</item>
+          <item>Um laboratório precisa rodar semanalmente o mesmo <em>pipeline</em> de limpeza em $80$ arquivos de camundongos com controle de versão no Git.</item>
+        </list>
+        <hint><title>Ver dica</title>Considere instalação, privacidade dos dados e se a tarefa é exploratória ou automatizada.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item><strong>Google Colab:</strong> roda no navegador sem instalação local e já vem com pacotes científicos prontos.</item>
+            <item><strong>Jupyter local:</strong> mantém os dados sigilosos no computador do hospital e permite inspeção visual interativa.</item>
+            <item><strong>Script <c>.py</c> no VS Code:</strong> garante execução linear reprodutível, facilita rodar em lote e produz arquivos de texto limpos para o Git.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-1-3-2">
+        <title>Básico — Corrigindo um script silencioso</title>
+        Um colega rodou o arquivo <c>converte.py</c> abaixo e nada apareceu no terminal:
+        <code lang="text" numbered="false">
+potencial_mv = -65
+potencial_mv / 1000
+        </code>
+        Explique o motivo e reescreva o script completo imprimindo o potencial em volts com uma <em>f-string</em>.
+        <hint><title>Ver dica</title>Em arquivos <c>.py</c>, valores não são exibidos sem <c>print(...)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <strong>Explicação:</strong> um script <c>.py</c> calcula <c>-65 / 1000</c>, mas não imprime a última linha automaticamente como um notebook.
+          <code lang="python" numbered="false">
+potencial_mv = -65
+potencial_v = potencial_mv / 1000
+
+print(f"Potencial de membrana: {potencial_v} V")  # Potencial de membrana: -0.065 V
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-1-3-3">
+        <title>Intermediário — Convertendo uma lista de durações de registro</title>
+        Escreva um script <c>.py</c> autocontido que guarde a lista fixa <c>[500, 1200, 2500, 4000]</c> (em ms) e imprima cada duração em segundos com duas casas decimais usando uma <em>f-string</em>. (Listas e laços <c>for</c> serão detalhados nos próximos temas.)
+        <hint><title>Ver dica</title>Use <c>for ms in duracoes_ms:</c>, divida por <c>1000</c> e formate com <c>{segundos:.2f}</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+duracoes_ms = [500, 1200, 2500, 4000]
+
+for ms in duracoes_ms:
+    segundos = ms / 1000
+    print(f"{ms} ms equivalem a {segundos:.2f} s")
+# 500 ms equivalem a 0.50 s
+# 1200 ms equivalem a 1.20 s
+# 2500 ms equivalem a 2.50 s
+# 4000 ms equivalem a 4.00 s
+          </code>
+          <strong>Raciocínio:</strong> o laço <c>for</c> percorre cada item, divide por $1\,000$ e formata o resultado com duas casas decimais.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-1-3-4">
+        <title>Avançado — Script completo de conteúdo GC e AT</title>
+        Escreva um script <c>.py</c> que analise a sequência fixa <c>"GCGCATATCG"</c>, calcule as porcentagens de bases GC e AT e imprima um resumo com uma casa decimal usando <em>f-strings</em>.
+        <hint><title>Ver dica</title>Some as contagens de <c>"G"</c> e <c>"C"</c> para GC, e de <c>"A"</c> e <c>"T"</c> para AT, dividindo por <c>len(sequencia)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+sequencia = "GCGCATATCG"
+total = len(sequencia)
+n_gc = sequencia.count("G") + sequencia.count("C")
+n_at = sequencia.count("A") + sequencia.count("T")
+
+pct_gc = (n_gc / total) * 100
+pct_at = (n_at / total) * 100
+
+print(f"Sequência: {sequencia} ({total} pb)")  # Sequência: GCGCATATCG (10 pb)
+print(f"GC: {pct_gc:.1f}% | AT: {pct_at:.1f}%")  # GC: 60.0% | AT: 40.0%
+          </code>
+          <strong>Raciocínio:</strong> em $10$ bases, há $3$ G e $3$ C ($60{,}0\%$) e $2$ A e $2$ T ($40{,}0\%$), somando $100{,}0\%$.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-1-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Pacotes e ambientes: pip, venv e Anaconda</title>
+      <intro>
+        O poder científico do Python vem de seus pacotes externos — e isolá-los por projeto impede que uma atualização quebre outro experimento.
+      </intro>
+
+      Além da biblioteca padrão (como <c>sys</c>), a neurociência depende de pacotes externos como <c>numpy</c>, <c>pandas</c>, <c>matplotlib</c>, <c>mne</c> e <c>nilearn</c>.
+
+      <definition id="def:6-1-pacote">
+        <title>Pacote, PyPI e <c>pip</c></title>
+        Um <strong>pacote</strong> (<em>package</em>) ou <strong>biblioteca</strong> (<em>library</em>) é um conjunto reutilizável de código Python. O <strong>PyPI</strong> (<em>Python Package Index</em>) é o repositório público oficial de pacotes Python, e o <strong><c>pip</c></strong> é o instalador padrão que baixa pacotes do PyPI.
+      </definition>
+
+      Instalar tudo no Python global gera conflitos: se um código antigo de <em>spikes</em> exige <c>numpy</c> <c>1.24</c> e um novo projeto com <c>nilearn</c> pede <c>numpy</c> <c>2.0</c>, ambos não podem coexistir na mesma pasta global. A solução é o isolamento.
+
+      <definition id="def:6-1-ambiente-virtual">
+        <title>Ambiente virtual (<em>virtual environment</em>)</title>
+        Um <strong>ambiente virtual</strong> é uma pasta isolada com seu próprio interpretador Python e sua própria coleção de pacotes, garantindo que instalações de um projeto não afetem nenhum outro.
+      </definition>
+
+      O módulo nativo <c>venv</c> cria ambientes leves com poucos comandos:
+
+      <code lang="bash" numbered="false">
+# 1. Criar o ambiente virtual .venv
+python -m venv .venv
+
+# 2a. Ativar no Linux ou macOS:
+source .venv/bin/activate
+
+# 2b. Ativar no Windows (Prompt de Comando):
+.venv\Scripts\activate
+
+# 3. Instalar e listar pacotes dentro do ambiente ativo:
+python -m pip install numpy pandas
+python -m pip list
+
+# 4. Sair do ambiente ao terminar:
+deactivate
+      </code>
+
+      Em projetos compartilhados, registramos essas dependências em um arquivo <c>requirements.txt</c> para reproduzir o ambiente em outra máquina — prática que aprofundaremos no tema <mark>Prática</mark>.
+
+      Outra opção muito usada na academia é o <strong>Anaconda</strong> (distribuição completa e pesada) ou o <strong>Miniconda</strong> (instalador enxuto), ambos baseados no gerenciador <strong><c>conda</c></strong>:
+
+      <code lang="bash" numbered="false">
+conda create -n neuro python=3.11
+conda activate neuro
+conda install numpy pandas
+conda deactivate
+      </code>
+
+      Compare os dois caminhos: <c>pip + venv</c> já vem embutido no Python, é leve e gerencia apenas pacotes Python do PyPI; já o <c>conda</c> permite escolher a versão do próprio Python por ambiente e também instala <strong>dependências que não são Python</strong> (bibliotecas compiladas em C/C++, Fortran, HDF5 e ferramentas gráficas exigidas por pacotes de bioinformática e neuroimagem), embora ocupe mais espaço.
+
+      <proposition id="prop:6-1-pip-modulo">
+        <title>Regra segura de invocação do pip</title>
+        Use sempre <c>python -m pip install ...</c> em vez de apenas <c>pip install ...</c>. Assim você garante que o <c>pip</c> executado pertence exatamente ao interpretador <c>python</c> ativo naquele momento.
+      </proposition>
+
+      <example id="exm:6-1-venv-neuro">
+        <title>Montando um ambiente <c>venv</c> para análise de EEG</title>
+        No Linux ou macOS, criamos e preparamos um ambiente isolado para <c>numpy</c> e <c>mne</c>:
+
+        <code lang="bash" numbered="false">
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install numpy mne
+python -m pip list
+        </code>
+
+        <strong>Passo a passo:</strong> <c>venv</c> cria a pasta isolada; <c>source</c> ativa o ambiente exibindo <c>(.venv)</c> no prompt; <c>python -m pip install</c> instala os pacotes só ali; e <c>pip list</c> confirma as versões instaladas.
+      </example>
+
+      <example id="exm:6-1-conda-fmri">
+        <title>Ambiente <c>conda</c> para neuroimagem e checagem em Python</title>
+        Criamos um ambiente <c>conda</c> com Python 3.11 e <c>nilearn</c>, e conferimos pelo próprio Python qual executável está rodando:
+
+        <code lang="bash" numbered="false">
+conda create -n fmri python=3.11
+conda activate fmri
+python -m pip install nilearn
+        </code>
+
+        <code lang="python" numbered="false">
+import sys
+
+print("Interpretador ativo:", sys.executable)  # por exemplo: /home/usuario/miniconda3/envs/fmri/bin/python
+        </code>
+
+        <strong>Leitura:</strong> se <c>sys.executable</c> apontar para dentro da pasta do ambiente <c>fmri</c>, o isolamento está ativo.
+      </example>
+
+      <remark id="rem:6-1-armadilha-pip">
+        <title>Armadilha comum</title>
+        Um erro clássico é instalar com um <c>pip</c> e rodar com outro Python: você digita <c>pip install pandas</c>, tudo parece bem, mas o VS Code acusa <c>ModuleNotFoundError: No module named 'pandas'</c> porque está usando outro interpretador. A cura, segundo a <ref to="prop:6-1-pip-modulo"/>, é ativar o ambiente certo e usar sempre <c>python -m pip install</c>.
+      </remark>
+
+      <exercise id="exr:6-1-4-1">
+        <title>Básico — Criando um venv com numpy e pandas</title>
+        Escreva os comandos bash para criar um <c>venv</c> chamado <c>.venv</c>, ativá-lo (no Linux/macOS e no Windows) e instalar <c>numpy</c> e <c>pandas</c>.
+        <hint><title>Ver dica</title>Use <c>python -m venv .venv</c>, os comandos de ativação e <c>python -m pip install</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="bash" numbered="false">
+python -m venv .venv
+source .venv/bin/activate       # Linux/macOS
+.venv\Scripts\activate          # Windows (Prompt de Comando)
+python -m pip install numpy pandas
+          </code>
+          <strong>Raciocínio:</strong> após criar <c>.venv</c> e ativá-lo no sistema operacional correspondente, <c>python -m pip install</c> instala ambos os pacotes exclusivamente dentro da pasta <c>.venv</c>.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-1-4-2">
+        <title>Básico — Escolhendo entre pip + venv e conda</title>
+        Escolha entre <c>pip + venv</c> e <c>conda</c> para: (a) instalar apenas pacotes Python leves em uma máquina que já tem Python 3.11; (b) precisar de Python 3.11 e bibliotecas em C/HDF5 em um computador compartilhado com Python 3.9 global.
+        <hint><title>Ver dica</title>Lembre que <c>venv</c> usa a versão do Python já instalada e não gerencia dependências fora do Python.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item><strong><c>pip + venv</c>:</strong> nativo, leve e suficiente para pacotes Python puros sobre o Python 3.11 existente.</item>
+            <item><strong><c>conda</c>:</strong> permite criar um ambiente com <c>python=3.11</c> próprio e gerencia dependências binárias em C/HDF5 fora do Python.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-1-4-3">
+        <title>Intermediário — Diagnosticando "No module named pandas"</title>
+        Após rodar <c>pip install pandas</c> com sucesso no terminal, um estudante recebeu <c>ModuleNotFoundError: No module named 'pandas'</c> ao clicar em <em>Play</em> no VS Code. Explique duas causas possíveis e dê os comandos de diagnóstico e correção.
+        <hint><title>Ver dica</title>Compare o interpretador usado pelo VS Code (<c>sys.executable</c>) com o <c>pip</c> do terminal.</hint>
+        <solution collapsible="true" collapsed="true">
+          <strong>Causas prováveis:</strong> (1) o <c>pip</c> instalou <c>pandas</c> no Python global enquanto o VS Code aponta para outro ambiente; ou (2) há dois Pythons instalados e <c>pip</c> e <c>python</c> pertencem a versões diferentes.
+          <code lang="python" numbered="false">
+import sys
+
+print(sys.executable)  # revela o caminho do Python ativo no VS Code
+          </code>
+          Com o ambiente correto ativo no terminal, instale usando:
+          <code lang="bash" numbered="false">
+python -m pip install pandas
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-1-4-4">
+        <title>Avançado — Isolando projetos conflitantes no laboratório</title>
+        Um projeto antigo de análise de <em>spikes</em> exige <c>numpy==1.24.4</c>, enquanto o novo projeto de fMRI usa <c>nilearn</c> com <c>numpy</c> moderno ($\ge 2{,}0$). Escreva os comandos para criar dois ambientes <c>conda</c> isolados (<c>spikes_legado</c> e <c>fmri_novo</c>) e explique o papel do <c>requirements.txt</c>.
+        <hint><title>Ver dica</title>Crie um ambiente por projeto, ative um de cada vez, fixe <c>numpy==1.24.4</c> no legado e desative ao trocar.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="bash" numbered="false">
+conda create -n spikes_legado python=3.11
+conda activate spikes_legado
+python -m pip install numpy==1.24.4
+conda deactivate
+
+conda create -n fmri_novo python=3.11
+conda activate fmri_novo
+python -m pip install nilearn
+conda deactivate
+          </code>
+          <strong>Explicação:</strong> cada ambiente isola suas próprias versões sem conflito. Já o arquivo <c>requirements.txt</c> documenta as versões exatas de cada projeto para reprodutibilidade futura (detalhado no tema <mark>Prática</mark>).
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-1-5">
+      <eyebrow>Subtema 5</eyebrow>
+      <title>O terminal</title>
+      <intro>
+        Interfaces gráficas escondem onde o Python mora; o terminal dá controle direto para verificar versões, ativar ambientes e disparar scripts.
+      </intro>
+
+      No terminal, você conversa diretamente com o sistema operacional por comandos de texto.
+
+      <definition id="def:6-1-terminal">
+        <title>Terminal, shell e prompt</title>
+        <list marker="dash">
+          <item><strong>Terminal:</strong> a janela que recebe seus comandos digitados e exibe o texto de saída.</item>
+          <item><strong>Shell</strong> (<em>shell</em>): o interpretador de comandos do sistema (como <strong>bash</strong>/<strong>zsh</strong> no Linux e macOS, e <strong>PowerShell</strong> no Windows).</item>
+          <item><strong>Prompt</strong> (<em>prompt</em>): o prefixo de texto que indica que o shell aguarda um comando — geralmente terminado em \$ ou % no Linux/macOS, ou PS C:\...&gt; no PowerShell.</item>
+        </list>
+      </definition>
+
+      Para abrir o terminal: no <strong>Windows</strong>, abra <c>PowerShell</c> (ou <c>Terminal</c>) pelo menu Iniciar; no <strong>macOS</strong>, busque <c>Terminal</c> via Spotlight (<c>Cmd + Espaço</c>); no <strong>Linux</strong>, use <c>Ctrl + Alt + T</c>; e dentro do <strong>VS Code</strong> (em qualquer sistema), acesse <em>Terminal</em> → <em>New Terminal</em>.
+
+      Quatro comandos checam qualquer bancada Python:
+      <list marker="number">
+        <item><c>python --version</c> (ou <c>python3 --version</c>): mostra a versão do interpretador ativo.</item>
+        <item><c>python -m pip --version</c>: mostra a versão do <c>pip</c> e o caminho do Python vinculado a ele.</item>
+        <item><c>which python</c> (Linux/macOS) ou <c>where python</c> (Prompt de Comando do Windows; no PowerShell, <c>where.exe python</c>): revela o caminho completo do executável Python em uso.</item>
+        <item><c>python script.py</c>: executa o script de cima para baixo.</item>
+      </list>
+
+      No Google Colab, você executa comandos do shell Linux em uma célula colocando <c>!</c> na frente (como <c>!python --version</c> e <c>!pip list</c>). Por fim, comandos de navegação por pastas (<c>ls</c>, <c>cd</c>, <c>mkdir</c>) ficarão para o Tema 6.3 (<mark>Informática básica</mark>).
+
+      <example id="exm:6-1-inspecao-bancada">
+        <title>Checklist de 4 comandos no terminal</title>
+        Antes de rodar um experimento no terminal do VS Code, confira sua bancada:
+
+        <code lang="bash" numbered="false">
+python --version          # por exemplo, Python 3.11.x
+python -m pip --version   # por exemplo: pip 24.x from .../venv/... (python 3.11)
+which python              # Linux/macOS (Windows cmd: where python; PowerShell: where.exe python)
+python analise_spikes.py
+        </code>
+
+        <strong>Leitura:</strong> se o caminho retornado por <c>which python</c> (ou <c>where python</c>) e por <c>python -m pip --version</c> apontar para dentro do <c>.venv</c> ou ambiente <c>conda</c> do projeto, a bancada está alinhada.
+      </example>
+
+      <example id="exm:6-1-colab-shell">
+        <title>Comandos de shell no Colab com !</title>
+        Para inspecionar a versão do Python e os pacotes já instalados em uma célula do Google Colab:
+
+        <code lang="bash" numbered="false">
+!python --version
+!pip list
+        </code>
+
+        <strong>O que ocorre:</strong> a primeira linha exibe a versão do Python do servidor (por exemplo, <c>Python 3.11.x</c>) e a segunda lista bibliotecas já disponíveis na sessão (<c>numpy</c>, <c>pandas</c>, <c>matplotlib</c> etc.). Lembre que o prefixo <c>!</c> só funciona em notebooks, nunca em scripts <c>.py</c>.
+      </example>
+
+      <remark id="rem:6-1-armadilha-terminal">
+        <title>Armadilha comum</title>
+        Não confunda o <strong>prompt do shell</strong> (\$ ou PS&gt;) com o <strong>prompt interativo do Python</strong> (&gt;&gt;&gt;). Digitar <c>python</c> sem arquivo abre o modo &gt;&gt;&gt;, onde comandos de terminal como <c>pip install numpy</c> geram <c>SyntaxError</c>. Saia com <c>exit()</c> para voltar ao shell. Inversamente, digitar código Python puro direto no shell sem chamar <c>python</c> dá erro de comando não encontrado.
+      </remark>
+
+      <exercise id="exr:6-1-5-1">
+        <title>Básico — Checando versão e caminho do Python</title>
+        Escreva os comandos para checar (a) a versão do Python, (b) a qual Python o <c>pip</c> está ligado e (c) o caminho do executável no Linux/macOS e no Windows. O que indica um caminho contendo <c>.venv</c>?
+        <hint><title>Ver dica</title>Use <c>--version</c>, <c>which</c> e <c>where</c> / <c>where.exe</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="bash" numbered="false">
+python --version
+python -m pip --version
+which python      # Linux/macOS
+where.exe python  # Windows PowerShell (ou where python no cmd)
+          </code>
+          <strong>Interpretação:</strong> um caminho contendo <c>.venv</c> (como <c>.../.venv/bin/python</c>) confirma que o ambiente virtual do projeto está ativo e tem prioridade sobre o Python global.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-1-5-2">
+        <title>Básico — Saindo da armadilha do prompt &gt;&gt;&gt;</title>
+        Um estudante digitou <c>python</c>, viu o prompt &gt;&gt;&gt; e tentou rodar <c>pip install matplotlib</c> ali, recebendo <c>SyntaxError</c>. Explique o erro e escreva a sequência para sair e instalar o pacote corretamente.
+        <hint><title>Ver dica</title>Use <c>exit()</c> para sair do interpretador interativo antes de rodar comandos do shell.</hint>
+        <solution collapsible="true" collapsed="true">
+          <strong>Explicação:</strong> o prompt &gt;&gt;&gt; pertence ao console interativo do Python, que não aceita comandos do shell como <c>pip install</c>.
+          <code lang="bash" numbered="false">
+exit()
+python -m pip install matplotlib
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-1-5-3">
+        <title>Intermediário — Rodando um script de limiar neuronal no terminal</title>
+        Escreva um script <c>verifica_limiar.py</c> autocontido com a lista fixa de potenciais <c>[-72, -68, -55, -40, -65]</c> (em $\text{mV}$) e limiar $-55\text{ mV}$, imprimindo para cada potencial se o limiar foi atingido (<c>True</c> ou <c>False</c>), e informe o comando de terminal para executá-lo. (O laço <c>for</c> será detalhado no próximo tema.)
+        <hint><title>Ver dica</title>Dentro do laço <c>for v in potenciais_mv:</c>, guarde a comparação de maior ou igual em uma variável <c>disparou</c>, imprima com <em>f-string</em> e rode com <c>python verifica_limiar.py</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Conteúdo de <c>verifica_limiar.py</c>:
+          <code lang="python" numbered="false">
+potenciais_mv = [-72, -68, -55, -40, -65]
+limiar_mv = -55
+
+for v in potenciais_mv:
+    disparou = v >= limiar_mv
+    print(f"Vm = {v} mV -> atingiu limiar? {disparou}")
+# Vm = -72 mV -> atingiu limiar? False
+# Vm = -68 mV -> atingiu limiar? False
+# Vm = -55 mV -> atingiu limiar? True
+# Vm = -40 mV -> atingiu limiar? True
+# Vm = -65 mV -> atingiu limiar? False
+          </code>
+          Comando no terminal (na pasta do arquivo):
+          <code lang="bash" numbered="false">
+python verifica_limiar.py
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-1-5-4">
+        <title>Avançado — Conflitos entre Colab, script .py e terminal</title>
+        Explique a causa e a correção de cada erro: (a) copiar <c>!pip install nilearn</c> do Colab para um arquivo <c>prepara.py</c> gera <c>SyntaxError</c>; (b) ao abrir um novo terminal no Linux, <c>which python</c> retorna <c>/usr/bin/python</c> em vez do seu <c>.venv</c>.
+        <hint><title>Ver dica</title>Lembre onde o prefixo <c>!</c> é válido e o que é preciso fazer em cada nova janela de terminal ao usar <c>venv</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item><strong>Causa e correção:</strong> <c>!</c> é sintaxe exclusiva de notebooks para escapar ao shell; em scripts <c>.py</c> é inválido. Remova a linha do <c>.py</c> e rode <c>python -m pip install nilearn</c> direto no terminal.</item>
+            <item><strong>Causa e correção:</strong> ambientes <c>venv</c> valem apenas para a sessão atual do terminal; uma janela nova volta ao Python global. Ative novamente com <c>source .venv/bin/activate</c> e confira com <c>which python</c>.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-1-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Python e interpretador:</strong> o Python é a linguagem; o interpretador lê e executa as instruções passo a passo.</item>
+        <item><strong>Google Colab:</strong> notebook no navegador salvo no Google Drive; execute células com <c>Shift+Enter</c>, observe o contador <c>[n]</c> e lembre que o <em>runtime</em> é temporário.</item>
+        <item><strong>Jupyter local e <c>.ipynb</c>:</strong> arquivos <c>.ipynb</c> juntam código, texto e saídas sobre um <em>kernel</em> local. Evite estado oculto rodando <strong>Reiniciar e executar tudo</strong>.</item>
+        <item><strong>VS Code e scripts <c>.py</c>:</strong> executam de cima para baixo sem estado oculto e exigem <c>print()</c>; use notebooks para explorar e <c>.py</c> para <em>pipelines</em> e Git.</item>
+        <item><strong>Pacotes e isolamento:</strong> <c>pip</c> baixa pacotes do PyPI; isole projetos com <c>venv</c> (<c>python -m venv .venv</c>) ou <c>conda</c> (<c>conda create -n nome python=3.11</c>).</item>
+        <item><strong><c>pip</c> no Python certo:</strong> prefira sempre <c>python -m pip install</c> para instalar no mesmo Python ativo.</item>
+        <item><strong>Terminal e Colab (<c>!</c>):</strong> confira a bancada com <c>python --version</c>, <c>python -m pip --version</c> e <c>which python</c> (<c>where python</c> / <c>where.exe python</c> no Windows); use <c>!</c> apenas em notebooks e saia do prompt &gt;&gt;&gt; com <c>exit()</c>.</item>
+      </list>
+    </section>
+
+    <section id="sec:6-1-alem">
+      <title>Para ir além</title>
+      Com a bancada pronta, siga para o próximo tema — <strong>Comandos iniciais e lógica básica</strong> — para construir as primeiras ferramentas rumo ao projeto final do módulo (baixar dados neurais públicos via API, passar por um <em>pipeline</em> de limpeza leve, gerar dois gráficos e publicar tudo de forma limpa no GitHub).
+
+      Dica de sobrevivência: <strong>programação se aprende programando. Escreva código até a mão cansar.</strong>
+
+      <list marker="dash">
+        <item><strong>Material principal do módulo:</strong> <link to="https://github.com/ry4n-felinto/impytech_2026">Curso IMPATech — repositório no GitHub</link>.</item>
+        <item><strong>Ambiente na nuvem:</strong> <link to="https://colab.research.google.com">Google Colab</link>.</item>
+        <item><strong>Referência oficial:</strong> <link to="https://docs.python.org/pt-br/3/tutorial/">Tutorial oficial do Python (em português)</link>.</item>
+        <item><strong>Bibliotecas científicas da trilha:</strong> <link to="https://numpy.org/doc/stable/">NumPy</link>, <link to="https://pandas.pydata.org/docs/">pandas</link>, <link to="https://mne.tools">MNE</link> e <link to="https://nilearn.github.io">nilearn</link>.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 6 · Programação (Python) — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

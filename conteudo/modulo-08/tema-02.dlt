@@ -1,0 +1,884 @@
+<document>
+  <title>Módulo 8 · Machine Learning</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-8-2">Voltar ao guia (Tema 8.2)</link></meta-item>
+    <meta-item key="Módulo">Módulo 8 · Machine Learning — Criando a Inteligência Clássica</meta-item>
+    <meta-item key="Nível">Básico</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-8-2">
+    <title>Regressão (polinomial)</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Prever valores contínuos — ex.: a atividade de um voxel a partir de features do estímulo (encoding).
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Grande parte das grandezas medidas em um laboratório de neurociência varia de forma contínua: a taxa de disparo de um neurônio em Hz (tipicamente entre $0$ e $200\text{ Hz}$), o potencial de membrana em milivolts (em torno de $-70\text{ mV}$ no repouso), a potência espectral de uma banda de EEG ou o sinal BOLD (<em>blood-oxygen-level-dependent</em>) capturado por ressonância magnética funcional (fMRI) em um voxel. Quando queremos prever um número contínuo a partir de características do ambiente, do estímulo ou do próprio tecido, estamos diante de um problema de <strong>regressão</strong>.
+
+    Em neurociência computacional, a regressão é o motor dos chamados <strong>modelos de codificação</strong> (<em>encoding models</em>): descrever como um neurônio ou um voxel cortical transforma variáveis do estímulo — como contraste visual, orientação de uma barra ou categorias semânticas — em resposta neural. Além disso, truques simples como transformar uma entrada $x$ em potências $x, x^2, \dots, x^d$ permitem ajustar curvas suaves mantendo a matemática linear nos parâmetros, abrindo caminho tanto para curvas de sintonia quanto para os métodos regularizados que veremos mais adiante neste módulo.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>formular a regressão linear simples, derivar os estimadores de mínimos quadrados igualando derivadas a zero e interpretar inclinação, intercepto e $R^2$;</item>
+      <item>escrever a regressão linear múltipla em forma matricial ($\mathbf{y} = \mathbf{X}\boldsymbol{\beta} + \boldsymbol{\varepsilon}$), resolver as equações normais e interpretar o ajuste como projeção ortogonal;</item>
+      <item>construir modelos de regressão polinomial com <c>PolynomialFeatures</c> e <c>Pipeline</c>, controlando subajuste e sobreajuste pelo grau $d$;</item>
+      <item>implementar um <em>encoding model</em> sintético de um voxel de fMRI com convolução pela função de resposta hemodinâmica (HRF) e avaliação em blocos temporais contíguos;</item>
+      <item>identificar armadilhas clássicas: confundir correlação com causalidade, extrapolar polinômios e embaralhar séries temporais na divisão treino/teste.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Tema 8.1 (Introdução: notação de $\mathbf{X}$ e $\mathbf{y}$, divisão treino $\times$ teste e compromisso viés-variância); Módulo 4 — Otimização (Minimização e maximização: derivada igual a zero); Módulo 5 — Álgebra Linear (Vetores, matrizes e operações; Sistemas lineares e transformações; Ortogonalidade: projeção); e Módulo 7 — Estatística e Probabilidade (Variável aleatória; Introdução à inferência).
+
+    <section id="sec:8-2-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Regressão linear simples</title>
+      <intro>
+        Quando uma única variável explicativa ajuda a prever uma resposta contínua, ajustamos a reta que deixa a soma dos erros ao quadrado a menor possível.
+      </intro>
+
+      Imagine registrar um neurônio no córtex visual primário (V1) enquanto apresentamos redes senoidais com diferentes níveis de contraste ($x$, em porcentagem) e medimos a taxa de disparo ($y$, em Hz). Os pontos experimentais não caem perfeitamente alinhados — há variabilidade biológica de ensaio para ensaio —, mas exibem uma tendência crescente. A regressão linear simples procura a melhor reta para resumir essa relação e fazer previsões para novos valores de $x$.
+
+      <definition id="def:8-2-modelo-simples">
+        <title>Modelo linear simples, resíduo e RSS</title>
+        Na <strong>regressão linear simples</strong> com $n$ amostras $(x_1, y_1), \dots, (x_n, y_n)$, supomos que o processo gerador verdadeiro satisfaz:
+        $$y_i = \beta_0 + \beta_1 x_i + \varepsilon_i, \qquad \mathbb{E}[\varepsilon_i] = 0, \quad \operatorname{Var}(\varepsilon_i) = \sigma^2$$
+        onde $\beta_0$ é o <strong>intercepto</strong> (<em>intercept</em>), $\beta_1$ é a <strong>inclinação</strong> (<em>slope</em>) e $\varepsilon_i$ é o erro aleatório. Dado um par de estimativas $(\hat{\beta}_0, \hat{\beta}_1)$, a previsão para a amostra $i$ é $\hat{y}_i = \hat{\beta}_0 + \hat{\beta}_1 x_i$, o <strong>resíduo</strong> é $e_i = y_i - \hat{y}_i$, e a <strong>soma dos quadrados dos resíduos</strong> ($\mathrm{RSS}$, de <em>residual sum of squares</em>) vale:
+        <equation id="eq:8-2-rss-simples">
+          \mathrm{RSS}(\beta_0, \beta_1) = \sum_{i=1}^n (y_i - \beta_0 - \beta_1 x_i)^2, \qquad \mathrm{MSE} = \frac{1}{n}\,\mathrm{RSS}.
+        </equation>
+        <intuition>
+          Cada termo $(y_i - \hat{y}_i)^2$ mede o quadrado da distância vertical entre o ponto observado e a reta proposta. Elevar ao quadrado impede que erros positivos e negativos se cancelem e penaliza desvios grandes com mais força do que desvios pequenos.
+        </intuition>
+      </definition>
+
+      Como encontramos os valores $(\hat{\beta}_0, \hat{\beta}_1)$ que minimizam a função custo $\mathrm{RSS}(\beta_0, \beta_1)$? Exatamente como vimos no Módulo 4 (Minimização e maximização): derivamos a função em relação a cada parâmetro e igualamos as derivadas a zero. Esse critério chama-se método dos <strong>mínimos quadrados ordinários</strong> (OLS, de <em>ordinary least squares</em>).
+
+      <proposition id="prop:8-2-ols-simples">
+        <title>Estimadores de mínimos quadrados na regressão simples</title>
+        Se os valores $x_1, \dots, x_n$ não são todos iguais (isto é, $\sum_{i=1}^n (x_i - \bar{x})^2 > 0$), o ponto de mínimo global da $\mathrm{RSS}(\beta_0, \beta_1)$ na <ref to="eq:8-2-rss-simples"/> é único e dado por:
+        <equation id="eq:8-2-beta-simples">
+          \hat{\beta}_1 = \frac{\sum_{i=1}^n (x_i - \bar{x})(y_i - \bar{y})}{\sum_{i=1}^n (x_i - \bar{x})^2}, \qquad \hat{\beta}_0 = \bar{y} - \hat{\beta}_1 \bar{x},
+        </equation>
+        em que $\bar{x} = \frac{1}{n}\sum_{i=1}^n x_i$ e $\bar{y} = \frac{1}{n}\sum_{i=1}^n y_i$ são as médias amostrais.
+      </proposition>
+      <proof of="prop:8-2-ols-simples" collapsible="true" collapsed="true">
+        Calculamos as derivadas parciais de $\mathrm{RSS}(\beta_0, \beta_1) = \sum_{i=1}^n (y_i - \beta_0 - \beta_1 x_i)^2$ e igualamos a zero. Primeiro, em relação a $\beta_0$:
+        $$\frac{\partial\,\mathrm{RSS}}{\partial \beta_0} = -2 \sum_{i=1}^n (y_i - \beta_0 - \beta_1 x_i) = 0 \implies \sum_{i=1}^n y_i - n\beta_0 - \beta_1 \sum_{i=1}^n x_i = 0.$$
+        Dividindo toda a equação por $n$, obtemos $\bar{y} - \hat{\beta}_0 - \hat{\beta}_1 \bar{x} = 0$, logo $\hat{\beta}_0 = \bar{y} - \hat{\beta}_1 \bar{x}$.
+
+        Em seguida, derivamos em relação a $\beta_1$:
+        $$\frac{\partial\,\mathrm{RSS}}{\partial \beta_1} = -2 \sum_{i=1}^n x_i (y_i - \beta_0 - \beta_1 x_i) = 0.$$
+        Substituindo $\beta_0 = \bar{y} - \beta_1 \bar{x}$:
+        $$\sum_{i=1}^n x_i \bigl[(y_i - \bar{y}) - \beta_1 (x_i - \bar{x})\bigr] = 0.$$
+        Como $\sum_{i=1}^n \bar{x}(y_i - \bar{y}) = \bar{x}\sum_{i=1}^n (y_i - \bar{y}) = 0$ e $\sum_{i=1}^n \bar{x}(x_i - \bar{x}) = 0$, podemos subtrair $\bar{x}$ do fator $x_i$ sem alterar a soma:
+        $$\sum_{i=1}^n (x_i - \bar{x})(y_i - \bar{y}) - \beta_1 \sum_{i=1}^n (x_i - \bar{x})^2 = 0 \implies \hat{\beta}_1 = \frac{\sum_{i=1}^n (x_i - \bar{x})(y_i - \bar{y})}{\sum_{i=1}^n (x_i - \bar{x})^2}.$$
+        Como as derivadas segundas são $\frac{\partial^2\,\mathrm{RSS}}{\partial \beta_0^2} = 2n > 0$ e o Hessiano é estritamente positivo definido quando nem todos os $x_i$ coincidem, esse ponto estacionário é o mínimo global único.
+      </proof>
+
+      Repare nas unidades físicas dos coeficientes. Se $x$ está em porcentagem de contraste ($\%$) e $y$ está em disparos por segundo ($\text{Hz}$), então $\hat{\beta}_0$ tem unidade $\text{Hz}$ (a taxa prevista quando o contraste é $0\%$, ou taxa basal extrapolada para a origem) e $\hat{\beta}_1$ tem unidade $\text{Hz}/\%$: cada aumento de $1\%$ no contraste altera a taxa média prevista em $\hat{\beta}_1\text{ Hz}$.
+
+      Para resumir quanta variação de $y$ a reta conseguiu capturar, usamos o coeficiente de determinação $R^2$, que compara o erro do modelo com o erro de prever simplesmente a média $\bar{y}$ para todo mundo.
+
+      <definition id="def:8-2-r2">
+        <title>Coeficiente de determinação ($R^2$)</title>
+        Definindo a soma total dos quadrados $\mathrm{TSS} = \sum_{i=1}^n (y_i - \bar{y})^2$, o <strong>coeficiente de determinação</strong> é:
+        $$R^2 = 1 - \frac{\mathrm{RSS}}{\mathrm{TSS}}.$$
+        Quanto mais próximo de $1$, maior a fração da variância de $y$ explicada pelo modelo linear. (No Tema 8.4, Métricas estatísticas, estudaremos em detalhe o $R^2$, o $R^2$ ajustado e outras métricas de regressão.)
+      </definition>
+
+      <example id="exm:8-2-contraste">
+        <title>Contraste visual e taxa de disparo à mão</title>
+        Mediu-se a taxa de disparo $y$ ($\text{Hz}$) de um neurônio de V1 em cinco níveis de contraste $x$ ($\%$):
+        $$(10, 12), \quad (20, 18), \quad (30, 22), \quad (40, 28), \quad (50, 35).$$
+        Ajuste a reta de mínimos quadrados, calcule $\mathrm{RSS}$, $\mathrm{MSE}$ e $R^2$, e interprete $\hat{\beta}_1$.
+
+        <strong>Solução.</strong> Calculamos primeiro as médias:
+        $$\bar{x} = \frac{10 + 20 + 30 + 40 + 50}{5} = 30\%, \qquad \bar{y} = \frac{12 + 18 + 22 + 28 + 35}{5} = \frac{115}{5} = 23\text{ Hz}.$$
+        Montamos os desvios em relação às médias:
+        <list marker="dash">
+          <item>$x_i - \bar{x} = (-20,\, -10,\, 0,\, 10,\, 20)$, logo $\sum_{i=1}^5 (x_i - \bar{x})^2 = 400 + 100 + 0 + 100 + 400 = 1\,000$.</item>
+          <item>$y_i - \bar{y} = (-11,\, -5,\, -1,\, 5,\, 12)$, logo $\mathrm{TSS} = 121 + 25 + 1 + 25 + 144 = 316$.</item>
+          <item>Produtos cruzados: $\sum_{i=1}^5 (x_i - \bar{x})(y_i - \bar{y}) = (-20)(-11) + (-10)(-5) + 0(-1) + 10(5) + 20(12) = 220 + 50 + 0 + 50 + 240 = 560$.</item>
+        </list>
+        Pela <ref to="eq:8-2-beta-simples"/>:
+        $$\hat{\beta}_1 = \frac{560}{1\,000} = 0{,}56\text{ Hz}/\%, \qquad \hat{\beta}_0 = 23 - 0{,}56 \cdot 30 = 23 - 16{,}8 = 6{,}2\text{ Hz}.$$
+        A reta ajustada é $\hat{y} = 6{,}2 + 0{,}56\,x$. Cada $1\%$ adicional de contraste aumenta a taxa prevista em $0{,}56\text{ Hz}$ (ou $5{,}6\text{ Hz}$ a cada $10\%$ de contraste).
+
+        Calculando previsões $\hat{y}_i$ e resíduos $e_i = y_i - \hat{y}_i$:
+        <list marker="dash">
+          <item>$x=10$: $\hat{y}_1 = 11{,}8$, $e_1 = 0{,}2$, $e_1^2 = 0{,}04$;</item>
+          <item>$x=20$: $\hat{y}_2 = 17{,}4$, $e_2 = 0{,}6$, $e_2^2 = 0{,}36$;</item>
+          <item>$x=30$: $\hat{y}_3 = 23{,}0$, $e_3 = -1{,}0$, $e_3^2 = 1{,}00$;</item>
+          <item>$x=40$: $\hat{y}_4 = 28{,}6$, $e_4 = -0{,}6$, $e_4^2 = 0{,}36$;</item>
+          <item>$x=50$: $\hat{y}_5 = 34{,}2$, $e_5 = 0{,}8$, $e_5^2 = 0{,}64$.</item>
+        </list>
+        Portanto, $\mathrm{RSS} = 0{,}04 + 0{,}36 + 1{,}00 + 0{,}36 + 0{,}64 = 2{,}40$, $\mathrm{MSE} = \frac{2{,}40}{5} = 0{,}48\text{ Hz}^2$ e
+        $$R^2 = 1 - \frac{2{,}40}{316} = \frac{392}{395} \approx 0{,}992.$$
+      </example>
+
+      <example id="exm:8-2-despolarizacao">
+        <title>Estimando a resistência de entrada pela lei de Ohm</title>
+        Em um experimento de registro intracelular (<em>patch-clamp</em>) abaixo do limiar de disparo, injetamos correntes constantes $I \in \{0;\, 0{,}1;\, 0{,}2;\, 0{,}3\}\text{ nA}$ e medimos o potencial de membrana estacionário $V_m \in \{-70;\, -65{,}5;\, -62{,}5;\, -58\}\text{ mV}$. Na aproximação passiva $V_m = V_{\text{rep}} + R_{\text{in}} I + \varepsilon$, estime $V_{\text{rep}}$ ($\hat{\beta}_0$) e $R_{\text{in}}$ ($\hat{\beta}_1$).
+
+        <strong>Solução.</strong> Aqui $\bar{I} = \frac{0+0{,}1+0{,}2+0{,}3}{4} = 0{,}15\text{ nA}$ e $\bar{V} = \frac{-70 - 65{,}5 - 62{,}5 - 58}{4} = \frac{-256}{4} = -64\text{ mV}$.
+        Os desvios são $I_i - \bar{I} = (-0{,}15;\, -0{,}05;\, 0{,}05;\, 0{,}15)$ e $V_i - \bar{V} = (-6;\, -1{,}5;\, 1{,}5;\, 6)$.
+        Calculamos os somatórios:
+        $$\sum_{i=1}^4 (I_i - \bar{I})^2 = 0{,}0225 + 0{,}0025 + 0{,}0025 + 0{,}0225 = 0{,}05,$$
+        $$\sum_{i=1}^4 (I_i - \bar{I})(V_i - \bar{V}) = (-0{,}15)(-6) + (-0{,}05)(-1{,}5) + 0{,}05(1{,}5) + 0{,}15(6) = 0{,}9 + 0{,}075 + 0{,}075 + 0{,}9 = 1{,}95.$$
+        Logo:
+        $$\hat{R}_{\text{in}} = \frac{1{,}95}{0{,}05} = 39\text{ mV/nA} = 39\text{ M}\Omega, \qquad \hat{V}_{\text{rep}} = -64 - 39 \cdot 0{,}15 = -64 - 5{,}85 = -69{,}85\text{ mV}.$$
+        Note que $1\text{ mV/nA} = 10^{-3}\text{ V} / 10^{-9}\text{ A} = 10^6\,\Omega = 1\text{ M}\Omega$, e o intercepto estimado ($-69{,}85\text{ mV}$) fica muito próximo do potencial de repouso típico de $-70\text{ mV}$.
+      </example>
+
+      No <c>scikit-learn</c>, a classe <c>LinearRegression</c> espera que a matriz de entrada <c>X</c> tenha duas dimensões (<c>(n, p)</c>). Quando há apenas uma variável preditora ($p = 1$), precisamos remodelar o vetor <c>(n,)</c> para <c>(n, 1)</c> com <c>.reshape(-1, 1)</c>. O bloco a seguir confere exatamente os resultados do <ref to="exm:8-2-contraste"/>.
+
+      <code lang="python" id="cod:8-2-simples">
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
+
+# Dados do Exemplo: contraste (%) e taxa de disparo (Hz)
+contraste = np.array([10.0, 20.0, 30.0, 40.0, 50.0])
+taxa = np.array([12.0, 18.0, 22.0, 28.0, 35.0])
+
+# scikit-learn exige X bidimensional de formato (n_amostras, n_features)
+X = contraste.reshape(-1, 1)
+
+modelo = LinearRegression()
+modelo.fit(X, taxa)
+
+y_pred = modelo.predict(X)
+mse = mean_squared_error(taxa, y_pred)
+r2 = r2_score(taxa, y_pred)
+
+print(f"Inclinação (beta_1): {modelo.coef_[0]:.3f} Hz/%")
+# Inclinação (beta_1): 0.560 Hz/%
+print(f"Intercepto (beta_0): {modelo.intercept_:.3f} Hz")
+# Intercepto (beta_0): 6.200 Hz
+print(f"MSE de treino: {mse:.3f} Hz²")
+# MSE de treino: 0.480 Hz²
+print(f"R² de treino: {r2:.3f}")
+# R² de treino: 0.992
+      </code>
+
+      <remark id="rem:8-2-causalidade">
+        <title>Armadilha comum</title>
+        <strong>Correlação e inclinação não provam causalidade.</strong> Mesmo que $\hat{\beta}_1$ seja grande e $R^2$ seja próximo de $1$, uma regressão ajustada a dados observacionais mostra apenas associação estatística, não relação de causa e efeito. Em neurociência, um estado global como alerta (<em>arousal</em>) pode dilatar a pupila e, ao mesmo tempo, elevar a taxa de disparo cortical: ajustar uma regressão da taxa contra o diâmetro pupilar produzirá $\hat{\beta}_1 > 0$ sem que a pupila cause o disparo dos neurônios. Para inferir causalidade, são necessários delineamentos experimentais com manipulação controlada ou inferência causal específica.
+      </remark>
+
+      <exercise id="exr:8-2-1-1">
+        <title>Básico — Previsão e resíduo em eletrofisiologia</title>
+        Um modelo linear ajustado para um neurônio piramidal relaciona potencial de membrana $\hat{V}_m$ (em $\text{mV}$) à corrente injetada $I$ (em $\text{nA}$) por $\hat{V}_m = -68{,}0 + 20{,}0\,I$.
+        <list marker="a">
+          <item>Qual o potencial previsto para $I = 0{,}5\text{ nA}$?</item>
+          <item>Se a medição real nesse ponto foi $V_m = -56{,}5\text{ mV}$, qual é o resíduo $e$?</item>
+        </list>
+        <hint><title>Ver dica</title>Substitua $I = 0{,}5$ na equação da reta para achar $\hat{V}_m$ e lembre que $e = y - \hat{y}$ (observado menos previsto).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Substituindo $I = 0{,}5\text{ nA}$ na equação do modelo:
+              $$\hat{V}_m = -68{,}0 + 20{,}0 \cdot 0{,}5 = -68{,}0 + 10{,}0 = -58{,}0\text{ mV}.$$
+            </item>
+            <item>O resíduo é a diferença entre o valor observado e o valor previsto:
+              $$e = V_m - \hat{V}_m = -56{,}5 - (-58{,}0) = +1{,}5\text{ mV}.$$
+              O sinal positivo indica que o neurônio despolarizou $1{,}5\text{ mV}$ acima do que a reta previu.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-2-1-2">
+        <title>Básico — Interpretando sinal, unidades e $R^2$</title>
+        Ao regredir a taxa de disparo $y$ ($\text{Hz}$) de um neurônio sobre a concentração de um agonista GABAérgico $x$ ($\mu\text{M}$), um estudante obteve $\hat{y} = 42{,}0 - 2{,}5\,x$, com $\mathrm{TSS} = 200\text{ Hz}^2$ e $\mathrm{RSS} = 50\text{ Hz}^2$.
+        <list marker="a">
+          <item>Interprete o sinal negativo e as unidades de $\hat{\beta}_1 = -2{,}5$.</item>
+          <item>Calcule o coeficiente de determinação $R^2$.</item>
+        </list>
+        <hint><title>Ver dica</title>As unidades da inclinação são $(\text{unidade de } y)/(\text{unidade de } x)$. Para $R^2$, use $1 - \mathrm{RSS}/\mathrm{TSS}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>A inclinação vale $-2{,}5\text{ Hz}/\mu\text{M}$: para cada aumento de $1\;\mu\text{M}$ na concentração do agonista GABAérgico, a taxa de disparo média prevista cai $2{,}5\text{ Hz}$ — comportamento coerente com um neurotransmissor inibitório.</item>
+            <item>Aplicando a definição de $R^2$:
+              $$R^2 = 1 - \frac{\mathrm{RSS}}{\mathrm{TSS}} = 1 - \frac{50}{200} = 1 - 0{,}25 = 0{,}75.$$
+              A reta explica $75\%$ da variância total da taxa de disparo nessa amostra.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-2-1-3">
+        <title>Intermediário — Ajuste completo à mão</title>
+        Calcule à mão os estimadores $\hat{\beta}_1$ e $\hat{\beta}_0$, a $\mathrm{RSS}$ e o $R^2$ para os quatro pares $(x_i, y_i)$:
+        $$(2, 5), \quad (4, 9), \quad (6, 11), \quad (8, 15).$$
+        <hint><title>Ver dica</title>Comece encontrando $\bar{x} = 5$ e $\bar{y} = 10$, depois monte as diferenças $(x_i - \bar{x})$ e $(y_i - \bar{y})$.</hint>
+        <solution collapsible="true" collapsed="true">
+          As médias são $\bar{x} = \frac{2+4+6+8}{4} = 5$ e $\bar{y} = \frac{5+9+11+15}{4} = 10$.
+          Os desvios valem $x_i - \bar{x} = (-3, -1, 1, 3)$ e $y_i - \bar{y} = (-5, -1, 1, 5)$. Assim:
+          $$\sum_{i=1}^4 (x_i - \bar{x})^2 = 9 + 1 + 1 + 9 = 20,$$
+          $$\sum_{i=1}^4 (x_i - \bar{x})(y_i - \bar{y}) = (-3)(-5) + (-1)(-1) + 1(1) + 3(5) = 15 + 1 + 1 + 15 = 32.$$
+          Logo:
+          $$\hat{\beta}_1 = \frac{32}{20} = 1{,}6, \qquad \hat{\beta}_0 = 10 - 1{,}6 \cdot 5 = 2{,}0.$$
+          As previsões são $\hat{y} = (5{,}2;\, 8{,}4;\, 11{,}6;\, 14{,}8)$ e os resíduos são $e = (-0{,}2;\, 0{,}6;\, -0{,}6;\, 0{,}2)$. Portanto:
+          $$\mathrm{RSS} = 0{,}04 + 0{,}36 + 0{,}36 + 0{,}04 = 0{,}80, \qquad \mathrm{TSS} = 25 + 1 + 1 + 25 = 52,$$
+          $$R^2 = 1 - \frac{0{,}80}{52} = \frac{64}{65} \approx 0{,}985.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-2-1-4">
+        <title>Avançado — Centroide e soma nula dos resíduos</title>
+        Usando as fórmulas da <ref to="prop:8-2-ols-simples"/> (com intercepto livre $\beta_0$), prove algebricamente que:
+        <list marker="a">
+          <item>a reta ajustada sempre passa pelo centroide $(\bar{x}, \bar{y})$ dos dados;</item>
+          <item>a soma dos resíduos é sempre igual a zero: $\sum_{i=1}^n e_i = 0$.</item>
+        </list>
+        <hint><title>Ver dica</title>Para (a), avalie $\hat{y} = \hat{\beta}_0 + \hat{\beta}_1 x$ em $x = \bar{x}$. Para (b), substitua $\hat{\beta}_0 = \bar{y} - \hat{\beta}_1 \bar{x}$ dentro de $\sum (y_i - \hat{\beta}_0 - \hat{\beta}_1 x_i)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Substituindo $x = \bar{x}$ e $\hat{\beta}_0 = \bar{y} - \hat{\beta}_1 \bar{x}$ na equação da reta:
+              $$\hat{y}(\bar{x}) = \hat{\beta}_0 + \hat{\beta}_1 \bar{x} = (\bar{y} - \hat{\beta}_1 \bar{x}) + \hat{\beta}_1 \bar{x} = \bar{y}.$$
+              Portanto, o ponto $(\bar{x}, \bar{y})$ pertence à reta ajustada.
+            </item>
+            <item>Escrevemos a soma dos resíduos e agrupamos os desvios em torno das médias:
+              $$\sum_{i=1}^n e_i = \sum_{i=1}^n (y_i - \hat{\beta}_0 - \hat{\beta}_1 x_i) = \sum_{i=1}^n \bigl[(y_i - \bar{y}) - \hat{\beta}_1 (x_i - \bar{x})\bigr].$$
+              Como $\sum_{i=1}^n (y_i - \bar{y}) = 0$ e $\sum_{i=1}^n (x_i - \bar{x}) = 0$ por definição de média aritmética, concluímos que $\sum_{i=1}^n e_i = 0 - \hat{\beta}_1 \cdot 0 = 0$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-2-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Regressão linear múltipla e mínimos quadrados em forma matricial</title>
+      <intro>
+        Neurônios e voxels raramente respondem a um único atributo do mundo; a álgebra linear condensa dezenas ou centenas de preditores em uma única equação matricial.
+      </intro>
+
+      Na prática, a taxa de disparo de um neurônio depende simultaneamente do contraste do estímulo ($x_1$), da frequência espacial ($x_2$) e até do nível de atenção do animal ($x_3$). Com $p$ preditores, em vez de ajustar uma reta em duas dimensões, ajustamos um plano ou hiperplano em $\mathbb{R}^{p+1}$. Escrever todas as $n$ amostras juntas em matrizes transforma o problema de encontrar $\hat{\boldsymbol{\beta}}$ em um sistema linear clássico do Módulo 5 (Sistemas lineares e transformações).
+
+      <definition id="def:8-2-modelo-multiplo">
+        <title>Regressão linear múltipla em notação matricial</title>
+        Dadas $n$ amostras e $p$ variáveis explicativas na matriz de dados original $\mathbb{R}^{n \times p}$, incluímos uma coluna inicial de $1$s para representar o intercepto $\beta_0$, formando a <strong>matriz de projeto</strong> (<em>design matrix</em>) $\mathbf{X} \in \mathbb{R}^{n \times (p+1)}$:
+        $$\mathbf{y} = \mathbf{X}\boldsymbol{\beta} + \boldsymbol{\varepsilon}, \qquad \mathbf{X} = \begin{pmatrix} 1 & x_{11} & \cdots & x_{1p} \\ 1 & x_{21} & \cdots & x_{2p} \\ \vdots & \vdots & \ddots & \vdots \\ 1 & x_{n1} & \cdots & x_{np} \end{pmatrix}, \qquad \boldsymbol{\beta} = \begin{pmatrix} \beta_0 \\ \beta_1 \\ \vdots \\ \beta_p \end{pmatrix} \in \mathbb{R}^{p+1},$$
+        em que $\mathbf{y} \in \mathbb{R}^n$ é o vetor resposta e $\boldsymbol{\varepsilon} \in \mathbb{R}^n$ é o vetor de erros aleatórios. Cada previsão vale $\hat{\mathbf{y}} = \mathbf{X}\hat{\boldsymbol{\beta}}$, e a soma dos quadrados dos resíduos escreve-se usando a norma euclidiana (norma $\ell_2$):
+        $$\mathrm{RSS}(\boldsymbol{\beta}) = \|\mathbf{y} - \mathbf{X}\boldsymbol{\beta}\|_2^2 = (\mathbf{y} - \mathbf{X}\boldsymbol{\beta})^\top (\mathbf{y} - \mathbf{X}\boldsymbol{\beta}).$$
+      </definition>
+
+      Qual é o vetor $\hat{\boldsymbol{\beta}}$ que minimiza a distância ao quadrado $\|\mathbf{y} - \mathbf{X}\boldsymbol{\beta}\|_2^2$? Pense geometricamente no Módulo 5 (Ortogonalidade): à medida que $\boldsymbol{\beta}$ varia, o vetor $\mathbf{X}\boldsymbol{\beta}$ percorre todo o subespaço gerado pelas colunas de $\mathbf{X}$ (o espaço coluna de $\mathbf{X}$). O ponto desse subespaço mais próximo de $\mathbf{y}$ é a <strong>projeção ortogonal</strong> de $\mathbf{y}$ sobre ele — exatamente o ponto em que o vetor resíduo $\mathbf{e} = \mathbf{y} - \mathbf{X}\hat{\boldsymbol{\beta}}$ é perpendicular a todas as colunas de $\mathbf{X}$.
+
+      <theorem id="thm:8-2-equacoes-normais">
+        <title>Equações normais e solução de mínimos quadrados</title>
+        Todo minimizador $\hat{\boldsymbol{\beta}}$ de $\mathrm{RSS}(\boldsymbol{\beta}) = \|\mathbf{y} - \mathbf{X}\boldsymbol{\beta}\|_2^2$ satisfaz as <strong>equações normais</strong> (<em>normal equations</em>):
+        <equation id="eq:8-2-equacoes-normais">
+          \mathbf{X}^\top \mathbf{X} \hat{\boldsymbol{\beta}} = \mathbf{X}^\top \mathbf{y}.
+        </equation>
+        Quando as colunas de $\mathbf{X}$ são linearmente independentes, a matriz $\mathbf{X}^\top \mathbf{X}$ é invertível e a solução única é:
+        $$\hat{\boldsymbol{\beta}} = (\mathbf{X}^\top \mathbf{X})^{-1} \mathbf{X}^\top \mathbf{y}.$$
+        <intuition>
+          Reescrevendo $\mathbf{X}^\top \mathbf{X} \hat{\boldsymbol{\beta}} = \mathbf{X}^\top \mathbf{y}$ como $\mathbf{X}^\top (\mathbf{y} - \mathbf{X}\hat{\boldsymbol{\beta}}) = \mathbf{0}$, vemos que o vetor resíduo $\mathbf{e} = \mathbf{y} - \hat{\mathbf{y}}$ tem produto interno zero com cada coluna de $\mathbf{X}$: ele é ortogonal ao espaço gerado pelos preditores.
+        </intuition>
+      </theorem>
+      <proof of="thm:8-2-equacoes-normais" collapsible="true" collapsed="true">
+        Expandimos a forma quadrática $\mathrm{RSS}(\boldsymbol{\beta})$ usando a transposta de um produto $(\mathbf{A}\mathbf{b})^\top = \mathbf{b}^\top \mathbf{A}^\top$ e notando que $\boldsymbol{\beta}^\top \mathbf{X}^\top \mathbf{y}$ é um escalar (igual à sua própria transposta $\mathbf{y}^\top \mathbf{X} \boldsymbol{\beta}$):
+        $$\mathrm{RSS}(\boldsymbol{\beta}) = (\mathbf{y} - \mathbf{X}\boldsymbol{\beta})^\top (\mathbf{y} - \mathbf{X}\boldsymbol{\beta}) = \mathbf{y}^\top \mathbf{y} - 2\,\boldsymbol{\beta}^\top \mathbf{X}^\top \mathbf{y} + \boldsymbol{\beta}^\top \mathbf{X}^\top \mathbf{X} \boldsymbol{\beta}.$$
+        Tomando o gradiente em relação a $\boldsymbol{\beta}$ e igualando ao vetor nulo (Módulo 4, Otimização):
+        $$\nabla_{\boldsymbol{\beta}} \mathrm{RSS}(\boldsymbol{\beta}) = -2\mathbf{X}^\top \mathbf{y} + 2\mathbf{X}^\top \mathbf{X}\boldsymbol{\beta} = \mathbf{0} \implies \mathbf{X}^\top \mathbf{X}\hat{\boldsymbol{\beta}} = \mathbf{X}^\top \mathbf{y}.$$
+        Se as colunas de $\mathbf{X}$ são linearmente independentes, para qualquer $\mathbf{v} \ne \mathbf{0}$ vale $\mathbf{X}\mathbf{v} \ne \mathbf{0}$, donde $\mathbf{v}^\top (\mathbf{X}^\top \mathbf{X})\mathbf{v} = \|\mathbf{X}\mathbf{v}\|_2^2 > 0$; assim $\mathbf{X}^\top\mathbf{X}$ é simétrica positiva definida, logo invertível, garantindo $\hat{\boldsymbol{\beta}} = (\mathbf{X}^\top \mathbf{X})^{-1} \mathbf{X}^\top \mathbf{y}$ como mínimo global único.
+      </proof>
+
+      Na regressão múltipla, cada coeficiente $\beta_j$ ($j \ge 1$) mede a variação esperada de $y$ quando a variável $x_j$ aumenta em $1$ unidade, <strong>mantendo todas as outras variáveis fixas</strong> (<em>ceteris paribus</em>). Essa cláusula é crucial: se o neurônio recebe entrada excitatória ($x_1$) e inibitória ($x_2$) ao mesmo tempo, $\beta_1$ isola o efeito líquido da excitação quando a inibição não varia.
+
+      Um cuidado numérico e estatístico importante: quando $\mathbf{X}^\top \mathbf{X}$ é singular (não tem inversa) ou quase singular — o que acontece se $p$ se aproxima ou ultrapassa $n$, ou se duas colunas são fortemente correlacionadas (<strong>multicolinearidade</strong>, <em>multicollinearity</em>) —, inverter $(\mathbf{X}^\top\mathbf{X})$ amplifica o ruído nos coeficientes $\hat{\boldsymbol{\beta}}$, deixando-os instáveis. Por isso, bibliotecas como NumPy (<c>np.linalg.lstsq</c>) e scikit-learn (<c>LinearRegression</c>) não invertem $\mathbf{X}^\top\mathbf{X}$ diretamente: elas usam decomposições matriciais numericamente estáveis como a SVD, que vimos no Tema 5.6 (Decomposições). E quando o problema é estatístico ($p$ grande ou variáveis redundantes), precisaremos da regularização do Tema 8.6 (Regularização) e dos diagnósticos do Tema 8.7 (Estudo de variáveis).
+
+      <example id="exm:8-2-multipla-mao">
+        <title>Experimento fatorial $2 \times 2$: contraste e atenção</title>
+        Em quatro ensaios de registro extracelular, variamos o contraste ($x_1 \in \{-1, +1\}$ para baixo/alto) e a atenção ($x_2 \in \{-1, +1\}$ para desviada/focada), medindo as taxas de disparo $\mathbf{y} = (10, 14, 20, 28)^\top\text{ Hz}$. Calcule $\hat{\boldsymbol{\beta}}$ pelas equações normais e verifique que o resíduo é ortogonal às colunas de $\mathbf{X}$.
+
+        <strong>Solução.</strong> Montamos a matriz de projeto com a coluna de $1$s para o intercepto:
+        $$\mathbf{X} = \begin{pmatrix} 1 & -1 & -1 \\ 1 & -1 & 1 \\ 1 & 1 & -1 \\ 1 & 1 & 1 \end{pmatrix}, \qquad \mathbf{y} = \begin{pmatrix} 10 \\ 14 \\ 20 \\ 28 \end{pmatrix}.$$
+        Como as colunas de $\mathbf{X}$ são ortogonais duas a duas e cada coluna tem norma ao quadrado igual a $4$, obtemos uma matriz diagonal:
+        $$\mathbf{X}^\top \mathbf{X} = \begin{pmatrix} 4 & 0 & 0 \\ 0 & 4 & 0 \\ 0 & 0 & 4 \end{pmatrix} = 4\mathbf{I}_3 \implies (\mathbf{X}^\top\mathbf{X})^{-1} = \frac{1}{4}\mathbf{I}_3.$$
+        Calculando $\mathbf{X}^\top \mathbf{y}$:
+        $$\mathbf{X}^\top \mathbf{y} = \begin{pmatrix} 10 + 14 + 20 + 28 \\ -10 - 14 + 20 + 28 \\ -10 + 14 - 20 + 28 \end{pmatrix} = \begin{pmatrix} 72 \\ 24 \\ 12 \end{pmatrix}.$$
+        Logo:
+        $$\hat{\boldsymbol{\beta}} = \frac{1}{4}\begin{pmatrix} 72 \\ 24 \\ 12 \end{pmatrix} = \begin{pmatrix} 18 \\ 6 \\ 3 \end{pmatrix}, \qquad \text{ou seja, } \hat{y} = 18 + 6\,x_1 + 3\,x_2.$$
+        As previsões valem $\hat{\mathbf{y}} = \mathbf{X}\hat{\boldsymbol{\beta}} = (9, 15, 21, 27)^\top$, gerando o vetor de resíduos $\mathbf{e} = \mathbf{y} - \hat{\mathbf{y}} = (1, -1, -1, 1)^\top$. Conferindo a ortogonalidade:
+        $$\mathbf{X}^\top \mathbf{e} = \begin{pmatrix} 1 - 1 - 1 + 1 \\ -1 + 1 - 1 + 1 \\ -1 - 1 + 1 + 1 \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \\ 0 \end{pmatrix}.$$
+      </example>
+
+      <example id="exm:8-2-multipla-correlacionada">
+        <title>Preditores não ortogonais sem intercepto</title>
+        Suponha que medimos a variação de potencial evocado $\Delta V$ (em $\text{mV}$, já relativa à linha de base, de modo que $\beta_0 = 0$) sob duas estimulações sinápticas $(x_1, x_2)$ que frequentemente ocorrem juntas:
+        $$\mathbf{X} = \begin{pmatrix} 1 & 0 \\ 0 & 1 \\ 1 & 1 \\ 1 & 1 \end{pmatrix}, \qquad \mathbf{y} = \begin{pmatrix} 2 \\ 1 \\ 4 \\ 3 \end{pmatrix}.$$
+        Encontre $\hat{\boldsymbol{\beta}} = (\hat{\beta}_1, \hat{\beta}_2)^\top$ invertendo $\mathbf{X}^\top\mathbf{X}$.
+
+        <strong>Solução.</strong> Calculamos a matriz $2 \times 2$ $\mathbf{X}^\top\mathbf{X}$ e o vetor $\mathbf{X}^\top\mathbf{y}$:
+        $$\mathbf{X}^\top\mathbf{X} = \begin{pmatrix} 3 & 2 \\ 2 & 3 \end{pmatrix}, \qquad \mathbf{X}^\top\mathbf{y} = \begin{pmatrix} 2 + 0 + 4 + 3 \\ 0 + 1 + 4 + 3 \end{pmatrix} = \begin{pmatrix} 9 \\ 8 \end{pmatrix}.$$
+        O determinante de $\mathbf{X}^\top\mathbf{X}$ é $3 \cdot 3 - 2 \cdot 2 = 5 \ne 0$, logo sua inversa é:
+        $$(\mathbf{X}^\top\mathbf{X})^{-1} = \frac{1}{5}\begin{pmatrix} 3 & -2 \\ -2 & 3 \end{pmatrix}.$$
+        Multiplicando por $\mathbf{X}^\top\mathbf{y}$:
+        $$\hat{\boldsymbol{\beta}} = \frac{1}{5}\begin{pmatrix} 3(9) - 2(8) \\ -2(9) + 3(8) \end{pmatrix} = \frac{1}{5}\begin{pmatrix} 11 \\ 6 \end{pmatrix} = \begin{pmatrix} 2{,}2 \\ 1{,}2 \end{pmatrix}.$$
+        Assim, $\hat{\mathbf{y}} = (2{,}2;\, 1{,}2;\, 3{,}4;\, 3{,}4)^\top$ e $\mathbf{e} = (-0{,}2;\, -0{,}2;\, 0{,}6;\, -0{,}4)^\top$. Você pode verificar que $\mathbf{X}^\top\mathbf{e} = (-0{,}2 + 0{,}6 - 0{,}4;\, -0{,}2 + 0{,}6 - 0{,}4)^\top = (0, 0)^\top$.
+      </example>
+
+      Vamos conferir em Python que a solução direta por mínimos quadrados numéricos (<c>np.linalg.lstsq</c>) coincide com <c>LinearRegression</c> em um conjunto sintético de três preditores neurais.
+
+      <code lang="python" id="cod:8-2-multipla">
+import numpy as np
+from sklearn.linear_model import LinearRegression
+
+rng = np.random.default_rng(0)
+n = 200
+
+# 3 features sintéticas: contraste normalizado, alinhamento de orientação, alerta
+X = rng.normal(0.0, 1.0, size=(n, 3))
+pesos_reais = np.array([12.0, -4.0, 3.0])
+intercepto_real = 5.0
+ruido = rng.normal(0.0, 1.5, size=n)
+y = intercepto_real + X @ pesos_reais + ruido
+
+# 1) Solução matricial via np.linalg.lstsq (com coluna de 1s)
+X_proj = np.column_stack([np.ones(n), X])
+beta_lstsq, _, _, _ = np.linalg.lstsq(X_proj, y, rcond=None)
+
+# 2) Solução via scikit-learn LinearRegression
+modelo = LinearRegression()
+modelo.fit(X, y)
+beta_sklearn = np.concatenate([[modelo.intercept_], modelo.coef_])
+
+diff_max = np.max(np.abs(beta_lstsq - beta_sklearn))
+print("Intercepto e pesos (lstsq):  ", np.round(beta_lstsq, 3))
+# Intercepto e pesos (lstsq):   [ 4.946 11.865 -4.144  3.08 ]
+print("Intercepto e pesos (sklearn):", np.round(beta_sklearn, 3))
+# Intercepto e pesos (sklearn): [ 4.946 11.865 -4.144  3.08 ]
+print(f"Diferença máxima: {diff_max:.3f}")
+# Diferença máxima: 0.000
+print(f"Soluções equivalentes (allclose): {np.allclose(beta_lstsq, beta_sklearn)}")
+# Soluções equivalentes (allclose): True
+      </code>
+
+      <remark id="rem:8-2-colinearidade">
+        <title>Armadilha comum</title>
+        <strong>Interpretar $\hat{\beta}_j$ isoladamente quando os preditores são colineares.</strong> Se dois preditores variam quase sempre juntos (por exemplo, diâmetro pupilar e frequência cardíaca, ou voxels vizinhos de fMRI), aumentar um mantendo o outro fixo é artificial, e a matriz $\mathbf{X}^\top\mathbf{X}$ fica quase singular. Nesse regime, os coeficientes individuais podem explodir em magnitude ou até inverter de sinal de uma amostra para outra, mesmo que as previsões $\hat{y}$ continuem boas. Voltaremos a esse problema no Tema 8.6 (Regularização) e no Tema 8.7 (Estudo de variáveis).
+      </remark>
+
+      <exercise id="exr:8-2-2-1">
+        <title>Básico — Interpretação <em>ceteris paribus</em></title>
+        Um modelo múltiplo ajustado para a taxa de disparo ($\text{Hz}$) de um neurônio em função do contraste $x_1$ ($\%$) e de um índice de inibição lateral $x_2$ (adimensional) resultou em $\hat{y} = 8{,}0 + 0{,}40\,x_1 - 0{,}25\,x_2$.
+        <list marker="a">
+          <item>Se o contraste sobe de $30\%$ para $40\%$ mantendo $x_2$ fixo, quanto varia a taxa prevista?</item>
+          <item>Qual a previsão para $x_1 = 50$ e $x_2 = 12$?</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), multiplique a variação $\Delta x_1 = 10$ pelo coeficiente $\hat{\beta}_1 = 0{,}40$, já que $\Delta x_2 = 0$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Com $x_2$ constante ($\Delta x_2 = 0$), a variação prevista é $\Delta \hat{y} = 0{,}40 \cdot (40 - 30) = +4{,}0\text{ Hz}$.</item>
+            <item>Substituindo $x_1 = 50$ e $x_2 = 12$:
+              $$\hat{y} = 8{,}0 + 0{,}40(50) - 0{,}25(12) = 8{,}0 + 20{,}0 - 3{,}0 = 25{,}0\text{ Hz}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-2-2-2">
+        <title>Intermediário — Resolvendo equações normais à mão</title>
+        Considere um modelo linear sem intercepto ($y = \beta_1 x_1 + \beta_2 x_2 + \varepsilon$) com:
+        $$\mathbf{X} = \begin{pmatrix} 1 & 1 \\ 2 & 0 \\ 0 & 2 \end{pmatrix}, \qquad \mathbf{y} = \begin{pmatrix} 5 \\ 3 \\ 1 \end{pmatrix}.$$
+        Calcule $\hat{\boldsymbol{\beta}} = (\mathbf{X}^\top \mathbf{X})^{-1}\mathbf{X}^\top \mathbf{y}$, o vetor de resíduos $\mathbf{e}$ e verifique que $\mathbf{X}^\top \mathbf{e} = \mathbf{0}$.
+        <hint><title>Ver dica</title>Monte $\mathbf{X}^\top\mathbf{X}$ ($2 \times 2$), use a fórmula da inversa $2\times 2$ com determinante $ad - bc$ e multiplique por $\mathbf{X}^\top\mathbf{y}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculamos $\mathbf{X}^\top\mathbf{X}$ e $\mathbf{X}^\top\mathbf{y}$:
+          $$\mathbf{X}^\top\mathbf{X} = \begin{pmatrix} 1^2+2^2+0^2 & 1\cdot 1 + 2\cdot 0 + 0\cdot 2 \\ 1\cdot 1 + 2\cdot 0 + 0\cdot 2 & 1^2+0^2+2^2 \end{pmatrix} = \begin{pmatrix} 5 & 1 \\ 1 & 5 \end{pmatrix}, \qquad \mathbf{X}^\top\mathbf{y} = \begin{pmatrix} 1\cdot 5 + 2\cdot 3 + 0\cdot 1 \\ 1\cdot 5 + 0\cdot 3 + 2\cdot 1 \end{pmatrix} = \begin{pmatrix} 11 \\ 7 \end{pmatrix}.$$
+          Como $\det(\mathbf{X}^\top\mathbf{X}) = 25 - 1 = 24$, temos:
+          $$\hat{\boldsymbol{\beta}} = \frac{1}{24}\begin{pmatrix} 5 & -1 \\ -1 & 5 \end{pmatrix}\begin{pmatrix} 11 \\ 7 \end{pmatrix} = \frac{1}{24}\begin{pmatrix} 55 - 7 \\ -11 + 35 \end{pmatrix} = \frac{1}{24}\begin{pmatrix} 48 \\ 24 \end{pmatrix} = \begin{pmatrix} 2 \\ 1 \end{pmatrix}.$$
+          As previsões são $\hat{\mathbf{y}} = \mathbf{X}\hat{\boldsymbol{\beta}} = (3, 4, 2)^\top$, donde $\mathbf{e} = \mathbf{y} - \hat{\mathbf{y}} = (2, -1, -1)^\top$. Conferindo a ortogonalidade:
+          $$\mathbf{X}^\top \mathbf{e} = \begin{pmatrix} 1(2) + 2(-1) + 0(-1) \\ 1(2) + 0(-1) + 2(-1) \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \end{pmatrix}.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-2-2-3">
+        <title>Intermediário — Ortogonalidade dos resíduos no <c>load_diabetes</c></title>
+        Em Python, carregue o conjunto <c>load_diabetes</c> do <c>sklearn.datasets</c>, divida-o em treino ($80\%$) e teste ($20\%$) com <c>random_state=0</c>, ajuste um modelo <c>LinearRegression</c> no treino e verifique numericamente duas propriedades dos resíduos de treino: soma nula e ortogonalidade a todas as colunas de $\mathbf{X}_{\text{treino}}$.
+        <hint><title>Ver dica</title>Calcule <c>residuos = y_treino - modelo.predict(X_treino)</c> e depois avalie <c>np.sum(residuos)</c> e <c>X_treino.T @ residuos</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.datasets import load_diabetes
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+
+X, y = load_diabetes(return_X_y=True)
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.2, random_state=0
+)
+
+modelo = LinearRegression()
+modelo.fit(X_treino, y_treino)
+
+residuos = y_treino - modelo.predict(X_treino)
+soma_res = np.sum(residuos)
+max_ortog = np.max(np.abs(X_treino.T @ residuos))
+
+print(f"|Soma dos resíduos de treino|: {abs(soma_res):.3f}")
+# |Soma dos resíduos de treino|: 0.000
+print(f"Máximo |X^T e| no treino: {max_ortog:.3f}")
+# Máximo |X^T e| no treino: 0.000
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-2-2-4">
+        <title>Avançado — Colinearidade perfeita e singularidade de $\mathbf{X}^\top\mathbf{X}$</title>
+        Suponha que um modelo sem intercepto usa dois preditores perfeitamente colineares: $x_{i2} = 2\,x_{i1}$ para toda amostra $i = 1, \dots, n$.
+        <list marker="a">
+          <item>Mostre que, se $(\beta_1, \beta_2)$ produz uma previsão $\hat{\mathbf{y}}$, então $(\beta_1 + 2c,\; \beta_2 - c)$ produz exatamente a mesma previsão e a mesma $\mathrm{RSS}$ para qualquer $c \in \mathbb{R}$.</item>
+          <item>Para $n = 2$ com $x_{11} = 1$ e $x_{21} = 3$ (logo $x_{12} = 2$ e $x_{22} = 6$), calcule $\det(\mathbf{X}^\top\mathbf{X})$ e explique por que $(\mathbf{X}^\top\mathbf{X})^{-1}$ não existe.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), substitua $x_{i2} = 2x_{i1}$ na combinação linear $(\beta_1 + 2c)x_{i1} + (\beta_2 - c)x_{i2}$. Em (b), monte a matriz $2\times 2$ $\mathbf{X}^\top\mathbf{X}$ e calcule $ad - bc$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Para qualquer $c \in \mathbb{R}$, como $x_{i2} = 2x_{i1}$:
+              $$(\beta_1 + 2c)x_{i1} + (\beta_2 - c)x_{i2} = \beta_1 x_{i1} + 2c\,x_{i1} + \beta_2 x_{i2} - c(2x_{i1}) = \beta_1 x_{i1} + \beta_2 x_{i2}.$$
+              Logo, existem infinitos pares de coeficientes com exatamente as mesmas previsões e a mesma $\mathrm{RSS}$.
+            </item>
+            <item>Com $\mathbf{X} = \begin{pmatrix} 1 & 2 \\ 3 & 6 \end{pmatrix}$, temos:
+              $$\mathbf{X}^\top\mathbf{X} = \begin{pmatrix} 1^2+3^2 & 1\cdot 2 + 3\cdot 6 \\ 2\cdot 1 + 6\cdot 3 & 2^2+6^2 \end{pmatrix} = \begin{pmatrix} 10 & 20 \\ 20 & 40 \end{pmatrix}.$$
+              O determinante vale $\det(\mathbf{X}^\top\mathbf{X}) = 10 \cdot 40 - 20 \cdot 20 = 400 - 400 = 0$. Como o determinante é zero, $\mathbf{X}^\top\mathbf{X}$ é singular e não possui inversa.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-2-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Regressão polinomial</title>
+      <intro>
+        Curvas de sintonia e respostas biológicas não são linhas retas — mas basta criar novas colunas com potências da entrada para que a própria regressão linear desenhe curvas suaves.
+      </intro>
+
+      Um neurônio seletivo à orientação em V1 não aumenta sua taxa de disparo indefinidamente conforme o ângulo do estímulo cresce: ele atinge um pico na orientação preferida (digamos, cerca de $40\text{ Hz}$) e cai para ambos os lados. Uma linha reta não consegue subir e depois descer. Será preciso abandonar a regressão linear? Não! O truque é substituir a entrada única $x$ por um conjunto de novas <em>features</em>: $x, x^2, x^3, \dots, x^d$.
+
+      <definition id="def:8-2-polinomial">
+        <title>Regressão polinomial de grau $d$</title>
+        Dado um preditor escalar $x$, o modelo de <strong>regressão polinomial de grau $d$</strong> é:
+        <equation id="eq:8-2-polinomial">
+          y_i = \beta_0 + \beta_1 x_i + \beta_2 x_i^2 + \dots + \beta_d x_i^d + \varepsilon_i.
+        </equation>
+        Definindo as colunas transformadas $\phi_k(x_i) = x_i^k$, a linha $i$ da matriz de projeto torna-se $(1, x_i, x_i^2, \dots, x_i^d) \in \mathbb{R}^{d+1}$.
+        <intuition>
+          Embora a curva $\hat{f}(x) = \hat{\beta}_0 + \hat{\beta}_1 x + \dots + \hat{\beta}_d x^d$ seja curva (não linear em $x$), a função é uma combinação linear dos parâmetros desconhecidos $\beta_0, \dots, \beta_d$. Por isso, os mesmos mínimos quadrados da <ref to="eq:8-2-equacoes-normais"/> resolvem o problema de forma exata.
+        </intuition>
+      </definition>
+
+      A escolha do grau $d$ ilustra diretamente o compromisso entre <strong>viés e variância</strong> visto no Tema 8.1 (Introdução). Com $d = 1$ (uma reta) sobre uma curva de sintonia em forma de sino, o modelo tem viés alto e sofre de <strong>subajuste</strong> (<em>underfitting</em>): falha em capturar o pico central. Um grau moderado, como $d = 2$, $3$ ou $4$, acompanha a curvatura real sem perseguir o ruído de cada ensaio. Já um grau exagerado, como $d = 15$ para poucos pontos, faz a curva contorcer-se para passar perto de cada flutuação aleatória — clássico <strong>sobreajuste</strong> (<em>overfitting</em>), com variância altíssima entre os pontos amostrados. A <ref to="fig:8-2-polinomios"/> mostra exatamente esse contraste em uma curva de sintonia sintética.
+
+      <figure src="fig/t02-polinomios.svg" alt="Ajustes polinomiais de graus 1, 3 e 15 sobre uma curva de sintonia de orientação com ruído de Poisson: grau 1 subajusta como uma reta, grau 3 acompanha o pico com suavidade e grau 15 oscila fortemente entre os pontos" id="fig:8-2-polinomios">
+        <caption>Regressão polinomial aplicada a uma curva de sintonia de orientação sintética com ruído de Poisson ($n = 18$ ensaios). O grau $1$ subajusta (linha reta), o grau $3$ captura a forma da curva e o grau $15$ sobreajusta às oscilações do ruído.</caption>
+      </figure>
+
+      Na prática computacional, dois cuidados evitam erros graves:
+      <list marker="number">
+        <item><strong>Centrar e padronizar antes ou depois da expansão:</strong> se $x$ varia de $-90$ a $+90$, então $x^{10}$ chega perto de $3{,}5 \times 10^{19}$, enquanto $x^1$ tem ordem $10^2$. Essa disparidade de escalas torna $\mathbf{X}^\top\mathbf{X}$ numericamente mal condicionada. Centrar $x$ e colocar um <c>StandardScaler</c> após <c>PolynomialFeatures</c> dentro de um <c>Pipeline</c> mantém todas as colunas na mesma escala e evita vazamento de dados.</item>
+        <item><strong>Perigo da extrapolação:</strong> todo polinômio de grau $d \ge 1$ diverge para $+\infty$ ou $-\infty$ quando $|x|$ cresce. Usar o polinômio ajustado em $[-90^\circ, +90^\circ]$ para prever fora do intervalo observado pode gerar taxas impossíveis (como disparos negativos ou de milhares de Hz).</item>
+      </list>
+
+      <example id="exm:8-2-matriz-polinomial">
+        <title>Montando e resolvendo uma regressão quadrática à mão</title>
+        Mediu-se a taxa de disparo $y$ ($\text{Hz}$) de um neurônio em quatro deslocamentos angulares normalizados $x \in \{-2, -1, 1, 2\}$ (representando $-60^\circ, -30^\circ, +30^\circ, +60^\circ$ em torno da orientação preferida):
+        $$(-2, 10), \quad (-1, 32), \quad (1, 34), \quad (2, 8).$$
+        Monte a matriz de projeto para o polinômio de grau $2$ ($y = \beta_0 + \beta_1 x + \beta_2 x^2 + \varepsilon$) e calcule $\hat{\boldsymbol{\beta}}$.
+
+        <strong>Solução.</strong> Chamamos a matriz de projeto de $\boldsymbol{\Phi}$ porque suas colunas foram transformadas pela base polinomial — ela faz o mesmo papel de $\mathbf{X}$ da seção 2. Como cada linha tem a forma $(1,\, x_i,\, x_i^2)$, temos:
+        $$\boldsymbol{\Phi} = \begin{pmatrix} 1 & -2 & 4 \\ 1 & -1 & 1 \\ 1 & 1 & 1 \\ 1 & 2 & 4 \end{pmatrix}, \qquad \mathbf{y} = \begin{pmatrix} 10 \\ 32 \\ 34 \\ 8 \end{pmatrix}.$$
+        Calculamos $\boldsymbol{\Phi}^\top \boldsymbol{\Phi}$ e $\boldsymbol{\Phi}^\top \mathbf{y}$:
+        $$\boldsymbol{\Phi}^\top \boldsymbol{\Phi} = \begin{pmatrix} 4 & 0 & 10 \\ 0 & 10 & 0 \\ 10 & 0 & 34 \end{pmatrix}, \qquad \boldsymbol{\Phi}^\top \mathbf{y} = \begin{pmatrix} 10 + 32 + 34 + 8 \\ -20 - 32 + 34 + 16 \\ 40 + 32 + 34 + 32 \end{pmatrix} = \begin{pmatrix} 84 \\ -2 \\ 138 \end{pmatrix}.$$
+        Como a coluna $x$ é ortogonal às colunas $1$ e $x^2$, a equação para $\hat{\beta}_1$ separa-se imediatamente:
+        $$10\,\hat{\beta}_1 = -2 \implies \hat{\beta}_1 = -0{,}2.$$
+        Para $(\hat{\beta}_0, \hat{\beta}_2)$, resolvemos o bloco $2 \times 2$ $\begin{pmatrix} 4 & 10 \\ 10 & 34 \end{pmatrix}$, cujo determinante é $4 \cdot 34 - 10^2 = 36$:
+        $$\begin{pmatrix} \hat{\beta}_0 \\ \hat{\beta}_2 \end{pmatrix} = \frac{1}{36}\begin{pmatrix} 34 & -10 \\ -10 & 4 \end{pmatrix}\begin{pmatrix} 84 \\ 138 \end{pmatrix} = \frac{1}{36}\begin{pmatrix} 2\,856 - 1\,380 \\ -840 + 552 \end{pmatrix} = \frac{1}{36}\begin{pmatrix} 1\,476 \\ -288 \end{pmatrix} = \begin{pmatrix} 41 \\ -8 \end{pmatrix}.$$
+        A parábola ajustada é $\hat{y}(x) = 41 - 0{,}2\,x - 8\,x^2$, prevendo um pico próximo de $41\text{ Hz}$ na orientação preferida ($x = 0$). Note que, fora do intervalo, por exemplo em $x = 3$ ($+90^\circ$), a parábola extrapolaria $\hat{y}(3) = 41 - 0{,}6 - 72 = -31{,}6\text{ Hz}$ — valor fisicamente impossível para uma taxa de disparo!
+      </example>
+
+      <example id="exm:8-2-sintonia-poisson">
+        <title>Curva de sintonia com ruído de Poisson em Python</title>
+        Em registros reais, o número de potenciais de ação contados em uma janela de $1\text{ s}$ segue aproximadamente uma distribuição de Poisson em torno da taxa esperada $\lambda(\theta)$. O código abaixo simula $60$ ensaios de orientação com pico próximo de $40\text{ Hz}$, separa em treino e teste e compara polinômios de graus $1$, $2$, $4$ e $15$ usando <c>Pipeline</c>.
+      </example>
+
+      <code lang="python" id="cod:8-2-polinomial">
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+
+rng = np.random.default_rng(0)
+
+# 60 orientações entre -90° e +90°; janela de 1 s -> contagem = taxa (Hz)
+theta = rng.uniform(-90.0, 90.0, size=60)
+taxa_esperada = 5.0 + 35.0 * np.exp(-0.5 * (theta / 30.0) ** 2)
+taxas = rng.poisson(taxa_esperada).astype(float)
+
+X = theta.reshape(-1, 1)
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, taxas, test_size=0.3, random_state=0
+)
+
+for grau in [1, 2, 4, 15]:
+    pipe = Pipeline(
+        [
+            ("poly", PolynomialFeatures(degree=grau, include_bias=False)),
+            ("scaler", StandardScaler()),
+            ("reg", LinearRegression()),
+        ]
+    )
+    pipe.fit(X_treino, y_treino)
+    mse_tr = mean_squared_error(y_treino, pipe.predict(X_treino))
+    mse_te = mean_squared_error(y_teste, pipe.predict(X_teste))
+    r2_te = r2_score(y_teste, pipe.predict(X_teste))
+    print(f"Grau {grau:2d} | MSE treino: {mse_tr:6.3f} | MSE teste: {mse_te:7.3f} | R² teste: {r2_te:6.3f}")
+# Grau  1 | MSE treino: 182.746 | MSE teste: 125.346 | R² teste: -0.003
+# Grau  2 | MSE treino: 51.757 | MSE teste:  33.272 | R² teste:  0.734
+# Grau  4 | MSE treino: 25.683 | MSE teste:  19.803 | R² teste:  0.842
+# Grau 15 | MSE treino: 17.663 | MSE teste: 181.541 | R² teste: -0.452
+      </code>
+
+      Observe o padrão clássico no resultado: o grau $1$ tem erro alto tanto no treino quanto no teste (subajuste); os graus $2$ e $4$ reduzem drasticamente o erro no teste (com $R^2$ de teste de cerca de $0{,}73$ e $0{,}84$); já o grau $15$ derruba o erro de treino para cerca de $17{,}7$, mas o $\mathrm{MSE}$ de teste sobe para cerca de $182$ ($R^2$ de teste negativo, $\approx -0{,}45$, pior que prever a média — sobreajuste severo).
+
+      <remark id="rem:8-2-linear-parametros">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Confundir "linear em $\boldsymbol{\beta}$" com "linear em $x$":</strong> dizer que $y = \beta_0 + \beta_1 x + \beta_2 x^2$ é um "modelo linear" significa que ele é linear nos <em>parâmetros</em> $\beta_0, \beta_1, \beta_2$, e não na variável de entrada $x$. Já $y = \beta_0 \exp(\beta_1 x)$ é não linear nos parâmetros porque $\beta_1$ aparece dentro da exponencial.</item>
+          <item><strong>Extrapolar polinômios de grau alto:</strong> um polinômio bem ajustado dentro do intervalo de treino pode disparar para valores absurdamente grandes ou negativos logo após o menor ou maior $x$ observado.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-2-3-1">
+        <title>Básico — Linearidade nos parâmetros versus em $x$</title>
+        Classifique cada modelo abaixo como <strong>linear nos parâmetros</strong> (solúvel diretamente por OLS após montar $\boldsymbol{\Phi}$) ou <strong>não linear nos parâmetros</strong>:
+        <list marker="a">
+          <item>$y = \beta_0 + \beta_1 x + \beta_2 x^3$</item>
+          <item>$y = \beta_0 + \beta_1 \sin(x)$</item>
+          <item>$y = \beta_0 \exp(\beta_1 x)$</item>
+          <item>$y = \beta_0 + \dfrac{\beta_1}{1 + x^2}$</item>
+        </list>
+        <hint><title>Ver dica</title>Pergunte-se: se você substituir cada função conhecida de $x$ (como $x^3$, $\sin(x)$ ou $1/(1+x^2)$) por uma nova coluna fixa $z_j$, o modelo fica uma soma simples $\beta_0 + \sum \beta_j z_j$?</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item><strong>Linear nos parâmetros:</strong> basta definir $z_1 = x$ e $z_2 = x^3$, ficando $y = \beta_0 + \beta_1 z_1 + \beta_2 z_2$.</item>
+            <item><strong>Linear nos parâmetros:</strong> com $z_1 = \sin(x)$, o modelo é $y = \beta_0 + \beta_1 z_1$.</item>
+            <item><strong>Não linear nos parâmetros:</strong> $\beta_1$ multiplica $x$ dentro da exponencial e não pode ser isolado como coeficiente de uma coluna fixa de $x$ sem transformar $y$.</item>
+            <item><strong>Linear nos parâmetros:</strong> definindo $z_1 = \frac{1}{1+x^2}$, temos $y = \beta_0 + \beta_1 z_1$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-2-3-2">
+        <title>Intermediário — Ajuste quadrático à mão com medidas repetidas</title>
+        Ajuste o polinômio de grau $2$ ($\hat{y} = \hat{\beta}_0 + \hat{\beta}_1 x + \hat{\beta}_2 x^2$) aos quatro pontos abaixo, em que o estímulo em $x = 0$ foi medido duas vezes:
+        $$(-1, 5), \quad (0, 2), \quad (0, 4), \quad (1, 5).$$
+        <hint><title>Ver dica</title>Escreva a matriz $\boldsymbol{\Phi}$ ($4 \times 3$) com colunas $(1, x, x^2)$ e note que a segunda coluna é ortogonal às demais.</hint>
+        <solution collapsible="true" collapsed="true">
+          A matriz de projeto e o vetor resposta são:
+          $$\boldsymbol{\Phi} = \begin{pmatrix} 1 & -1 & 1 \\ 1 & 0 & 0 \\ 1 & 0 & 0 \\ 1 & 1 & 1 \end{pmatrix}, \qquad \mathbf{y} = \begin{pmatrix} 5 \\ 2 \\ 4 \\ 5 \end{pmatrix}.$$
+          Calculando $\boldsymbol{\Phi}^\top\boldsymbol{\Phi}$ e $\boldsymbol{\Phi}^\top\mathbf{y}$:
+          $$\boldsymbol{\Phi}^\top\boldsymbol{\Phi} = \begin{pmatrix} 4 & 0 & 2 \\ 0 & 2 & 0 \\ 2 & 0 & 2 \end{pmatrix}, \qquad \boldsymbol{\Phi}^\top\mathbf{y} = \begin{pmatrix} 16 \\ 0 \\ 10 \end{pmatrix}.$$
+          Da segunda linha, $2\hat{\beta}_1 = 0 \implies \hat{\beta}_1 = 0$. Para o bloco $2 \times 2$ de $(\beta_0, \beta_2)$, temos $\det = 4\cdot 2 - 2\cdot 2 = 4$:
+          $$\begin{pmatrix} \hat{\beta}_0 \\ \hat{\beta}_2 \end{pmatrix} = \frac{1}{4}\begin{pmatrix} 2 & -2 \\ -2 & 4 \end{pmatrix}\begin{pmatrix} 16 \\ 10 \end{pmatrix} = \frac{1}{4}\begin{pmatrix} 32 - 20 \\ -32 + 40 \end{pmatrix} = \begin{pmatrix} 3 \\ 2 \end{pmatrix}.$$
+          Portanto, a curva ajustada é $\hat{y}(x) = 3 + 2x^2$, com previsões $(5, 3, 3, 5)^\top$ e $\mathrm{RSS} = 0^2 + (-1)^2 + 1^2 + 0^2 = 2$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-2-3-3">
+        <title>Intermediário — Por que padronizar potências altas</title>
+        Suponha que você mede a latência $t$ de uma resposta evocada em milissegundos, no intervalo $t \in [100, 1\,000]\text{ ms}$, e ajusta um polinômio de grau $6$ sem centrar nem padronizar $t$.
+        <list marker="a">
+          <item>Qual a razão aproximada entre a ordem de grandeza da coluna $t^6$ e da coluna $t^1$ no extremo $t = 1\,000$?</item>
+          <item>Como o uso de <c>StandardScaler()</c> dentro do <c>Pipeline</c> resolve esse problema sem vazar informação do conjunto de teste?</item>
+        </list>
+        <hint><title>Ver dica</title>Calcule $1\,000^6 / 1\,000^1$ usando propriedades de potências (ou notação científica). Lembre que o <c>Pipeline</c> ajusta o escalonador apenas no treino.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Em $t = 1\,000 = 10^3$, temos $t^1 = 10^3$ e $t^6 = (10^3)^6 = 10^{18}$. A razão entre as escalas das duas colunas é $10^{18}/10^3 = 10^{15}$, o que deixa a matriz $\boldsymbol{\Phi}^\top\boldsymbol{\Phi}$ extremamente mal condicionada em aritmética de ponto flutuante.</item>
+            <item>Colocar <c>StandardScaler()</c> logo após <c>PolynomialFeatures</c> transforma cada coluna polinomial para média $0$ e desvio padrão $1$, colocando todas as potências na mesma escala numérica. Como o <c>Pipeline</c> executa <c>fit</c> apenas em <c>X_treino</c> e aplica exatamente a mesma média e o mesmo desvio padrão em <c>X_teste</c>, não há vazamento de dados do teste.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-2-3-4">
+        <title>Avançado — Explorando o grau ótimo em curva assimétrica</title>
+        Escreva um código autocontido em Python que gere $n = 80$ amostras de uma curva de sintonia assimétrica centrada em $+20^\circ$ ($\lambda(\theta) = 6 + 34 \exp(-(\theta - 20)^2 / (2 \cdot 35^2))$) com ruído de Poisson, divida em treino ($70\%$) e teste ($30\%$) com <c>random_state=0</c>, e imprima o $R^2$ de teste para os graus $d \in \{1, 3, 5, 12\}$.
+        <hint><title>Ver dica</title>Adapte o <c>Pipeline</c> do <ref to="cod:8-2-polinomial"/> trocando apenas a fórmula de <c>taxa_esperada</c>, o tamanho da amostra e a lista de graus.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+
+rng = np.random.default_rng(0)
+
+theta = rng.uniform(-90.0, 90.0, size=80)
+taxa_esperada = 6.0 + 34.0 * np.exp(-0.5 * ((theta - 20.0) / 35.0) ** 2)
+taxas = rng.poisson(taxa_esperada).astype(float)
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    theta.reshape(-1, 1), taxas, test_size=0.3, random_state=0
+)
+
+for grau in [1, 3, 5, 12]:
+    pipe = Pipeline(
+        [
+            ("poly", PolynomialFeatures(degree=grau, include_bias=False)),
+            ("scaler", StandardScaler()),
+            ("reg", LinearRegression()),
+        ]
+    )
+    pipe.fit(X_treino, y_treino)
+    r2_te = r2_score(y_teste, pipe.predict(X_teste))
+    print(f"Grau {grau:2d} | R² teste: {r2_te:6.3f}")
+# Grau  1 | R² teste: -0.062
+# Grau  3 | R² teste:  0.790
+# Grau  5 | R² teste:  0.769
+# Grau 12 | R² teste: -9.143
+          </code>
+          O melhor modelo é o de grau $3$ ($R^2 \approx 0{,}79$), o grau $5$ é parecido ($0{,}769$) e o grau $12$ desaba ($R^2 \approx -9$, muito pior que prever a média) por sobreajuste e oscilação nas bordas.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-2-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Encoding model de um voxel</title>
+      <intro>
+        Para prever a atividade BOLD de um voxel de fMRI a partir de estímulos visuais, precisamos traduzir eventos rápidos do estímulo para a escala lenta e atrasada do fluxo sanguíneo cerebral.
+      </intro>
+
+      Em um experimento clássico de neuroimagem funcional, um participante assiste a fotografias de rostos, casas ou objetos enquanto o aparelho de ressonância magnética registra um volume cerebral completo a cada tempo de repetição, tipicamente $\mathrm{TR} \approx 2\text{ s}$. Um <strong>modelo de codificação</strong> (<em>encoding model</em>) busca prever a série temporal de atividade $y_t$ de um único voxel a partir das características (<em>features</em>) do estímulo apresentado a cada instante — abordagem consolidada em trabalhos clássicos como Kay et al. (2008) e Naselaris et al. (2011).
+
+      Há, porém, uma diferença fisiológica decisiva em relação à eletrofisiologia: o sinal BOLD não acompanha instantaneamente o disparo neuronal. Quando neurônios de um voxel aumentam sua atividade em resposta a um estímulo breve, a resposta vascular local (aumento de fluxo sanguíneo e oxigenação) leva tempo para subir, atinge seu pico cerca de $5\text{ a }6\text{ s}$ depois e só retorna à linha de base após $15\text{ a }20\text{ s}$. Essa assinatura temporal característica chama-se <strong>função de resposta hemodinâmica</strong> (HRF, de <em>hemodynamic response function</em>).
+
+      <definition id="def:8-2-encoding-hrf">
+        <title>Regressores convoluídos pela HRF</title>
+        Seja $s_j(t)$ o valor da característica $j$ do estímulo no volume $t \in \{0, 1, \dots, n-1\}$ e seja $h(\tau)$ a HRF discreta definida nos atrasos $\tau = 0, 1, \dots, L-1$ (em unidades de TR). O regressor hemodinâmico $x_{t, j}$ é obtido pela <strong>convolução</strong> de $s_j$ com $h$:
+        <equation id="eq:8-2-convolucao">
+          x_{t, j} = (s_j * h)(t) = \sum_{\tau=0}^{L-1} h(\tau)\,s_j(t - \tau),
+        </equation>
+        adotando $s_j(t - \tau) = 0$ para $t - \tau < 0$. O <em>encoding model</em> linear do voxel assume então:
+        $$y_t = \beta_0 + \sum_{j=1}^p \beta_j x_{t, j} + \varepsilon_t.$$
+        <intuition>
+          A convolução funciona como uma média ponderada com atraso: cada ocorrência do estímulo "espalha" sua contribuição ao longo dos próximos $15\text{ a }20\text{ s}$ com o formato da HRF, somando-se às respostas ainda em curso de estímulos anteriores.
+        </intuition>
+      </definition>
+
+      Na modelagem canônica, a HRF $h(\tau)$ costuma ser escrita como uma curva gama (ou a diferença entre duas funções gama, reproduzindo o pico em $\approx 5\text{–}6\text{ s}$ seguido de um leve vale pós-estímulo). Uma alternativa útil quando não queremos fixar o formato exato da HRF é o modelo de <strong>resposta ao impulso finita</strong> (FIR, de <em>finite impulse response</em>), que coloca diretamente versões atrasadas $s_j(t), s_j(t-1), \dots, s_j(t-L)$ como colunas separadas de $\mathbf{X}$, deixando que a regressão múltipla estime os pesos de cada atraso a partir dos dados.
+
+      Além da HRF, há uma regra metodológica fundamental ao avaliar um <em>encoding model</em> em séries temporais: <strong>nunca embaralhe amostras aleatoriamente</strong> antes de separar treino e teste. Como o sinal BOLD é lento e suave, volumes vizinhos no tempo ($t$ e $t+1$, separados por apenas $2\text{ s}$) são fortemente correlacionados entre si. Se você sortear volumes avulsos para o teste, o modelo verá quase o mesmo estado fisiológico nos vizinhos imediatos do treino, inflando artificialmente o $R^2$. A separação correta divide a série temporal em <strong>blocos contíguos de tempo</strong> (por exemplo, os primeiros $200$ volumes para treino e os últimos $100$ para teste), estratégia de validação que aprofundaremos no Tema 8.5 (Reamostragem).
+
+      <example id="exm:8-2-convolucao-mao">
+        <title>Convolução discreta com uma HRF simplificada</title>
+        Considere uma sequência curta de $6$ volumes ($\mathrm{TR} = 2\text{ s}$) em que um estímulo visual fica ligado nos volumes $t = 1$ e $t = 2$: $s = (0, 1, 1, 0, 0, 0)$. Usando a HRF simplificada $h = (0;\; 0{,}4;\; 0{,}5;\; 0{,}1)$ para os atrasos $\tau = 0, 1, 2, 3$ TRs, calcule o regressor convoluído $x_t = (s * h)(t)$.
+
+        <strong>Solução.</strong> Aplicamos a <ref to="eq:8-2-convolucao"/> para $t = 0, 1, \dots, 5$:
+        <list marker="dash">
+          <item>$t = 0$: $0\cdot s(0) = 0$.</item>
+          <item>$t = 1$: $0\cdot s(1) + 0{,}4\cdot s(0) = 0\cdot 1 + 0{,}4\cdot 0 = 0$.</item>
+          <item>$t = 2$: $0\cdot s(2) + 0{,}4\cdot s(1) + 0{,}5\cdot s(0) = 0\cdot 1 + 0{,}4\cdot 1 + 0{,}5\cdot 0 = 0{,}4$.</item>
+          <item>$t = 3$: $0\cdot s(3) + 0{,}4\cdot s(2) + 0{,}5\cdot s(1) + 0{,}1\cdot s(0) = 0\cdot 0 + 0{,}4\cdot 1 + 0{,}5\cdot 1 + 0{,}1\cdot 0 = 0{,}9$.</item>
+          <item>$t = 4$: $0\cdot s(4) + 0{,}4\cdot s(3) + 0{,}5\cdot s(2) + 0{,}1\cdot s(1) = 0\cdot 0 + 0{,}4\cdot 0 + 0{,}5\cdot 1 + 0{,}1\cdot 1 = 0{,}6$.</item>
+          <item>$t = 5$: $0\cdot s(5) + 0{,}4\cdot s(4) + 0{,}5\cdot s(3) + 0{,}1\cdot s(2) = 0\cdot 0 + 0{,}4\cdot 0 + 0{,}5\cdot 0 + 0{,}1\cdot 1 = 0{,}1$.</item>
+        </list>
+        Portanto, $x = (0;\; 0;\; 0{,}4;\; 0{,}9;\; 0{,}6;\; 0{,}1)$. Note dois efeitos fisiológicos realistas: mesmo o estímulo ligando em $t = 1$, o regressor só atinge o pico em $t = 3$ ($4\text{ s}$ depois) e ainda permanece positivo em $t = 5$, três TRs depois do último volume com estímulo ($t = 2$).
+      </example>
+
+      <example id="exm:8-2-voxel-simulacao">
+        <title>Encoding model de um voxel com $300$ volumes</title>
+        Vamos simular um voxel seletivo para rostos (como na área fusiforme facial) ao longo de $300$ volumes com $\mathrm{TR} = 2\text{ s}$ ($10\text{ minutos}$ de sessão) e três <em>features</em> de estímulo: presença de rosto, presença de casa e contraste visual. Convoluímos cada <em>feature</em> com uma HRF canônica (diferença de duas funções gama), ajustamos <c>LinearRegression</c> nos primeiros $200$ volumes e avaliamos nos últimos $100$ volumes tanto pelo $R^2$ quanto pela correlação de Pearson entre o sinal previsto e o observado.
+      </example>
+
+      <code lang="python" id="cod:8-2-encoding">
+import numpy as np
+from scipy.stats import gamma
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+
+rng = np.random.default_rng(0)
+
+n_volumes = 300
+tr = 2.0
+
+# HRF canônica (diferença de duas funções gama, pico em ~5-6 s)
+tempos_hrf = np.arange(0.0, 24.0, tr)
+hrf = gamma.pdf(tempos_hrf, a=6.0, scale=1.0) - 0.35 * gamma.pdf(tempos_hrf, a=16.0, scale=1.0)
+hrf = hrf / np.sum(hrf)
+
+# 3 features do estímulo por volume: presença de rosto, presença de casa, contraste
+rosto = rng.binomial(1, 0.25, size=n_volumes).astype(float)
+casa = rng.binomial(1, 0.25, size=n_volumes).astype(float)
+contraste = rng.uniform(0.0, 1.0, size=n_volumes)
+
+# Convolução de cada feature com a HRF (recortando para n_volumes)
+X = np.column_stack([
+    np.convolve(rosto, hrf)[:n_volumes],
+    np.convolve(casa, hrf)[:n_volumes],
+    np.convolve(contraste, hrf)[:n_volumes],
+])
+
+# Voxel seletivo a rostos (beta_rosto = 2.5, beta_casa = 0.4, beta_contraste = 0.8) + ruído
+pesos_reais = np.array([2.5, 0.4, 0.8])
+y = X @ pesos_reais + rng.normal(0.0, 0.35, size=n_volumes)
+
+# Divisão em blocos contíguos no tempo (SEM embaralhar!)
+corte = 200
+X_treino, X_teste = X[:corte], X[corte:]
+y_treino, y_teste = y[:corte], y[corte:]
+
+modelo = LinearRegression()
+modelo.fit(X_treino, y_treino)
+y_pred = modelo.predict(X_teste)
+
+r2_teste = r2_score(y_teste, y_pred)
+correlacao = np.corrcoef(y_teste, y_pred)[0, 1]
+
+print("Pesos estimados (rosto, casa, contraste):", np.round(modelo.coef_, 3))
+# Pesos estimados (rosto, casa, contraste): [2.512 0.343 1.   ]
+print(f"R² no bloco de teste: {r2_teste:.3f}")
+# R² no bloco de teste: 0.847
+print(f"Correlação r (previsto vs. observado): {correlacao:.3f}")
+# Correlação r (previsto vs. observado): 0.935
+      </code>
+
+      Aqui temos apenas $p = 3$ <em>features</em> para $200$ volumes de treino ($p \ll n$), então a regressão linear ordinária recupera muito bem os pesos verdadeiros e alcança $R^2$ de teste de cerca de $0{,}85$ (e correlação $r$ de cerca de $0{,}93$). Em estudos reais de fMRI com filmes, imagens naturais ou narrativas faladas (como em Kay et al., 2008, e Huth et al., 2016), porém, o espaço de estímulos possui centenas ou milhares de <em>features</em> — chegando a $p$ próximo ou maior que $n$. Nesse regime, os mínimos quadrados ordinários sofrem colapso por sobreajuste, e entra em cena a <strong>regressão ridge</strong>, que estudaremos no Tema 8.6 (Regularização) e que é, por excelência, o método padrão dos <em>encoding models</em>.
+
+      <remark id="rem:8-2-embaralhar">
+        <title>Armadilha comum</title>
+        <strong>Embaralhar volumes de fMRI ou épocas de EEG antes da divisão treino/teste.</strong> Usar <c>train_test_split(..., shuffle=True)</c> em uma série temporal espalha amostras adjacentes entre treino e teste. Por causa da suavidade imposta pela HRF, o volume $t+1$ é muito parecido com o volume $t$: o modelo consegue prever o teste "espiando" seus vizinhos imediatos no treino, gerando uma avaliação otimista e irreal. Separe sempre por blocos temporais contíguos ou por sessões/corridas experimentais inteiras.
+      </remark>
+
+      <exercise id="exr:8-2-4-1">
+        <title>Básico — Atraso da resposta hemodinâmica</title>
+        Em um experimento de fMRI com $\mathrm{TR} = 2\text{ s}$, um estímulo visual breve aparece exatamente no instante $t = 10\text{ s}$ (volume $5$).
+        <list marker="a">
+          <item>Sabendo que a HRF canônica atinge seu pico em torno de $5\text{ a }6\text{ s}$ após o estímulo, em qual instante (em segundos) e próximo a qual índice de volume esperamos o pico do sinal BOLD?</item>
+          <item>Por que tentar prever $y_t$ diretamente com o estímulo instantâneo $s_j(t)$ (sem convolução com HRF nem atrasos FIR) costuma produzir $R^2$ muito baixo?</item>
+        </list>
+        <hint><title>Ver dica</title>Some o atraso de $5\text{–}6\text{ s}$ aos $10\text{ s}$ do estímulo e divida pelo $\mathrm{TR} = 2\text{ s}$ para converter segundos em índice de volume.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>O pico hemodinâmico ocorre cerca de $10 + 5 = 15\text{ s}$ a $10 + 6 = 16\text{ s}$ após o início da sessão. Dividindo por $\mathrm{TR} = 2\text{ s}$, isso corresponde ao volume de índice $8$ (em $16\text{ s}$, logo entre os volumes $7$ e $8$).</item>
+            <item>Sem convolução ou atrasos, o regressor $s_j(t)$ vale $1$ no volume $5$ e $0$ nos volumes $7\text{–}9$, ficando completamente dessincronizado com a resposta BOLD real, que ainda está perto de zero no volume $5$ e só atinge o máximo vários segundos depois.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-2-4-2">
+        <title>Intermediário — Convolução com dois impulsos separados</title>
+        Calcule à mão o vetor $x_t = (s * h)(t)$ para $t = 0, 1, 2, 3, 4$ quando o estímulo ocorre duas vezes, $s = (1, 0, 0, 1, 0)$, e a HRF simplificada vale $h = (0{,}2;\; 0{,}6;\; 0{,}2)$ para $\tau = 0, 1, 2$.
+        <hint><title>Ver dica</title>Aplique $x_t = 0{,}2\,s(t) + 0{,}6\,s(t-1) + 0{,}2\,s(t-2)$ para cada $t$, lembrando que $s$ vale $0$ para índices negativos.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculamos termo a termo:
+          <list marker="dash">
+            <item>$t = 0$: $0{,}2(1) = 0{,}2$.</item>
+            <item>$t = 1$: $0{,}2(0) + 0{,}6(1) = 0{,}6$.</item>
+            <item>$t = 2$: $0{,}2(0) + 0{,}6(0) + 0{,}2(1) = 0{,}2$.</item>
+            <item>$t = 3$: $0{,}2(1) + 0{,}6(0) + 0{,}2(0) = 0{,}2$.</item>
+            <item>$t = 4$: $0{,}2(0) + 0{,}6(1) + 0{,}2(0) = 0{,}6$.</item>
+          </list>
+          Logo $x = (0{,}2;\; 0{,}6;\; 0{,}2;\; 0{,}2;\; 0{,}6)$, exibindo dois picos atrasados em $1\text{ TR}$ após cada impulso em $t = 0$ e $t = 3$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-2-4-3">
+        <title>Intermediário — Vazamento temporal vs. blocos contíguos</title>
+        Um pesquisador treinou um <em>encoding model</em> com $300$ volumes de fMRI e obteve $R^2 = 0{,}88$ ao usar <c>train_test_split(X, y, test_size=0.3, random_state=0)</c>, mas apenas $R^2 = 0{,}45$ ao avaliar na segunda metade contígua da sessão. Explique por que ocorreu essa queda e qual dos dois números reflete a capacidade real de generalização para uma nova sessão.
+        <hint><title>Ver dica</title>Verifique o comportamento padrão de <c>shuffle</c> em <c>train_test_split</c> e pense na autocorrelação introduzida pela HRF.</hint>
+        <solution collapsible="true" collapsed="true">
+          Por padrão, <c>train_test_split</c> embaralha as linhas (<c>shuffle=True</c>). Como volumes vizinhos no fMRI são fortemente autocorrelacionados pela lentidão da HRF (duração de $15\text{–}20\text{ s}$), cada ponto sorteado para o teste fica cercado por vizinhos quase idênticos no treino, gerando vazamento temporal e inflando artificialmente o $R^2$ para $0{,}88$. Ao separar por blocos contíguos, o teste fica distante no tempo da maioria do treino, eliminando esse atalho; portanto, o valor $R^2 = 0{,}45$ é o que representa honestamente o desempenho esperado em novos dados.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-2-4-4">
+        <title>Avançado — Encoding com e sem HRF em blocos contíguos</title>
+        Em Python, simule o mesmo voxel sintético do <ref to="cod:8-2-encoding"/> ($300$ volumes) e compare o $R^2$ no bloco de teste ($t \ge 200$) entre dois modelos: (i) o modelo correto usando as <em>features</em> convoluídas com a HRF e (ii) um modelo ingênuo usando as <em>features</em> brutas sem convolução.
+        <hint><title>Ver dica</title>Gere <c>y</c> a partir das <em>features</em> convoluídas <c>X_conv</c>, mas treine um segundo <c>LinearRegression</c> sobre <c>X_bruto = np.column_stack([rosto, casa, contraste])</c> com o mesmo corte em <c>200</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from scipy.stats import gamma
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+
+rng = np.random.default_rng(0)
+n_volumes = 300
+tr = 2.0
+
+tempos_hrf = np.arange(0.0, 24.0, tr)
+hrf = gamma.pdf(tempos_hrf, a=6.0, scale=1.0) - 0.35 * gamma.pdf(tempos_hrf, a=16.0, scale=1.0)
+hrf = hrf / np.sum(hrf)
+
+rosto = rng.binomial(1, 0.25, size=n_volumes).astype(float)
+casa = rng.binomial(1, 0.25, size=n_volumes).astype(float)
+contraste = rng.uniform(0.0, 1.0, size=n_volumes)
+
+X_bruto = np.column_stack([rosto, casa, contraste])
+X_conv = np.column_stack([
+    np.convolve(rosto, hrf)[:n_volumes],
+    np.convolve(casa, hrf)[:n_volumes],
+    np.convolve(contraste, hrf)[:n_volumes],
+])
+
+y = X_conv @ np.array([2.5, 0.4, 0.8]) + rng.normal(0.0, 0.35, size=n_volumes)
+
+corte = 200
+for nome, X_uso in [("Sem HRF (bruto)", X_bruto), ("Com HRF (convoluído)", X_conv)]:
+    modelo = LinearRegression().fit(X_uso[:corte], y[:corte])
+    r2_te = r2_score(y[corte:], modelo.predict(X_uso[corte:]))
+    print(f"{nome:22s} | R² teste: {r2_te:6.3f}")
+# Sem HRF (bruto)        | R² teste: -0.058
+# Com HRF (convoluído)   | R² teste:  0.847
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-2-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Regressão linear simples:</strong> modela $y_i = \beta_0 + \beta_1 x_i + \varepsilon_i$ minimizando $\mathrm{RSS} = \sum_{i=1}^n (y_i - \hat{y}_i)^2$, com $\hat{\beta}_1 = \dfrac{\sum (x_i - \bar{x})(y_i - \bar{y})}{\sum (x_i - \bar{x})^2}$ e $\hat{\beta}_0 = \bar{y} - \hat{\beta}_1 \bar{x}$.</item>
+        <item><strong>Erro quadrático e $R^2$:</strong> $\mathrm{MSE} = \frac{1}{n}\mathrm{RSS}$ mede o erro médio ao quadrado; $R^2 = 1 - \dfrac{\mathrm{RSS}}{\mathrm{TSS}}$ mede a fração da variância de $y$ explicada pelo modelo.</item>
+        <item><strong>Regressão múltipla e equações normais:</strong> escrevendo $\mathbf{y} = \mathbf{X}\boldsymbol{\beta} + \boldsymbol{\varepsilon}$ (com coluna de $1$s para $\beta_0$), o mínimo de $\|\mathbf{y} - \mathbf{X}\boldsymbol{\beta}\|_2^2$ satisfaz $\mathbf{X}^\top\mathbf{X}\hat{\boldsymbol{\beta}} = \mathbf{X}^\top\mathbf{y}$, logo $\hat{\boldsymbol{\beta}} = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}$ quando $\mathbf{X}^\top\mathbf{X}$ é invertível.</item>
+        <item><strong>Geometria e interpretação:</strong> $\hat{\mathbf{y}} = \mathbf{X}\hat{\boldsymbol{\beta}}$ é a projeção ortogonal de $\mathbf{y}$ no espaço coluna de $\mathbf{X}$ ($\mathbf{X}^\top\mathbf{e} = \mathbf{0}$); cada $\hat{\beta}_j$ representa o efeito de $x_j$ mantendo os outros preditores fixos.</item>
+        <item><strong>Regressão polinomial:</strong> expandir $x$ em $1, x, \dots, x^d$ ajusta curvas suaves mantendo o modelo <em>linear nos parâmetros</em>; o grau $d$ controla subajuste $\times$ sobreajuste, e padronizar as colunas com <c>StandardScaler</c> em <c>Pipeline</c> evita instabilidade numérica.</item>
+        <item><strong>Encoding model de fMRI:</strong> para prever o sinal BOLD lento de um voxel, convoluímos as <em>features</em> do estímulo com a função de resposta hemodinâmica (HRF, pico em $\approx 5\text{–}6\text{ s}$) ou usamos atrasos FIR, avaliando sempre em blocos temporais contíguos sem embaralhar.</item>
+        <item><strong>Próximos passos:</strong> quando $\mathbf{X}^\top\mathbf{X}$ se torna instável por colinearidade ou $p$ grande, precisamos da regularização (Tema 8.6); antes disso, passaremos para problemas de resposta discreta no Tema 8.3 (Classificação).</item>
+      </list>
+    </section>
+
+    <section id="sec:8-2-alem">
+      <title>Para ir além</title>
+      Para aprofundar os conceitos de regressão linear, expansão polinomial e implementação no <c>scikit-learn</c>, consulte os materiais do módulo e as referências oficiais abaixo. Aproveite também a prática contínua recomendada para o Módulo 8: teste os modelos desta aula em conjuntos de dados médicos do repositório UC Irvine ou em dados neurais abertos.
+      <list marker="dash">
+        <item><strong>Livro-base do módulo:</strong> <link to="https://www.statlearning.com/">ISLR — Introduction to Statistical Learning</link> (em Python ou R, a critério do aluno) — Capítulo 3 (Linear Regression) e início do Capítulo 7 (Polynomial Regression).</item>
+        <item><strong>Material complementar:</strong> Notas de aula da matéria do IMPATech.</item>
+        <item><strong>Aprofundamento teórico:</strong> Elements of Statistical Learning (versão avançada do ISLR) — Capítulo 3.</item>
+        <item><strong>Documentação oficial:</strong> <link to="https://scikit-learn.org/stable/modules/linear_model.html">Modelos lineares no scikit-learn</link> (<c>LinearRegression</c> e extensões).</item>
+        <item><strong>Documentação oficial:</strong> <link to="https://scikit-learn.org/stable/modules/preprocessing.html">Pré-processamento no scikit-learn</link> (<c>PolynomialFeatures</c> e <c>StandardScaler</c>) e <link to="https://scikit-learn.org/stable/modules/compose.html">Pipelines no scikit-learn</link> (<c>Pipeline</c>).</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 8 · Machine Learning — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

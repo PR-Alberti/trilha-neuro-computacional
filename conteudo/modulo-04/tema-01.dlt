@@ -1,0 +1,695 @@
+<document>
+  <title>Módulo 4 · Otimização</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-4-1">Voltar ao guia (Tema 4.1)</link></meta-item>
+    <meta-item key="Módulo">Módulo 4 · Otimização — A Busca pelo Ótimo</meta-item>
+    <meta-item key="Nível">Básico</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-4-1">
+    <title>Espaço de variáveis</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Enxergar cada configuração possível como um ponto num espaço — e o custo como uma paisagem sobre ele.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Em neurociência computacional, treinar um modelo de codificação (<em>encoding</em>) ou decodificação (<em>decoding</em>) significa ajustar parâmetros — como ganho, limiar e constantes de tempo — para minimizar o erro entre previsão e experimento. A mesma geometria aparece na própria biologia: uma proteína dobra-se rumo a um vale de menor energia livre, e em redes atratoras (como as de Hopfield) cada memória corresponde a um vale em uma paisagem de energia. Para entender os métodos de otimização dos <mark>Temas 4.2</mark> e <mark>4.3</mark>, precisamos primeiro enxergar configurações como pontos e custos como paisagens.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>representar parâmetros como $\mathbf{w} \in \mathbb{R}^n$, distinguir espaço dos parâmetros de espaço dos dados e delimitar a região viável $\Omega$;</item>
+      <item>construir uma função custo $J(\mathbf{w})$ (como o erro quadrático médio) e interpretá-la como paisagem sobre $\mathbb{R}^n$;</item>
+      <item>ler curvas de nível de $J(\mathbf{w})$, identificar mínimos e usar $-\nabla J$ como direção de descida mais rápida;</item>
+      <item>ajustar dois parâmetros por busca em grade (à mão e em NumPy) e explicar por que o custo $k^n$ inviabiliza a grade em muitas dimensões.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Módulo 3 (<mark>Funções vetoriais</mark>: vetores e norma; <mark>Diferencial em várias variáveis</mark>: curvas de nível, derivadas parciais e gradiente $\nabla f$) e Módulo 2 (<mark>Derivada</mark>).
+
+    <section id="sec:4-1-1">
+      <eyebrow>Seção 1</eyebrow>
+      <title>Configurações como pontos</title>
+      <intro>
+        Cada ajuste possível de um modelo biológico pode ser pensado como um único ponto em um espaço geométrico.
+      </intro>
+
+      Pense em um modelo de neurônio com dois botões: o ganho $g$ e o limiar $\theta$. Se colocarmos $g$ no eixo horizontal e $\theta$ no vertical, cada ajuste $(g, \theta)$ vira um ponto em $\mathbb{R}^2$. Reunir os parâmetros em um vetor $\mathbf{w}$ transforma a busca por um bom modelo no problema geométrico de mover um ponto pelo espaço.
+
+      <definition id="def:4-1-espaco-parametros">
+        <title>Espaço de variáveis (parâmetros) e região viável</title>
+        Considere um sistema descrito por $n$ variáveis numéricas ajustáveis $w_1, w_2, \dots, w_n$.
+        <list marker="dash">
+          <item>O <strong>espaço de variáveis</strong> — ou <strong>espaço de parâmetros</strong> (<em>parameter space</em>) — é $\mathbb{R}^n$, em que cada <strong>configuração</strong> é um vetor $\mathbf{w} = (w_1, \dots, w_n)$. O número $n$ é a <strong>dimensão</strong> do espaço.</item>
+          <item>A <strong>região viável</strong> (<em>feasible region</em>) $\Omega \subseteq \mathbb{R}^n$ reúne as configurações que respeitam as restrições do problema (como taxas $\ge 0$ ou constantes de tempo $\tau > 0$).</item>
+        </list>
+        <intuition>
+          Redes reais têm milhares ou milhões de parâmetros, mas a intuição geométrica de $\mathbb{R}^2$ (proximidade, direção e fronteiras) estende-se diretamente para $\mathbb{R}^n$.
+        </intuition>
+      </definition>
+
+      <definition id="def:4-1-espaco-dados-parametros">
+        <title>Espaço dos dados versus espaço dos parâmetros</title>
+        Ao ajustar $\hat{y} = f(x; \mathbf{w})$ a medições $(x_i, y_i)$:
+        <list marker="dash">
+          <item>No <strong>espaço dos dados</strong> (<em>data space</em>), os eixos são as grandezas medidas (ex.: corrente $I$ e taxa $r$): cada ponto é <em>uma observação</em>, e um modelo é <em>uma curva inteira</em>.</item>
+          <item>No <strong>espaço dos parâmetros</strong>, os eixos são os parâmetros (ex.: $g$ e $\theta$): cada ponto $\mathbf{w}$ representa <em>um modelo inteiro</em>.</item>
+        </list>
+      </definition>
+
+      <example id="exm:4-1-retificado">
+        <title>Modelo linear-retificado de disparo neuronal</title>
+        Em neurociência teórica (Dayan &amp; Abbott), uma aproximação clássica para a taxa de disparo estacionária $r$ (em $\text{Hz}$) de um neurônio em função da corrente injetada $I$ (em $\text{nA}$) é o modelo linear-retificado:
+        $$r(I) = g \, \max(0,\, I - \theta),$$
+        onde $g$ é o ganho (em $\text{Hz/nA}$) e $\theta$ é o limiar de disparo (em $\text{nA}$).
+        <list marker="a">
+          <item>Qual é o vetor de parâmetros $\mathbf{w}$, qual a dimensão do espaço de parâmetros e qual a região viável $\Omega$ se o neurônio responde apenas a correntes positivas acima de algum limiar ($\theta \ge 0$) com ganho estritamente positivo ($g > 0$)?</item>
+          <item>Compare os pontos $\mathbf{w}_A = (40;\; 0{,}2)$ e $\mathbf{w}_B = (25;\; 0{,}5)$ do espaço de parâmetros avaliando a taxa prevista para $I = 0{,}4\text{ nA}$ e $I = 0{,}8\text{ nA}$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>O vetor de parâmetros é $\mathbf{w} = (g, \theta) \in \mathbb{R}^2$, portanto o espaço de parâmetros tem dimensão $n = 2$. A região viável é a região do plano com $g > 0$ e $\theta \ge 0$ (a fronteira vertical $g = 0$ fica de fora e a base $\theta = 0$ fica incluída):
+            $$\Omega = \{(g, \theta) \in \mathbb{R}^2 : g > 0 \text{ e } \theta \ge 0\}.$$
+          </item>
+          <item>Para o ponto $\mathbf{w}_A = (40;\; 0{,}2)$ (ganho $40\text{ Hz/nA}$, limiar $0{,}2\text{ nA}$):
+            <list marker="dash">
+              <item>em $I = 0{,}4\text{ nA}$: $r(0{,}4) = 40 \, \max(0,\, 0{,}4 - 0{,}2) = 40 \cdot 0{,}2 = 8\text{ Hz}$;</item>
+              <item>em $I = 0{,}8\text{ nA}$: $r(0{,}8) = 40 \, \max(0,\, 0{,}8 - 0{,}2) = 40 \cdot 0{,}6 = 24\text{ Hz}$.</item>
+            </list>
+            Para o ponto $\mathbf{w}_B = (25;\; 0{,}5)$ (ganho $25\text{ Hz/nA}$, limiar $0{,}5\text{ nA}$):
+            <list marker="dash">
+              <item>em $I = 0{,}4\text{ nA}$: $r(0{,}4) = 25 \, \max(0,\, 0{,}4 - 0{,}5) = 25 \cdot 0 = 0\text{ Hz}$ (abaixo do limiar);</item>
+              <item>em $I = 0{,}8\text{ nA}$: $r(0{,}8) = 25 \, \max(0,\, 0{,}8 - 0{,}5) = 25 \cdot 0{,}3 = 7{,}5\text{ Hz}$.</item>
+            </list>
+            Observe a tradução entre os dois espaços: $\mathbf{w}_A = (40;\; 0{,}2)$ é um único ponto no plano $(g, \theta)$, mas no espaço dos dados $(I, r)$ ele gera uma semirreta plana até $I = 0{,}2\text{ nA}$ que depois sobe passando por $(0{,}4;\; 8)$ e $(0{,}8;\; 24)$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:4-1-sintonia-estados">
+        <title>Curva de sintonia gaussiana e contraste com espaço de estados</title>
+        Neurônios do córtex visual primário (V1) respondem seletivamente à orientação $\phi$ (em graus) de uma barra luminosa. Um modelo simples de curva de sintonia gaussiana descreve a taxa média de disparo por:
+        $$r(\phi) = r_{\max} \exp\!\left(-\frac{(\phi - \phi_0)^2}{2\sigma^2}\right),$$
+        com parâmetros amplitude máxima $r_{\max}$ (em $\text{Hz}$), orientação preferida $\phi_0$ e largura de sintonia $\sigma$ (ambas em graus).
+        <list marker="a">
+          <item>Descreva o espaço de parâmetros, sua dimensão e as restrições naturais da região viável (considere que a orientação de uma barra se repete a cada $180^\circ$).</item>
+          <item>Compare as taxas previstas para um estímulo a $\phi = 90^\circ$ pelos pontos $\mathbf{w}_1 = (60;\; 90;\; 15)$ e $\mathbf{w}_2 = (60;\; 60;\; 15)$.</item>
+          <item>Se monitorarmos simultaneamente as taxas instantâneas $\mathbf{r}(t) = (r_1(t), r_2(t))$ de dois neurônios de V1 ao longo do tempo, esse par $(r_1, r_2)$ pertence ao espaço de parâmetros ou a um espaço de estados?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>O vetor de parâmetros é $\mathbf{w} = (r_{\max}, \phi_0, \sigma) \in \mathbb{R}^3$, logo a dimensão é $n = 3$. Biologicamente, uma taxa máxima não pode ser negativa ($r_{\max} \ge 0$), a orientação preferida mora em $[0^\circ, 180^\circ)$ e a largura $\sigma$ precisa ser estritamente positiva ($\sigma > 0$, pois aparece no denominador). Portanto, $\Omega = [0, +\infty) \times [0, 180) \times (0, +\infty) \subset \mathbb{R}^3$.</item>
+          <item>Para $\mathbf{w}_1 = (60;\; 90;\; 15)$, o estímulo está exatamente na orientação preferida $\phi_0 = 90^\circ$:
+            $$r(90^\circ) = 60 \exp(0) = 60\text{ Hz}.$$
+            Para $\mathbf{w}_2 = (60;\; 60;\; 15)$, o estímulo está a $30^\circ$ da orientação preferida ($\phi - \phi_0 = 30^\circ$):
+            $$r(90^\circ) = 60 \exp\!\left(-\frac{30^2}{2 \cdot 15^2}\right) = 60 \exp\!\left(-\frac{900}{450}\right) = 60 e^{-2} \approx 60 \cdot 0{,}1353 \approx 8{,}12\text{ Hz}.$$
+          </item>
+          <item>O par $\mathbf{r}(t) = (r_1(t), r_2(t))$ pertence ao <strong>espaço de estados</strong> (com restrição natural $r_1 \ge 0, r_2 \ge 0$): ele descreve a atividade do circuito em um instante $t$, não os parâmetros fixos que definem as curvas de sintonia ou os pesos das sinapses.</item>
+        </list>
+      </example>
+
+      <remark id="rem:4-1-armadilha-espacos">
+        <title>Armadilha comum</title>
+        Não confunda o <strong>espaço dos dados</strong> com o <strong>espaço dos parâmetros</strong>: uma medição $(0{,}4;\; 27\text{ Hz})$ é um ponto no espaço dos dados, enquanto na paisagem de otimização os eixos são os parâmetros $(a, b)$ e cada ponto representa uma reta candidata inteira.
+      </remark>
+
+      <exercise id="exr:4-1-1-1">
+        <title>Básico — Identificando dimensão e região viável</title>
+        Para cada modelo biológico abaixo, identifique $\mathbf{w}$, a dimensão $n$ e a região viável $\Omega$:
+        <list marker="a">
+          <item>Decaimento exponencial de uma corrente pós-sináptica: $I_{\text{sin}}(t) = I_0 e^{-t/\tau}$ ($t \ge 0$), com amplitude inicial $I_0 > 0$ e constante de tempo de decaimento $\tau$.</item>
+          <item>Equação de Hill para resposta de um receptor à concentração $C \ge 0$: $R(C) = R_{\max} \frac{C^h}{K^h + C^h}$, com resposta máxima $R_{\max} \ge 0$, meia-ativação $K > 0$ e coeficiente $h > 0$.</item>
+        </list>
+        <hint><title>Ver dica</title>Conte apenas as constantes ajustáveis do modelo ($t$ e $C$ são variáveis dos dados).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como $t$ é entrada dos dados, $\mathbf{w} = (I_0, \tau) \in \mathbb{R}^2$ ($n = 2$). Como um decaimento exige $\tau > 0$, temos $\Omega = \{(I_0, \tau) \in \mathbb{R}^2 : I_0 > 0 \text{ e } \tau > 0\}$.</item>
+            <item>Como $C$ é entrada dos dados, $\mathbf{w} = (R_{\max}, K, h) \in \mathbb{R}^3$ ($n = 3$) e $\Omega = \{(R_{\max}, K, h) \in \mathbb{R}^3 : R_{\max} \ge 0,\; K > 0,\; h > 0\}$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-1-1-2">
+        <title>Intermediário — Região viável e distância no espaço de condutâncias</title>
+        No modelo de Hodgkin &amp; Huxley (1952), as condutâncias máximas de sódio e potássio formam o vetor $\mathbf{w} = (\bar{g}_{\text{Na}},\, \bar{g}_{\text{K}})$ (em $\text{mS/cm}^2$), com $\bar{g}_{\text{Na}} > 0$ e $\bar{g}_{\text{K}} > 0$. Considere $\mathbf{w}_1 = (120, 36)$ e $\mathbf{w}_2 = (117, 40)$.
+        <list marker="a">
+          <item>Ambos pertencem à região viável? E $\mathbf{w}_3 = (120, -5)$?</item>
+          <item>Calcule a distância euclidiana $\|\mathbf{w}_2 - \mathbf{w}_1\|$ no espaço de parâmetros.</item>
+        </list>
+        <hint><title>Ver dica</title>Calcule $\mathbf{w}_2 - \mathbf{w}_1$ e aplique $\|\mathbf{v}\| = \sqrt{v_1^2 + v_2^2}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Sim, $\mathbf{w}_1$ e $\mathbf{w}_2$ têm coordenadas positivas; $\mathbf{w}_3 = (120, -5)$ está fora da região viável pois $\bar{g}_{\text{K}} < 0$.</item>
+            <item>Temos $\mathbf{w}_2 - \mathbf{w}_1 = (-3, 4)$, logo $\|\mathbf{w}_2 - \mathbf{w}_1\| = \sqrt{(-3)^2 + 4^2} = \sqrt{25} = 5\text{ mS/cm}^2$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-1-1-3">
+        <title>Avançado — Circuito neural, lei de Dale e dimensão</title>
+        Em um microcircuito de $3$ neurônios ($1, 2, 3$), cada um recebe conexões dos outros dois (sem autoconexão), com peso direcionado $w_{ij}$ (efeito de $j$ sobre $i$) e limiar $\theta_i$.
+        <list marker="a">
+          <item>Qual é a dimensão do espaço de parâmetros $(w_{ij}, \theta_i)$ e a do espaço de estados $(r_1, r_2, r_3)$?</item>
+          <item>Pela lei de Dale, um neurônio excitatório só tem pesos de saída $\ge 0$ e um inibitório $\le 0$. Se $1$ é excitatório e $2, 3$ são inibitórios, escreva as desigualdades sobre os $6$ pesos.</item>
+        </list>
+        <hint><title>Ver dica</title>O neurônio pré-sináptico é o segundo índice $j$ em $w_{ij}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Há $3 \times 2 = 6$ pesos sinápticos e $3$ limiares, totalizando $9$ parâmetros ($\mathbb{R}^9$, dimensão $9$). O espaço de estados $(r_1, r_2, r_3)$ tem dimensão $3$ ($r_i \ge 0$).</item>
+            <item>Como $j$ é o neurônio pré-sináptico: $w_{21}, w_{31} \ge 0$ (neurônio $1$ excitatório); $w_{12}, w_{32} \le 0$ (neurônio $2$ inibitório); $w_{13}, w_{23} \le 0$ (neurônio $3$ inibitório).</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:4-1-2">
+      <eyebrow>Seção 2</eyebrow>
+      <title>A função custo como paisagem</title>
+      <intro>
+        Atribuir a cada configuração $\mathbf{w}$ um número que mede o quanto o modelo erra transforma o espaço de parâmetros em uma paisagem de vales e montanhas.
+      </intro>
+
+      Quando associamos um placar de erro $J(\mathbf{w})$ a cada ponto $(w_1, w_2)$ do espaço de parâmetros, o gráfico de $J$ — como as superfícies do Tema 3.2 — forma uma <strong>paisagem</strong> (<em>landscape</em>): configurações ruins ficam em picos altos, e bons ajustes repousam no fundo de vales. Otimizar um modelo é procurar o fundo do vale mais baixo.
+
+      <definition id="def:4-1-funcao-custo">
+        <title>Função custo e erro quadrático médio</title>
+        Uma <strong>função custo</strong> (<em>cost function</em> ou <em>loss</em>) é uma função escalar $J : \Omega \subseteq \mathbb{R}^n \to \mathbb{R}$ que mede quão ruim é cada configuração $\mathbf{w} \in \Omega$ (quanto menor, melhor).
+
+        Dadas $m$ observações $(x_1, y_1), \dots, (x_m, y_m)$ e previsões $\hat{y}_i(\mathbf{w})$, o custo padrão é o <strong>erro quadrático médio</strong> (EQM, ou <em>MSE</em>):
+        <equation id="eq:4-1-eqm">
+          J(\mathbf{w}) = \frac{1}{m} \sum_{i=1}^m \bigl(\hat{y}_i(\mathbf{w}) - y_i\bigr)^2.
+        </equation>
+        <intuition>
+          Elevar o resíduo $\hat{y}_i(\mathbf{w}) - y_i$ ao quadrado evita que erros de sinais opostos se cancelem, pune desvios grandes mais fortemente e produz uma função suave (diferenciável em toda parte, ao contrário do módulo).
+        </intuition>
+      </definition>
+
+      Uma alternativa útil é o <strong>erro absoluto médio</strong> (EAM, ou <em>MAE</em>), $\frac{1}{m}\sum_{i=1}^m |\hat{y}_i(\mathbf{w}) - y_i|$, menos sensível a valores atípicos (<em>outliers</em>), porém com "bicos" não deriváveis no zero.
+
+      E se o objetivo for <em>maximizar</em> (como verossimilhança ou recompensa)? Basta inverter o sinal:
+
+      <proposition id="prop:4-1-max-min">
+        <title>Maximizar equivale a minimizar o negativo</title>
+        Seja $L : \Omega \subseteq \mathbb{R}^n \to \mathbb{R}$ uma função de mérito. Um ponto $\mathbf{w}^* \in \Omega$ maximiza $L(\mathbf{w})$ se, e somente se, $\mathbf{w}^*$ minimiza $J(\mathbf{w}) = -L(\mathbf{w})$.
+      </proposition>
+      <proof of="prop:4-1-max-min" collapsible="true" collapsed="true">
+        $\mathbf{w}^*$ maximiza $L$ quando $L(\mathbf{w}) \le L(\mathbf{w}^*)$ para todo $\mathbf{w} \in \Omega$. Multiplicando por $-1$, obtemos $-L(\mathbf{w}) \ge -L(\mathbf{w}^*)$, isto é, $J(\mathbf{w}) \ge J(\mathbf{w}^*)$ — logo $\mathbf{w}^*$ minimiza $J$.
+      </proof>
+
+      O exemplo a seguir constrói o caso central que retomaremos nas Seções 3 e 4 e na <ref to="fig:4-1-paisagem"/>.
+
+      <example id="exm:4-1-contraste-custo">
+        <title>Paisagem de custo de um neurônio visual respondendo ao contraste</title>
+        Mediu-se a taxa de disparo $y$ (em $\text{Hz}$) de um neurônio do córtex visual em quatro níveis de contraste $x$ (grandeza adimensional entre $0$ e $1$):
+        $$(0{,}2;\; 21), \qquad (0{,}4;\; 27), \qquad (0{,}6;\; 43), \qquad (0{,}8;\; 49).$$
+        Adotamos o modelo linear $\hat{y} = a x + b$, cujo espaço de parâmetros é $\mathbf{w} = (a, b) \in \mathbb{R}^2$ ($a$ é a inclinação em $\text{Hz}$ por unidade de contraste e $b$ é a taxa basal em $\text{Hz}$).
+        <list marker="a">
+          <item>Verifique por que nenhuma reta consegue zerar o custo $J(a, b)$ simultaneamente nos $4$ pontos.</item>
+          <item>Calcule o erro quadrático médio $J(a, b)$ nos três pontos candidatos $\mathbf{w}_1 = (40, 10)$, $\mathbf{w}_2 = (40, 15)$ e $\mathbf{w}_3 = (50, 10)$, e compare-os.</item>
+          <item>Expanda $J(a, b)$ explicitamente como um polinômio de 2º grau em $a$ e $b$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>A única reta que passa exatamente pelos dois primeiros pontos $(0{,}2;\; 21)$ e $(0{,}4;\; 27)$ tem inclinação $a = \frac{27 - 21}{0{,}4 - 0{,}2} = 30$ e intercepto $b = 21 - 30(0{,}2) = 15$. Em $x = 0{,}6$, essa reta prevê $30(0{,}6) + 15 = 33\text{ Hz}$, bem abaixo dos $43\text{ Hz}$ medidos. Logo, os $4$ pontos não são colineares e $J(a, b) > 0$ para qualquer $(a, b) \in \mathbb{R}^2$.</item>
+          <item>Com $m = 4$, aplicamos a <ref to="eq:4-1-eqm"/>: $J(a, b) = \frac{1}{4}\sum_{i=1}^4 (a x_i + b - y_i)^2$.
+            <list marker="dash">
+              <item>Em $\mathbf{w}_1 = (40, 10)$ ($\hat{y} = 40x + 10$): as previsões para $x = 0{,}2;\; 0{,}4;\; 0{,}6;\; 0{,}8$ são $18,\; 26,\; 34,\; 42$. Os erros $\hat{y}_i - y_i$ valem $-3,\; -1,\; -9,\; -7$, cujos quadrados são $9,\; 1,\; 81,\; 49$. Logo:
+                $$J(40, 10) = \frac{9 + 1 + 81 + 49}{4} = \frac{140}{4} = 35.$$
+              </item>
+              <item>Em $\mathbf{w}_2 = (40, 15)$ ($\hat{y} = 40x + 15$): as previsões são $23,\; 31,\; 39,\; 47$. Os erros são $+2,\; +4,\; -4,\; -2$, cujos quadrados são $4,\; 16,\; 16,\; 4$. Logo:
+                $$J(40, 15) = \frac{4 + 16 + 16 + 4}{4} = \frac{40}{4} = 10.$$
+              </item>
+              <item>Em $\mathbf{w}_3 = (50, 10)$ ($\hat{y} = 50x + 10$): as previsões são $20,\; 30,\; 40,\; 50$. Os erros são $-1,\; +3,\; -3,\; +1$, cujos quadrados são $1,\; 9,\; 9,\; 1$. Logo:
+                $$J(50, 10) = \frac{1 + 9 + 9 + 1}{4} = \frac{20}{4} = 5.$$
+              </item>
+            </list>
+            Entre os três, $\mathbf{w}_3 = (50, 10)$ é o melhor ($J = 5$), seguido de perto por $\mathbf{w}_2 = (40, 15)$ ($J = 10$), enquanto $\mathbf{w}_1 = (40, 10)$ fica bem mais alto na paisagem ($J = 35$).
+          </item>
+          <item>Para obter a fórmula explícita de $J(a, b)$, expandimos cada termo $(a x_i + b - y_i)^2 = a^2 x_i^2 + 2ab x_i + b^2 - 2a x_i y_i - 2b y_i + y_i^2$ e somamos nos $4$ dados:
+            <list marker="dash">
+              <item>$\sum_{i=1}^4 1 = m = 4$;</item>
+              <item>$\sum x_i = 0{,}2 + 0{,}4 + 0{,}6 + 0{,}8 = 2{,}0$;</item>
+              <item>$\sum x_i^2 = 0{,}04 + 0{,}16 + 0{,}36 + 0{,}64 = 1{,}20$;</item>
+              <item>$\sum y_i = 21 + 27 + 43 + 49 = 140$;</item>
+              <item>$\sum x_i y_i = 0{,}2(21) + 0{,}4(27) + 0{,}6(43) + 0{,}8(49) = 4{,}2 + 10{,}8 + 25{,}8 + 39{,}2 = 80{,}0$;</item>
+              <item>$\sum y_i^2 = 21^2 + 27^2 + 43^2 + 49^2 = 441 + 729 + 1\,849 + 2\,401 = 5\,420$.</item>
+            </list>
+            Dividindo a soma por $m = 4$:
+            <equations id="eq:4-1-custo-polinomio">
+              J(a, b) &= \frac{1{,}20}{4}a^2 + \frac{2 \cdot 2{,}0}{4}ab + \frac{4}{4}b^2 - \frac{2 \cdot 80{,}0}{4}a - \frac{2 \cdot 140}{4}b + \frac{5\,420}{4} \\
+                      &= 0{,}3a^2 + ab + b^2 - 40a - 70b + 1\,355.
+            </equations>
+            <em>Conferência:</em> em $(50, 10)$, obtemos $0{,}3(2\,500) + 500 + 100 - 2\,000 - 700 + 1\,355 = 1\,350 - 2\,700 + 1\,355 = 5$, batendo exatamente com o cálculo do item (b).
+          </item>
+        </list>
+      </example>
+
+      Com uma fórmula simples de $J(\mathbf{w})$, procuramos os fundos de vale nos <strong>pontos críticos</strong>, onde $\nabla J = \mathbf{0}$ (o terreno fica plano). Classificaremos esses pontos no Tema 4.2; veja antes um exemplo direto.
+
+      <example id="exm:4-1-custo-quadratico">
+        <title>Convertendo um problema de máximo em mínimo e achando o ponto crítico</title>
+        Em um modelo simplificado de plasticidade sináptica, a qualidade (log-verossimilhança) do ajuste para dois parâmetros $(w_1, w_2)$ é dada por:
+        $$L(w_1, w_2) = 12 - (w_1 - 2)^2 - 4(w_2 - 5)^2.$$
+        Transforme esse problema em uma minimização de custo $J(w_1, w_2) = -L(w_1, w_2)$, encontre o ponto crítico calculando as derivadas parciais à mão e justifique por que ele é o mínimo global de $J$ (e máximo global de $L$).
+
+        <strong>Solução.</strong> Pela <ref to="prop:4-1-max-min"/>, definimos a função custo:
+        $$J(w_1, w_2) = -L(w_1, w_2) = (w_1 - 2)^2 + 4(w_2 - 5)^2 - 12.$$
+        Calculando as derivadas parciais e igualando a zero para achar o ponto crítico:
+        $$J_{w_1} = \frac{\partial J}{\partial w_1} = 2(w_1 - 2) = 0 \implies w_1 = 2,$$
+        $$J_{w_2} = \frac{\partial J}{\partial w_2} = 8(w_2 - 5) = 0 \implies w_2 = 5.$$
+        O único ponto crítico é $(w_1^*, w_2^*) = (2, 5)$, onde $J(2, 5) = 0 + 0 - 12 = -12$. Como todo quadrado é não negativo — isto é, $(w_1 - 2)^2 \ge 0$ e $4(w_2 - 5)^2 \ge 0$ para quaisquer $w_1, w_2 \in \mathbb{R}$ —, vale $J(w_1, w_2) \ge -12$ em todo o espaço. Logo, $(2, 5)$ é o mínimo global de $J$ (custo $-12$) e, consequentemente, o máximo global de $L$ (qualidade máxima $12$).
+      </example>
+
+      <remark id="rem:4-1-armadilha-custo">
+        <title>Armadilha comum</title>
+        O menor custo possível não precisa ser zero. Com ruído experimental, mesmo a melhor reta deixa um resíduo positivo (como $J = 5$ no <ref to="exm:4-1-contraste-custo"/>) — sinal de variabilidade nos dados, não de erro de conta.
+      </remark>
+
+      <exercise id="exr:4-1-2-1">
+        <title>Básico — Calculando o erro quadrático médio à mão</title>
+        Um experimento mediu a resposta $y$ (em $\text{Hz}$) de um neurônio em quatro níveis de estímulo $x$: $(0, 3)$, $(1, 5)$, $(2, 5)$ e $(3, 7)$. Usando o modelo linear $\hat{y} = a x + b$ e o EQM da <ref to="eq:4-1-eqm"/>, calcule $J(2, 2)$ e $J(1, 3)$ e indique qual ajusta melhor os dados.
+        <hint><title>Ver dica</title>Calcule $\hat{y}_i = a x_i + b$ nos $4$ pontos, eleve cada erro $\hat{y}_i - y_i$ ao quadrado, some e divida por $4$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para $(2, 2)$ ($\hat{y} = 2x + 2$): previsões $2, 4, 6, 8$; erros $-1, -1, +1, +1$;
+          $$J(2, 2) = \frac{(-1)^2 + (-1)^2 + 1^2 + 1^2}{4} = \frac{4}{4} = 1.$$
+          Para $(1, 3)$ ($\hat{y} = x + 3$): previsões $3, 4, 5, 6$; erros $0, -1, 0, -1$;
+          $$J(1, 3) = \frac{0^2 + (-1)^2 + 0^2 + (-1)^2}{4} = \frac{2}{4} = 0{,}5.$$
+          Como $J(1, 3) = 0{,}5 < J(2, 2) = 1$, $(1, 3)$ ajusta melhor os dados.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-1-2-2">
+        <title>Intermediário — Erro quadrático versus erro absoluto com dado atípico</title>
+        Em um registro eletrofisiológico com $4$ tentativas, dois modelos geram os vetores de erro $\hat{y}_i - y_i$ (em $\text{Hz}$): Modelo A: $(1,\; -1,\; 0,\; 10)$; Modelo B: $(3,\; -3,\; 3,\; -4)$. Calcule o EAM e o EQM de ambos e explique por que eles escolhem vencedores opostos.
+        <hint><title>Ver dica</title>Some $|e_i|/4$ para o EAM e $e_i^2/4$ para o EQM.</hint>
+        <solution collapsible="true" collapsed="true">
+          Modelo A: $\text{EAM}_A = \frac{1+1+0+10}{4} = 3{,}00\text{ Hz}$ e $\text{EQM}_A = \frac{1+1+0+100}{4} = 25{,}50\text{ Hz}^2$.
+          Modelo B: $\text{EAM}_B = \frac{3+3+3+4}{4} = 3{,}25\text{ Hz}$ e $\text{EQM}_B = \frac{9+9+9+16}{4} = 10{,}75\text{ Hz}^2$.
+          O EAM prefere A ($3{,}00 < 3{,}25$), mas o EQM prefere B ($10{,}75 < 25{,}50$), pois o quadrado amplifica o erro isolado de $10\text{ Hz}$ ($100$ contra $16$).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-1-2-3">
+        <title>Avançado — Completando quadrados e localizando o vale à mão</title>
+        Considere $J(w_1, w_2) = 2w_1^2 + w_2^2 - 8w_1 + 6w_2 + 20$.
+        <list marker="a">
+          <item>Calcule $J_{w_1}$ e $J_{w_2}$ e encontre o único ponto crítico de $J$.</item>
+          <item>Complete os quadrados em $w_1$ e $w_2$ para provar que esse ponto é o mínimo global e achar o valor mínimo.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (b), fatore $2$ nos termos de $w_1$: $2(w_1^2 - 4w_1) = 2\bigl((w_1 - 2)^2 - 4\bigr)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$J_{w_1} = 4w_1 - 8 = 0 \implies w_1 = 2$ e $J_{w_2} = 2w_2 + 6 = 0 \implies w_2 = -3$; único ponto crítico $(2, -3)$.</item>
+            <item>Completando os quadrados:
+              <equations>
+                J(w_1, w_2) &= 2(w_1^2 - 4w_1) + (w_2^2 + 6w_2) + 20 \\
+                            &= 2\bigl((w_1 - 2)^2 - 4\bigr) + \bigl((w_2 + 3)^2 - 9\bigr) + 20 \\
+                            &= 2(w_1 - 2)^2 + (w_2 + 3)^2 + 3.
+              </equations>
+              Como os termos quadráticos são $\ge 0$, $J(w_1, w_2) \ge 3$ em todo o plano, com mínimo global $J(2, -3) = 3$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:4-1-3">
+      <eyebrow>Seção 3</eyebrow>
+      <title>Curvas de nível: lendo o mapa da paisagem</title>
+      <intro>
+        Assim como cartas topográficas representam montanhas sem oclusão 3D, mapas de curvas de nível revelam vales, cristas e direções de descida da função custo.
+      </intro>
+
+      Como em um mapa topográfico, projetamos no plano linhas de mesma altitude de custo $J(w_1, w_2)$. Além de evitar oclusões do 3D, o conceito de conjunto de nível continua valendo em dimensões maiores.
+
+      <definition id="def:4-1-curvas-nivel">
+        <title>Conjunto de nível e mapa de contorno</title>
+        Dada $J : \Omega \subseteq \mathbb{R}^n \to \mathbb{R}$ e $c \in \mathbb{R}$, o <strong>conjunto de nível</strong> (<em>level set</em>) de nível $c$ é:
+        $$C_c = \{\mathbf{w} \in \Omega : J(\mathbf{w}) = c\}.$$
+        No plano ($n = 2$), cada $C_c$ forma uma <strong>curva de nível</strong>; desenhá-las para vários valores de $c$ gera um <strong>mapa de contorno</strong> (<em>contour plot</em>).
+        <intuition>
+          Andar sobre uma curva de nível mantém $J$ constante em $c$; para reduzir o custo, é preciso cruzar curvas rumo a níveis menores.
+        </intuition>
+      </definition>
+
+      Quatro sinais visuais resumem um mapa de contorno de $J(w_1, w_2)$:
+      <list marker="number">
+        <item><strong>Curvas próximas vs. afastadas:</strong> para degraus constantes em $c$, curvas apertadas indicam encosta íngreme; curvas espaçadas indicam platô ou fundo raso.</item>
+        <item><strong>Laços concêntricos:</strong> cercam um vale (mínimo local, se $c$ cai para o centro) ou pico (máximo local, se $c$ sobe para o centro).</item>
+        <item><strong>Círculos vs. elipses alongadas:</strong> elipses alongadas revelam um <em>vale estreito</em> (ravina), no qual um parâmetro importa menos ou dois parâmetros se compensam.</item>
+        <item><strong>Vários conjuntos de anéis separados:</strong> indicam múltiplos mínimos locais, como em redes atratoras ou enovelamento proteico.</item>
+      </list>
+
+      Do Tema 3.2, o gradiente $\nabla J(\mathbf{w})$ é perpendicular às curvas de nível e aponta para a subida mais rápida; o sinal oposto dá a bússola da otimização:
+
+      <proposition id="prop:4-1-gradiente-descida">
+        <title>Direção de descida mais íngreme</title>
+        Seja $J$ diferenciável em $\mathbf{w}$ com $\nabla J(\mathbf{w}) \ne \mathbf{0}$. Então o vetor
+        $$-\nabla J(\mathbf{w}) = \left(-\frac{\partial J}{\partial w_1}(\mathbf{w}),\, \dots,\, -\frac{\partial J}{\partial w_n}(\mathbf{w})\right)$$
+        é perpendicular ao conjunto de nível em $\mathbf{w}$ e aponta na direção de decrescimento mais rápido de $J$.
+      </proposition>
+      <proof of="prop:4-1-gradiente-descida" collapsible="true" collapsed="true">
+        A derivada direcional ao longo de qualquer unitário $\mathbf{u}$ ($\|\mathbf{u}\| = 1$) é $D_{\mathbf{u}} J(\mathbf{w}) = \nabla J(\mathbf{w}) \cdot \mathbf{u} = \|\nabla J(\mathbf{w})\| \cos\theta$. Como $\|\nabla J(\mathbf{w})\| > 0$, a taxa é mínima (mais negativa) quando $\cos\theta = -1$ ($\theta = 180^\circ$), isto é, quando $\mathbf{u}$ aponta no mesmo sentido de $-\nabla J(\mathbf{w})$, também perpendicular ao conjunto de nível.
+      </proof>
+
+      A <ref to="fig:4-1-paisagem"/> mostra essa dualidade para o neurônio visual do <ref to="exm:4-1-contraste-custo"/>: a melhor reta no espaço dos dados corresponde ao único ponto de mínimo nas curvas de nível de $J(a, b)$.
+
+      <figure src="fig/paisagem-custo.svg" alt="Dois painéis lado a lado: à esquerda, quatro pontos experimentais de taxa de disparo em função do contraste e a reta ótima y = 50x + 10 com resíduos verticais; à direita, mapa de curvas de nível elípticas e inclinadas de J(a, b) no plano (a, b), com estrela marcando o mínimo em (50, 10)" id="fig:4-1-paisagem">
+        <caption>Dualidade entre o espaço dos dados (esquerda) e o mapa de curvas de nível da função custo no espaço dos parâmetros (direita) para o neurônio visual do <ref to="exm:4-1-contraste-custo"/>. A reta inteira $\hat{y} = 50x + 10$ do painel esquerdo corresponde à única estrela marcada como "mínimo" no painel direito.</caption>
+      </figure>
+
+      <example id="exm:4-1-elipses-contraste">
+        <title>Decifrando as elipses inclinadas do neurônio visual</title>
+        Na <ref to="fig:4-1-paisagem"/>, por que as curvas de nível de $J(a, b) = 0{,}3a^2 + ab + b^2 - 40a - 70b + 1\,355$ são elipses inclinadas e alongadas na diagonal em torno de $(50, 10)$?
+        <list marker="a">
+          <item>Reescreva $J(a, b)$ completando quadrados centrados em $(50, 10)$.</item>
+          <item>Analise a curva de nível $J(a, b) = 10$ calculando sua largura vertical quando $a = 50$ e seus extremos ao longo do eixo do vale.</item>
+          <item>Calcule o vetor de descida mais íngreme $-\nabla J$ no ponto $(40, 15)$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Escrevendo $a = 50 + \delta_a$ e $b = 10 + \delta_b$ (desvios em relação a $(50, 10)$) e conferindo a expansão:
+            <equations id="eq:4-1-quadrados-completos">
+              J(a, b) &= 5 + 0{,}05(a - 50)^2 + \bigl((b - 10) + 0{,}5(a - 50)\bigr)^2.
+            </equations>
+            (Confira expandindo o lado direito: $0{,}05(a-50)^2 + 0{,}25(a-50)^2 = 0{,}3(a-50)^2$, e o termo cruzado dá $(a-50)(b-10)$; somando tudo com $5$, recuperamos exatamente $0{,}3a^2 + ab + b^2 - 40a - 70b + 1\,355$!)
+            Como os dois termos quadráticos são não negativos, fica imediato que $J(a, b) \ge 5$, com mínimo exato em $(50, 10)$.
+          </item>
+          <item>A curva de nível $J(a, b) = 10$ satisfaz:
+            $$0{,}05(a - 50)^2 + \bigl((b - 10) + 0{,}5(a - 50)\bigr)^2 = 5.$$
+            <list marker="dash">
+              <item>Na vertical que passa pelo mínimo ($a = 50$), sobra $(b - 10)^2 = 5$, logo $b = 10 \pm \sqrt{5} \approx 10 \pm 2{,}24$. Ou seja, basta mexer $2{,}24\text{ Hz}$ em $b$ para o custo dobrar de $5$ para $10$.</item>
+              <item>Já ao longo da reta diagonal onde o segundo quadrado zera — isto é, $(b - 10) = -0{,}5(a - 50)$, equivalente a $0{,}5a + b = 35$ —, sobra $0{,}05(a - 50)^2 = 5 \implies (a - 50)^2 = 100 \implies a = 50 \pm 10$. Isso dá os pontos $(40, 15)$ e $(60, 5)$ sobre a curva $J = 10$!</item>
+            </list>
+            O motivo biológico e geométrico é transparente: $0{,}5$ é exatamente o contraste médio $\bar{x}$ dos dados, e $35$ é a taxa média $\bar{y}$. Enquanto $0{,}5a + b = 35$, a reta continua passando pelo centro da nuvem de dados: aumentar a inclinação $a$ e abaixar o intercepto $b$ pela metade se compensam parcialmente, criando um vale diagonal alongado!
+          </item>
+          <item>Calculando as derivadas parciais da <ref to="eq:4-1-custo-polinomio"/>:
+            $$\frac{\partial J}{\partial a} = 0{,}6a + b - 40, \qquad \frac{\partial J}{\partial b} = a + 2b - 70.$$
+            Em $(40, 15)$: $\frac{\partial J}{\partial a} = 0{,}6(40) + 15 - 40 = -1$ e $\frac{\partial J}{\partial b} = 40 + 2(15) - 70 = 0$. Portanto, $\nabla J(40, 15) = (-1, 0)$ e a direção de descida mais íngreme é:
+            $$-\nabla J(40, 15) = (1, 0),$$
+            apontando exatamente para a direita (aumentando $a$ rumo a $50$), perpendicular à tangente vertical na ponta esquerda da elipse $J = 10$.
+          </item>
+        </list>
+      </example>
+
+      Nem toda paisagem tem um único vale: sistemas biestáveis (como redes atratoras ou proteínas com duas conformações) apresentam múltiplos vales separados por barreiras.
+
+      <example id="exm:4-1-dois-vales">
+        <title>Qualitativo: uma paisagem com dois vales</title>
+        Considere a função de energia estilizada $J(w_1, w_2) = (w_1^2 - 1)^2 + w_2^2$, frequentemente usada como modelo didático de um sistema biestável (como uma proteína com duas conformações ou um circuito neural com dois estados atratores).
+        <list marker="a">
+          <item>Encontre todos os pontos críticos de $J$ onde $\nabla J = \mathbf{0}$ e calcule o valor de $J$ em cada um.</item>
+          <item>Descreva qualitativamente como são as curvas de nível para $c = 0{,}5$, $c = 1$ e $c = 2$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Igualando as derivadas parciais a zero:
+            $$\frac{\partial J}{\partial w_1} = 4w_1(w_1^2 - 1) = 0 \implies w_1 \in \{-1,\, 0,\, 1\},$$
+            $$\frac{\partial J}{\partial w_2} = 2w_2 = 0 \implies w_2 = 0.$$
+            Há três pontos críticos:
+            <list marker="dash">
+              <item>$(-1, 0)$ e $(1, 0)$ têm $J = 0$ — como $J \ge 0$ em toda parte (soma de dois quadrados), ambos são fundos de vale (mínimos globais simétricos);</item>
+              <item>$(0, 0)$ tem $J = (-1)^2 + 0 = 1$ — ele é um <em>passo de montanha</em> (ponto de sela) entre os dois vales: ao mover-se em $w_2$ a energia sobe, mas ao mover-se em $w_1$ para $\pm 1$ a energia cai até $0$.</item>
+            </list>
+          </item>
+          <item>Para $c = 0{,}5$ ($c < 1$), não há energia suficiente para cruzar a barreira $J(0,0) = 1$, então a curva de nível se divide em <em>dois anéis fechados separados</em>, um em torno de $(-1, 0)$ e outro em torno de $(1, 0)$. Em $c = 1$, os dois anéis se tocam no ponto $(0, 0)$ formando um "oito" ($\infty$). Para $c = 2$ ($c > 1$), o contorno volta a ser uma única curva fechada alongada envolvendo os dois vales juntos.
+          </item>
+        </list>
+        Se essa paisagem fosse ligeiramente inclinada de modo que um vale ficasse mais fundo que o outro, um algoritmo que apenas desce o morro seguindo $-\nabla J$ cairia no vale mais próximo de seu ponto de partida — podendo ficar preso no vale mais raso (um mínimo local), tema central do projeto final deste módulo!
+      </example>
+
+      <remark id="rem:4-1-armadilha-mapa">
+        <title>Armadilha comum</title>
+        Não confunda "descida mais íngreme" ($-\nabla J$) com "direção ao mínimo". Em vales estreitos (<ref to="fig:4-1-paisagem"/>), $-\nabla J$ é perpendicular às curvas de nível e aponta quase contra a parede mais próxima, causando ziguezagues (Tema 4.3).
+      </remark>
+
+      <exercise id="exr:4-1-3-1">
+        <title>Básico — Lendo o mapa do neurônio visual</title>
+        Usando $J(a, b) = 5 + 0{,}05(a - 50)^2 + \bigl((b - 10) + 0{,}5(a - 50)\bigr)^2$ (<ref to="eq:4-1-quadrados-completos"/>) e as curvas da <ref to="fig:4-1-paisagem"/> (níveis $8, 15, 25, 40, \dots$):
+        <list marker="a">
+          <item>Calcule $J(55, 8)$ e $J(55, 10)$ e indique em qual faixa entre curvas de nível cada ponto cai.</item>
+          <item>Calcule $-\nabla J(50, 12)$ e verifique que ele <em>não</em> aponta na vertical para baixo rumo a $(50, 10)$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (b), use $J_a = 0{,}6a + b - 40$ e $J_b = a + 2b - 70$ do <ref to="exm:4-1-elipses-contraste"/>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$J(55, 8) = 5 + 0{,}05(25) + (-2 + 2{,}5)^2 = 6{,}5$ (dentro da curva $c = 8$); $J(55, 10) = 5 + 1{,}25 + (2{,}5)^2 = 12{,}5$ (entre $c = 8$ e $c = 15$).</item>
+            <item>Em $(50, 12)$: $J_a = 30 + 12 - 40 = 2$ e $J_b = 50 + 24 - 70 = 4$, logo $-\nabla J(50, 12) = (-2, -4)$, apontando para baixo e para a esquerda em vez de $(0, -2)$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-1-3-2">
+        <title>Intermediário — Paisagem assimétrica com dois vales de profundidades diferentes</title>
+        Um modelo de energia livre de dobramento proteico em dois parâmetros $(u, v)$ é:
+        $$J(u, v) = 3u^4 - 4u^3 - 12u^2 + 6v^2.$$
+        <list marker="a">
+          <item>Encontre os três pontos críticos ($\nabla J = \mathbf{0}$) e calcule $J$ em cada um.</item>
+          <item>Identifique o mínimo global (estado nativo) e o mínimo local mais raso (mal enovelado).</item>
+          <item>Calcule $-\nabla J(-0{,}5;\; 0)$ e diga para qual vale a descida é atraída.</item>
+        </list>
+        <hint><title>Ver dica</title>Fatore $\frac{\partial J}{\partial u} = 12u(u^2 - u - 2) = 12u(u + 1)(u - 2)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$\frac{\partial J}{\partial v} = 12v = 0 \implies v = 0$; $\frac{\partial J}{\partial u} = 12u(u+1)(u-2) = 0 \implies u \in \{-1, 0, 2\}$. Valores: $J(-1, 0) = -5$, $J(0, 0) = 0$ e $J(2, 0) = -32$.</item>
+            <item>$(2, 0)$ é o mínimo global ($J = -32$) e $(-1, 0)$ é um mínimo local mais raso ($J = -5$), separados pela sela $(0, 0)$.</item>
+            <item>$J_u(-0{,}5;\; 0) = 12(-0{,}5)(0{,}5)(-2{,}5) = 7{,}5$ e $J_v = 0$, logo $-\nabla J(-0{,}5;\; 0) = (-7{,}5;\; 0)$, puxando para o mínimo local $(-1, 0)$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-1-3-3">
+        <title>Avançado — Descida mais íngreme versus seta direta para o mínimo</title>
+        No problema do neurônio visual (<ref to="exm:4-1-elipses-contraste"/>), partindo de $\mathbf{w} = (50, 12)$, a seta direta para $\mathbf{w}^* = (50, 10)$ é $\mathbf{d} = (0, -2)$, enquanto $-\nabla J(50, 12) = (-2, -4)$.
+        <list marker="a">
+          <item>Calcule $\cos\theta$ entre $\mathbf{d}$ e $-\nabla J(50, 12)$.</item>
+          <item>Compare $\nabla J \cdot \mathbf{u}$ nos unitários $\mathbf{u}_1 = \frac{\mathbf{d}}{\|\mathbf{d}\|}$ e $\mathbf{u}_2 = \frac{-\nabla J}{\|\nabla J\|}$, confirmando que $J$ cai mais rápido ao longo de $-\nabla J$.</item>
+        </list>
+        <hint><title>Ver dica</title>Use $\cos\theta = \frac{\mathbf{a}\cdot\mathbf{b}}{\|\mathbf{a}\|\,\|\mathbf{b}\|}$ e $\mathbf{u}_2 = \left(-\frac{1}{\sqrt{5}}, -\frac{2}{\sqrt{5}}\right)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Com $\mathbf{d}\cdot\mathbf{v} = 8$, $\|\mathbf{d}\| = 2$ e $\|\mathbf{v}\| = 2\sqrt{5}$, temos $\cos\theta = \frac{8}{4\sqrt{5}} = \frac{2}{\sqrt{5}} \approx 0{,}894$ ($\theta \approx 26{,}6^\circ$).</item>
+            <item>Para $\nabla J = (2, 4)$: $D_{\mathbf{u}_1} J = (2, 4)\cdot(0, -1) = -4$, enquanto $D_{\mathbf{u}_2} J = (2, 4)\cdot\left(-\frac{1}{\sqrt{5}}, -\frac{2}{\sqrt{5}}\right) = -\frac{10}{\sqrt{5}} = -2\sqrt{5} \approx -4{,}47 < -4$.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:4-1-4">
+      <eyebrow>Seção 4</eyebrow>
+      <title>Ajustando dois parâmetros a dados</title>
+      <intro>
+        Sem derivadas, um computador pode testar uma malha regular de parâmetros para achar o menor custo — mas essa força bruta esbarra na explosão exponencial das dimensões.
+      </intro>
+
+      Sem resolver $\nabla J = \mathbf{0}$ na mão, o algoritmo mais direto é cobrir um retângulo de parâmetros com uma malha regular e escolher o nó de menor custo: a <strong>busca em grade</strong> (<em>grid search</em>).
+
+      <definition id="def:4-1-grid-search">
+        <title>Busca em grade</title>
+        Na <strong>busca em grade</strong> em $n$ dimensões, escolhemos um intervalo $[w_{j,\min},\, w_{j,\max}]$ e $k_j$ valores igualmente espaçados para cada coordenada $w_j$ ($j = 1, \dots, n$), avaliamos $J(\mathbf{w})$ em toda a malha e devolvemos o ponto $\hat{\mathbf{w}}_{\text{grade}}$ de menor custo.
+        <intuition>
+          Com $k$ valores por eixo, a grade exige $k^n$ avaliações: para $n = 2$ e $k = 10$ são $100$ contas, mas para $n = 10$ já saltam para $10^{10}$ — a <strong>maldição da dimensionalidade</strong> (<em>curse of dimensionality</em>).
+        </intuition>
+      </definition>
+
+      Executemos primeiro uma grade pequena à mão no neurônio visual.
+
+      <example id="exm:4-1-grade-manual">
+        <title>Busca em grade 3 × 3 à mão no neurônio visual</title>
+        Teste a grade grossa formada por $a \in \{40, 55, 70\}$ e $b \in \{5, 10, 15\}$ sobre o custo $J(a, b) = 5 + 0{,}05(a - 50)^2 + \bigl((b - 10) + 0{,}5(a - 50)\bigr)^2$ do <ref to="exm:4-1-contraste-custo"/>. Qual ponto vence na grade?
+
+        <strong>Solução.</strong> Temos $3 \times 3 = 9$ combinações para avaliar:
+        <list marker="dash">
+          <item>Para $a = 40$ ($a - 50 = -10 \implies 0{,}05(-10)^2 = 5$ e $0{,}5(-10) = -5$):
+            $J(40, 5) = 5 + 5 + (-5 - 5)^2 = 110$; $J(40, 10) = 5 + 5 + (0 - 5)^2 = 35$; $J(40, 15) = 5 + 5 + (5 - 5)^2 = 10$.</item>
+          <item>Para $a = 55$ ($a - 50 = 5 \implies 0{,}05(5)^2 = 1{,}25$ e $0{,}5(5) = 2{,}5$):
+            $J(55, 5) = 5 + 1{,}25 + (-5 + 2{,}5)^2 = 12{,}5$; $J(55, 10) = 5 + 1{,}25 + (0 + 2{,}5)^2 = 12{,}5$; $J(55, 15) = 5 + 1{,}25 + (5 + 2{,}5)^2 = 62{,}5$.</item>
+          <item>Para $a = 70$ ($a - 50 = 20 \implies 0{,}05(20)^2 = 20$ e $0{,}5(20) = 10$):
+            $J(70, 5) = 5 + 20 + (-5 + 10)^2 = 50$; $J(70, 10) = 5 + 20 + (0 + 10)^2 = 125$; $J(70, 15) = 5 + 20 + (5 + 10)^2 = 250$.</item>
+        </list>
+
+        <table id="tbl:4-1-grade">
+          <title>Valores de $J(a, b)$ na grade $3 \times 3$</title>
+          <header>
+            <column>$a \backslash b$</column>
+            <column align="right">$b = 5$</column>
+            <column align="right">$b = 10$</column>
+            <column align="right">$b = 15$</column>
+          </header>
+          <row><column>$a = 40$</column><column align="right">110,0</column><column align="right">35,0</column><column align="right">10,0</column></row>
+          <row><column>$a = 55$</column><column align="right">12,5</column><column align="right">12,5</column><column align="right">62,5</column></row>
+          <row><column>$a = 70$</column><column align="right">50,0</column><column align="right">125,0</column><column align="right">250,0</column></row>
+          <caption>O melhor ponto desta grade é $(40, 15)$ com custo $10{,}0$ — porque o mínimo exato $(50, 10)$, de custo $5{,}0$, caiu entre as linhas da malha.</caption>
+        </table>
+      </example>
+
+      <box type="tip">
+        <title>Nota sobre código Python</title>
+        Python é ensinado formalmente no <strong>Módulo 6</strong>. O bloco abaixo é autocontido e comentado — e roda direto no Google Colab usando apenas <c>numpy</c>.
+      </box>
+
+      Usamos <c>np.linspace</c> para gerar $9$ valores de $a$ ($30$ a $70$, passo $5$) e $11$ de $b$ ($0$ a $20$, passo $2$), e <c>np.meshgrid</c> para montar as $99$ combinações — escolhidas para que o mínimo exato $(50{,}0;\; 10{,}0)$ (deduzido no <mark>Tema 4.2</mark>) caia sobre um nó.
+
+      <code lang="python" id="cod:4-1-grid-search">
+import numpy as np  # Biblioteca numérica para trabalhar com vetores e matrizes
+
+# Dados do experimento: contraste (x) e taxa de disparo em Hz (y)
+x = np.array([0.2, 0.4, 0.6, 0.8])
+y = np.array([21.0, 27.0, 43.0, 49.0])
+
+
+def funcao_custo(a, b):
+    # Calcula o erro quadrático médio J(a, b) para todos os 4 pontos
+    y_previsto = a * x + b
+    return np.mean((y_previsto - y) ** 2)
+
+
+# Cria os eixos da grade: 9 valores para a (passo 5) e 11 para b (passo 2)
+a_vals = np.linspace(30.0, 70.0, 9)
+b_vals = np.linspace(0.0, 20.0, 11)
+
+# meshgrid gera duas tabelas 2D combinando cada 'a' com cada 'b'
+A, B = np.meshgrid(a_vals, b_vals)
+
+# Cria uma tabela vazia J de mesmo formato (11 linhas x 9 colunas) e preenche os custos
+J = np.zeros_like(A)
+for i in range(A.shape[0]):
+    for j in range(A.shape[1]):
+        J[i, j] = funcao_custo(A[i, j], B[i, j])
+
+# Encontra a posição (linha, coluna) do menor valor na tabela J
+idx_min = np.unravel_index(np.argmin(J), J.shape)
+a_otimo = A[idx_min]
+b_otimo = B[idx_min]
+custo_min = J[idx_min]
+
+print(f"Avaliações na grade: {J.size}")    # saída: Avaliações na grade: 99
+print(f"Melhor a: {a_otimo:.1f}")           # saída: Melhor a: 50.0
+print(f"Melhor b: {b_otimo:.1f}")           # saída: Melhor b: 10.0
+print(f"Menor custo J: {custo_min:.3f}")    # saída: Menor custo J: 5.000
+      </code>
+
+      Em $2$ dimensões, $99$ avaliações levam menos de um milissegundo. Mas veja o que acontece assim que o número de parâmetros $n$ cresce em modelos biológicos mais realistas.
+
+      <example id="exm:4-1-maldicao">
+        <title>A maldição da dimensionalidade em modelos de membrana</title>
+        Suponha que cada avaliação da função custo exija rodar uma pequena simulação numérica de membrana neuronal que leva $1\text{ ms}$ ($0{,}001\text{ s}$). Compare o tempo total de uma busca em grade em dois cenários:
+        <list marker="a">
+          <item>um modelo passivo simples com $n = 2$ parâmetros (condutância de vazamento $g_L$ e potencial de repouso $E_L$), usando $k = 50$ valores por eixo;</item>
+          <item>um modelo simplificado de canais ativos tipo Hodgkin–Huxley com $n = 6$ parâmetros, usando apenas $k = 20$ valores por eixo.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Com $n = 2$ e $k = 50$, a grade tem $k^n = 50^2 = 2\,500$ pontos. A $0{,}001\text{ s}$ por avaliação, o tempo total é:
+            $$2\,500 \times 0{,}001\text{ s} = 2{,}5\text{ s}.$$
+          </item>
+          <item>Com $n = 6$ e $k = 20$ (uma grade bem mais grossa por eixo!), o total de pontos salta para:
+            $$20^6 = 2^6 \cdot 10^6 = 64\,000\,000\text{ avaliações}.$$
+            A $0{,}001\text{ s}$ por avaliação, isso exigiria $64\,000\text{ s} = \frac{64\,000}{3\,600}\text{ h} \approx 17{,}8\text{ horas}$ para ajustar apenas $6$ parâmetros!</item>
+        </list>
+        Para uma rede neural com $n = 1\,000$ pesos, mesmo testar só $2$ valores por peso exigiria $2^{1\,000} \approx 10^{301}$ avaliações — astronomicamente maior que o número estimado de átomos no universo observável ($\sim 10^{80}$). É por causa dessa barreira exponencial que o próximo passo do Módulo 4 será abandonar a busca cega em grade e usar derivadas (Tema 4.2) e descida de gradiente (Tema 4.3).
+      </example>
+
+      <remark id="rem:4-1-armadilha-grade">
+        <title>Armadilha comum</title>
+        A busca em grade devolve o melhor <em>nó da malha</em>, não necessariamente o mínimo exato (<ref to="exm:4-1-grade-manual"/>). No código acima, $(50{,}0;\; 10{,}0)$ só caiu na grade por escolha do passo; em problemas reais, o ótimo fica entre os nós.
+      </remark>
+
+      <exercise id="exr:4-1-4-1">
+        <title>Básico — Contando avaliações e impacto de um novo parâmetro</title>
+        Um modelo de corrente sináptica tem $3$ parâmetros $(\tau_1, \tau_2, g_{\max})$. Testando $k = 15$ valores por parâmetro em busca em grade:
+        <list marker="a">
+          <item>Quantas avaliações da função custo são feitas ao todo?</item>
+          <item>Ao incluir um 4º parâmetro ($E_{\text{sin}}$) também com $15$ valores, quantas avaliações são necessárias e por quanto o tempo é multiplicado?</item>
+        </list>
+        <hint><title>Ver dica</title>Em $n$ dimensões com $k$ valores por eixo, há $k^n$ pontos.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Para $n = 3$ e $k = 15$: $15^3 = 3\,375$ avaliações.</item>
+            <item>Para $n = 4$ e $k = 15$: $15^4 = 50\,625$ avaliações — um único parâmetro multiplica o tempo por $15$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-1-4-2">
+        <title>Intermediário — Prevendo o resultado de outra grade no código NumPy</title>
+        No código Python <ref to="cod:4-1-grid-search"/>, suponha que troquemos a criação dos eixos por:
+        <code lang="python" numbered="false" lines="false">
+import numpy as np
+
+a_vals = np.linspace(35.0, 65.0, 4)
+b_vals = np.linspace(0.0, 20.0, 6)
+print(a_vals)  # saída: [35. 45. 55. 65.]
+print(b_vals)  # saída: [ 0.  4.  8. 12. 16. 20.]
+        </code>
+        <list marker="a">
+          <item>Quantas avaliações <c>J.size</c> serão executadas nessa malha?</item>
+          <item>Calcule $J(a, b)$ nos pontos mais próximos do vale — $(45, 12)$ e $(55, 8)$ — e verifique o que acontece com o mínimo da nova grade.</item>
+        </list>
+        <hint><title>Ver dica</title>Em <c>np.linspace(inicio, fim, N)</c>, há $N$ pontos com passo $\frac{\text{fim} - \text{início}}{N - 1}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como <c>a_vals</c> tem $4$ valores (passo $10$) e <c>b_vals</c> tem $6$ valores (passo $4$), o total de avaliações é <c>J.size</c> $= 4 \times 6 = 24$.</item>
+            <item>Pela <ref to="eq:4-1-quadrados-completos"/>, $J(45, 12) = 5 + 0{,}05(-5)^2 + (2 - 2{,}5)^2 = 6{,}5$ e $J(55, 8) = 5 + 0{,}05(5)^2 + (-2 + 2{,}5)^2 = 6{,}5$ (os demais nós têm custo maior, ex.: $J(45, 8) = 26{,}5$). A grade perde o mínimo exato $5{,}0$ e empata em $6{,}5$ nos dois pontos simétricos.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:4-1-4-3">
+        <title>Avançado — Resolução de grade para curvas de sintonia em população</title>
+        Retome o modelo gaussiano do <ref to="exm:4-1-sintonia-estados"/>, com $(r_{\max}, \phi_0, \sigma)$, usando uma grade com extremos incluídos: $r_{\max}$ de $20$ a $80\text{ Hz}$ (passo $1\text{ Hz}$); $\phi_0$ de $0^\circ$ a $180^\circ$ (passo $5^\circ$); $\sigma$ de $10^\circ$ a $30^\circ$ (passo $2^\circ$).
+        <list marker="a">
+          <item>Quantos valores há por eixo e quantas avaliações exige a grade para $1$ neurônio?</item>
+          <item>Para ajustar juntos $5$ neurônios acoplados ($n = 15$ parâmetros) com essa resolução, qual a ordem de grandeza da grade conjunta?</item>
+        </list>
+        <hint><title>Ver dica</title>De $A$ até $B$ com passo $p$ (extremos incluídos), há $\frac{B - A}{p} + 1$ pontos.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pontos: $\frac{80-20}{1}+1 = 61$ em $r_{\max}$, $\frac{180-0}{5}+1 = 37$ em $\phi_0$ e $\frac{30-10}{2}+1 = 11$ em $\sigma$. Total: $61 \times 37 \times 11 = 24\,827$ avaliações.</item>
+            <item>Para $5$ neurônios acoplados ($n = 15$): $(24\,827)^5 \approx 9{,}4 \times 10^{21} \sim 10^{22}$ avaliações.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:4-1-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Espaço de parâmetros ($\mathbb{R}^n$) e região viável ($\Omega$):</strong> cada configuração de $n$ parâmetros é um ponto $\mathbf{w} = (w_1, \dots, w_n)$; $\Omega \subseteq \mathbb{R}^n$ impõe as restrições biológicas e físicas.</item>
+        <item><strong>Espaço dos dados vs. dos parâmetros:</strong> no primeiro, cada ponto é uma medição e um modelo é uma curva; no segundo, cada ponto $\mathbf{w}$ representa um modelo inteiro.</item>
+        <item><strong>Função custo como paisagem:</strong> $J(\mathbf{w})$ mede o erro de ajuste (ex.: EQM $\frac{1}{m}\sum_{i=1}^m (\hat{y}_i(\mathbf{w}) - y_i)^2$); otimizar é buscar o vale mais baixo.</item>
+        <item><strong>Maximizar via mínimo:</strong> maximizar $L(\mathbf{w})$ equivale a minimizar $J(\mathbf{w}) = -L(\mathbf{w})$.</item>
+        <item><strong>Curvas de nível:</strong> $C_c = \{\mathbf{w} \in \Omega : J(\mathbf{w}) = c\}$ formam o mapa topográfico; curvas apertadas indicam encostas íngremes e elipses alongadas indicam vales estreitos.</item>
+        <item><strong>Descida mais íngreme:</strong> $-\nabla J(\mathbf{w})$ é perpendicular às curvas de nível e aponta na direção de queda mais rápida de $J$.</item>
+        <item><strong>Busca em grade e maldição da dimensionalidade:</strong> testar $k$ pontos por eixo custa $k^n$ avaliações, devolve apenas o melhor nó da malha e torna-se inviável quando $n$ cresce.</item>
+      </list>
+    </section>
+
+    <section id="sec:4-1-alem">
+      <title>Para ir além</title>
+      Nos próximos temas do módulo veremos como resolver $\nabla J = \mathbf{0}$ analiticamente e deduzir a reta ótima do <ref to="exm:4-1-contraste-custo"/> (<strong>Tema 4.2</strong>) e como descer a paisagem por gradientes (<strong>Tema 4.3</strong>). Para complementar sua intuição:
+      <list marker="dash">
+        <item><strong>Vídeo recomendado:</strong> <link to="https://www.youtube.com/watch?v=IHZwWFHWa-w">3Blue1Brown — Gradient Descent (série de Redes Neurais)</link>, com visualização clara de parâmetros, paisagens de custo e gradiente negativo.</item>
+        <item><strong>Exploração visual:</strong> busque animações de <em>cost landscapes</em> em 3D e mapas de contorno no YouTube.</item>
+        <item><strong>Referência técnica opcional:</strong> consulte <c>np.linspace</c>, <c>np.meshgrid</c> e <c>np.argmin</c> na <link to="https://numpy.org/doc/stable/">documentação do NumPy</link> (estudaremos Python no Módulo 6).</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 4 · Otimização — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

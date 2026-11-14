@@ -1,0 +1,830 @@
+<document>
+  <title>Módulo 8 · Machine Learning</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-8-7">Voltar ao guia (Tema 8.7)</link></meta-item>
+    <meta-item key="Módulo">Módulo 8 · Machine Learning — Criando a Inteligência Clássica</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-8-7">
+    <title>Estudo de variáveis</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Quais variáveis importam e como selecioná-las.
+    </box>
+
+    <strong>Por que isso importa.</strong> Nos dados reais da neurociência, quase nunca todas as variáveis medidas têm a mesma relevância nem usam a mesma unidade. Em um registro eletrofisiológico, medimos a taxa de disparo em hertz ($0$ a $200\text{ Hz}$), o potencial de repouso em milivolts (em torno de $-70\text{ mV}$) e a largura do potencial de ação em milissegundos ($0{,}3$ a $2\text{ ms}$). Em um eletroencefalograma (EEG), coletamos potências de dezenas de canais e bandas de frequência vizinhas altamente correlacionadas. Se jogarmos essa tabela bruta diretamente em um algoritmo de aprendizado de máquina, variáveis com números grandes dominam distâncias e penalidades, variáveis redundantes tornam os pesos instáveis e centenas de colunas de ruído derrubam o desempenho fora da amostra.
+
+    No Tema 8.6 (Regularização), vimos que o <em>lasso</em> zera coeficientes automaticamente por meio de uma penalidade L1. Agora vamos investigar o estudo das variáveis de forma mais ampla e sistemática: como colocá-las na mesma escala, como diagnosticar a redundância entre preditores (multicolinearidade), como selecionar subconjuntos de variáveis sem vazar informação do teste e como medir a contribuição real de cada variável em qualquer modelo por permutação. Esse repertório será decisivo antes de partirmos para modelos baseados em árvores no Tema 8.8 (Árvores).
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>padronizar variáveis pelo escore $z$ (<c>StandardScaler</c>), justificar quais algoritmos dependem de escala e interpretar coeficientes padronizados;</item>
+      <item>diagnosticar multicolinearidade pelo fator de inflação da variância ($\mathrm{VIF}$) e pelo número de condição de $\mathbf{X}^\top\mathbf{X}$, distinguindo instabilidade dos pesos de falha preditiva;</item>
+      <item>aplicar seleção passo a passo (<em>forward</em> e <em>backward</em>) com <c>SequentialFeatureSelector</c> dentro de um <c>Pipeline</c>, evitando análise circular (<em>double dipping</em>);</item>
+      <item>quantificar a relevância preditiva de cada variável em qualquer modelo usando importância por permutação (<c>permutation_importance</c>) no conjunto de teste, evitando confundir predição com causalidade.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Temas 8.2 (Regressão (polinomial): regressão múltipla), 8.4 (Métricas estatísticas), 8.5 (Reamostragem: validação cruzada, <em>bootstrap</em> e vazamento de dados) e 8.6 (Regularização: <em>ridge</em> e <em>lasso</em> como seleção); Módulo 5 — Álgebra Linear (Autovalores e autovetores: número de condição); e Módulo 7 — Estatística e Probabilidade (Variável aleatória: média, desvio padrão e correlação; Combinatória: $2^p$ subconjuntos).
+
+    <section id="sec:8-7-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Padronização e escala das variáveis</title>
+      <intro>
+        Quando misturamos variáveis medidas em hertz, milivolts e milissegundos, os algoritmos enxergam números puros e dão peso artificialmente maior a quem tem variação numérica mais alta.
+      </intro>
+
+      Imagine comparar dois neurônios descritos por três características: taxa máxima de disparo (entre $10$ e $150\text{ Hz}$), potencial de repouso (entre $-75$ e $-60\text{ mV}$) e largura da espícula (entre $0{,}3$ e $1{,}8\text{ ms}$). Se um classificador de $K$ vizinhos mais próximos (KNN) calcular a distância euclidiana diretamente nessa tabela, uma diferença de $20\text{ Hz}$ contribui com $20^2 = 400$ para o quadrado da distância, enquanto uma diferença biológica dramática de $1\text{ ms}$ na largura do spike contribui com apenas $1^2 = 1$. Mudar a unidade da largura de milissegundos para microssegundos ($1\,000\;\mu\text{s}$) inverteria completamente a vizinhança! Para eliminar essa dependência arbitrária das unidades, colocamos todas as variáveis na mesma escala adimensional.
+
+      <definition id="def:8-7-padronizacao">
+        <title>Padronização por escore $z$ e reescalonamentos alternativos</title>
+        Dada a matriz de dados $\mathbf{X} \in \mathbb{R}^{n \times p}$, seja $\bar{x}_j = \frac{1}{n}\sum_{i=1}^n x_{ij}$ a média amostral da coluna $j$ e $s_j = \sqrt{\frac{1}{n}\sum_{i=1}^n (x_{ij} - \bar{x}_j)^2}$ o seu desvio padrão. A <strong>padronização</strong> (<em>standardization</em>) transforma cada entrada no <strong>escore $z$</strong>:
+        <equation id="eq:8-7-zscore">
+          z_{ij} = \frac{x_{ij} - \bar{x}_j}{s_j}.
+        </equation>
+        Após essa transformação, cada coluna padronizada tem média $0$ e desvio padrão $1$. Duas alternativas comuns no <c>scikit-learn</c> são:
+        <list marker="dash">
+          <item><strong><c>MinMaxScaler</c>:</strong> comprime cada variável para um intervalo fixo (padrão $[0, 1]$) por $\frac{x_{ij} - x_{\min, j}}{x_{\max, j} - x_{\min, j}}$, sendo sensível a extremos isolados.</item>
+          <item><strong><c>RobustScaler</c>:</strong> centraliza pela mediana e divide pelo intervalo interquartil ($\mathrm{IQR} = Q_3 - Q_1$), resistindo bem a valores extremos (<em>outliers</em>) em registros neurais com artefatos.</item>
+        </list>
+        <intuition>
+          O escore $z$ responde à pergunta: "quantos desvios padrão acima ou abaixo da média típica da população está esta observação?" Assim, um aumento de $+1$ em qualquer coluna padronizada representa um deslocamento típico equivalente naquela variável, seja ela medida em $\text{Hz}$, $\text{mV}$ ou $\text{ms}$.
+        </intuition>
+      </definition>
+
+      Nem todo algoritmo se importa com a escala das colunas, e saber separar os dois grupos evita trabalho inútil e erros graves:
+      <list marker="dash">
+        <item><strong>Dependem fortemente da escala:</strong> KNN (usa distâncias entre amostras), máquinas de vetores de suporte (SVM, que veremos no Tema 8.11), regressões regularizadas <em>ridge</em> e <em>lasso</em> (penalizam $\sum \beta_j^2$ ou $\sum |\beta_j|$), análise de componentes principais (PCA) e agrupamento por $k$-médias (<em>k-means</em>, ambos no Tema 8.9).</item>
+        <item><strong>Não mudam as previsões com a escala:</strong> árvores de decisão e florestas aleatórias (Tema 8.8 — testam limiares de uma coluna por vez, como $x_j \le t$) e a regressão linear comum sem penalidade (OLS). Na OLS, multiplicar $x_j$ por $1\,000$ divide $\hat{\beta}_j$ por $1\,000$, mantendo $\hat{y}_i$ e $R^2$ idênticos — porém, o tamanho numérico dos coeficientes brutos não pode ser comparado entre variáveis de unidades diferentes! Ao ajustar a regressão sobre variáveis padronizadas $z_j$, obtemos os <strong>coeficientes padronizados</strong> $\tilde{\beta}_j = \hat{\beta}_j s_j$, que medem a mudança prevista em $y$ por desvio padrão de $x_j$.</item>
+      </list>
+
+      Por fim, lembre da regra de ouro contra vazamento de dados do Tema 8.5 (Reamostragem): <strong>ajuste o escalonador apenas no conjunto de treino</strong> (<c>fit_transform(X_treino)</c>) e aplique exatamente a mesma média e o mesmo desvio padrão ao teste (<c>transform(X_teste)</c>). Em validação cruzada, coloque sempre <c>StandardScaler()</c> dentro de um <c>Pipeline</c>.
+
+      <example id="exm:8-7-zscore-mao">
+        <title>Padronizando larguras de potencial de ação à mão</title>
+        A largura do potencial de ação (em $\text{ms}$) foi medida em $n = 4$ neurônios corticais:
+        $$\mathbf{x} = (0{,}3;\; 0{,}9;\; 1{,}1;\; 1{,}7)\text{ ms}.$$
+        Calcule o escore $z$ de cada neurônio usando o desvio padrão populacional (como faz o <c>StandardScaler</c>).
+
+        <strong>Solução.</strong> Primeiro obtemos a média amostral:
+        $$\bar{x} = \frac{0{,}3 + 0{,}9 + 1{,}1 + 1{,}7}{4} = \frac{4{,}0}{4} = 1{,}0\text{ ms}.$$
+        Calculamos os desvios $x_i - \bar{x}$: $(-0{,}7;\; -0{,}1;\; +0{,}1;\; +0{,}7)\text{ ms}$. Elevando ao quadrado e somando:
+        $$\sum_{i=1}^4 (x_i - \bar{x})^2 = 0{,}49 + 0{,}01 + 0{,}01 + 0{,}49 = 1{,}00\text{ ms}^2.$$
+        Dividindo por $n = 4$ e extraindo a raiz:
+        $$s = \sqrt{\frac{1{,}00}{4}} = \sqrt{0{,}25} = 0{,}5\text{ ms}.$$
+        Aplicando a <ref to="eq:8-7-zscore"/> a cada valor, encontramos:
+        $$z_1 = \frac{0{,}3 - 1{,}0}{0{,}5} = -1{,}4, \quad z_2 = \frac{0{,}9 - 1{,}0}{0{,}5} = -0{,}2, \quad z_3 = \frac{1{,}1 - 1{,}0}{0{,}5} = +0{,}2, \quad z_4 = \frac{1{,}7 - 1{,}0}{0{,}5} = +1{,}4.$$
+        O primeiro neurônio (típico interneurônio rápido) está $1{,}4$ desvios padrão abaixo da média; o quarto (piramidal largo) está $1{,}4$ desvios acima.
+      </example>
+
+      <example id="exm:8-7-eletrofisiologia-unidades">
+        <title>Comparando coeficientes em unidades eletrofisiológicas distintas</title>
+        Ao modelar a taxa de disparo máxima $y$ (em $\text{Hz}$) de neurônios a partir da largura do <em>spike</em> $x_1$ (em $\text{ms}$) e do potencial de repouso $x_2$ (em $\text{mV}$), uma regressão linear forneceu:
+        $$\hat{y} = 90 - 12{,}0\,x_1 + 0{,}5\,x_2.$$
+        Sabendo que na amostra de treino $\bar{x}_1 = 1{,}0\text{ ms}$ ($s_1 = 0{,}25\text{ ms}$) e $\bar{x}_2 = -70\text{ mV}$ ($s_2 = 6{,}0\text{ mV}$), obtenha a equação com variáveis padronizadas $z_1$ e $z_2$ e compare os efeitos.
+
+        <strong>Solução.</strong> Como $x_j = \bar{x}_j + s_j z_j$, substituímos $x_1 = 1{,}0 + 0{,}25 z_1$ e $x_2 = -70 + 6{,}0 z_2$:
+        $$\hat{y} = 90 - 12{,}0(1{,}0 + 0{,}25 z_1) + 0{,}5(-70 + 6{,}0 z_2) = (90 - 12{,}0 - 35{,}0) - 3{,}0\,z_1 + 3{,}0\,z_2 = 43{,}0 - 3{,}0\,z_1 + 3{,}0\,z_2.$$
+        Embora $\hat{\beta}_1 = -12{,}0\text{ Hz/ms}$ pareça $24$ vezes maior em módulo que $\hat{\beta}_2 = 0{,}5\text{ Hz/mV}$, essa disparidade decorre apenas das unidades: na escala padronizada, o aumento de $1$ desvio padrão em qualquer uma das duas variáveis altera a taxa prevista na mesma magnitude ($3{,}0\text{ Hz}$).
+      </example>
+
+      O código a seguir simula $240$ neurônios de dois tipos — células piramidais (espículas largas) e interneurônios de disparo rápido (espículas estreitas) — descritos por taxa basal ($\text{Hz}$), potencial de repouso ($\text{mV}$) e largura do <em>spike</em> ($\text{ms}$), mostrando como o KNN fracassa sem padronização e salta em acurácia dentro de um <c>Pipeline</c> com <c>StandardScaler</c>.
+
+      <code lang="python" id="cod:8-7-escala">
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(0)
+n_por_classe = 120
+
+# Classe 0: piramidais | Classe 1: interneurônios (diferença sutil em ms, grande ruído em Hz e mV)
+taxa_0 = rng.normal(50.0, 25.0, n_por_classe)
+repouso_0 = rng.normal(-70.0, 5.0, n_por_classe)
+largura_0 = rng.normal(1.30, 0.15, n_por_classe)
+
+taxa_1 = rng.normal(60.0, 25.0, n_por_classe)
+repouso_1 = rng.normal(-68.0, 5.0, n_por_classe)
+largura_1 = rng.normal(0.50, 0.12, n_por_classe)
+
+X = np.vstack([
+    np.column_stack([taxa_0, repouso_0, largura_0]),
+    np.column_stack([taxa_1, repouso_1, largura_1]),
+])
+y = np.array([0] * n_por_classe + [1] * n_por_classe)
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.3, stratify=y, random_state=0
+)
+
+knn_bruto = KNeighborsClassifier(n_neighbors=5).fit(X_treino, y_treino)
+knn_pad = Pipeline([
+    ("scaler", StandardScaler()),
+    ("knn", KNeighborsClassifier(n_neighbors=5)),
+]).fit(X_treino, y_treino)
+
+log_pad = Pipeline([
+    ("scaler", StandardScaler()),
+    ("clf", LogisticRegression(C=1.0, max_iter=1000)),
+]).fit(X_treino, y_treino)
+
+print(f"Acurácia KNN (dados brutos)       : {accuracy_score(y_teste, knn_bruto.predict(X_teste)):.3f}")
+# Acurácia KNN (dados brutos)       : 0.569
+print(f"Acurácia KNN (com StandardScaler) : {accuracy_score(y_teste, knn_pad.predict(X_teste)):.3f}")
+# Acurácia KNN (com StandardScaler) : 0.986
+print("Pesos padronizados [taxa, repouso, largura]:", np.round(log_pad.named_steps["clf"].coef_[0], 3))
+# Pesos padronizados [taxa, repouso, largura]: [ 0.251  0.342 -4.318]
+      </code>
+
+      <remark id="rem:8-7-armadilha-escala">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Comparar coeficientes brutos de variáveis em unidades distintas:</strong> concluir que $x_1$ "importa mais" que $x_2$ só porque $|\hat{\beta}_1| > |\hat{\beta}_2|$ é erro clássico quando $x_1$ e $x_2$ têm escalas diferentes (como $\text{ms}$ e $\text{Hz}$). Compare apenas após padronizar com <c>StandardScaler</c>.</item>
+          <item><strong>Padronizar toda a matriz $\mathbf{X}$ antes de dividir treino e teste:</strong> calcular a média e o desvio padrão globais vaza estatísticas do teste para o treino. Use sempre um <c>Pipeline</c>.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-7-1-1">
+        <title>Básico — Escore $z$ de potenciais de repouso à mão</title>
+        O potencial de repouso de $n = 5$ neurônios foi medido como $(-73,\; -71,\; -70,\; -69,\; -67)\text{ mV}$.
+        <list marker="a">
+          <item>Calcule a média $\bar{x}$, o desvio padrão populacional $s$ e os cinco escores $z$.</item>
+          <item>Qual potencial de repouso (em $\text{mV}$) corresponde a $z = +2{,}0$ nessa amostra?</item>
+        </list>
+        <hint><title>Ver dica</title>Subtraia $\bar{x} = -70\text{ mV}$ de cada medida para obter os desvios, eleve ao quadrado, divida por $n = 5$ e tire a raiz quadrada.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>A média vale $\bar{x} = \frac{-73 - 71 - 70 - 69 - 67}{5} = \frac{-350}{5} = -70\text{ mV}$. Os desvios são $(-3, -1, 0, +1, +3)\text{ mV}$, cuja soma dos quadrados é $9 + 1 + 0 + 1 + 9 = 20$. Dividindo por $n = 5$, temos $s^2 = 4$, logo $s = 2\text{ mV}$. Os escores $z$ ficam:
+              $$\mathbf{z} = \left(\frac{-3}{2},\; \frac{-1}{2},\; 0,\; \frac{1}{2},\; \frac{3}{2}\right) = (-1{,}5;\; -0{,}5;\; 0;\; +0{,}5;\; +1{,}5).$$
+            </item>
+            <item>Invertendo $z = \frac{x - \bar{x}}{s}$, temos $x = \bar{x} + z s = -70 + 2{,}0 \cdot 2 = -66\text{ mV}$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-7-1-2">
+        <title>Intermediário — Quem depende da escala e o que muda nos coeficientes?</title>
+        Um modelo linear sem regularização foi ajustado em dados eletrofisiológicos brutos: $\hat{y} = 50 + 20\,x_1 - 0{,}4\,x_2$, onde $x_1$ tem desvio padrão $s_1 = 0{,}1\text{ ms}$ e $x_2$ tem desvio padrão $s_2 = 10\text{ Hz}$.
+        <list marker="a">
+          <item>Se convertermos $x_1$ para segundos ($\tilde{x}_1 = x_1 / 1\,000$), o que ocorre com $\hat{\beta}_1$ e com o $R^2$ do modelo OLS? E se o mesmo modelo tivesse sido ajustado com <c>Ridge(alpha=10)</c>?</item>
+          <item>Calcule os coeficientes padronizados $\tilde{\beta}_1$ e $\tilde{\beta}_2$ e diga qual variável tem maior efeito por desvio padrão.</item>
+        </list>
+        <hint><title>Ver dica</title>Na OLS, $\hat{\beta}_1 x_1$ precisa permanecer constante quando a unidade muda; na <em>ridge</em>, a penalidade $\alpha\|\boldsymbol{\beta}\|_2^2$ depende diretamente do valor numérico de $\beta_1$. Para os pesos padronizados, use $\tilde{\beta}_j = \hat{\beta}_j s_j$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como $x_1 = 1\,000\,\tilde{x}_1$, na regressão OLS o coeficiente se ajusta para $\tilde{\beta}_1^{\text{s}} = 20 \cdot 1\,000 = 20\,000\text{ Hz/s}$, mantendo todas as previsões $\hat{y}_i$ e o $R^2$ idênticos. Já na <c>Ridge(alpha=10)</c>, o coeficiente gigantesco $20\,000$ sofreria uma penalidade quadrática absurda ($20\,000^2$ em vez de $20^2$), alterando drasticamente o ajuste e o $R^2$.</item>
+            <item>Multiplicando cada coeficiente pelo respectivo desvio padrão:
+              $$\tilde{\beta}_1 = 20 \cdot 0{,}1 = +2{,}0, \qquad \tilde{\beta}_2 = -0{,}4 \cdot 10 = -4{,}0.$$
+              Em termos padronizados, $x_2$ tem o dobro do impacto de $x_1$ ($|-4{,}0| = 2 \cdot |2{,}0|$), embora seu coeficiente bruto fosse $50$ vezes menor em módulo.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-7-1-3">
+        <title>Avançado — Artefatos de registro: <c>StandardScaler</c> vs. <c>RobustScaler</c></title>
+        Em registros de EEG, cerca de $5\%$ das janelas contêm artefatos musculares com amplitude $30$ vezes maior que a normal. Complete um script Python que gere $200$ amostras de duas classes separadas principalmente pela banda alfa, injete $10$ artefatos extremos apenas na banda beta do treino e compare a acurácia de teste de um <c>KNeighborsClassifier(5)</c> usando <c>StandardScaler</c> versus <c>RobustScaler</c> em <c>Pipeline</c>.
+        <hint><title>Ver dica</title>Importe <c>RobustScaler</c> de <c>sklearn.preprocessing</c> e substitua <c>StandardScaler()</c> no segundo <c>Pipeline</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import RobustScaler, StandardScaler
+
+rng = np.random.default_rng(0)
+n = 200
+y = rng.integers(0, 2, size=n)
+alfa = np.where(y == 1, rng.normal(2.0, 0.5, n), rng.normal(0.5, 0.5, n))
+beta = rng.normal(1.0, 0.4, n)
+X = np.column_stack([alfa, beta])
+
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.3, stratify=y, random_state=0)
+
+# Injeta 10 artefatos musculares apenas na coluna beta do treino
+X_tr_art = X_tr.copy()
+X_tr_art[:10, 1] += 40.0
+
+tubo_std = Pipeline([("scaler", StandardScaler()), ("knn", KNeighborsClassifier(5))]).fit(X_tr_art, y_tr)
+tubo_rob = Pipeline([("scaler", RobustScaler()), ("knn", KNeighborsClassifier(5))]).fit(X_tr_art, y_tr)
+
+print(f"Acurácia com StandardScaler: {accuracy_score(y_te, tubo_std.predict(X_te)):.3f}")
+# Acurácia com StandardScaler: 0.900
+print(f"Acurácia com RobustScaler  : {accuracy_score(y_te, tubo_rob.predict(X_te)):.3f}")
+# Acurácia com RobustScaler  : 0.950
+          </code>
+          Os artefatos inflam o desvio padrão de <c>beta</c> no <c>StandardScaler</c>, comprimindo as amostras limpas nessa direção e deslocando a média; o <c>RobustScaler</c> usa mediana e IQR, preservando a separação na banda alfa.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-7-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Multicolinearidade</title>
+      <intro>
+        Quando dois ou mais preditores carregam quase a mesma informação, a regressão não sabe como repartir o crédito entre eles: os pesos individuais oscilam e trocam de sinal, mesmo quando a previsão continua boa.
+      </intro>
+
+      Em neurociência, variáveis correlacionadas são a regra. Em um registro de EEG, eletrodos vizinhos captam a mesma atividade cortical por condução de volume, e as potências das bandas alfa ($8\text{–}12\text{ Hz}$) e beta ($13\text{–}30\text{ Hz}$) frequentemente sobem ou descem juntas com o estado de alerta. Em um experimento de fMRI com eventos rápidos, a lentidão da resposta hemodinâmica ($\mathrm{TR} \approx 2\text{ s}$, pico após $5\text{–}6\text{ s}$) faz com que regressores de eventos próximos se sobreponham no tempo. Esse fenômeno de alta dependência linear entre preditores chama-se <strong>multicolinearidade</strong> (<em>multicollinearity</em>).
+
+      Como vimos no Tema 8.6 (Regularização), a matriz $\mathbf{X}^\top\mathbf{X}$ se torna mal-condicionada quando há colinearidade, e os erros padrão dos coeficientes de mínimos quadrados disparam. Para medir esse problema em cada variável isolada e no conjunto inteiro, usamos dois diagnósticos complementares.
+
+      <definition id="def:8-7-vif-condicao">
+        <title>Fator de inflação da variância ($\mathrm{VIF}$) e número de condição</title>
+        Seja $\mathbf{X} \in \mathbb{R}^{n \times p}$ a matriz de preditores.
+        <list marker="number">
+          <item><strong>Fator de inflação da variância ($\mathrm{VIF}_j$):</strong> para cada variável $j \in \{1, \dots, p\}$, ajustamos uma regressão linear auxiliar de $x_j$ contra todas as outras $p - 1$ variáveis e calculamos o coeficiente de determinação $R_j^2$. Definimos:
+            <equation id="eq:8-7-vif">
+              \mathrm{VIF}_j = \frac{1}{1 - R_j^2}.
+            </equation>
+            Como $\operatorname{Var}(\hat{\beta}_j) = \frac{\sigma^2}{\sum_{i=1}^n (x_{ij} - \bar{x}_j)^2}\,\mathrm{VIF}_j$, um $\mathrm{VIF}_j = 10$ significa que a colinearidade multiplicou a variância de $\hat{\beta}_j$ por $10$ (e seu erro padrão por $\sqrt{10} \approx 3{,}16$). Como regra prática, $\mathrm{VIF}_j > 5$ já merece atenção e $\mathrm{VIF}_j > 10$ indica colinearidade severa.
+          </item>
+          <item><strong>Número de condição ($\kappa$):</strong> tomando $\mathbf{Z}$ padronizada, sejam $\mu_{\max} \ge \dots \ge \mu_{\min} \ge 0$ os autovalores da matriz simétrica $\mathbf{Z}^\top\mathbf{Z}$ (Módulo 5 — Autovalores e autovetores). O <strong>número de condição</strong> $\kappa(\mathbf{Z}^\top\mathbf{Z}) = \frac{\mu_{\max}}{\mu_{\min}}$ cresce sem limites quando uma combinação linear de colunas fica quase constante.</item>
+        </list>
+        <intuition>
+          Pense em dois neurônios que disparam quase em uníssono ($r = 0{,}95$). O modelo sabe que a <em>soma</em> dos pesos deles explica o comportamento, mas adicionar $+10$ a um e $-10$ ao outro quase não altera a previsão. A liberdade para essa gangorra é medida pelo $\mathrm{VIF}$.
+        </intuition>
+      </definition>
+
+      Diante de multicolinearidade alta, há quatro remédios clássicos, escolhidos conforme o seu objetivo científico:
+      <list marker="dash">
+        <item><strong>Regularização <em>ridge</em> (Tema 8.6):</strong> quando o foco é previsão, somar $\lambda\mathbf{I}$ a $\mathbf{X}^\top\mathbf{X}$ elimina o mau condicionamento e divide o peso de forma estável entre preditores irmãos.</item>
+        <item><strong>Combinar variáveis redundantes:</strong> somar ou tirar a média das potências de eletrodos vizinhos ou de variáveis da mesma família fisiológica.</item>
+        <item><strong>Redução de dimensionalidade (PCA, Tema 8.9):</strong> substituir colunas correlacionadas por poucos componentes principais ortogonais, onde $\mathrm{VIF} = 1$ por construção.</item>
+        <item><strong>Selecionar uma representante por critério biológico:</strong> quando o objetivo é inferência interpretável, manter apenas o preditor mais direto ou melhor fundamentado anatomicamente e descartar os redundantes.</item>
+      </list>
+
+      <example id="exm:8-7-vif-mao">
+        <title>Calculando o $\mathrm{VIF}$ e a inflação do erro padrão à mão</title>
+        Ao regredir a potência da banda beta de um canal de EEG nas demais variáveis espectrais do registro, obtemos $R_{\text{beta}}^2 = 0{,}90$.
+        <list marker="a">
+          <item>Qual é o $\mathrm{VIF}_{\text{beta}}$ e por que fator ele amplia o erro padrão de $\hat{\beta}_{\text{beta}}$?</item>
+          <item>Se houvesse apenas duas variáveis preditoras com correlação de Pearson $r = 0{,}80$, qual seria o $\mathrm{VIF}$ delas?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Substituindo $R_{\text{beta}}^2 = 0{,}90$ na <ref to="eq:8-7-vif"/>:
+            $$\mathrm{VIF}_{\text{beta}} = \frac{1}{1 - 0{,}90} = \frac{1}{0{,}10} = 10.$$
+            Como o erro padrão é proporcional a $\sqrt{\mathrm{VIF}}$, a colinearidade amplia a incerteza do coeficiente por um fator $\sqrt{10} \approx 3{,}16$.
+          </item>
+          <item>Com apenas dois preditores, o $R^2$ da regressão de um sobre o outro vale exatamente $r^2 = 0{,}80^2 = 0{,}64$. Logo:
+            $$\mathrm{VIF} = \frac{1}{1 - 0{,}64} = \frac{1}{0{,}36} \approx 2{,}78,$$
+            valor moderado e abaixo do limiar prático de alerta ($5$).</item>
+        </list>
+      </example>
+
+      <example id="exm:8-7-fmri-sinais-trocados">
+        <title>Regressores sobrepostos de fMRI: pesos trocados, previsão preservada</title>
+        Em um experimento de decisão perceptual em fMRI ($\mathrm{TR} = 2\text{ s}$), o estímulo visual ($x_1$) e a resposta motora ($x_2$, $0{,}5\text{ s}$ depois) geram regressores hemodinâmicos com correlação $r = 0{,}95$. A resposta verdadeira de um voxel motor é $y = 2{,}0\,x_1 + 1{,}0\,x_2 + \varepsilon$, mas em uma corrida específica os mínimos quadrados devolvem $\hat{y} = 5{,}8\,x_1 - 2{,}9\,x_2$. Explique por que o coeficiente de $x_2$ ficou negativo e o que acontece com a previsão quando $x_1 \approx x_2 \approx 1{,}0$.
+
+        <strong>Solução.</strong> Como $x_1$ e $x_2$ quase sempre sobem juntos, a diferença $(x_1 - x_2)$ é muito pequena e passa a ajustar o ruído aleatório $\varepsilon$ daquela corrida, empurrando $\hat{\beta}_1$ para cima e $\hat{\beta}_2$ para baixo com sinal invertido. Contudo, em um novo ensaio típico com $x_1 = x_2 = 1{,}0$, o sinal verdadeiro esperado é $2{,}0(1) + 1{,}0(1) = 3{,}0$, enquanto o modelo ajustado prevê $5{,}8(1) - 2{,}9(1) = 2{,}9$ — um erro de apenas $0{,}1$! Isso mostra que a multicolinearidade destrói a interpretação individual dos pesos, mas não impede boas previsões enquanto a correlação entre preditores se mantiver.
+      </example>
+
+      No bloco abaixo, calculamos o $\mathrm{VIF}$ de cada variável usando apenas <c>LinearRegression</c> e acompanhamos, por <em>bootstrap</em> (Tema 8.5), como o desvio padrão dos coeficientes explode quando duas bandas de EEG têm correlação $0{,}95$, enquanto o $R^2$ de teste permanece alto.
+
+      <code lang="python" id="cod:8-7-vif-bootstrap">
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+from sklearn.preprocessing import StandardScaler
+
+def calcular_vif(X):
+    vifs = []
+    for j in range(X.shape[1]):
+        outras = np.delete(X, j, axis=1)
+        r2 = LinearRegression().fit(outras, X[:, j]).score(outras, X[:, j])
+        vifs.append(1.0 / (1.0 - r2))
+    return np.array(vifs)
+
+rng = np.random.default_rng(0)
+n_treino, n_teste = 100, 50
+n_total = n_treino + n_teste
+
+# Bandas: delta independente; alfa e beta com correlação ~ 0.95
+delta = rng.normal(0.0, 1.0, n_total)
+alfa = rng.normal(0.0, 1.0, n_total)
+beta = 0.95 * alfa + np.sqrt(1.0 - 0.95**2) * rng.normal(0.0, 1.0, n_total)
+
+X = np.column_stack([delta, alfa, beta])
+y = 1.5 * delta + 1.0 * alfa + 1.0 * beta + rng.normal(0.0, 1.0, n_total)
+
+X_tr, X_te = X[:n_treino], X[n_treino:]
+y_tr, y_te = y[:n_treino], y[n_treino:]
+
+Z_tr = StandardScaler().fit_transform(X_tr)
+kappa = np.linalg.cond(Z_tr.T @ Z_tr)
+vifs = calcular_vif(X_tr)
+
+# Bootstrap (B = 200) para medir a instabilidade dos coeficientes
+coefs_boot = np.empty((200, 3))
+for b in range(200):
+    idx = rng.integers(0, n_treino, size=n_treino)
+    coefs_boot[b] = LinearRegression().fit(X_tr[idx], y_tr[idx]).coef_
+
+ols = LinearRegression().fit(X_tr, y_tr)
+r2_te = r2_score(y_te, ols.predict(X_te))
+
+print("VIF [delta, alfa, beta]          :", np.round(vifs, 2))
+# VIF [delta, alfa, beta]          : [ 1.02 10.48 10.45]
+print(f"Número de condição de Z^T Z      : {kappa:.1f}")
+# Número de condição de Z^T Z      : 39.4
+print("Desvio bootstrap dos coefs       :", np.round(coefs_boot.std(axis=0), 3))
+# Desvio bootstrap dos coefs       : [0.098 0.318 0.315]
+print(f"R² de teste (previsão)           : {r2_te:.3f}")
+# R² de teste (previsão)           : 0.858
+      </code>
+
+      <remark id="rem:8-7-armadilha-vif">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Achar que VIF alto estraga necessariamente a previsão:</strong> como você acabou de ver com $R^2_{\text{teste}} \approx 0{,}86$, modelos com $\mathrm{VIF} > 10$ podem prever muito bem se os novos dados mantiverem a mesma correlação entre preditores. O que colapsa é a <em>interpretação</em> de cada coeficiente isolado.</item>
+          <item><strong>Olhar só para correlações $2$ a $2$:</strong> três ou mais variáveis podem ser quase linearmente dependentes (por exemplo, $x_3 \approx x_1 + x_2$) mesmo sem nenhuma correlação par a par extrema. Só o $\mathrm{VIF}$ e o número de condição detectam colinearidade múltipla.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-7-2-1">
+        <title>Básico — Tabela rápida de $\mathrm{VIF}$ e erro padrão</title>
+        Em três variáveis de um modelo de regressão, as regressões auxiliares contra as demais variáveis produziram $R_1^2 = 0{,}50$, $R_2^2 = 0{,}80$ e $R_3^2 = 0{,}96$. Calcule o $\mathrm{VIF}$ de cada variável e o fator pelo qual o erro padrão de seu coeficiente é multiplicado.
+        <hint><title>Ver dica</title>Aplique $\mathrm{VIF}_j = \frac{1}{1 - R_j^2}$ e lembre que o fator de ampliação no erro padrão é $\sqrt{\mathrm{VIF}_j}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="dash">
+            <item>Variável 1 ($R_1^2 = 0{,}50$): $\mathrm{VIF}_1 = \frac{1}{1 - 0{,}50} = 2$; erro padrão ampliado por $\sqrt{2} \approx 1{,}41$.</item>
+            <item>Variável 2 ($R_2^2 = 0{,}80$): $\mathrm{VIF}_2 = \frac{1}{1 - 0{,}80} = 5$; erro padrão ampliado por $\sqrt{5} \approx 2{,}24$.</item>
+            <item>Variável 3 ($R_3^2 = 0{,}96$): $\mathrm{VIF}_3 = \frac{1}{1 - 0{,}96} = 25$; erro padrão ampliado por $\sqrt{25} = 5{,}00$.</item>
+          </list>
+          A variável 3 tem erro padrão cinco vezes maior do que teria se fosse ortogonal às demais.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-7-2-2">
+        <title>Intermediário — Eletrodos vizinhos com sinais trocados</title>
+        Dois eletrodos parietais vizinhos ($x_1$ e $x_2$) têm correlação $r = 0{,}90$. Um modelo verdadeiro de atenção obedece a $y = 1{,}0\,x_1 + 1{,}0\,x_2 + \varepsilon$, mas a regressão em uma amostra pequena retorna $\hat{\beta}_1 = +4{,}5$ e $\hat{\beta}_2 = -2{,}5$.
+        <list marker="a">
+          <item>Calcule o $\mathrm{VIF}$ entre $x_1$ e $x_2$.</item>
+          <item>Mostre por que as previsões continuam coerentes quando $x_1 \approx x_2$ e cite dois remédios adequados para estabilizar a interpretação.</item>
+        </list>
+        <hint><title>Ver dica</title>Com duas variáveis, $R_1^2 = r^2$. Para a previsão, some os coeficientes quando $x_1 = x_2 = x$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Temos $R_1^2 = 0{,}90^2 = 0{,}81$, logo $\mathrm{VIF}_1 = \mathrm{VIF}_2 = \frac{1}{1 - 0{,}81} = \frac{1}{0{,}19} \approx 5{,}26$.</item>
+            <item>Quando $x_1 = x_2 = x$, o modelo verdadeiro gera $1{,}0 x + 1{,}0 x = 2{,}0 x$, e o ajustado gera $4{,}5 x - 2{,}5 x = 2{,}0 x$ — previsões praticamente iguais, apesar dos pesos com sinais opostos. Para remediar, podemos usar regressão <em>ridge</em> (que equilibra $\hat{\beta}_1 \approx \hat{\beta}_2 \approx 1{,}0$) ou substituir os dois canais pela sua média $(x_1 + x_2)/2$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-7-2-3">
+        <title>Avançado — Colinearidade oculta em 3 variáveis e efeito da <c>Ridge</c></title>
+        Gere $120$ amostras com $x_1, x_2 \sim \mathcal{N}(0, 1)$ independentes e $x_3 = x_1 + x_2 + 0{,}05\,\eta$ ($\eta \sim \mathcal{N}(0, 1)$), com $y = 2x_1 - x_2 + x_3 + \varepsilon$. Verifique em Python que nenhuma correlação par a par ultrapassa $0{,}80$, mas o $\mathrm{VIF}$ de $x_3$ explode, e compare o desvio <em>bootstrap</em> dos coeficientes do OLS com os de <c>Ridge(alpha=5.0)</c>.
+        <hint><title>Ver dica</title>Use <c>np.corrcoef(X, rowvar=False)</c> para ver a matriz de correlações par a par e repita o laço <em>bootstrap</em> com <c>Ridge(alpha=5.0)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.linear_model import LinearRegression, Ridge
+
+def calcular_vif(X):
+    return np.array([
+        1.0 / (1.0 - LinearRegression().fit(np.delete(X, j, axis=1), X[:, j]).score(np.delete(X, j, axis=1), X[:, j]))
+        for j in range(X.shape[1])
+    ])
+
+rng = np.random.default_rng(0)
+n = 120
+x1 = rng.normal(0.0, 1.0, n)
+x2 = rng.normal(0.0, 1.0, n)
+x3 = x1 + x2 + 0.05 * rng.normal(0.0, 1.0, n)
+X = np.column_stack([x1, x2, x3])
+y = 2.0 * x1 - 1.0 * x2 + 1.0 * x3 + rng.normal(0.0, 1.0, n)
+
+corr = np.corrcoef(X, rowvar=False)
+maior_par = np.max(np.abs(corr - np.eye(3)))
+
+b_ols = np.empty((200, 3))
+b_ridge = np.empty((200, 3))
+for b in range(200):
+    idx = rng.integers(0, n, size=n)
+    b_ols[b] = LinearRegression().fit(X[idx], y[idx]).coef_
+    b_ridge[b] = Ridge(alpha=5.0).fit(X[idx], y[idx]).coef_
+
+print(f"Maior |correlacao| par a par : {maior_par:.3f}")
+# Maior |correlacao| par a par : 0.728
+print("VIF [x1, x2, x3]             :", np.round(calcular_vif(X), 1))
+# VIF [x1, x2, x3]             : [412.5 415.1 826.9]
+print("Desvio bootstrap OLS         :", np.round(b_ols.std(axis=0), 3))
+# Desvio bootstrap OLS         : [1.842 1.855 1.838]
+print("Desvio bootstrap Ridge (a=5) :", np.round(b_ridge.std(axis=0), 3))
+# Desvio bootstrap Ridge (a=5) : [0.095 0.092 0.081]
+          </code>
+          Embora nenhuma correlação $2$ a $2$ assuste ($0{,}728$), a dependência tripla eleva o $\mathrm{VIF}$ acima de $400$; a <c>Ridge</c> reduz a variabilidade dos coeficientes em quase $20$ vezes.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-7-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Seleção de subconjuntos: forward, backward e melhor subconjunto</title>
+      <intro>
+        Testar todas as combinações possíveis de variáveis explode exponencialmente; algoritmos gulosos passo a passo contornam esse muro, mas exigem cuidado redobrado contra vazamento de dados.
+      </intro>
+
+      Em vez de encolher todos os coeficientes com a regressão <em>ridge</em>, muitas vezes queremos ficar apenas com um pequeno conjunto de variáveis essenciais. A abordagem direta chama-se <strong>seleção do melhor subconjunto</strong> (<em>best subset selection</em>): ajustar um modelo para cada subconjunto possível dentre os $p$ preditores e escolher o vencedor. O obstáculo é combinatório (Módulo 7 — Combinatória): cada variável pode entrar ou ficar fora, gerando $2^p$ subconjuntos. Para $p = 10$, são $2^{10} = 1\,024$ modelos; para $p = 20$, já passa de um milhão ($2^{20} = 1\,048\,576$); e para $p = 40$ (menos que um capacete padrão de $64$ canais de EEG!), supera $10^{12}$ modelos — completamente inviável.
+
+      Para tornar a busca tratável, recorremos a algoritmos gulosos que adicionam ou removem uma variável por vez, chamados de <strong>seleção passo a passo</strong> (<em>stepwise selection</em>).
+
+      <definition id="def:8-7-stepwise">
+        <title>Seleção passo a passo para frente (<em>forward</em>) e para trás (<em>backward</em>)</title>
+        Dados $p$ preditores e um critério de qualidade fora da amostra (em geral, o erro de validação cruzada):
+        <list marker="number">
+          <item><strong>Seleção para frente (<em>forward stepwise</em>):</strong> parte do modelo nulo (sem preditores, apenas o intercepto). No passo $1$, testa os $p$ modelos de tamanho $1$ e fixa a melhor variável; no passo $2$, testa juntar cada uma das $p - 1$ restantes e fixa a que mais melhora o critério; repete até atingir $p$ variáveis (ou o tamanho desejado $m$). O caminho completo avalia apenas:
+            <equation id="eq:8-7-contagem-stepwise">
+              1 + p + (p - 1) + \dots + 1 = 1 + \frac{p(p + 1)}{2}\text{ modelos.}
+            </equation>
+          </item>
+          <item><strong>Seleção para trás (<em>backward stepwise</em>):</strong> parte do modelo completo com todas as $p$ variáveis. Em cada passo, testa remover uma variável por vez e elimina a que menos prejudica (ou mais melhora) o critério. Também avalia $1 + \frac{p(p+1)}{2}$ modelos no caminho completo, mas com uma exigência importante na regressão linear comum: precisa de <strong>$n > p$</strong> para conseguir ajustar o modelo inicial completo.</item>
+        </list>
+        <intuition>
+          A seleção passo a passo funciona como montar uma equipe escalando (ou cortando) um integrante por rodada. Ela é rapidíssima — cai de $1\,048\,576$ modelos para apenas $211$ quando $p = 20$ —, mas por ser <em>gulosa</em> (decisões já tomadas não são desfeitas), pode deixar escapar a melhor combinação global quando duas variáveis só brilham juntas.
+        </intuition>
+      </definition>
+
+      Como decidir o tamanho ótimo do subconjunto? Nunca use o $\mathrm{MSE}$ nem o $R^2$ de <strong>treino</strong>, pois adicionar qualquer coluna irrelevante sempre reduz (ou mantém) a $\mathrm{RSS}$ de treino. O critério preferido em ML é o <strong>erro de validação cruzada</strong> (Tema 8.5), que mede diretamente a generalização. Na estatística clássica, também se usam critérios analíticos que penalizam o número de variáveis adicionadas, como o $R^2$ ajustado, o critério de informação de Akaike ($\mathrm{AIC}$) e o critério de informação bayesiano ($\mathrm{BIC}$, que aplica multa mais severa por parâmetro extra e tende a escolher modelos mais enxutos).
+
+      No <c>scikit-learn</c>, ambos os métodos são implementados por <c>SequentialFeatureSelector(estimador, n_features_to_select=..., direction="forward" | "backward", cv=...)</c>. E aqui vale uma regra inegociável de validação (Tema 8.5): <strong>a seleção de variáveis precisa ficar dentro da validação cruzada</strong> (ou ser ajustada apenas no treino, dentro de um <c>Pipeline</c>), nunca antes! Selecionar as variáveis usando o conjunto inteiro e só depois rodar a CV é uma forma clássica de <strong>análise circular</strong> (<em>double dipping</em>; Kriegeskorte et al., 2009), que produz acurácias altas até em ruído puro.
+
+      <example id="exm:8-7-forward-mao">
+        <title>Executando a seleção <em>forward</em> à mão com erros de CV</title>
+        Queremos prever o tempo de reação a partir de $p = 3$ variáveis: potência delta ($x_1$), potência alfa ($x_2$) e frequência cardíaca ($x_3$). Os erros quadráticos médios de validação cruzada ($\mathrm{MSE}_{\text{CV}}$) para cada subconjunto são:
+        <list marker="dash">
+          <item>Nulo ($\emptyset$): $10{,}0$.</item>
+          <item>Tamanho $1$: $\{x_1\} = 6{,}2$, $\{x_2\} = 4{,}8$, $\{x_3\} = 8{,}5$.</item>
+          <item>Tamanho $2$: $\{x_1, x_2\} = 3{,}1$, $\{x_1, x_3\} = 5{,}9$, $\{x_2, x_3\} = 4{,}9$.</item>
+          <item>Tamanho $3$: $\{x_1, x_2, x_3\} = 3{,}5$.</item>
+        </list>
+        Acompanhe o caminho da seleção <em>forward</em>, indique o subconjunto vencedor e conte quantos modelos ela avaliou.
+
+        <strong>Solução.</strong>
+        <list marker="number">
+          <item><strong>Passo 0:</strong> modelo nulo, $\mathrm{MSE}_{\text{CV}} = 10{,}0$.</item>
+          <item><strong>Passo 1:</strong> entre os $3$ modelos de tamanho $1$, o menor erro é de $\{x_2\}$ ($4{,}8$). Fixamos $x_2$.</item>
+          <item><strong>Passo 2:</strong> a partir de $\{x_2\}$, testamos apenas os $2$ modelos que contêm $x_2$: $\{x_2, x_1\}$ ($3{,}1$) e $\{x_2, x_3\}$ ($4{,}9$). O vencedor é $\{x_1, x_2\}$ ($3{,}1$). (Repare que $\{x_1, x_3\}$ nunca chega a ser testado.)</item>
+          <item><strong>Passo 3:</strong> juntando $x_3$, $\{x_1, x_2, x_3\}$ sobe para $3{,}5$ (piora).</item>
+        </list>
+        Entre todos os modelos do caminho, o melhor é $\{x_1, x_2\}$ com $\mathrm{MSE}_{\text{CV}} = 3{,}1$. Ao todo, a busca completa avaliou $1 + \frac{3 \cdot 4}{2} = 7$ modelos (contra $2^3 = 8$ do melhor subconjunto).
+      </example>
+
+      <example id="exm:8-7-double-dipping">
+        <title>Análise circular (<em>double dipping</em>) em seleção de voxels</title>
+        Em um estudo de fMRI com $n = 40$ sujeitos ($20$ pacientes e $20$ controles) e $p = 500$ voxels, um pesquisador calcula a correlação de cada voxel com o diagnóstico usando todos os $40$ sujeitos, retém os $5$ voxels de maior correlação e depois obtém $85\%$ de acurácia em validação cruzada $5$-fold sobre esses $5$ voxels. Por que esse resultado não é confiável e como corrigi-lo?
+
+        <strong>Solução.</strong> Ao usar os rótulos dos $40$ sujeitos para escolher os $5$ voxels antes de dividir as dobras, os dados de teste de cada dobra já influenciaram a seleção (vazamento de dados). Mesmo que os $500$ voxels fossem ruído gaussiano independente sem nenhuma relação com a doença, os $5$ maiores entre $500$ terão correlação espúria alta na amostra e fabricarão acurácia bem acima dos $50\%$ esperados ao acaso. Correção: coloque a etapa de seleção dentro de um <c>Pipeline</c> passado diretamente ao <c>cross_val_score</c>, de modo que os $5$ melhores sejam escolhidos usando somente os $32$ sujeitos de treino de cada dobra.
+      </example>
+
+      No bloco seguinte, aplicamos <c>SequentialFeatureSelector</c> (<em>forward</em> e <em>backward</em>) no conjunto clínico <c>load_diabetes</c> do <c>scikit-learn</c> ($n = 442$, $p = 10$ variáveis), sempre dentro de um <c>Pipeline</c> ajustado apenas no treino e avaliado em um conjunto de teste separado.
+
+      <code lang="python" id="cod:8-7-sfs">
+import numpy as np
+from sklearn.datasets import load_diabetes
+from sklearn.feature_selection import SequentialFeatureSelector
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+dados = load_diabetes()
+X, y = dados.data, dados.target
+nomes = np.array(dados.feature_names)
+
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.25, random_state=0)
+
+completo = Pipeline([
+    ("scaler", StandardScaler()),
+    ("reg", LinearRegression()),
+]).fit(X_tr, y_tr)
+
+print(f"R² teste (todas 10 vars): {r2_score(y_te, completo.predict(X_te)):.3f}")
+# R² teste (todas 10 vars): 0.359
+
+for direcao in ["forward", "backward"]:
+    sfs = SequentialFeatureSelector(
+        LinearRegression(), n_features_to_select=4, direction=direcao, cv=5
+    )
+    tubo = Pipeline([
+        ("scaler", StandardScaler()),
+        ("sel", sfs),
+        ("reg", LinearRegression()),
+    ]).fit(X_tr, y_tr)
+    escolhidas = nomes[tubo.named_steps["sel"].get_support()]
+    r2_te = r2_score(y_te, tubo.predict(X_te))
+    print(f"{direcao:8s} (4 vars) -> {escolhidas.tolist()} | R² teste: {r2_te:.3f}")
+
+# forward  (4 vars) -> ['bmi', 'bp', 's3', 's5'] | R² teste: 0.352
+# backward (4 vars) -> ['bmi', 'bp', 's3', 's5'] | R² teste: 0.352
+      </code>
+
+      <remark id="rem:8-7-armadilha-sfs">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Selecionar variáveis com todos os dados e depois validar:</strong> rodar a seleção fora da CV vaza os rótulos do teste e transforma ruído puro em descoberta aparente.</item>
+          <item><strong>Comparar subconjuntos pelo $R^2$ de treino:</strong> o $R^2$ de treino nunca diminui ao acrescentar variáveis; use erro de CV (ou BIC/$R^2$ ajustado).</item>
+          <item><strong>Aplicar seleção <em>backward</em> com OLS quando $p \ge n$:</strong> o passo inicial exige ajustar o modelo completo, o que fica indefinido sem regularização quando há mais variáveis que amostras.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-7-3-1">
+        <title>Básico — Quantos modelos cada estratégia ajusta?</title>
+        Compare o número total de modelos avaliados pela seleção do melhor subconjunto ($2^p$) e pelo caminho completo da seleção <em>forward</em> ($1 + \frac{p(p+1)}{2}$) para:
+        <list marker="a">
+          <item>$p = 5$ variáveis (por exemplo, $5$ bandas de EEG);</item>
+          <item>$p = 15$ variáveis (por exemplo, $15$ métricas eletrofisiológicas).</item>
+        </list>
+        <hint><title>Ver dica</title>Substitua $p = 5$ e $p = 15$ diretamente nas fórmulas $2^p$ e $1 + \frac{p(p+1)}{2}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Para $p = 5$: melhor subconjunto testa $2^5 = 32$ modelos; <em>forward</em> completa testa $1 + \frac{5 \cdot 6}{2} = 1 + 15 = 16$ modelos.</item>
+            <item>Para $p = 15$: melhor subconjunto testa $2^{15} = 32\,768$ modelos; <em>forward</em> completa testa $1 + \frac{15 \cdot 16}{2} = 1 + 120 = 121$ modelos — cerca de $270$ vezes menos.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-7-3-2">
+        <title>Intermediário — Quando a seleção <em>forward</em> perde o melhor subconjunto</title>
+        Um modelo prevê a aprendizagem de uma tarefa a partir de $3$ variáveis neurais — taxa basal ($x_1$), índice de rajadas ($x_2$) e latência ($x_3$) — com os seguintes $\mathrm{MSE}_{\text{CV}}$:
+        $$\emptyset = 12{,}0; \quad \{x_1\} = 8{,}0, \; \{x_2\} = 9{,}0, \; \{x_3\} = 7{,}5;$$
+        $$\{x_1, x_2\} = 3{,}0, \; \{x_1, x_3\} = 6{,}5, \; \{x_2, x_3\} = 6{,}8; \quad \{x_1, x_2, x_3\} = 3{,}4.$$
+        <list marker="a">
+          <item>Qual subconjunto é escolhido pela seleção <em>forward</em> e qual é escolhido pela seleção <em>backward</em>?</item>
+          <item>Por que a <em>forward</em> deixou escapar o melhor subconjunto global $\{x_1, x_2\}$?</item>
+        </list>
+        <hint><title>Ver dica</title>Na <em>forward</em>, parta do vencedor de tamanho $1$ ($\{x_3\}$); na <em>backward</em>, parta de $\{x_1, x_2, x_3\}$ e veja qual remoção reduz mais o erro.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item><strong>Seleção <em>forward</em>:</strong> no passo $1$, escolhe $\{x_3\}$ ($7{,}5$); no passo $2$, entre $\{x_1, x_3\}$ ($6{,}5$) e $\{x_2, x_3\}$ ($6{,}8$), escolhe $\{x_1, x_3\}$ ($6{,}5$); no passo $3$, $\{x_1, x_2, x_3\}$ cai para $3{,}4$. Logo, a <em>forward</em> termina em $\{x_1, x_2, x_3\}$ ($3{,}4$).
+              <strong>Seleção <em>backward</em>:</strong> parte de $\{x_1, x_2, x_3\}$ ($3{,}4$). Ao remover uma variável, $\{x_1, x_2\}$ cai para $3{,}0$, enquanto $\{x_1, x_3\}$ ($6{,}5$) e $\{x_2, x_3\}$ ($6{,}8$) pioram. Remove $x_3$ e fixa $\{x_1, x_2\}$ ($3{,}0$); nos passos seguintes $\{x_1\}$ ($8{,}0$) e $\{x_2\}$ ($9{,}0$) pioram. Logo, a <em>backward</em> escolhe o melhor subconjunto global $\{x_1, x_2\}$ ($3{,}0$).</item>
+            <item>Porque $x_1$ e $x_2$ têm um efeito sinérgico quando estão juntos ($3{,}0$), mas isoladamente cada um perde para $x_3$ ($7{,}5$). Como a busca <em>forward</em> nunca desfaz a entrada inicial de $x_3$, ela fica presa em caminhos que contêm $x_3$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-7-3-3">
+        <title>Avançado — Provando o vazamento da seleção fora da CV em ruído puro</title>
+        Gere $n = 60$ amostras e $p = 120$ variáveis de ruído gaussiano puro $\mathbf{X}$ sem nenhuma relação com o alvo binário aleatório $\mathbf{y} \in \{0, 1\}$. Compare em Python a acurácia média em $5$-fold CV de <c>LogisticRegression</c> quando aplicamos <c>SelectKBest(f_classif, k=5)</c> <strong>antes</strong> da validação cruzada (errado) versus <strong>dentro</strong> de um <c>Pipeline</c> (correto).
+        <hint><title>Ver dica</title>Importe <c>SelectKBest</c> e <c>f_classif</c> de <c>sklearn.feature_selection</c> e use <c>StratifiedKFold(n_splits=5, shuffle=True, random_state=0)</c> em <c>cross_val_score</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.feature_selection import SelectKBest, f_classif
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import StratifiedKFold, cross_val_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(0)
+X = rng.normal(0.0, 1.0, size=(60, 120))
+y = np.array([0] * 30 + [1] * 30)  # Alvo balanceado sem relação com X
+rng.shuffle(y)
+
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
+clf = Pipeline([("scaler", StandardScaler()), ("reg", LogisticRegression(C=1.0, max_iter=1000))])
+
+# ERRADO: seleção feita antes com todos os 60 exemplos
+X_vazado = SelectKBest(f_classif, k=5).fit_transform(X, y)
+acc_errada = cross_val_score(clf, X_vazado, y, cv=cv).mean()
+
+# CORRETO: seleção dentro do Pipeline (refeita em cada dobra)
+tubo_correto = Pipeline([
+    ("scaler", StandardScaler()),
+    ("sel", SelectKBest(f_classif, k=5)),
+    ("reg", LogisticRegression(C=1.0, max_iter=1000)),
+])
+acc_correta = cross_val_score(tubo_correto, X, y, cv=cv).mean()
+
+print(f"Acurácia com vazamento (errado) : {acc_errada:.3f}")
+# Acurácia com vazamento (errado) : 0.800
+print(f"Acurácia no Pipeline (correto)  : {acc_correta:.3f}")
+# Acurácia no Pipeline (correto)  : 0.483
+          </code>
+          Em ruído puro, a seleção correta fica perto do acaso ($0{,}50$), enquanto o vazamento fabrica cerca de $80\%$ de acurácia ilusória.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-7-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Importância por permutação</title>
+      <intro>
+        Para descobrir de quais variáveis um modelo já treinado realmente depende — seja ele linear, KNN ou uma caixa-preta —, embaralhamos uma coluna de cada vez no conjunto de teste e medimos quanto o desempenho despenca.
+      </intro>
+
+      Coeficientes padronizados só existem em modelos lineares. Como avaliar a importância das variáveis quando usamos KNN (Tema 8.3), árvores (Tema 8.8) ou SVMs não lineares (Tema 8.11)? A resposta mais universal é a <strong>importância por permutação</strong> (<em>permutation importance</em>). A ideia, introduzida por Breiman (2001) para florestas aleatórias e generalizada para qualquer algoritmo, é simples: pegue um conjunto de dados <strong>que o modelo não viu no treino</strong> (validação ou teste), meça o escore de referência e depois quebre propositalmente a relação entre uma única coluna $j$ e a resposta $y$, embaralhando os valores dessa coluna entre as amostras. Se o modelo usava muito a variável $j$, seu escore desaba; se ela era ignorada, o escore quase não muda.
+
+      <definition id="def:8-7-permutacao">
+        <title>Importância por permutação fora da amostra</title>
+        Seja $\hat{f}$ um modelo ajustado no treino e $S_{\text{base}} = S(\mathbf{X}_{\text{teste}}, \mathbf{y}_{\text{teste}})$ o seu escore de referência no conjunto de teste (por exemplo, $R^2$ ou acurácia). Para cada variável $j \in \{1, \dots, p\}$ e cada repetição $r \in \{1, \dots, R\}$:
+        <list marker="number">
+          <item>geramos $\tilde{\mathbf{X}}^{(j,r)}$ permutando aleatoriamente apenas a coluna $j$ de $\mathbf{X}_{\text{teste}}$ (preservando a distribuição marginal dessa variável e todas as outras colunas);</item>
+          <item>calculamos o escore degradado $S_{j,r} = S(\tilde{\mathbf{X}}^{(j,r)}, \mathbf{y}_{\text{teste}})$ e a queda $I_{j,r} = S_{\text{base}} - S_{j,r}$.</item>
+        </list>
+        A <strong>importância por permutação</strong> e seu desvio padrão entre as $R$ repetições são:
+        <equation id="eq:8-7-imp-perm">
+          \bar{I}_j = \frac{1}{R}\sum_{r=1}^R I_{j,r}, \qquad s_{I,j} = \sqrt{\frac{1}{R}\sum_{r=1}^R (I_{j,r} - \bar{I}_j)^2}.
+        </equation>
+        <intuition>
+          Embaralhar uma coluna no teste equivale a tapar um único eletrodo de EEG com sinal aleatório plausível enquanto todos os outros funcionam normalmente: quanto pior o decodificador fica sem aquele eletrodo específico, maior era sua dependência preditiva nele.
+        </intuition>
+      </definition>
+
+      No <c>scikit-learn</c>, <c>permutation_importance(modelo, X_teste, y_teste, n_repeats=30, random_state=0)</c> calcula diretamente <c>.importances_mean</c> ($\bar{I}_j$) e <c>.importances_std</c> ($s_{I,j}$). Embora funcione para qualquer modelo, sua leitura exige quatro cuidados fundamentais:
+      <list marker="dash">
+        <item><strong>Calcule sempre fora do treino:</strong> no conjunto de treino, variáveis irrelevantes que o modelo decorou no sobreajuste exibem queda artificialmente alta ao serem embaralhadas. Só o conjunto de teste (ou validação) revela o que ajuda na generalização.</item>
+        <item><strong>Variáveis correlacionadas dividem ou escondem a importância:</strong> se duas bandas ou dois eletrodos têm correlação $r = 0{,}95$, ao embaralhar uma coluna a coluna irmã permanece intacta e fornece quase a mesma informação ao modelo, fazendo a importância individual parecer pequena para ambas.</item>
+        <item><strong>Importância preditiva $\ne$ causalidade:</strong> a permutação mede quanto <em>aquele modelo</em> usa a variável $j$ para prever. Como alertaram Haufe et al. (2014) para modelos lineares de decodificação neural, uma variável não ligada diretamente ao sinal de interesse pode ganhar peso alto se ajudar a cancelar um ruído comum a outros sensores.</item>
+        <item><strong>Não confunda com a importância de impureza das árvores:</strong> no Tema 8.8 (Árvores), veremos uma métrica interna baseada na redução de impureza no <em>treino</em>, que tende a favorecer variáveis contínuas com muitos cortes possíveis; a importância por permutação no teste corrige esse viés.</item>
+      </list>
+
+      <example id="exm:8-7-perm-mao">
+        <title>Calculando a importância por permutação à mão</title>
+        Um classificador de estágios do sono atingiu acurácia de base $S_{\text{base}} = 0{,}90$ no teste. Ao permutar cada uma de $4$ bandas espectrais por $R = 2$ repetições, obtivemos os escores:
+        <list marker="dash">
+          <item>Delta: $0{,}62$ e $0{,}66$;</item>
+          <item>Alfa: $0{,}74$ e $0{,}78$;</item>
+          <item>Beta: $0{,}88$ e $0{,}90$;</item>
+          <item>Gama: $0{,}91$ e $0{,}89$.</item>
+        </list>
+        Calcule $\bar{I}_j$ e $s_{I,j}$ para cada banda e interprete o valor obtido em gama.
+
+        <strong>Solução.</strong> Subtraímos cada escore de $S_{\text{base}} = 0{,}90$:
+        <list marker="dash">
+          <item><strong>Delta:</strong> quedas $0{,}90 - 0{,}62 = 0{,}28$ e $0{,}90 - 0{,}66 = 0{,}24 \implies \bar{I}_{\text{delta}} = 0{,}26$, $s_{I,\text{delta}} = 0{,}02$.</item>
+          <item><strong>Alfa:</strong> quedas $0{,}90 - 0{,}74 = 0{,}16$ e $0{,}90 - 0{,}78 = 0{,}12 \implies \bar{I}_{\text{alfa}} = 0{,}14$, $s_{I,\text{alfa}} = 0{,}02$.</item>
+          <item><strong>Beta:</strong> quedas $0{,}90 - 0{,}88 = 0{,}02$ e $0{,}90 - 0{,}90 = 0{,}00 \implies \bar{I}_{\text{beta}} = 0{,}01$, $s_{I,\text{beta}} = 0{,}01$.</item>
+          <item><strong>Gama:</strong> quedas $0{,}90 - 0{,}91 = -0{,}01$ e $0{,}90 - 0{,}89 = +0{,}01 \implies \bar{I}_{\text{gama}} = 0{,}00$, $s_{I,\text{gama}} = 0{,}01$.</item>
+        </list>
+        Na primeira repetição de gama, o escore subiu $0{,}01$ por puro acaso (gerando queda $-0{,}01$): valores próximos de zero ou levemente negativos indicam que a variável é irrelevante para o modelo no teste.
+      </example>
+
+      <example id="exm:8-7-eeg-sono">
+        <title>Decodificando vigília vs. sono profundo a partir de bandas de EEG</title>
+        Em registros polissonográficos reais, o sono de ondas lentas (NREM profundo) caracteriza-se por alta potência na banda <strong>delta</strong> ($0{,}5\text{–}4\text{ Hz}$), enquanto a vigília relaxada de olhos fechados destaca a banda <strong>alfa</strong> ($8\text{–}12\text{ Hz}$). No código e na <ref to="fig:8-7-importancia"/> abaixo, simulamos $300$ janelas de EEG com essas cinco bandas — onde apenas delta e alfa carregam sinal biológico e teta, beta e gama são ruído — e medimos a importância por permutação de um decodificador logístico no conjunto de teste.
+      </example>
+
+      <figure src="fig/t07-importancia.svg" alt="Gráfico de barras horizontais mostrando a importância por permutação média e o desvio padrão para cinco bandas de EEG: delta e alfa no topo com barras índigo, e beta, teta e gama próximas de zero em cinza" id="fig:8-7-importancia">
+        <caption>Importância por permutação (média $\pm$ desvio padrão em $30$ repetições no teste) no decodificador de vigília vs. sono profundo. Apenas as bandas delta e alfa sustentam a acurácia do modelo; as três bandas de ruído oscilam em torno de zero.</caption>
+      </figure>
+
+      <code lang="python" id="cod:8-7-perm-eeg">
+import numpy as np
+from sklearn.inspection import permutation_importance
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(0)
+n_amostras = 300
+nomes_bandas = ["delta", "teta", "alfa", "beta", "gama"]
+
+# y = 0 (sono profundo NREM), y = 1 (vigília)
+y = rng.integers(0, 2, size=n_amostras)
+delta = np.where(y == 0, rng.normal(2.2, 0.8, n_amostras), rng.normal(0.5, 0.7, n_amostras))
+alfa = np.where(y == 1, rng.normal(1.8, 0.7, n_amostras), rng.normal(0.6, 0.6, n_amostras))
+teta = rng.normal(1.0, 0.6, n_amostras)
+beta = rng.normal(0.8, 0.5, n_amostras)
+gama = rng.normal(0.4, 0.4, n_amostras)
+
+X = np.column_stack([delta, teta, alfa, beta, gama])
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.33, stratify=y, random_state=0)
+
+tubo = Pipeline([
+    ("scaler", StandardScaler()),
+    ("clf", LogisticRegression(C=1.0, max_iter=1000)),
+]).fit(X_tr, y_tr)
+
+imp = permutation_importance(tubo, X_te, y_te, n_repeats=30, random_state=0)
+
+print(f"Acurácia de base no teste: {tubo.score(X_te, y_te):.3f}")
+# Acurácia de base no teste: 0.909
+for nome, media, desvio in zip(nomes_bandas, imp.importances_mean, imp.importances_std):
+    print(f"{nome:6s} | importância: {media:6.3f} +/- {desvio:.3f}")
+
+# delta  | importância:  0.197 +/- 0.036
+# teta   | importância: -0.002 +/- 0.011
+# alfa   | importância:  0.145 +/- 0.032
+# beta   | importância:  0.005 +/- 0.010
+# gama   | importância: -0.004 +/- 0.009
+      </code>
+
+      <remark id="rem:8-7-armadilha-perm">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Calcular importância por permutação no conjunto de treino:</strong> um modelo sobreajustado pode depender de colunas de ruído apenas para memorizar o treino; avalie sempre no conjunto de teste ou validação.</item>
+          <item><strong>Ler importância por permutação como efeito causal:</strong> se uma variável é um marcador correlacionado a um fator biológico oculto (ou ajuda a descontar ruído comum), ela pode receber alta importância sem ser causa direta do fenômeno.</item>
+          <item><strong>Confundir permutação com importância de impureza das árvores (Tema 8.8):</strong> a redução média de impureza é calculada dentro do treino e favorece variáveis contínuas com muitos níveis distintos; não trate as duas medidas como equivalentes.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-7-4-1">
+        <title>Básico — Calculando $\bar{I}_j$ e $s_{I,j}$ para três variáveis</title>
+        Um modelo de regressão atingiu $R_{\text{base}}^2 = 0{,}85$ no conjunto de teste. Após permutar cada variável $R = 4$ vezes, os $R^2$ obtidos foram:
+        <list marker="dash">
+          <item>Variável A: $(0{,}43;\; 0{,}43;\; 0{,}47;\; 0{,}47)$; </item>
+          <item>Variável B: $(0{,}69;\; 0{,}69;\; 0{,}71;\; 0{,}71)$; </item>
+          <item>Variável C: $(0{,}87;\; 0{,}87;\; 0{,}85;\; 0{,}85)$.</item>
+        </list>
+        Calcule a importância média $\bar{I}_j$ e o desvio padrão $s_{I,j}$ de cada variável, ordene-as da mais importante para a menos importante e explique o sinal negativo em C.
+        <hint><title>Ver dica</title>Subtraia cada valor de $0{,}85$ antes de tirar a média e o desvio padrão com divisor $R = 4$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculamos as quedas $I_{j,r} = 0{,}85 - S_{j,r}$:
+          <list marker="dash">
+            <item><strong>Variável A:</strong> quedas $(0{,}42;\; 0{,}42;\; 0{,}38;\; 0{,}38) \implies \bar{I}_A = 0{,}40$, desvios $(\pm 0{,}02) \implies s_{I,A} = 0{,}02$.</item>
+            <item><strong>Variável B:</strong> quedas $(0{,}16;\; 0{,}16;\; 0{,}14;\; 0{,}14) \implies \bar{I}_B = 0{,}15$, desvios $(\pm 0{,}01) \implies s_{I,B} = 0{,}01$.</item>
+            <item><strong>Variável C:</strong> quedas $(-0{,}02;\; -0{,}02;\; 0{,}00;\; 0{,}00) \implies \bar{I}_C = -0{,}01$, desvios $(\pm 0{,}01) \implies s_{I,C} = 0{,}01$.</item>
+          </list>
+          A ordem de relevância é $A > B > C$. A importância levemente negativa em C ($-0{,}01 \pm 0{,}01$) significa apenas que, ao embaralhar uma variável irrelevante, o escore oscilou ligeiramente acima de $0{,}85$ por acaso amostral.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-7-4-2">
+        <title>Intermediário — Por que duas variáveis correlacionadas "desaparecem" na permutação?</title>
+        Suponha que um modelo linear de previsão de tremor motor use a potência beta de dois eletrodos vizinhos do córtex motor ($x_1$ e $x_2$) com correlação $r = 0{,}98$, obtendo $\hat{y} = 1{,}0\,x_1 + 1{,}0\,x_2$ e alto $R^2$ no teste. Quando removemos ambos, o modelo colapsa; porém, ao rodar <c>permutation_importance</c> individualmente, tanto $x_1$ quanto $x_2$ mostram importância pequena. Explique esse aparente paradoxo e indique uma solução prática.
+        <hint><title>Ver dica</title>Observe o que o modelo ainda enxerga na coluna $x_2$ enquanto você embaralha apenas a coluna $x_1$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Quando permutamos apenas $x_1$, a coluna $x_2$ permanece intacta e fornece quase toda a informação original ($r = 0{,}98$), de modo que o modelo ainda acerta razoavelmente bem e a queda de escore é moderada ou pequena (e vice-versa ao permutar apenas $x_2$). Assim, variáveis altamente correlacionadas dividem e mascaram sua importância individual na permutação. Uma solução prática é agrupar variáveis redundantes (por exemplo, tirando a média dos dois eletrodos ou selecionando apenas um deles) antes do ajuste, ou permutar o bloco correlacionado inteiro de uma só vez.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-7-4-3">
+        <title>Avançado — Importância no treino vs. no teste sob sobreajuste</title>
+        Gere $n_{\text{treino}} = 45$ e $n_{\text{teste}} = 100$ amostras com $p = 25$ variáveis padronizadas, onde apenas as $2$ primeiras determinam a resposta ($y = 2{,}0 x_0 - 1{,}5 x_1 + \varepsilon$, com ruído $\sigma = 1{,}0$) e as $23$ restantes são ruído puro. Ajuste uma <c>LinearRegression</c> (que sofrerá sobreajuste por ter $p/n$ alto) e compare <c>permutation_importance</c> calculada no treino versus no teste para as $2$ variáveis reais e para a maior importância entre as $23$ variáveis de ruído.
+        <hint><title>Ver dica</title>Passe <c>(X_tr, y_tr)</c> na primeira chamada a <c>permutation_importance</c> e <c>(X_te, y_te)</c> na segunda, usando <c>n_repeats=20</c> e <c>random_state=0</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.inspection import permutation_importance
+from sklearn.linear_model import LinearRegression
+
+rng = np.random.default_rng(0)
+n_tr, n_te, p = 45, 100, 25
+X = rng.normal(0.0, 1.0, size=(n_tr + n_te, p))
+y = 2.0 * X[:, 0] - 1.5 * X[:, 1] + rng.normal(0.0, 1.0, size=n_tr + n_te)
+
+X_tr, X_te, y_tr, y_te = X[:n_tr], X[n_tr:], y[:n_tr], y[n_tr:]
+ols = LinearRegression().fit(X_tr, y_tr)
+
+imp_tr = permutation_importance(ols, X_tr, y_tr, n_repeats=20, random_state=0).importances_mean
+imp_te = permutation_importance(ols, X_te, y_te, n_repeats=20, random_state=0).importances_mean
+
+print(f"R² treino: {ols.score(X_tr, y_tr):.3f} | R² teste: {ols.score(X_te, y_te):.3f}")
+# R² treino: 0.928 | R² teste: 0.562
+print(f"Treino -> reais: [{imp_tr[0]:.3f}, {imp_tr[1]:.3f}] | máx ruído: {imp_tr[2:].max():.3f}")
+# Treino -> reais: [1.012, 0.588] | máx ruído: 0.084
+print(f"Teste  -> reais: [{imp_te[0]:.3f}, {imp_te[1]:.3f}] | máx ruído: {imp_te[2:].max():.3f}")
+# Teste  -> reais: [1.145, 0.618] | máx ruído: 0.015
+          </code>
+          No conjunto de treino, variáveis de ruído usadas para memorizar os $45$ pontos exibem importância positiva ilusória; apenas no conjunto de teste o ruído volta para perto de zero.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-7-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Padronização por escore $z$:</strong> $z_{ij} = \frac{x_{ij} - \bar{x}_j}{s_j}$ deixa todas as variáveis com média $0$ e desvio padrão $1$; <c>StandardScaler</c> deve ser ajustado somente no treino (via <c>Pipeline</c>), sendo obrigatório para KNN, SVM, <em>ridge</em>/<em>lasso</em>, PCA e $k$-médias.</item>
+        <item><strong>Coeficientes padronizados:</strong> ajustando uma regressão sobre variáveis padronizadas, $\tilde{\beta}_j = \hat{\beta}_j s_j$ permite comparar o efeito de variáveis medidas em unidades diferentes ($\text{Hz}$, $\text{mV}$, $\text{ms}$).</item>
+        <item><strong>Multicolinearidade e $\mathrm{VIF}$:</strong> $\mathrm{VIF}_j = \frac{1}{1 - R_j^2}$ mede quanto a colinearidade amplia a variância de $\hat{\beta}_j$ ($\mathrm{VIF} > 5$ ou $10$ e alto número de condição $\kappa(\mathbf{Z}^\top\mathbf{Z})$ sinalizam alerta). Preditores colineares tornam os coeficientes individuais instáveis, mas a previsão $\hat{y}$ pode continuar boa.</item>
+        <item><strong>Seleção de subconjuntos:</strong> o melhor subconjunto avalia $2^p$ modelos (inviável para $p$ grande); <em>forward</em> e <em>backward</em> avaliam $1 + \frac{p(p+1)}{2}$ modelos pelo critério de CV (<c>SequentialFeatureSelector</c>). A seleção <em>backward</em> com OLS exige $n > p$, e toda seleção precisa ficar dentro da validação cruzada para evitar análise circular (<em>double dipping</em>).</item>
+        <item><strong>Importância por permutação:</strong> $\bar{I}_j = \frac{1}{R}\sum_{r=1}^R (S_{\text{base}} - S_{j,r})$ (<c>permutation_importance</c>) avalia a dependência de qualquer modelo em dados de teste; variáveis correlacionadas dividem importância e alta importância preditiva não prova causalidade.</item>
+      </list>
+    </section>
+
+    <section id="sec:8-7-alem">
+      <title>Para ir além</title>
+      Com as ferramentas de escala, diagnóstico de colinearidade, seleção e permutação nas mãos, o próximo passo é conhecer uma família inteiramente diferente que dispensa padronização e captura interações não lineares automaticamente: as <strong>árvores de decisão e florestas aleatórias no Tema 8.8 (Árvores)</strong>. Como treino prático, teste o <c>Pipeline</c> com <c>SequentialFeatureSelector</c> e <c>permutation_importance</c> em um conjunto médico do repositório UC Irvine ou em dados neurais abertos.
+      <list marker="dash">
+        <item><strong>Livro-base do módulo:</strong> <link to="https://www.statlearning.com/">ISLR — Introduction to Statistical Learning</link> (em Python ou R, a critério do aluno) — Capítulo 6 (Seção 6.1, <em>Subset Selection</em>) e Capítulo 3 (Seção 3.3.3, colinearidade e VIF).</item>
+        <item><strong>Material complementar:</strong> Notas de aula da matéria do IMPATech.</item>
+        <item><strong>Aprofundamento teórico:</strong> <em>Elements of Statistical Learning</em> (versão avançada do ISLR) — Capítulo 3 (seleção de subconjuntos e estabilidade dos coeficientes).</item>
+        <item><strong>Documentação oficial (Pré-processamento e seleção):</strong> <link to="https://scikit-learn.org/stable/modules/preprocessing.html">Scikit-learn — Preprocessing data</link> (<c>StandardScaler</c>, <c>RobustScaler</c>) e <link to="https://scikit-learn.org/stable/modules/feature_selection.html">Scikit-learn — Feature selection</link> (<c>SequentialFeatureSelector</c>).</item>
+        <item><strong>Documentação oficial (Importância por permutação):</strong> <link to="https://scikit-learn.org/stable/modules/permutation_importance.html">Scikit-learn — Permutation feature importance</link>.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 8 · Machine Learning — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

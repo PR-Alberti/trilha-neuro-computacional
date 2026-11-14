@@ -1,0 +1,9 @@
+# Módulo 06 — Programação (Python). Compile com: node scripts/compilar-aulas.mjs --modulo 6
+inputs = ["tema-01.dlt", "tema-02.dlt", "tema-03.dlt", "tema-04.dlt", "tema-05.dlt"]
+out = "../../aulas/modulo-06"
+
+[document]
+lang         = "pt-BR"
+type         = "book"
+theme-accent = "indigo"
+theme-mode   = "auto"

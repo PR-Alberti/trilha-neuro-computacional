@@ -1,0 +1,9 @@
+# Módulo 02 — Cálculo Real. Compile com: node scripts/compilar-aulas.mjs --modulo 2
+inputs = ["tema-01.dlt", "tema-02.dlt", "tema-03.dlt"]
+out = "../../aulas/modulo-02"
+
+[document]
+lang         = "pt-BR"
+type         = "book"
+theme-accent = "indigo"
+theme-mode   = "auto"

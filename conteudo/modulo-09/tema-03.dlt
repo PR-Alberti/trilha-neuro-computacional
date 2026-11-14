@@ -1,0 +1,827 @@
+<document>
+  <title>Módulo 9 · Deep Learning</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-9-3">Voltar ao guia (Tema 9.3)</link></meta-item>
+    <meta-item key="Módulo">Módulo 9 · Deep Learning — O Estado da Arte da Neurociência Computacional</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-9-3">
+    <title>RNN</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Sequências e dinâmica temporal — parentes próximos dos circuitos corticais.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Ao contrário das imagens estáticas de <mark>9.2 CNN</mark>, o cérebro processa fluxos contínuos no tempo: neurônios integram evidências sensoriais por centenas de milissegundos antes de decidir um movimento e mantêm informações na memória de trabalho após o estímulo desaparecer. Registros de eletroencefalografia (EEG), potenciais de campo local (LFP), trens de disparos (<em>spike trains</em>) e séries de fMRI possuem uma dimensão irredutível: o tempo.
+
+    As <strong>redes neurais recorrentes</strong> (<em>Recurrent Neural Networks</em>, RNNs) processam sequências mantendo uma memória interna passo a passo. Mais que ferramentas de engenharia, são parentes matemáticas próximas dos circuitos corticais com retroalimentação excitatória e inibitória. Todos os códigos desta aula foram dimensionados para rodar em CPU em poucos segundos.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>formular o estado oculto e o compartilhamento de pesos de uma RNN simples, contrastando-a com MLPs;</item>
+      <item>conectar a RNN à discretização de Euler de uma equação de taxa de disparo neuronal e calcular estados passo a passo;</item>
+      <item>descrever a retropropagação no tempo (BPTT) e demonstrar por que o gradiente pode sumir ou explodir;</item>
+      <item>explicar os portões de LSTM e GRU, contar seus parâmetros (inclusive no PyTorch) e relacioná-las à memória de trabalho pré-frontal;</item>
+      <item>treinar uma RNN em PyTorch na integração de evidência e usar PCA para visualizar a dinâmica em espaço de estados.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Retoma regra da cadeia e gradiente que some (<mark>9.1 Fundamentos</mark>), o contraste com dados estáticos (<mark>9.2 CNN</mark>), equações diferenciais (Módulo 2), Jacobianas (Módulo 3), gradiente descendente (Módulo 4), autovalores e raio espectral (Módulo 5), Python/PyTorch (Módulo 6) e PCA (Módulo 8).
+
+    <section id="sec:9-3-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Estado oculto e recorrência</title>
+      <intro>
+        Uma sequência biológica pode durar milissegundos ou minutos — e o significado de cada instante depende do que veio antes.
+      </intro>
+
+      Decodificar intenção motora em disparos corticais ou classificar estágios do sono em épocas de EEG de duração variável expõe dois limites de um MLP (<mark>9.1 Fundamentos</mark>): ele exige entrada de dimensão fixa e atribui pesos distintos a cada posição temporal, sem compartilhar o que aprendeu quando um mesmo padrão ocorre em momentos diferentes.
+
+      Para contornar isso, imitamos os circuitos neurais: lemos um instante $\mathbf{x}_t$ por vez e atualizamos um vetor de <strong>estado oculto</strong> (<em>hidden state</em>) $\mathbf{h}_t$ — um resumo dinâmico do passado — usando <em>exatamente os mesmos pesos</em> em cada passo.
+
+      <definition id="def:9-3-rnn-simples">
+        <title>Rede neural recorrente simples (Elman, 1990)</title>
+        Dada uma sequência $(\mathbf{x}_1, \dots, \mathbf{x}_T)$ com $\mathbf{x}_t \in \mathbb{R}^{n_x}$ e estado inicial $\mathbf{h}_0 \in \mathbb{R}^{n_h}$ (em geral $\mathbf{0}$), uma RNN simples atualiza o estado e a saída $\hat{\mathbf{y}}_t \in \mathbb{R}^{n_y}$ em $t = 1, \dots, T$:
+        <equations id="eq:9-3-rnn">
+          \mathbf{h}_t &= \tanh\bigl(\mathbf{W}_{hh} \mathbf{h}_{t-1} + \mathbf{W}_{xh} \mathbf{x}_t + \mathbf{b}_h\bigr) \\
+          \hat{\mathbf{y}}_t &= \mathbf{W}_{hy} \mathbf{h}_t + \mathbf{b}_y
+        </equations>
+        onde $\mathbf{W}_{hh} \in \mathbb{R}^{n_h \times n_h}$ são os pesos recorrentes, $\mathbf{W}_{xh} \in \mathbb{R}^{n_h \times n_x}$ projeta a entrada, $\mathbf{W}_{hy} \in \mathbb{R}^{n_y \times n_h}$ faz a leitura (<em>readout</em>), e $\mathbf{b}_h \in \mathbb{R}^{n_h}$, $\mathbf{b}_y \in \mathbb{R}^{n_y}$ são os vieses.
+        <intuition>
+          Ao "desenrolar" a recorrência no tempo (<em>unrolling</em>), a RNN forma uma cadeia de $T$ blocos em série que reutilizam as <em>mesmas matrizes</em> $\mathbf{W}_{hh}$ e $\mathbf{W}_{xh}$, permitindo processar sequências de qualquer comprimento $T$.
+        </intuition>
+      </definition>
+
+      Consoante a tarefa biológica, usamos a leitura $\hat{\mathbf{y}}_t$ em três regimes:
+      <list marker="dash">
+        <item><strong>Muitos-para-um (<em>many-to-one</em>):</strong> lê apenas o estado final $\mathbf{h}_T$ (ex.: detectar crise epiléptica numa época de EEG).</item>
+        <item><strong>Um-para-muitos (<em>one-to-many</em>):</strong> recebe uma pista inicial e gera uma sequência de ações (ex.: comandos musculares).</item>
+        <item><strong>Muitos-para-muitos (<em>many-to-many</em>):</strong> gera $\hat{\mathbf{y}}_t$ a cada passo (ex.: decodificar velocidade contínua em interfaces cérebro-máquina).</item>
+      </list>
+
+      Na neurociência teórica (Dayan &amp; Abbott), uma população neuronal com taxa de disparo $\mathbf{r}(t) \in \mathbb{R}^{n_h}$ e constante de tempo $\tau$ obedece à equação contínua:
+      $$\tau \frac{d\mathbf{r}}{dt} = -\mathbf{r}(t) + f\bigl(\mathbf{W}\mathbf{r}(t) + \mathbf{I}(t)\bigr)$$
+      com conexões recorrentes $\mathbf{W}$, corrente externa $\mathbf{I}(t)$ e função de ativação $f$. Discretizá-la revela a própria estrutura da RNN.
+
+      <proposition id="prop:9-3-euler-taxa">
+        <title>Discretização de Euler da equação de taxa neural</title>
+        Aproximando $\frac{d\mathbf{r}}{dt}$ por Euler explícito com passo $\Delta t > 0$ (Módulo 2), $\tau \frac{d\mathbf{r}}{dt} = -\mathbf{r}(t) + f(\mathbf{W}\mathbf{r}(t) + \mathbf{I}(t))$ torna-se:
+        <equation id="eq:9-3-leaky-rnn">
+          \mathbf{r}_{t+1} = \left(1 - \frac{\Delta t}{\tau}\right)\mathbf{r}_t + \frac{\Delta t}{\tau}\, f(\mathbf{W}\mathbf{r}_t + \mathbf{I}_t)
+        </equation>
+        Quando $\Delta t = \tau$, o termo de vazamento zera e obtemos $\mathbf{r}_{t+1} = f(\mathbf{W}\mathbf{r}_t + \mathbf{I}_t)$, a forma da <ref to="eq:9-3-rnn"/>.
+      </proposition>
+      <proof of="prop:9-3-euler-taxa" collapsible="true" collapsed="true">
+        Escrevendo $\mathbf{r}_t = \mathbf{r}(t)$, $\mathbf{r}_{t+1} = \mathbf{r}(t + \Delta t)$ e $\frac{d\mathbf{r}}{dt} \approx \frac{\mathbf{r}_{t+1} - \mathbf{r}_t}{\Delta t}$, temos:
+        $$\tau \frac{\mathbf{r}_{t+1} - \mathbf{r}_t}{\Delta t} = -\mathbf{r}_t + f(\mathbf{W}\mathbf{r}_t + \mathbf{I}_t).$$
+        Multiplicando por $\frac{\Delta t}{\tau}$ e somando $\mathbf{r}_t$ aos dois lados:
+        $$\mathbf{r}_{t+1} = \left(1 - \frac{\Delta t}{\tau}\right)\mathbf{r}_t + \frac{\Delta t}{\tau} f(\mathbf{W}\mathbf{r}_t + \mathbf{I}_t).$$
+        Para $\Delta t = \tau$, $1 - \frac{\Delta t}{\tau} = 0$ e $\frac{\Delta t}{\tau} = 1$, resultando em $\mathbf{r}_{t+1} = f(\mathbf{W}\mathbf{r}_t + \mathbf{I}_t)$.
+      </proof>
+
+      Com $\Delta t < \tau$, $\alpha = \Delta t / \tau \in (0, 1)$ gera uma <strong>RNN com vazamento</strong> (<em>leaky RNN</em>), média ponderada entre $(1 - \alpha)\mathbf{r}_t$ e $\alpha f(\dots)$ que confere suavidade temporal ($\tau \approx 10\text{--}20\text{ ms}$ no córtex).
+
+      Na contagem de parâmetros da <ref to="eq:9-3-rnn"/>, $\mathbf{W}_{hh}$ tem $n_h^2$ parâmetros, $\mathbf{W}_{xh}$ tem $n_h n_x$ e $\mathbf{b}_h$ tem $n_h$, totalizando $P_{\text{cel}} = n_h(n_h + n_x + 1)$ (independente de $T$). A leitura linear soma $P_{\text{saída}} = n_y(n_h + 1)$. No PyTorch, <c>nn.RNN</c> cria dois vieses (<c>bias_ih</c> e <c>bias_hh</c>), somando $n_h$ parâmetros extras.
+
+      <example id="exm:9-3-passo-escalar">
+        <title>Propagação passo a passo com estado escalar</title>
+        Considere uma RNN escalar ($n_x = n_h = n_y = 1$) com $h_0 = 0$, $w_{hh} = 0{,}5$, $w_{xh} = 0{,}5$, $b_h = 0$, $w_{hy} = 2{,}0$ e $b_y = -0{,}1$. Calcule $h_1, h_2, h_3$ e $\hat{y}_1, \hat{y}_2, \hat{y}_3$ para $(x_1, x_2, x_3) = (1{,}0;\; 0{,}4;\; -0{,}8)$.
+
+        <strong>Solução.</strong> Usando $\tanh(z) = \frac{e^z - e^{-z}}{e^z + e^{-z}}$ com os mesmos pesos em cada passo:
+        <list marker="number">
+          <item><strong>$t = 1$ ($x_1 = 1{,}0$):</strong> $z_1 = 0{,}5(0) + 0{,}5(1{,}0) = 0{,}5$, $h_1 = \tanh(0{,}5) \approx 0{,}4621$, $\hat{y}_1 = 2{,}0(0{,}4621) - 0{,}1 = 0{,}8242$.</item>
+          <item><strong>$t = 2$ ($x_2 = 0{,}4$):</strong> $z_2 = 0{,}5(0{,}4621) + 0{,}5(0{,}4) = 0{,}4311$, $h_2 = \tanh(0{,}4311) \approx 0{,}4062$, $\hat{y}_2 = 2{,}0(0{,}4062) - 0{,}1 = 0{,}7124$.</item>
+          <item><strong>$t = 3$ ($x_3 = -0{,}8$):</strong> $z_3 = 0{,}5(0{,}4062) + 0{,}5(-0{,}8) = -0{,}1969$, $h_3 = \tanh(-0{,}1969) \approx -0{,}1944$, $\hat{y}_3 = 2{,}0(-0{,}1944) - 0{,}1 = -0{,}4888$.</item>
+        </list>
+        Note como $h_2 \approx 0{,}4062$ ainda guarda um eco positivo de $x_1$ antes de $x_3 = -0{,}8$ inverter o sinal.
+      </example>
+
+      <example id="exm:9-3-disparo-euler">
+        <title>Dinâmica de taxa de disparo com passo $\Delta t = 5\text{ ms}$</title>
+        Uma população cortical com $\tau = 20\text{ ms}$ e taxa basal $r_0 = 12\text{ Hz}$ recebe estímulo constante gerando $f(I(t)) = 60\text{ Hz}$ para $t \ge 0$. Pela <ref to="eq:9-3-leaky-rnn"/> com $\Delta t = 5\text{ ms}$, calcule $r_1, r_2, r_3$ (em $5, 10, 15\text{ ms}$).
+
+        <strong>Solução.</strong> Como $\alpha = \frac{5}{20} = 0{,}25$ ($1 - \alpha = 0{,}75$), temos $r_{t+1} = 0{,}75\, r_t + 0{,}25 \cdot 60 = 0{,}75\, r_t + 15$:
+        <list marker="dash">
+          <item>$r_1 = 0{,}75(12) + 15 = 9 + 15 = 24\text{ Hz}$;</item>
+          <item>$r_2 = 0{,}75(24) + 15 = 18 + 15 = 33\text{ Hz}$;</item>
+          <item>$r_3 = 0{,}75(33) + 15 = 24{,}75 + 15 = 39{,}75\text{ Hz}$.</item>
+        </list>
+        A taxa sobe suavemente rumo a $60\text{ Hz}$, sem saltos bruscos.
+      </example>
+
+      Conferimos o <ref to="exm:9-3-passo-escalar"/> em PyTorch observando as formas dos tensores com <c>batch_first=True</c>:
+
+      <code lang="python" id="cod:9-3-rnn-basica">
+import torch
+import torch.nn as nn
+
+# RNN escalar (entrada=1, oculto=1) sem vies para conferir o Exemplo 1
+rnn = nn.RNN(input_size=1, hidden_size=1, bias=False, batch_first=True)
+readout = nn.Linear(in_features=1, out_features=1, bias=True)
+
+with torch.no_grad():
+    rnn.weight_hh_l0.fill_(0.5)
+    rnn.weight_ih_l0.fill_(0.5)
+    readout.weight.fill_(2.0)
+    readout.bias.fill_(-0.1)
+
+# Tensor de entrada no formato (N=1 lote, T=3 passos, n_x=1 feature)
+x = torch.tensor([[[1.0], [0.4], [-0.8]]])
+h0 = torch.zeros(1, 1, 1)  # (num_camadas=1, N=1, n_h=1)
+
+out, h_final = rnn(x, h0)
+y_hat = readout(out)
+
+print("Forma de x:", tuple(x.shape))        # Forma de x: (1, 3, 1)
+print("Forma de out:", tuple(out.shape))    # Forma de out: (1, 3, 1)
+print("Forma de h_final:", tuple(h_final.shape))  # Forma de h_final: (1, 1, 1)
+print("Estados h_t:", [round(v, 4) for v in out.squeeze().tolist()])
+# Estados h_t: [0.4621, 0.4062, -0.1944]
+print("Saidas y_hat:", [round(v, 4) for v in y_hat.squeeze().tolist()])
+# Saidas y_hat: [0.8242, 0.7124, -0.4888]
+      </code>
+
+      <remark id="rem:9-3-armadilha-sec1">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Achar que há pesos diferentes por passo:</strong> o grafo desenrolado mostra $T$ blocos, mas $\mathbf{W}_{hh}$, $\mathbf{W}_{xh}$ e $\mathbf{b}_h$ são compartilhados em todo $t$.</item>
+          <item><strong>Confundir $\mathbf{h}_t$ com $\hat{\mathbf{y}}_t$:</strong> $\mathbf{h}_t$ é a memória recorrente que alimenta $\mathbf{h}_{t+1}$; $\hat{\mathbf{y}}_t$ é apenas a projeção externa de leitura.</item>
+          <item><strong>Esquecer <c>batch_first=True</c>:</strong> o padrão do PyTorch é <c>(T, N, features)</c>; sem <c>batch_first=True</c>, dados <c>(N, T, features)</c> misturam tentativas e passos sem acusar erro de formato.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-3-1-1">
+        <title>Básico — Cálculo à mão com estado escalar</title>
+        Dada uma RNN escalar com $h_0 = 0{,}2$, $w_{hh} = 0{,}5$, $w_{xh} = 1{,}0$, $b_h = 0$, $w_{hy} = 2{,}0$, $b_y = 0{,}1$ e entrada $(x_1, x_2) = (0{,}4;\; -0{,}6)$, calcule $h_1$, $h_2$ e $\hat{y}_2$ (com $4$ casas).
+        <hint><title>Ver dica</title>Aplique $h_t = \tanh(w_{hh} h_{t-1} + w_{xh} x_t + b_h)$ passo a passo e depois $\hat{y}_2 = w_{hy} h_2 + b_y$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="number">
+            <item>$t = 1$: $z_1 = 0{,}5(0{,}2) + 1{,}0(0{,}4) = 0{,}5 \implies h_1 = \tanh(0{,}5) \approx 0{,}4621$.</item>
+            <item>$t = 2$: $z_2 = 0{,}5(0{,}4621) + 1{,}0(-0{,}6) = 0{,}23105 - 0{,}6 = -0{,}36895 \implies h_2 = \tanh(-0{,}36895) \approx -0{,}3531$.</item>
+            <item>Saída: $\hat{y}_2 = 2{,}0(-0{,}3531) + 0{,}1 = -0{,}7062 + 0{,}1 = -0{,}6062$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-3-1-2">
+        <title>Intermediário — Equação de taxa neuronal discretizada</title>
+        Uma população neural com $\tau = 20\text{ ms}$ e taxa inicial $r_0 = 10\text{ Hz}$ é discretizada com $\Delta t = 5\text{ ms}$ sob entrada constante $f(\mathbf{W}\mathbf{r}_t + \mathbf{I}_t) = 50\text{ Hz}$. Pela <ref to="eq:9-3-leaky-rnn"/>, calcule $r_1$, $r_2$ e $r_3$.
+        <hint><title>Ver dica</title>Use $\frac{\Delta t}{\tau} = 0{,}25$ em $r_{t+1} = (1 - 0{,}25) r_t + 0{,}25 \cdot 50$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Com $\frac{\Delta t}{\tau} = \frac{5}{20} = 0{,}25$, a regra fica $r_{t+1} = 0{,}75\, r_t + 12{,}5$:
+          <list marker="dash">
+            <item>$r_1 = 0{,}75(10) + 12{,}5 = 7{,}5 + 12{,}5 = 20\text{ Hz}$;</item>
+            <item>$r_2 = 0{,}75(20) + 12{,}5 = 15 + 12{,}5 = 27{,}5\text{ Hz}$;</item>
+            <item>$r_3 = 0{,}75(27{,}5) + 12{,}5 = 20{,}625 + 12{,}5 = 33{,}125\text{ Hz}$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-3-1-3">
+        <title>Avançado — Formas de tensores no PyTorch</title>
+        Você gravou $N = 16$ tentativas de $n_x = 12$ neurônios no córtex motor em $T = 40$ janelas, num tensor <c>X</c> de forma <c>(16, 40, 12)</c>. Instancie em PyTorch uma <c>nn.RNN</c> com <c>hidden_size=24</c> (<c>batch_first=True</c>) e uma camada linear para prever $n_y = 2$ velocidades a cada passo (muitos-para-muitos), imprimindo as formas de <c>out</c>, <c>h_final</c> e <c>y_hat</c>.
+        <hint><title>Ver dica</title>Com <c>batch_first=True</c>, <c>out</c> tem forma <c>(N, T, n_h)</c> e <c>nn.Linear(24, 2)</c> atua na última dimensão.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import torch
+import torch.nn as nn
+
+torch.manual_seed(0)
+X = torch.randn(16, 40, 12)  # (N=16, T=40, n_x=12)
+
+rnn = nn.RNN(input_size=12, hidden_size=24, batch_first=True)
+readout = nn.Linear(24, 2)
+
+out, h_final = rnn(X)
+y_hat = readout(out)
+
+print("out:", tuple(out.shape))          # out: (16, 40, 24)
+print("h_final:", tuple(h_final.shape))  # h_final: (1, 16, 24)
+print("y_hat:", tuple(y_hat.shape))      # y_hat: (16, 40, 2)
+          </code>
+          Mesmo com <c>batch_first=True</c>, <c>h_final</c> preserva <c>(1, 16, 24)</c>, onde <c>h_final[0]</c> coincide com <c>out[:, -1, :]</c>.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-3-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Retropropagação no tempo e o gradiente que some</title>
+      <intro>
+        Para ligar um estímulo inicial a uma resposta muitos passos depois, o sinal de erro viaja de volta pela cadeia temporal — e quase sempre encolhe ou explode.
+      </intro>
+
+      Desenrolar uma RNN por $T$ passos produz um grafo computacional de profundidade $T$. Aplicando a retropropagação (<mark>9.1</mark>; regra da cadeia do Módulo 3) para treinar os pesos por gradiente descendente (Módulo 4), fazemos a <strong>retropropagação no tempo</strong> (<em>Backpropagation Through Time</em>, BPTT). Como $\mathbf{W}_{hh}$ atua em todos os passos, seu gradiente soma as contribuições de cada instante e gera um produto longo de matrizes Jacobianas.
+
+      <definition id="def:9-3-bptt">
+        <title>Retropropagação no tempo (BPTT)</title>
+        Para uma perda total $\mathcal{L} = \sum_{t=1}^T \mathcal{L}_t$, o gradiente em relação a $\mathbf{W}_{hh}$ acumula todas as contribuições futuras $t \ge k$:
+        $$\frac{\partial \mathcal{L}}{\partial \mathbf{W}_{hh}} = \sum_{t=1}^T \sum_{k=1}^t \frac{\partial \mathcal{L}_t}{\partial \mathbf{h}_t} \frac{\partial \mathbf{h}_t}{\partial \mathbf{h}_k} \frac{\partial^+ \mathbf{h}_k}{\partial \mathbf{W}_{hh}}$$
+        onde $\frac{\partial^+ \mathbf{h}_k}{\partial \mathbf{W}_{hh}}$ é a derivada direta em $k$ mantendo $\mathbf{h}_{k-1}$ fixo.
+      </definition>
+
+      O comportamento do gradiente depende do fator $\frac{\partial \mathbf{h}_t}{\partial \mathbf{h}_k}$.
+
+      <proposition id="prop:9-3-jacobiana-rnn">
+        <title>Jacobiana temporal e produto de fatores</title>
+        Na RNN simples $\mathbf{h}_t = \tanh(\mathbf{W}_{hh}\mathbf{h}_{t-1} + \mathbf{W}_{xh}\mathbf{x}_t + \mathbf{b}_h)$, a Jacobiana de um passo vale:
+        <equation id="eq:9-3-jacobiana">
+          \mathbf{J}_t = \frac{\partial \mathbf{h}_t}{\partial \mathbf{h}_{t-1}} = \mathrm{diag}\!\left(1 - \mathbf{h}_t^2\right) \mathbf{W}_{hh}
+        </equation>
+        Logo, para $k < T$:
+        <equation id="eq:9-3-produto-jac">
+          \frac{\partial \mathbf{h}_T}{\partial \mathbf{h}_k} = \prod_{t=T}^{k+1} \mathrm{diag}\!\left(1 - \mathbf{h}_t^2\right) \mathbf{W}_{hh}.
+        </equation>
+        No caso escalar ($n_h = 1$, $w = w_{hh}$), $\frac{\partial h_T}{\partial h_0} = w^T \prod_{t=1}^T \left(1 - h_t^2\right)$.
+      </proposition>
+      <proof of="prop:9-3-jacobiana-rnn" collapsible="true" collapsed="true">
+        Escrevendo $h_{t,i} = \tanh(z_{t,i})$ com $z_{t,i} = \sum_j (\mathbf{W}_{hh})_{ij} h_{t-1,j} + (\mathbf{W}_{xh}\mathbf{x}_t)_i + b_{h,i}$ e usando $\frac{d}{dz}\tanh(z) = 1 - \tanh^2(z) = 1 - h_{t,i}^2$, temos:
+        $$(\mathbf{J}_t)_{ij} = \frac{\partial h_{t,i}}{\partial z_{t,i}} \frac{\partial z_{t,i}}{\partial h_{t-1,j}} = \left(1 - h_{t,i}^2\right)(\mathbf{W}_{hh})_{ij},$$
+        que equivale a $\mathrm{diag}(1 - \mathbf{h}_t^2)\mathbf{W}_{hh}$. A regra da cadeia na composição $\mathbf{h}_k \mapsto \dots \mapsto \mathbf{h}_T$ dá o produto em <ref to="eq:9-3-produto-jac"/>, que no caso escalar se simplifica em $w^T \prod_{t=1}^T (1 - h_t^2)$.
+      </proof>
+
+      Na expressão escalar, cada fator satisfaz $0 < 1 - h_t^2 \le 1$ (ficando perto de zero quando $\tanh$ satura em $\pm 1$), enquanto $w^T$ cresce ou decai exponencialmente:
+      <list marker="dash">
+        <item>Se $|w| = 0{,}5$, após $T = 20$ passos temos $0{,}5^{20} \approx 9{,}5 \times 10^{-7}$ — o <strong>gradiente que some</strong> (<em>vanishing gradient</em>).</item>
+        <item>Se $|w| = 1{,}5$ com $1 - h_t^2 \approx 1$, temos $1{,}5^{20} \approx 3\,325$ — o <strong>gradiente que explode</strong> (<em>exploding gradient</em>).</item>
+      </list>
+
+      Esse comportamento exponencial (Hochreiter, 1991; Bengio, Simard &amp; Frasconi, 1994) é mostrado na <ref to="fig:9-3-gradiente-bptt"/>.
+
+      <figure src="fig/t03-gradiente-bptt.svg" alt="Gráfico em escala logarítmica do fator |w| elevado a T para T de 0 a 20 passos: curva vermelha para |w|=1,5 sobe até cerca de 3325; linha cinza para |w|=1,0 permanece constante em 1; curva verde para |w|=0,8 cai lentamente; curva azul para |w|=0,5 cai até cerca de 9,5 vezes 10 elevado a menos 7" id="fig:9-3-gradiente-bptt">
+        <caption>Comportamento exponencial de $|w|^T$ em função de $T$: em $20$ passos, $|w| = 0{,}5$ reduz o sinal em mais de um milhão de vezes e $|w| = 1{,}5$ o amplifica mais de três mil vezes.</caption>
+      </figure>
+
+      No caso vetorial, o <strong>raio espectral</strong> $\rho(\mathbf{W}_{hh}) = \max_i |\lambda_i|$ (Módulo 5) fornece a intuição: no caso linear $\mathbf{h}_t = \mathbf{W}_{hh}\mathbf{h}_{t-1}$, $\rho < 1$ contrai e $\rho > 1$ expande. Na RNN com $\tanh$, os fatores $(1 - h_{t,i}^2) \le 1$ amortecem as derivadas, tornando o desaparecimento do gradiente o obstáculo dominante em memória longa.
+
+      Na prática, duas técnicas clássicas mitigam esses extremos:
+      <list marker="number">
+        <item><strong>Corte de gradiente (<em>gradient clipping</em>):</strong> evita explosões reescalando $\mathbf{g} = \nabla_{\boldsymbol{\theta}} \mathcal{L}$ quando $\|\mathbf{g}\|_2 > c$, preservando sua direção:
+          <equation id="eq:9-3-clipping">
+            \mathbf{g} \leftarrow \begin{cases} \mathbf{g}, & \text{se } \|\mathbf{g}\|_2 \le c \\ \dfrac{c}{\|\mathbf{g}\|_2}\,\mathbf{g}, & \text{se } \|\mathbf{g}\|_2 > c \end{cases}
+          </equation>
+          Em PyTorch, chamamos <c>torch.nn.utils.clip_grad_norm_(modelo.parameters(), max_norm=c)</c> entre <c>loss.backward()</c> e <c>optimizer.step()</c>.
+        </item>
+        <item><strong>BPTT truncado (<em>truncated BPTT</em>):</strong> em séries longas (como $10\,000$ amostras de LFP), dividimos o sinal em blocos de $K$ passos, mantendo $\mathbf{h}_t$ para o próximo bloco, mas cortando o grafo com <c>h = h.detach()</c>. Isso limita a memória, ao custo de impedir o aprendizado de dependências maiores que $K$ passos.</item>
+      </list>
+
+      <example id="exm:9-3-bptt-escalar">
+        <title>Cálculo à mão de derivadas temporais na BPTT</title>
+        Na RNN escalar do <ref to="exm:9-3-passo-escalar"/> ($w_{hh} = 0{,}5$, $h_0 = 0$, $h_1 \approx 0{,}4621$, $h_2 \approx 0{,}4062$, $h_3 \approx -0{,}1944$), adote a perda $\mathcal{L} = \frac{1}{2} h_3^2$. Calcule $\frac{\partial h_3}{\partial h_1}$, $\frac{\partial \mathcal{L}}{\partial h_1}$ e $\frac{\partial \mathcal{L}}{\partial w_{hh}}$.
+
+        <strong>Solução.</strong> Calculamos os fatores locais $(1 - h_t^2)$:
+        <list marker="dash">
+          <item>$1 - h_3^2 \approx 1 - (-0{,}1944)^2 = 0{,}9622$;</item>
+          <item>$1 - h_2^2 \approx 1 - (0{,}4062)^2 = 0{,}8350$;</item>
+          <item>$1 - h_1^2 \approx 1 - (0{,}4621)^2 = 0{,}7865$.</item>
+        </list>
+        Pela <ref to="eq:9-3-jacobiana"/>, $J_3 = 0{,}5 \cdot 0{,}9622 = 0{,}4811$ e $J_2 = 0{,}5 \cdot 0{,}8350 = 0{,}4175$, logo:
+        $$\frac{\partial h_3}{\partial h_1} = J_3 J_2 = 0{,}4811 \cdot 0{,}4175 \approx 0{,}2009.$$
+        Com $\frac{\partial \mathcal{L}}{\partial h_3} = h_3 \approx -0{,}1944$, retropropagamos:
+        $$\frac{\partial \mathcal{L}}{\partial h_2} = \frac{\partial \mathcal{L}}{\partial h_3} J_3 \approx (-0{,}1944)(0{,}4811) \approx -0{,}0935, \qquad \frac{\partial \mathcal{L}}{\partial h_1} = \frac{\partial \mathcal{L}}{\partial h_2} J_2 \approx (-0{,}0935)(0{,}4175) \approx -0{,}0390.$$
+        Somando $\frac{\partial^+ h_k}{\partial w_{hh}} = (1 - h_k^2) h_{k-1}$ para $k = 1, 2, 3$ (e $h_0 = 0$):
+        $$\frac{\partial \mathcal{L}}{\partial w_{hh}} \approx (-0{,}1944)(0{,}9622)(0{,}4062) + (-0{,}0935)(0{,}8350)(0{,}4621) + 0 \approx -0{,}0760 - 0{,}0361 = -0{,}1121.$$
+        Em apenas $2$ passos para trás, o sinal caiu quase $5$ vezes.
+      </example>
+
+      <example id="exm:9-3-corte-gradiente">
+        <title>Corte de gradiente em janela de EEG</title>
+        Numa época de EEG de $T = 60$ passos, um artefato muscular gera o gradiente $\mathbf{g} = [3{,}0;\; -4{,}0;\; 12{,}0]^\top$. Com limiar $c = 2{,}6$, qual vetor é aplicado pelo otimizador?
+
+        <strong>Solução.</strong> A norma euclidiana vale $\|\mathbf{g}\|_2 = \sqrt{3{,}0^2 + (-4{,}0)^2 + 12{,}0^2} = \sqrt{169} = 13{,}0$. Como $13{,}0 > 2{,}6$, pela <ref to="eq:9-3-clipping"/> multiplicamos por $\frac{2{,}6}{13{,}0} = 0{,}2$:
+        $$\mathbf{g}_{\text{clip}} = 0{,}2 \cdot [3{,}0;\; -4{,}0;\; 12{,}0]^\top = [0{,}6;\; -0{,}8;\; 2{,}4]^\top,$$
+        preservando a direção com norma $\sqrt{0{,}36 + 0{,}64 + 5{,}76} = 2{,}6$.
+      </example>
+
+      Medimos $\frac{\partial h_{20}}{\partial h_0}$ via <c>autograd</c> e aplicamos <c>clip_grad_norm_</c> no PyTorch:
+
+      <code lang="python" id="cod:9-3-bptt-grad">
+import torch
+import torch.nn as nn
+
+for w in (0.5, 1.5):
+    rnn = nn.RNN(input_size=1, hidden_size=1, bias=False, batch_first=True)
+    with torch.no_grad():
+        rnn.weight_hh_l0.fill_(w)
+        rnn.weight_ih_l0.fill_(0.0)
+
+    # h0 muito pequeno mantém 1 - h_t^2 ≈ 1, isolando o efeito de w^20
+    x = torch.zeros(1, 20, 1)
+    h0 = torch.tensor([[[1e-7]]], requires_grad=True)
+    _, h_final = rnn(x, h0)
+    h_final.squeeze().backward()
+
+    grad_medido = h0.grad.item()
+    print(f"w = {w:.1f} | dh_20/dh_0 = {grad_medido:.4e} | w^20 = {w**20:.4e}")
+# w = 0.5 | dh_20/dh_0 = 9.5367e-07 | w^20 = 9.5367e-07
+# w = 1.5 | dh_20/dh_0 = 3.3253e+03 | w^20 = 3.3253e+03
+
+# Demonstracao de clip_grad_norm_ sobre um parametro com gradiente grande
+param = nn.Parameter(torch.zeros(3))
+param.grad = torch.tensor([3.0, -4.0, 12.0])
+norma_antes = torch.nn.utils.clip_grad_norm_([param], max_norm=2.6)
+print("Norma antes:", round(norma_antes.item(), 2))   # Norma antes: 13.0
+print("Gradiente cortado:", [round(v, 4) for v in param.grad.tolist()])  # Gradiente cortado: [0.6, -0.8, 2.4]
+      </code>
+
+      <remark id="rem:9-3-armadilha-sec2">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Ordem do corte e <c>zero_grad()</c>:</strong> o corte deve ocorrer entre <c>backward()</c> e <c>step()</c>; esquecer <c>optimizer.zero_grad()</c> acumula gradientes entre lotes e provoca falsas explosões.</item>
+          <item><strong>BPTT truncado em dependências longas:</strong> truncar em $K = 50$ passos mantém $\mathbf{h}_t$ avançando, mas impede o gradiente de ligar o passo $1$ ao passo $200$.</item>
+          <item><strong>Tomar $\rho(\mathbf{W}_{hh})$ como critério exato em RNNs não lineares:</strong> ele é exato no caso linear; com $\tanh$, a saturação $(1 - \mathbf{h}_t^2)$ amortece as derivadas mesmo com $\rho(\mathbf{W}_{hh}) > 1$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-3-2-1">
+        <title>Básico — Produto de Jacobianas escalares à mão</title>
+        Em uma RNN escalar com $w_{hh} = 0{,}8$, observam-se $h_1 = 0{,}5$, $h_2 = 0{,}0$ e $h_3 = -0{,}5$. Calcule exatamente $\frac{\partial h_3}{\partial h_0}$.
+        <hint><title>Ver dica</title>Multiplique $J_t = w_{hh}(1 - h_t^2)$ para $t = 1, 2, 3$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculando cada Jacobiana:
+          <list marker="dash">
+            <item>$J_1 = 0{,}8(1 - 0{,}5^2) = 0{,}8 \cdot 0{,}75 = 0{,}60$;</item>
+            <item>$J_2 = 0{,}8(1 - 0{,}0^2) = 0{,}8 \cdot 1{,}00 = 0{,}80$;</item>
+            <item>$J_3 = 0{,}8(1 - (-0{,}5)^2) = 0{,}8 \cdot 0{,}75 = 0{,}60$.</item>
+          </list>
+          Logo, $\frac{\partial h_3}{\partial h_0} = J_3 J_2 J_1 = 0{,}60 \cdot 0{,}80 \cdot 0{,}60 = 0{,}288$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-3-2-2">
+        <title>Intermediário — Autovalores, raio espectral e decaimento em circuito neural</title>
+        Um modelo linearizado de dois neurônios $\mathbf{h}_t = \mathbf{W}_{hh}\mathbf{h}_{t-1}$ tem matriz:
+        $$\mathbf{W}_{hh} = \begin{pmatrix} 0{,}6 & 0{,}0 \\ 0{,}2 & 0{,}5 \end{pmatrix}.$$
+        <list marker="a">
+          <item>Encontre os autovalores e o raio espectral $\rho(\mathbf{W}_{hh})$ (Módulo 5).</item>
+          <item>O gradiente $\frac{\partial \mathbf{h}_T}{\partial \mathbf{h}_0} = \mathbf{W}_{hh}^T$ cresce ou some com $T$? Estime a ordem de grandeza após $T = 20$ passos ($0{,}6^{20} \approx 3{,}66 \times 10^{-5}$).</item>
+        </list>
+        <hint><title>Ver dica</title>Em matriz triangular inferior, os autovalores estão na diagonal principal.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Da equação $(0{,}6 - \lambda)(0{,}5 - \lambda) = 0$, temos $\lambda_1 = 0{,}6$, $\lambda_2 = 0{,}5$ e $\rho(\mathbf{W}_{hh}) = 0{,}6$.</item>
+            <item>Como $\rho(\mathbf{W}_{hh}) = 0{,}6 < 1$, o gradiente some exponencialmente: em $T = 20$ passos, o modo dominante cai como $0{,}6^{20} \approx 3{,}66 \times 10^{-5}$ (e o outro como $0{,}5^{20} \approx 9{,}54 \times 10^{-7}$).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-3-2-3">
+        <title>Avançado — BPTT truncado em sinal contínuo de LFP</title>
+        Um registro de LFP amostrado a $100\text{ Hz}$ dura $10\text{ s}$ ($T = 1\,000$ passos). Uma RNN é treinada com BPTT truncado em blocos de $K = 25$ passos usando <c>h = h.detach()</c> entre blocos.
+        <list marker="a">
+          <item>Qual é a duração máxima em milissegundos da janela de aprendizado por gradiente?</item>
+          <item>Se uma pista ocorre em $t = 0\text{ s}$ e a resposta em $t = 2\text{ s}$ ($t = 200$), por que o treino falha mesmo sem zerar <c>h</c>?</item>
+        </list>
+        <hint><title>Ver dica</title>A $100\text{ Hz}$, cada passo dura $10\text{ ms}$; considere o efeito de <c>.detach()</c> no grafo de derivadas.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Cada passo dura $\frac{1\,000\text{ ms}}{100} = 10\text{ ms}$, logo $K = 25$ passos cobrem $250\text{ ms}$ ($0{,}25\text{ s}$).</item>
+            <item>Embora a passagem direta preserve <c>h</c>, <c>h.detach()</c> interrompe a cadeia de derivadas a cada $250\text{ ms}$. Como pista e resposta distam $2\,000\text{ ms}$ ($8$ blocos), o erro de $t = 200$ nunca retropropaga até $t = 0$.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-3-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>LSTM e GRU</title>
+      <intro>
+        Para atravessar dezenas de passos sem apagar o gradiente, substituímos a reescrita total do estado por uma memória aditiva controlada por portões.
+      </intro>
+
+      Em experimentos de <strong>resposta atrasada</strong> (<em>delayed response</em>), neurônios do córtex pré-frontal de primatas mantêm atividade persistente durante segundos de espera, mesmo diante de distratores (Fuster &amp; Alexander, 1971; Goldman-Rakic, 1995). Como a RNN simples reescreve $\mathbf{h}_t$ a cada passo, Hochreiter &amp; Schmidhuber (1997) propuseram a <strong>LSTM</strong> (<em>Long Short-Term Memory</em>), dotada de um <strong>estado da célula</strong> $\mathbf{c}_t$ protegido por <strong>portões</strong> (<em>gates</em>) multiplicativos.
+
+      <definition id="def:9-3-lstm">
+        <title>Célula LSTM (Hochreiter &amp; Schmidhuber, 1997)</title>
+        Recebendo $\mathbf{x}_t \in \mathbb{R}^{n_x}$, $\mathbf{h}_{t-1} \in \mathbb{R}^{n_h}$ e $\mathbf{c}_{t-1} \in \mathbb{R}^{n_h}$, a LSTM calcula os portões de <strong>esquecimento</strong> ($\mathbf{f}_t$), <strong>entrada</strong> ($\mathbf{i}_t$), <strong>saída</strong> ($\mathbf{o}_t$) e a <strong>célula candidata</strong> $\tilde{\mathbf{c}}_t$:
+        <equations id="eq:9-3-lstm-portoes">
+          \mathbf{f}_t &= \sigma\bigl(\mathbf{W}_{xf}\mathbf{x}_t + \mathbf{W}_{hf}\mathbf{h}_{t-1} + \mathbf{b}_f\bigr) \\
+          \mathbf{i}_t &= \sigma\bigl(\mathbf{W}_{xi}\mathbf{x}_t + \mathbf{W}_{hi}\mathbf{h}_{t-1} + \mathbf{b}_i\bigr) \\
+          \mathbf{o}_t &= \sigma\bigl(\mathbf{W}_{xo}\mathbf{x}_t + \mathbf{W}_{ho}\mathbf{h}_{t-1} + \mathbf{b}_o\bigr) \\
+          \tilde{\mathbf{c}}_t &= \tanh\bigl(\mathbf{W}_{xc}\mathbf{x}_t + \mathbf{W}_{hc}\mathbf{h}_{t-1} + \mathbf{b}_c\bigr)
+        </equations>
+        Atualizando $\mathbf{c}_t$ aditivamente e produzindo $\mathbf{h}_t$ ($\odot$ é o produto elemento a elemento):
+        <equations id="eq:9-3-lstm-estado">
+          \mathbf{c}_t &= \mathbf{f}_t \odot \mathbf{c}_{t-1} + \mathbf{i}_t \odot \tilde{\mathbf{c}}_t \\
+          \mathbf{h}_t &= \mathbf{o}_t \odot \tanh(\mathbf{c}_t)
+        </equations>
+        <intuition>
+          Pense em $\mathbf{c}_t$ como uma esteira de memória: $\mathbf{f}_t \approx \mathbf{1}$ preserva o passado ($\mathbf{0}$ apaga); $\mathbf{i}_t \approx \mathbf{0}$ bloqueia distratores; $\mathbf{o}_t$ controla o quanto da célula sai para $\mathbf{h}_t$.
+        </intuition>
+      </definition>
+
+      O caminho direto ao longo da célula $\mathbf{c}_{t-1} \to \mathbf{c}_t$ explica por que a <ref to="eq:9-3-lstm-estado"/> alivia o desaparecimento do gradiente.
+
+      <proposition id="prop:9-3-fluxo-celula">
+        <title>Fluxo aditivo de gradiente na célula da LSTM</title>
+        Derivando $\mathbf{c}_t = \mathbf{f}_t \odot \mathbf{c}_{t-1} + \mathbf{i}_t \odot \tilde{\mathbf{c}}_t$ diretamente em relação a $\mathbf{c}_{t-1}$ (com portões fixos no passo imediato), temos:
+        $$\frac{\partial \mathbf{c}_t}{\partial \mathbf{c}_{t-1}} = \mathrm{diag}(\mathbf{f}_t).$$
+        No caso escalar, $\frac{\partial c_t}{\partial c_{t-1}} = f_t$; com $f_t \approx 1$, o gradiente atravessa muitos passos quase sem atenuação.
+      </proposition>
+      <proof of="prop:9-3-fluxo-celula" collapsible="true" collapsed="true">
+        Mantendo $\mathbf{f}_t, \mathbf{i}_t, \tilde{\mathbf{c}}_t$ fixos na derivação direta, cada coordenada $c_{t,j} = f_{t,j} c_{t-1,j} + i_{t,j}\tilde{c}_{t,j}$ tem derivada $\frac{\partial c_{t,j}}{\partial c_{t-1,k}} = f_{t,j}$ para $j = k$ e $0$ para $j \ne k$, formando $\mathrm{diag}(\mathbf{f}_t)$.
+      </proof>
+
+      Essa soma cria um caminho quase linear (<em>carrossel de erro constante</em>) regulado por $\mathbf{f}_t$, evitando multiplicar por $\mathbf{W}_{hh}$ e $(1 - \mathbf{h}_t^2)$ a cada passo como na <ref to="eq:9-3-jacobiana"/>.
+
+      Em 2014, Cho et al. propuseram a <strong>GRU</strong> (<em>Gated Recurrent Unit</em>), uma versão mais enxuta com dois portões e sem $\mathbf{c}_t$ separado.
+
+      <definition id="def:9-3-gru">
+        <title>Unidade recorrente com portões (GRU, Cho et al., 2014)</title>
+        Com portões de <strong>atualização</strong> $\mathbf{z}_t \in (0, 1)^{n_h}$ e de <strong>reinicialização</strong> (<em>reset</em>) $\mathbf{r}_t \in (0, 1)^{n_h}$, a GRU atualiza $\mathbf{h}_t$ por:
+        <equations id="eq:9-3-gru">
+          \mathbf{z}_t &= \sigma\bigl(\mathbf{W}_{xz}\mathbf{x}_t + \mathbf{W}_{hz}\mathbf{h}_{t-1} + \mathbf{b}_z\bigr) \\
+          \mathbf{r}_t &= \sigma\bigl(\mathbf{W}_{xr}\mathbf{x}_t + \mathbf{W}_{hr}\mathbf{h}_{t-1} + \mathbf{b}_r\bigr) \\
+          \tilde{\mathbf{h}}_t &= \tanh\bigl(\mathbf{W}_{xh}\mathbf{x}_t + \mathbf{W}_{hh}(\mathbf{r}_t \odot \mathbf{h}_{t-1}) + \mathbf{b}_h\bigr) \\
+          \mathbf{h}_t &= (1 - \mathbf{z}_t) \odot \mathbf{h}_{t-1} + \mathbf{z}_t \odot \tilde{\mathbf{h}}_t
+        </equations>
+        <em>Convenção:</em> seguimos Cho et al. (2014), em que $\mathbf{z}_t = \mathbf{1}$ adota $\tilde{\mathbf{h}}_t$ e $\mathbf{z}_t = \mathbf{0}$ preserva $\mathbf{h}_{t-1}$. O PyTorch (<c>nn.GRU</c>) inverte a escrita para $(1-\mathbf{z}_t)\odot \tilde{\mathbf{h}}_t + \mathbf{z}_t\odot \mathbf{h}_{t-1}$.
+      </definition>
+
+      A GRU funde esquecimento e entrada num único $\mathbf{z}_t$, formando uma interpolação adaptativa próxima da RNN com vazamento da <ref to="eq:9-3-leaky-rnn"/>.
+
+      Para contar parâmetros: cada bloco afim ($\mathbf{W}_{x*}\mathbf{x}_t + \mathbf{W}_{h*}\mathbf{h}_{t-1} + \mathbf{b}_*$) tem $n_h(n_h + n_x) + n_h$ parâmetros. Com $4$ blocos na LSTM e $3$ na GRU:
+      $$P_{\text{LSTM}} = 4\bigl(n_h(n_h + n_x) + n_h\bigr), \qquad P_{\text{GRU}} = 3\bigl(n_h(n_h + n_x) + n_h\bigr).$$
+      No PyTorch, <c>nn.LSTM</c> e <c>nn.GRU</c> usam <em>dois</em> vieses por portão (<c>bias_ih</c> e <c>bias_hh</c>), resultando em $P_{\text{LSTM, PyTorch}} = 4(n_h n_x + n_h^2 + 2n_h)$ e $P_{\text{GRU, PyTorch}} = 3(n_h n_x + n_h^2 + 2n_h)$.
+
+      <example id="exm:9-3-lstm-mao">
+        <title>Um passo de LSTM escalar à mão</title>
+        Uma LSTM escalar ($n_x = n_h = 1$) parte de $c_0 = 1{,}0$ e $h_0 = 0$, com $w_{xf}=0, b_f=2{,}0$; $w_{xi}=1{,}0, b_i=-1{,}0$; $w_{xc}=0{,}5, b_c=0$; $w_{xo}=0, b_o=1{,}0$ (e $w_{h*}=0$). Para $x_1 = 1{,}0$, calcule $f_1, i_1, \tilde{c}_1, o_1, c_1, h_1$ (com $4$ casas).
+
+        <strong>Solução.</strong> Como $h_0 = 0$, todos os termos $w_{h*} h_0$ zeram:
+        <list marker="number">
+          <item>$f_1 = \sigma(2{,}0) = \frac{1}{1 + e^{-2}} \approx 0{,}8808$;</item>
+          <item>$i_1 = \sigma(1{,}0 - 1{,}0) = \sigma(0) = 0{,}5000$;</item>
+          <item>$\tilde{c}_1 = \tanh(0{,}5) \approx 0{,}4621$;</item>
+          <item>$o_1 = \sigma(1{,}0) = \frac{1}{1 + e^{-1}} \approx 0{,}7311$;</item>
+          <item>$c_1 = f_1 c_0 + i_1 \tilde{c}_1 \approx (0{,}8808)(1{,}0) + (0{,}5000)(0{,}4621) = 0{,}8808 + 0{,}23105 \approx 1{,}1119$;</item>
+          <item>$h_1 = o_1 \tanh(c_1) \approx 0{,}7311 \cdot \tanh(1{,}1119) \approx 0{,}7311 \cdot 0{,}8047 \approx 0{,}5883$.</item>
+        </list>
+      </example>
+
+      <example id="exm:9-3-pfc-memoria">
+        <title>Memória de trabalho pré-frontal resistente a distratores</title>
+        Numa resposta atrasada, o córtex pré-frontal guarda $c_1 = 1{,}5$ quando surge um distrator forte ($x_2 = -2{,}0$). Se os portões assumem $f_2 = 0{,}98$, $i_2 = 0{,}02$, $\tilde{c}_2 = -0{,}95$ e $o_2 = 0{,}10$, calcule $c_2$ e $h_2$.
+
+        <strong>Solução.</strong> Pela <ref to="eq:9-3-lstm-estado"/>:
+        $$c_2 = (0{,}98)(1{,}5) + (0{,}02)(-0{,}95) = 1{,}470 - 0{,}019 = 1{,}451.$$
+        O portão de entrada fechado ($i_2 = 0{,}02$) limitou a contaminação a $-0{,}019$, enquanto $f_2 = 0{,}98$ preservou a memória. Já $o_2 = 0{,}10$ mantém $h_2 = 0{,}10 \cdot \tanh(1{,}451) \approx 0{,}090$, evitando disparo prematuro.
+      </example>
+
+      Conferimos no PyTorch a contagem de parâmetros e o <ref to="exm:9-3-lstm-mao"/> (ordem interna dos portões: <c>i, f, g, o</c>):
+
+      <code lang="python" id="cod:9-3-lstm-parametros">
+import torch
+import torch.nn as nn
+
+# 1) Conferindo contagem de parametros no PyTorch (dois vieses por portao)
+n_x, n_h = 10, 20
+for nome, camada, fator in [
+    ("RNN", nn.RNN(n_x, n_h, batch_first=True), 1),
+    ("GRU", nn.GRU(n_x, n_h, batch_first=True), 3),
+    ("LSTM", nn.LSTM(n_x, n_h, batch_first=True), 4),
+]:
+    total_pytorch = sum(p.numel() for p in camada.parameters())
+    formula = fator * (n_h * n_x + n_h * n_h + 2 * n_h)
+    print(f"{nome:4s} | PyTorch = {total_pytorch:4d} | Formula = {formula:4d}")
+# RNN  | PyTorch =  640 | Formula =  640
+# GRU  | PyTorch = 1920 | Formula = 1920
+# LSTM | PyTorch = 2560 | Formula = 2560
+
+# 2) Conferindo o Exemplo 1 (ordem dos portoes no PyTorch: i, f, g, o)
+lstm = nn.LSTM(input_size=1, hidden_size=1, batch_first=True)
+with torch.no_grad():
+    lstm.weight_ih_l0.copy_(torch.tensor([[1.0], [0.0], [0.5], [0.0]]))
+    lstm.weight_hh_l0.zero_()
+    lstm.bias_ih_l0.copy_(torch.tensor([-1.0, 2.0, 0.0, 1.0]))
+    lstm.bias_hh_l0.zero_()
+
+x = torch.tensor([[[1.0]]])   # (N=1, T=1, n_x=1)
+h0 = torch.tensor([[[0.0]]])  # (1, N=1, n_h=1)
+c0 = torch.tensor([[[1.0]]])
+
+_, (h1, c1) = lstm(x, (h0, c0))
+print(f"c1 = {c1.item():.4f}, h1 = {h1.item():.4f}")
+# c1 = 1.1119, h1 = 0.5883
+      </code>
+
+      <remark id="rem:9-3-armadilha-sec3">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Achar que a LSTM resolve qualquer horizonte:</strong> com $f_t = 0{,}8$ por $100$ passos, $0{,}8^{100} \approx 2{,}0 \times 10^{-10}$ ainda desaparece; em sequências muito longas, os <em>Transformers</em> (<mark>9.5</mark>) substituem a recorrência por atenção direta.</item>
+          <item><strong>Esquecer os dois vieses do PyTorch:</strong> a fórmula teórica tem $1$ viés por portão; <c>nn.LSTM</c> e <c>nn.GRU</c> usam dois (<c>bias_ih</c> e <c>bias_hh</c>).</item>
+          <item><strong>Trocar a convenção de $\mathbf{z}_t$ na GRU:</strong> verifique sempre se $\mathbf{z}_t$ multiplica $\tilde{\mathbf{h}}_t$ ou $\mathbf{h}_{t-1}$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-3-3-1">
+        <title>Básico — Contagem de parâmetros de LSTM e GRU</title>
+        Para $n_x = 16$ entradas e $n_h = 32$ unidades ocultas, calcule os parâmetros da camada recorrente:
+        <list marker="a">
+          <item>pela fórmula teórica ($1$ viés por portão) para LSTM e GRU;</item>
+          <item>no PyTorch (<c>nn.LSTM</c> e <c>nn.GRU</c>, $2$ vieses por portão).</item>
+        </list>
+        <hint><title>Ver dica</title>Multiplique $n_h(n_h + n_x + 1)$ (teórico) ou $n_h(n_h + n_x + 2)$ (PyTorch) por $4$ ou $3$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Cada bloco com $1$ viés tem $32 \cdot (32 + 16 + 1) = 32 \cdot 49 = 1\,568$ parâmetros. Assim, LSTM tem $4 \cdot 1\,568 = 6\,272$ e GRU tem $3 \cdot 1\,568 = 4\,704$ parâmetros.</item>
+            <item>No PyTorch, cada bloco passa a $32 \cdot (32 + 16 + 2) = 32 \cdot 50 = 1\,600$ parâmetros. Logo, <c>nn.LSTM(16, 32)</c> tem $4 \cdot 1\,600 = 6\,400$ e <c>nn.GRU(16, 32)</c> tem $3 \cdot 1\,600 = 4\,800$ parâmetros.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-3-3-2">
+        <title>Intermediário — Papel dos portões na limpeza da memória de trabalho</title>
+        Ao encerrar uma tentativa comportamental e iniciar outra sem interferência da escolha anterior, como devem operar os portões $f_t$ e $i_t$ de uma LSTM, em contraste com o período de espera antes da resposta?
+        <hint><title>Ver dica</title>Associe "reter e ignorar ruído" e "zerar e gravar nova pista" aos valores $0$ e $1$ de $f_t$ e $i_t$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Durante a espera, o circuito mantém a pista e bloqueia distratores fazendo $f_t \approx 1$ e $i_t \approx 0$ (abrindo $o_t$ apenas na resposta). Ao iniciar uma nova tentativa, a memória antiga deve ser apagada com $f_t \approx 0$ (zerando $c_{t-1}$) e, na nova pista, $i_t \approx 1$ grava o novo candidato em $c_t$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-3-3-3">
+        <title>Avançado — Atenuação em sequência longa mesmo com LSTM</title>
+        Numa LSTM escalar com $f_t = \sigma(1{,}0) \approx 0{,}7311$ durante um atraso, use $\frac{\partial c_T}{\partial c_0} \approx f_t^T$ para calcular o fator em $T = 20$ e $T = 100$ passos. Que recomendação prática isso traz para inicializar o viés $b_f$?
+        <hint><title>Ver dica</title>Calcule $0{,}7311^{20}$ e eleve à $5^{\text{a}}$ potência para obter $0{,}7311^{100}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para $T = 20$, $0{,}7311^{20} \approx 1{,}9 \times 10^{-3}$. Elevando à $5^{\text{a}}$ potência para $T = 100$:
+          $$0{,}7311^{100} = (0{,}7311^{20})^5 \approx (1{,}901 \times 10^{-3})^5 \approx 2{,}5 \times 10^{-14}.$$
+          Mesmo na LSTM, $f_t \approx 0{,}73$ atenua o gradiente em catorze ordens de grandeza em $100$ passos. Por isso, costuma-se inicializar $b_f$ positivo (como $+1{,}0$ ou $+2{,}0$), mantendo $f_t \approx 1$ no início do treino.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-3-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>RNNs como modelos de dinâmica cortical</title>
+      <intro>
+        Podemos treinar uma RNN na mesma tarefa que um animal resolve e comparar sua dinâmica populacional com a do córtex real.
+      </intro>
+
+      Em vez de ajustar equações de circuitos à mão, a neurociência computacional moderna segue outro caminho: <strong>treinar uma RNN numa tarefa comportamental e analisar a dinâmica emergente de suas unidades</strong>. No estudo marco de Mante, Sussillo, Shenoy &amp; Newsome (2013), macacos julgavam pontos ruidosos integrando movimento ou cor conforme uma pista de contexto. Neurônios individuais do córtex pré-frontal exibiam respostas mistas difíceis de interpretar isoladamente, mas uma RNN treinada na mesma tarefa reproduziu as trajetórias coletivas observadas no córtex. Para interpretar essas redes, tratamo-las como <strong>sistemas dinâmicos</strong> (Sussillo &amp; Barak, 2013).
+
+      <definition id="def:9-3-sistema-dinamico">
+        <title>Espaço de estados e ponto fixo de uma RNN</title>
+        Sob entrada constante $\mathbf{x}$, $\mathbf{h}_t = F(\mathbf{h}_{t-1}, \mathbf{x})$ traça uma trajetória no <strong>espaço de estados</strong> $\mathbb{R}^{n_h}$. Um vetor $\mathbf{h}^* \in \mathbb{R}^{n_h}$ é um <strong>ponto fixo</strong> quando:
+        $$F(\mathbf{h}^*, \mathbf{x}) = \mathbf{h}^*.$$
+        Pontos fixos alinhados continuamente formam um <em>atrator de linha</em>, capaz de armazenar e integrar evidência contínua no tempo.
+      </definition>
+
+      Para visualizar trajetórias em $\mathbb{R}^{n_h}$, empilhamos os estados de teste numa matriz $(N_{\text{teste}} \cdot T,\; n_h)$ e aplicamos <strong>PCA</strong> (Módulo 8). Em tarefas de integração de evidência, a primeira componente principal (PC1) costuma alinhar-se à evidência acumulada, subindo para estímulos positivos e descendo para negativos.
+
+      <example id="exm:9-3-mante-pfc">
+        <title>Leitura populacional versus neurônios individuais no córtex pré-frontal</title>
+        Dois neurônios corticais $(h_{t,1}, h_{t,2})^\top$ recebem o estímulo $x_t$ segundo:
+        $$\mathbf{h}_t = \begin{pmatrix} 0{,}5 & -0{,}5 \\ -0{,}5 & 0{,}5 \end{pmatrix} \mathbf{h}_{t-1} + \begin{pmatrix} 0{,}8 \\ -0{,}2 \end{pmatrix} x_t, \qquad \mathbf{h}_0 = \begin{pmatrix} 0 \\ 0 \end{pmatrix}.$$
+        Para $(x_1, x_2, x_3) = (1, 1, 0)$, calcule $\mathbf{h}_1, \mathbf{h}_2, \mathbf{h}_3$ e projete-os sobre $\mathbf{v}_1 = \frac{1}{\sqrt{2}}\begin{pmatrix} 1 \\ -1 \end{pmatrix}$.
+
+        <strong>Solução.</strong> Passo a passo:
+        <list marker="number">
+          <item>$t = 1$: $\mathbf{h}_1 = \begin{pmatrix} 0{,}8 \\ -0{,}2 \end{pmatrix}$.</item>
+          <item>$t = 2$: $\mathbf{W}\mathbf{h}_1 = \begin{pmatrix} 0{,}5(0{,}8) - 0{,}5(-0{,}2) \\ -0{,}5(0{,}8) + 0{,}5(-0{,}2) \end{pmatrix} = \begin{pmatrix} 0{,}5 \\ -0{,}5 \end{pmatrix}$, logo $\mathbf{h}_2 = \begin{pmatrix} 1{,}3 \\ -0{,}7 \end{pmatrix}$.</item>
+          <item>$t = 3$ ($x_3 = 0$): $\mathbf{h}_3 = \mathbf{W}\mathbf{h}_2 = \begin{pmatrix} 0{,}5(1{,}3) - 0{,}5(-0{,}7) \\ -0{,}5(1{,}3) + 0{,}5(-0{,}7) \end{pmatrix} = \begin{pmatrix} 1{,}0 \\ -1{,}0 \end{pmatrix}$.</item>
+        </list>
+        Projetando via $\mathbf{v}_1^\top \mathbf{h}_t = \frac{h_{t,1} - h_{t,2}}{\sqrt{2}}$:
+        <list marker="dash">
+          <item>$t = 1$: $\frac{0{,}8 - (-0{,}2)}{\sqrt{2}} = \frac{1{,}0}{\sqrt{2}}$;</item>
+          <item>$t = 2$: $\frac{1{,}3 - (-0{,}7)}{\sqrt{2}} = \frac{2{,}0}{\sqrt{2}}$;</item>
+          <item>$t = 3$: $\frac{1{,}0 - (-1{,}0)}{\sqrt{2}} = \frac{2{,}0}{\sqrt{2}}$.</item>
+        </list>
+        O neurônio $1$ sozinho oscila ($0{,}8 \to 1{,}3 \to 1{,}0$), mas a projeção coletiva em $\mathbf{v}_1$ integra perfeitamente $1 \to 2 \to 2$ e sustenta o valor no atraso.
+      </example>
+
+      <example id="exm:9-3-integrador-linear">
+        <title>Integrador perfeito versus regra ótima em sinal sensorial ruidoso</title>
+        Numa tarefa de $T = 20$ passos com $x_t = \mu + \varepsilon_t$, onde $\mu = +0{,}25$ (classe $1$) ou $-0{,}25$ (classe $0$) e $\varepsilon_t \sim \mathcal{N}(0,\, 0{,}8^2)$ independente, qual a acurácia teórica da regra ótima $\hat{y}_{\text{ótimo}} = \mathbb{I}\!\left(\sum_{t=1}^{20} x_t > 0\right)$?
+
+        <strong>Solução.</strong> Para $\mu = +0{,}25$, a soma $S = \sum_{t=1}^{20} x_t$ tem (Módulo 7):
+        $$\mathbb{E}[S] = 20 \cdot 0{,}25 = 5{,}0, \qquad \mathrm{Var}(S) = 20 \cdot 0{,}8^2 = 12{,}8, \qquad \mathrm{DP}(S) = \sqrt{12{,}8} \approx 3{,}578.$$
+        O escore $z = \frac{5{,}0}{3{,}578} \approx 1{,}398$ dá $\mathbb{P}(S > 0) = \Phi(1{,}398) \approx 0{,}919$ ($91{,}9\%$; igual para classe $0$). Nenhuma rede neural supera esse teto bayesiano em média na população — embora, numa amostra finita de $N = 400$ testes, a flutuação amostral (erro-padrão $\sqrt{0{,}919 \cdot 0{,}081 / 400} \approx 0{,}014$) possa gerar acurácia empírica um pouco acima ou abaixo de $0{,}919$.
+      </example>
+
+      Implementamos essa tarefa em PyTorch com uma <c>nn.GRU</c> de $16$ unidades em CPU, comparamos com a regra ótima e projetamos os estados ocultos via <c>PCA</c>:
+
+      <code lang="python" id="cod:9-3-integrador-pca">
+import numpy as np
+import torch
+import torch.nn as nn
+from sklearn.decomposition import PCA
+
+# Sementes para reprodutibilidade
+rng = np.random.default_rng(0)
+torch.manual_seed(0)
+
+def gerar_dados(n_amostras, T=20, drift=0.25, sigma=0.8):
+    y = rng.integers(0, 2, size=n_amostras)
+    sinais = np.where(y == 1, drift, -drift)[:, None]
+    X = sinais + rng.normal(0.0, sigma, size=(n_amostras, T))
+    # Forma (N, T, 1) exigida por batch_first=True
+    return (
+        torch.tensor(X[:, :, None], dtype=torch.float32),
+        torch.tensor(y, dtype=torch.float32),
+    )
+
+X_treino, y_treino = gerar_dados(800)
+X_teste, y_teste = gerar_dados(400)
+
+class IntegradorRNN(nn.Module):
+    def __init__(self, n_h=16):
+        super().__init__()
+        self.gru = nn.GRU(input_size=1, hidden_size=n_h, batch_first=True)
+        self.leitura = nn.Linear(n_h, 1)
+
+    def forward(self, x):
+        estados, _ = self.gru(x)           # (N, T, n_h)
+        logits = self.leitura(estados[:, -1, :]).squeeze(-1)
+        return logits, estados
+
+modelo = IntegradorRNN(n_h=16)
+criterio = nn.BCEWithLogitsLoss()
+otimizador = torch.optim.Adam(modelo.parameters(), lr=0.01)
+
+for epoca in range(60):
+    modelo.train()
+    otimizador.zero_grad()
+    logits, _ = modelo(X_treino)
+    perda = criterio(logits, y_treino)
+    perda.backward()
+    torch.nn.utils.clip_grad_norm_(modelo.parameters(), max_norm=1.0)
+    otimizador.step()
+
+# Avaliacao no conjunto de teste
+modelo.eval()
+with torch.no_grad():
+    logits_teste, estados_teste = modelo(X_teste)
+    pred_rnn = (logits_teste > 0).float()
+    acc_rnn = (pred_rnn == y_teste).float().mean().item()
+
+    # Regra otima: sinal da soma ao longo dos 20 passos
+    soma_evidencia = X_teste.squeeze(-1).sum(dim=1)
+    pred_otimo = (soma_evidencia > 0).float()
+    acc_otimo = (pred_otimo == y_teste).float().mean().item()
+    concordancia = (pred_rnn == pred_otimo).float().mean().item()
+
+print(f"Acuracia RNN (teste):   {acc_rnn:.3f}")    # ≈ 0.93
+print(f"Acuracia regra otima:   {acc_otimo:.3f}")  # ≈ 0.93 (teto populacional ≈ 0.919)
+print(f"Concordancia RNN/otimo: {concordancia:.3f}")  # ≈ 0.98
+
+# Projecao dos estados ocultos com PCA (Modulo 8)
+H = estados_teste.numpy()  # (400, 20, 16)
+pca = PCA(n_components=2)
+proj = pca.fit_transform(H.reshape(-1, 16)).reshape(400, 20, 2)
+
+mask_pos = y_teste.numpy() == 1
+mask_neg = y_teste.numpy() == 0
+pc1_pos = proj[mask_pos, :, 0].mean(axis=0)
+pc1_neg = proj[mask_neg, :, 0].mean(axis=0)
+
+# Orientacao do sinal arbitrario da PCA pelo final positivo
+if pc1_pos[-1] < pc1_neg[-1]:
+    pc1_pos, pc1_neg = -pc1_pos, -pc1_neg
+
+passos_sel = [0, 4, 9, 14, 19]
+print("Variancia explicada (PC1, PC2):", [round(float(v), 3) for v in pca.explained_variance_ratio_])
+# ≈ [0.95, 0.03] (PC1 domina a dinamica populacional)
+print("PC1 medio (classe +):", [round(float(pc1_pos[i]), 2) for i in passos_sel])
+# ≈ [0.13, 0.59, 1.1, 1.46, 1.8] (cresce monotonicamente)
+print("PC1 medio (classe -):", [round(float(pc1_neg[i]), 2) for i in passos_sel])
+# ≈ [-0.12, -0.57, -0.92, -1.16, -1.28] (decresce monotonicamente)
+      </code>
+
+      Sem programar uma soma explícita, a <c>nn.GRU</c> concordou em $98{,}3\%$ com a regra ótima e organizou PC1 como integrador de evidências (explicando cerca de $95\%$ da variância). Note que, na amostra de $400$ testes, a acurácia da regra ótima ($0{,}933$) ficou um pouco acima do teto teórico ($0{,}919$) por flutuação amostral (erro-padrão $\approx 0{,}014$) — o teto vale em média na população, não em cada amostra finita.
+
+      <remark id="rem:9-3-armadilha-sec4">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Esquecer <c>batch_first=True</c> antes da PCA:</strong> estados no formato <c>(T, N, n_h)</c> embaralham tempo e tentativas ao aplicar <c>reshape(-1, n_h)</c>.</item>
+          <item><strong>Tratar PC1 e PC2 como neurônios isolados:</strong> cada eixo da PCA combina <em>todos</em> os neurônios da população e possui sinal arbitrário.</item>
+          <item><strong>Confundir semelhança dinâmica com identidade anatômica:</strong> reproduzir trajetórias pré-frontais indica princípio computacional semelhante, não equivalência biofísica exata.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-3-4-1">
+        <title>Básico — Integrador perfeito versus integrador com vazamento</title>
+        Compare dois neurônios lineares recorrentes escalares partindo de $h_0 = 0$ sob $(x_1, x_2, x_3, x_4) = (0{,}5;\; 0{,}5;\; 0;\; 0)$:
+        <list marker="a">
+          <item>Modelo A (integrador perfeito): $h_t = 1{,}0\, h_{t-1} + x_t$.</item>
+          <item>Modelo B (com vazamento): $h_t = 0{,}8\, h_{t-1} + x_t$.</item>
+        </list>
+        Calcule $h_1, h_2, h_3, h_4$ e os pontos fixos quando $x_t = 0$.
+        <hint><title>Ver dica</title>Para $x = 0$, resolva $h^* = w h^*$ para $w = 1{,}0$ e $w = 0{,}8$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Modelo A: $h_1 = 0{,}5$, $h_2 = 1{,}0$, $h_3 = 1{,}0$, $h_4 = 1{,}0$. Em $x = 0$, $h^* = 1{,}0\, h^*$ vale para qualquer $h^* \in \mathbb{R}$ (uma linha contínua de pontos fixos).</item>
+            <item>Modelo B: $h_1 = 0{,}5$, $h_2 = 0{,}8(0{,}5) + 0{,}5 = 0{,}9$, $h_3 = 0{,}8(0{,}9) = 0{,}72$, $h_4 = 0{,}8(0{,}72) = 0{,}576$. Em $x = 0$, $h^* = 0{,}8\, h^* \implies h^* = 0$ é o único ponto fixo, fazendo a memória decair no silêncio.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-3-4-2">
+        <title>Intermediário — Forma dos estados ocultos para PCA</title>
+        Após testar uma RNN de $n_h = 32$ unidades em $N = 120$ tentativas de $T = 50$ passos, você obtém <c>estados</c> de forma <c>(120, 50, 32)</c>. Qual forma deve receber <c>PCA(n_components=3).fit_transform(...)</c>, quantos pontos são projetados e como obter a trajetória média das tentativas?
+        <hint><title>Ver dica</title>A <c>PCA</c> do <c>scikit-learn</c> recebe matriz 2D <c>(n_observacoes, n_features)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Cada instante de cada tentativa é um vetor em $\mathbb{R}^{32}$, então remodelamos com <c>estados.reshape(-1, 32)</c> para <c>(6000, 32)</c>, projetando $120 \cdot 50 = 6\,000$ pontos. A saída <c>(6000, 3)</c> é reorganizada com <c>.reshape(120, 50, 3)</c> e promediada ao longo das tentativas (<c>axis=0</c>), resultando em forma <c>(50, 3)</c>.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-3-4-3">
+        <title>Avançado — Experimento em código com atraso pós-estímulo</title>
+        Adapte o <ref to="cod:9-3-integrador-pca"/> com $15$ passos de estímulo ruidoso seguidos de $10$ passos de atraso silencioso ($x_t = 0$ para $t = 16, \dots, 25$, total $T = 25$). Treine uma <c>nn.GRU</c> de $16$ unidades e imprima a acurácia de teste e o valor médio de PC1 em $t = 1, 15, 25$ para ambas as classes, avaliando se a separação sobrevive ao atraso.
+        <hint><title>Ver dica</title>Concatene <c>np.zeros((n_amostras, 10))</c> ao final dos $15$ passos de estímulo ao longo do eixo temporal.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+import torch
+import torch.nn as nn
+from sklearn.decomposition import PCA
+
+rng = np.random.default_rng(0)
+torch.manual_seed(0)
+
+def gerar_com_atraso(n_amostras, t_stim=15, t_atraso=10, drift=0.3, sigma=0.8):
+    y = rng.integers(0, 2, size=n_amostras)
+    sinais = np.where(y == 1, drift, -drift)[:, None]
+    stim = sinais + rng.normal(0.0, sigma, size=(n_amostras, t_stim))
+    silencio = np.zeros((n_amostras, t_atraso))
+    X = np.concatenate([stim, silencio], axis=1)
+    return (
+        torch.tensor(X[:, :, None], dtype=torch.float32),
+        torch.tensor(y, dtype=torch.float32),
+    )
+
+X_tr, y_tr = gerar_com_atraso(800)
+X_te, y_te = gerar_com_atraso(400)
+
+gru = nn.GRU(1, 16, batch_first=True)
+leitura = nn.Linear(16, 1)
+otim = torch.optim.Adam(list(gru.parameters()) + list(leitura.parameters()), lr=0.01)
+criterio = nn.BCEWithLogitsLoss()
+
+for _ in range(70):
+    otim.zero_grad()
+    est, _ = gru(X_tr)
+    loss = criterio(leitura(est[:, -1, :]).squeeze(-1), y_tr)
+    loss.backward()
+    torch.nn.utils.clip_grad_norm_(list(gru.parameters()) + list(leitura.parameters()), 1.0)
+    otim.step()
+
+with torch.no_grad():
+    est_te, _ = gru(X_te)
+    acc = ((leitura(est_te[:, -1, :]).squeeze(-1) > 0).float() == y_te).float().mean().item()
+
+H = est_te.numpy()
+proj = PCA(n_components=1).fit_transform(H.reshape(-1, 16)).reshape(400, 25)
+pos = proj[y_te.numpy() == 1].mean(axis=0)
+neg = proj[y_te.numpy() == 0].mean(axis=0)
+if pos[-1] < neg[-1]:
+    pos, neg = -pos, -neg
+
+print(f"Acuracia apos atraso: {acc:.3f}")  # ≈ 0.93
+print("PC1 (+) em t=1,15,25:", [round(float(pos[i]), 2) for i in (0, 14, 24)])
+# ≈ [-0.3, 1.63, 1.4]
+print("PC1 (-) em t=1,15,25:", [round(float(neg[i]), 2) for i in (0, 14, 24)])
+# ≈ [-0.27, -1.6, -2.31]
+          </code>
+          A separação entre as duas classes se mantém clara ao longo do atraso silencioso ($1{,}4$ contra $-2{,}31$ em $t = 25$), garantindo acurácia de $0{,}930$, embora os valores médios de PC1 não fiquem exatamente constantes durante o silêncio.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-3-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>RNN simples:</strong> compartilha $\mathbf{W}_{hh}$ e $\mathbf{W}_{xh}$ ao longo de sequências de tamanho $T$: $\mathbf{h}_t = \tanh(\mathbf{W}_{hh}\mathbf{h}_{t-1} + \mathbf{W}_{xh}\mathbf{x}_t + \mathbf{b}_h)$ e $\hat{\mathbf{y}}_t = \mathbf{W}_{hy}\mathbf{h}_t + \mathbf{b}_y$.</item>
+        <item><strong>Taxa neuronal:</strong> discretizar $\tau \frac{d\mathbf{r}}{dt} = -\mathbf{r} + f(\mathbf{W}\mathbf{r} + \mathbf{I})$ por Euler gera $\mathbf{r}_{t+1} = \left(1 - \frac{\Delta t}{\tau}\right)\mathbf{r}_t + \frac{\Delta t}{\tau} f(\mathbf{W}\mathbf{r}_t + \mathbf{I}_t)$, recuperando a RNN simples em $\Delta t = \tau$.</item>
+        <item><strong>BPTT e instabilidade:</strong> retropropagar multiplica $\mathbf{J}_t = \mathrm{diag}(1 - \mathbf{h}_t^2)\mathbf{W}_{hh}$, fazendo o gradiente sumir ($0{,}5^{20} \approx 9{,}5 \times 10^{-7}$) ou explodir ($1{,}5^{20} \approx 3\,325$).</item>
+        <item><strong>Mitigações:</strong> corte de gradiente limita $\|\mathbf{g}\|_2 \le c$ (<c>clip_grad_norm_</c>); BPTT truncado restringe memória e alcance a blocos de $K$ passos.</item>
+        <item><strong>LSTM:</strong> três portões ($\mathbf{f}_t, \mathbf{i}_t, \mathbf{o}_t$) e célula aditiva $\mathbf{c}_t = \mathbf{f}_t \odot \mathbf{c}_{t-1} + \mathbf{i}_t \odot \tilde{\mathbf{c}}_t$ permitem fluxo direto $\frac{\partial \mathbf{c}_t}{\partial \mathbf{c}_{t-1}} = \mathrm{diag}(\mathbf{f}_t)$, análogo à memória pré-frontal.</item>
+        <item><strong>GRU e parâmetros:</strong> interpola via $\mathbf{z}_t$; na teoria, LSTM tem $4(n_h(n_h+n_x)+n_h)$ e GRU tem $3(n_h(n_h+n_x)+n_h)$ parâmetros (no PyTorch, dois vieses por portão).</item>
+        <item><strong>Dinâmica cortical:</strong> RNNs treinadas em integração de evidência convergem em média ao teto bayesiano e formam atratores revelados por PCA.</item>
+      </list>
+    </section>
+
+    <section id="sec:9-3-alem">
+      <title>Para ir além</title>
+      Para consolidar redes recorrentes antes de <mark>9.4 Representações</mark> e <mark>9.5 Transformers</mark>, explore os materiais do Módulo 9:
+      <list marker="dash">
+        <item><strong>Referência teórica:</strong> <em>Deep Learning Book</em> — Ian Goodfellow (capítulo de modelagem de sequências, BPTT e redes com portões).</item>
+        <item><strong>Aulas em vídeo:</strong> Andrej Karpathy — aulas de LLM e <em>backprop</em> no YouTube para visualizar grafos computacionais e treinamento sequencial.</item>
+        <item><strong>PyTorch:</strong> <link to="https://pytorch.org/docs/stable/index.html">documentação oficial</link> (<c>torch.nn.RNN</c>, <c>torch.nn.LSTM</c>, <c>torch.nn.GRU</c>) e <link to="https://pytorch.org/tutorials/">tutoriais oficiais</link>.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 9 · Deep Learning — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

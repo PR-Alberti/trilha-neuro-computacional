@@ -1,0 +1,624 @@
+<document>
+  <title>Módulo 9 · Deep Learning</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-9-9">Voltar ao guia (Tema 9.9)</link></meta-item>
+    <meta-item key="Módulo">Módulo 9 · Deep Learning — O Estado da Arte da Neurociência Computacional</meta-item>
+    <meta-item key="Nível">Avançado</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-9-9">
+    <title>Reinforcement Learning</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Aprender por tentativa e recompensa — a ponte com dopamina e aprendizado no cérebro.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Nenhum professor entrega a um animal o gabarito de cada movimento na natureza: um roedor explora um labirinto, um primata associa um som a uma gota de suco e ajusta seu comportamento pelas consequências. O aprendizado por reforço (<em>Reinforcement Learning</em>, RL) formaliza como um agente aprende a agir por tentativa e recompensa — e gerou uma das pontes mais precisas entre algoritmos e fisiologia: neurônios dopaminérgicos do mesencéfalo disparam conforme o erro de predição de recompensa temporal. Como vimos no Tema 9.8, RL também alinha modelos de linguagem via RLHF, fechando o arco entre redes profundas (CNNs, RNNs, <em>Transformers</em>) e tomada de decisão.
+
+    Em projetos reais de <em>Deep RL</em>, recomenda-se usar instâncias em nuvem ou o Google Colab com GPU, pois seu computador vai ferver sem placa de vídeo compatível. Os códigos desta aula, porém, foram dimensionados para rodar em CPU em segundos.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>modelar decisões sequenciais como processos de decisão de Markov (MDPs) e calcular retornos descontados;</item>
+      <item>aplicar as equações de Bellman para avaliar políticas e identificar ações ótimas;</item>
+      <item>implementar o algoritmo TD(0) e relacionar o erro $\delta_t$ às respostas de neurônios dopaminérgicos;</item>
+      <item>treinar um agente com <em>Q-learning</em> em um mundo em grade e conectar o método ao <em>Deep RL</em> e aos núcleos da base.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Retomaremos esperança e probabilidade condicional do Módulo 7 (<strong>Variável aleatória</strong>), atualizações iterativas com taxa de aprendizado do Módulo 4 (<strong>Métodos computacionais</strong>), soma de progressão geométrica (Módulo 1), redes neurais como aproximadores de funções do Tema 9.1 (<strong>Fundamentos</strong>) e a noção de RLHF do Tema 9.8 (<strong>LLM</strong>).
+
+    <section id="sec:9-9-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Agente, ambiente e recompensa</title>
+      <intro>
+        Diferente do aprendizado supervisionado, no RL ninguém diz qual ação era a certa em cada instante — o agente descobre o que fazer a partir de recompensas atrasadas.
+      </intro>
+
+      Imagine um rato faminto em um labirinto. A cada encruzilhada, o animal observa onde está (<strong>estado</strong>), escolhe virar à esquerda ou à direita (<strong>ação</strong>) e passa para um novo corredor. Na maioria dos passos ele não ganha nada; só ao alcançar o final do braço correto recebe comida (<strong>recompensa</strong>).
+
+      Isso distingue o RL dos paradigmas do Módulo 8. No aprendizado supervisionado, cada entrada traz um rótulo exato; no não supervisionado, buscamos estrutura sem sinal avaliativo. No RL, o retorno é apenas um sinal escalar de mérito que pode chegar muitos passos depois da decisão crítica.
+
+      <box type="tip">
+        <title>Atenção à notação desta aula</title>
+        Seguindo o padrão clássico de Sutton &amp; Barto (2018), aqui a letra $a$ indica <strong>ação</strong> (não ativação de neurônio) e a taxa de aprendizado é escrita como $\alpha$ (no lugar de $\eta$ das aulas anteriores).
+      </box>
+
+      <definition id="def:9-9-mdp">
+        <title>Processo de Decisão de Markov (MDP)</title>
+        Um <strong>MDP</strong> é uma quíntupla $(\mathcal{S}, \mathcal{A}, p, r, \gamma)$ onde $\mathcal{S}$ é o conjunto de estados, $\mathcal{A}$ é o conjunto de ações, $p(s' \mid s, a) = P(s_{t+1} = s' \mid s_t = s, a_t = a)$ define a dinâmica de transição, $r(s, a, s') \in \mathbb{R}$ é a recompensa esperada ao transitar de $s$ para $s'$ via $a$, e $\gamma \in [0, 1)$ é o fator de desconto. O sistema satisfaz a <strong>propriedade de Markov</strong>: o futuro depende apenas do estado e da ação presentes, não do histórico anterior.
+
+        Uma <strong>política</strong> $\pi$ mapeia estados em ações: pode ser determinística, $a = \pi(s)$, ou estocástica, $\pi(a \mid s) = P(a_t = a \mid s_t = s)$.
+        <intuition>
+          A propriedade de Markov diz que o estado atual $s_t$ resume toda a informação relevante do passado — como a posição atual no labirinto basta para decidir o próximo passo sem recontar o caminho inteiro.
+        </intuition>
+      </definition>
+
+      O objetivo do agente não é maximizar apenas a recompensa imediata $r_{t+1}$, mas a soma acumulada das recompensas futuras, ponderada pelo tempo.
+
+      <definition id="def:9-9-retorno">
+        <title>Retorno descontado</title>
+        Dado o fator de desconto $\gamma \in [0, 1)$, o <strong>retorno descontado</strong> a partir do instante $t$ é:
+        <equation id="eq:9-9-retorno">
+          G_t = r_{t+1} + \gamma r_{t+2} + \gamma^2 r_{t+3} + \cdots = \sum_{k=0}^{\infty} \gamma^k r_{t+k+1}
+        </equation>
+        Note a relação recursiva $G_t = r_{t+1} + \gamma G_{t+1}$. Em tarefas episódicas que terminam no passo $T$, a soma encerra em $r_T$.
+        <intuition>
+          Descontar com $\gamma < 1$ serve a dois propósitos: garante matematicamente que somas infinitas convirjam e traduz a preferência biológica por recompensas mais próximas e certas em vez de promessas distantes.
+        </intuition>
+      </definition>
+
+      <proposition id="prop:9-9-serie-geom">
+        <title>Retorno de uma recompensa constante</title>
+        Se um agente recebe recompensa constante $r_{t+k+1} = c$ em todos os passos futuros e $0 \le \gamma < 1$, então $G_t = \dfrac{c}{1 - \gamma}$. Em particular, para $c = 1$ e $\gamma = 0{,}9$, temos $G_t = 10$.
+      </proposition>
+      <proof of="prop:9-9-serie-geom" collapsible="true" collapsed="true">
+        Pela fórmula da soma de uma progressão geométrica infinita de razão $\gamma \in [0, 1)$:
+        $$G_t = \sum_{k=0}^{\infty} c\,\gamma^k = c \sum_{k=0}^{\infty} \gamma^k = \frac{c}{1 - \gamma}.$$
+        Substituindo $c = 1$ e $\gamma = 0{,}9$, obtemos $G_t = \frac{1}{1 - 0{,}9} = \frac{1}{0{,}1} = 10$.
+      </proof>
+
+      Para aprender sem saber previamente onde estão as melhores recompensas, o agente enfrenta o dilema entre <strong>exploração e aproveitamento</strong> (<em>exploration</em> $\times$ <em>exploitation</em>): escolher a melhor ação já conhecida ou testar alternativas novas que podem render mais. Uma solução simples é a política <strong>$\varepsilon$-gulosa</strong> (<em>$\varepsilon$-greedy</em>): com probabilidade $1 - \varepsilon$ escolhe-se a melhor ação estimada; com probabilidade $\varepsilon \in (0, 1)$ sorteia-se uniformemente uma ação qualquer em $\mathcal{A}$.
+
+      <example id="exm:9-9-labirinto">
+        <title>Um rato no labirinto em T como MDP</title>
+        Modele um rato aprendendo que o alimento está sempre no braço direito de um labirinto em T.
+
+        <strong>Solução.</strong> Definimos o MDP $(\mathcal{S}, \mathcal{A}, p, r, \gamma)$:
+        <list marker="dash">
+          <item><strong>Estados ($\mathcal{S}$):</strong> $\{s_{\text{início}}, s_{\text{bif}}, s_{\text{esq}}, s_{\text{dir}}\}$, sendo $s_{\text{esq}}$ e $s_{\text{dir}}$ estados terminais (fim da tentativa);</item>
+          <item><strong>Ações ($\mathcal{A}$):</strong> $\{\text{avançar}, \text{esquerda}, \text{direita}\}$ (em $s_{\text{início}}$, avançar leva a $s_{\text{bif}}$; em $s_{\text{bif}}$, esquerda leva a $s_{\text{esq}}$ e direita a $s_{\text{dir}}$);</item>
+          <item><strong>Dinâmica ($p$):</strong> determinística ($p = 1$ para a transição correspondente);</item>
+          <item><strong>Recompensas ($r$):</strong> $r = +1$ ao entrar em $s_{\text{dir}}$ e $r = 0$ nas demais transições;</item>
+          <item><strong>Desconto ($\gamma$):</strong> $\gamma = 0{,}9$.</item>
+        </list>
+        Em uma tentativa bem-sucedida ($s_{\text{início}} \to s_{\text{bif}} \to s_{\text{dir}}$), a ação correta em $s_{\text{início}}$ recebe $r_1 = 0$, mas desbloqueia o retorno $G_0 = 0 + 0{,}9 \cdot 1 = 0{,}9$.
+      </example>
+
+      <example id="exm:9-9-retorno-mao">
+        <title>Cálculo do retorno descontado à mão</title>
+        Em um episódio de quatro passos com $\gamma = 0{,}9$, um agente obtém as recompensas $r_1 = 0$, $r_2 = 0$, $r_3 = 2$ e $r_4 = 10$. Calcule $G_0$ e $G_1$.
+
+        <strong>Solução.</strong> Aplicando a <ref to="eq:9-9-retorno">Equação do retorno</ref>:
+        $$G_0 = r_1 + \gamma r_2 + \gamma^2 r_3 + \gamma^3 r_4 = 0 + 0{,}9(0) + 0{,}9^2(2) + 0{,}9^3(10).$$
+        Como $0{,}9^2 = 0{,}81$ e $0{,}9^3 = 0{,}729$:
+        $$G_0 = 0 + 0 + 1{,}62 + 7{,}29 = 8{,}91.$$
+        Para $G_1$, começamos a partir de $r_2$:
+        $$G_1 = r_2 + \gamma r_3 + \gamma^2 r_4 = 0 + 0{,}9(2) + 0{,}81(10) = 1{,}8 + 8{,}1 = 9{,}9.$$
+        <em>Conferência recursiva:</em> $G_0 = r_1 + \gamma G_1 = 0 + 0{,}9 \cdot 9{,}9 = 8{,}91$.
+      </example>
+
+      <remark id="rem:9-9-armadilha-1">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Confundir recompensa imediata com valor de longo prazo:</strong> uma ação com $r_{t+1} = 0$ pode ser ótima se abrir caminho para $+10$ no futuro.</item>
+          <item><strong>Esquecer a exploração ($\varepsilon = 0$):</strong> um agente puramente guloso desde o início pode encontrar uma recompensa medíocre e nunca descobrir a fonte maior ao lado.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-9-1-1">
+        <title>Básico — Retorno descontado passo a passo</title>
+        Um episódio gera as recompensas $r_1 = -1$, $r_2 = 0$, $r_3 = 5$ e $r_4 = 10$, com $\gamma = 0{,}8$. Calcule $G_1$ e $G_0$.
+        <hint><title>Ver dica</title>Calcule $G_1 = r_2 + \gamma r_3 + \gamma^2 r_4$ primeiro e depois use $G_0 = r_1 + \gamma G_1$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculando $G_1$:
+          $$G_1 = 0 + 0{,}8(5) + 0{,}8^2(10) = 0 + 4 + 0{,}64 \cdot 10 = 10{,}4.$$
+          Pela relação recursiva:
+          $$G_0 = r_1 + \gamma G_1 = -1 + 0{,}8(10{,}4) = -1 + 8{,}32 = 7{,}32.$$
+          Conferindo diretamente: $-1 + 0 + 0{,}64(5) + 0{,}512(10) = -1 + 3{,}2 + 5{,}12 = 7{,}32$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-9-1-2">
+        <title>Intermediário — Desconto temporal no forrageamento</title>
+        Um camundongo escolhe entre a opção A (recompensa imediata $r_1 = 2$ e fim) e a opção B (esperar dois passos sem recompensa, $r_1 = 0, r_2 = 0$, para obter $r_3 = 4$). Compare os retornos $G_0$ para $\gamma = 0{,}9$ e $\gamma = 0{,}5$, e encontre o limiar de $\gamma$ em que as duas opções empatam.
+        <hint><title>Ver dica</title>Iguale $G_A = 2$ a $G_B = \gamma^2 \cdot 4$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para a opção A, $G_A = 2$. Para a opção B, $G_B = 0 + \gamma \cdot 0 + \gamma^2 \cdot 4 = 4\gamma^2$:
+          <list marker="dash">
+            <item>Se $\gamma = 0{,}9$: $G_B = 4(0{,}81) = 3{,}24 > 2$, logo escolhe B (paciente);</item>
+            <item>Se $\gamma = 0{,}5$: $G_B = 4(0{,}25) = 1{,}0 < 2$, logo escolhe A (impulsivo).</item>
+          </list>
+          O empate ocorre em $4\gamma^2 = 2 \implies \gamma^2 = 0{,}5 \implies \gamma = \frac{\sqrt{2}}{2} \approx 0{,}707$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-9-1-3">
+        <title>Avançado — Probabilidades na política $\varepsilon$-gulosa e série infinita</title>
+        Suponha $|\mathcal{A}| = 4$ ações e uma política $\varepsilon$-gulosa com $\varepsilon = 0{,}2$, na qual a ação exploratória é sorteada uniformemente entre todas as $4$ ações.
+        <list marker="a">
+          <item>Qual a probabilidade de escolher a ação gulosa e qual a de escolher cada ação não gulosa?</item>
+          <item>Se a ação gulosa rende $r = 3$ a cada passo indefinidamente com $\gamma = 0{,}9$, qual seria o retorno $G_0$ caso fosse seguida sem exploração ($\varepsilon = 0$)?</item>
+        </list>
+        <hint><title>Ver dica</title>Na exploração uniforme, a própria ação gulosa também tem chance $\varepsilon / |\mathcal{A}|$ de ser sorteada.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>A ação gulosa é escolhida por aproveitamento ($1 - \varepsilon = 0{,}8$) ou por acaso na exploração ($\varepsilon / 4 = 0{,}2 / 4 = 0{,}05$), totalizando $0{,}8 + 0{,}05 = 0{,}85$. Cada uma das $3$ ações não gulosas tem probabilidade $0{,}05$. Soma: $0{,}85 + 3(0{,}05) = 1{,}00$.</item>
+            <item>Pela <ref to="prop:9-9-serie-geom"/>, $G_0 = \frac{3}{1 - 0{,}9} = \frac{3}{0{,}1} = 30$.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-9-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Valor e a equação de Bellman</title>
+      <intro>
+        Não precisamos simular todas as trajetórias futuras de cabeça: a equação de Bellman quebra o valor de hoje na recompensa imediata somada ao valor descontado de amanhã.
+      </intro>
+
+      Como o ambiente e a política podem ser estocásticos, definimos o <strong>valor</strong> como a esperança do retorno futuro (Módulo 7).
+
+      <definition id="def:9-9-funcoes-valor">
+        <title>Funções de valor $V^\pi$ e $Q^\pi$</title>
+        Dada uma política $\pi$, o <strong>valor de estado</strong> $V^\pi(s)$ e o <strong>valor de estado-ação</strong> $Q^\pi(s, a)$ são:
+        $$V^\pi(s) = \mathbb{E}_\pi[G_t \mid s_t = s], \qquad Q^\pi(s, a) = \mathbb{E}_\pi[G_t \mid s_t = s, a_t = a].$$
+        Por convenção, todo <strong>estado terminal</strong> $s_{\text{term}}$ tem $V^\pi(s_{\text{term}}) = 0$ e $Q^\pi(s_{\text{term}}, a) = 0$, pois nenhuma recompensa futura ocorre após o término.
+        <intuition>
+          $V^\pi(s)$ responde "quão bom é estar no estado $s$ seguindo $\pi$?"; já $Q^\pi(s, a)$ responde "quão bom é tomar a ação $a$ em $s$ e depois seguir $\pi$?".
+        </intuition>
+      </definition>
+
+      Usando $G_t = r_{t+1} + \gamma G_{t+1}$, obtemos relações de autoconsistência entre estados vizinhos.
+
+      <proposition id="prop:9-9-bellman">
+        <title>Equações de Bellman (expectativa e otimalidade)</title>
+        Para qualquer política $\pi$, o valor $V^\pi$ satisfaz a <strong>equação de Bellman de expectativa</strong>:
+        <equation id="eq:9-9-bellman-v">
+          V^\pi(s) = \sum_{a \in \mathcal{A}} \pi(a \mid s) \sum_{s' \in \mathcal{S}} p(s' \mid s, a)\bigl[r(s, a, s') + \gamma V^\pi(s')\bigr]
+        </equation>
+        Já a função de valor-ação ótima $Q^*(s, a) = \max_\pi Q^\pi(s, a)$ satisfaz a <strong>equação de otimalidade de Bellman</strong>:
+        <equation id="eq:9-9-bellman-q">
+          Q^*(s, a) = \sum_{s' \in \mathcal{S}} p(s' \mid s, a)\bigl[r(s, a, s') + \gamma \max_{a' \in \mathcal{A}} Q^*(s', a')\bigr]
+        </equation>
+        Conhecendo $Q^*$, a <strong>política ótima gulosa</strong> é $\pi^*(s) = \arg\max_{a \in \mathcal{A}} Q^*(s, a)$.
+      </proposition>
+      <proof of="prop:9-9-bellman" collapsible="true" collapsed="true">
+        Escrevemos $V^\pi(s) = \mathbb{E}_\pi[r_{t+1} + \gamma G_{t+1} \mid s_t = s]$. Condicionando sobre a escolha $a_t = a$ (com peso $\pi(a \mid s)$) e sobre o próximo estado $s_{t+1} = s'$ (com peso $p(s' \mid s, a)$), a propriedade de Markov garante $\mathbb{E}_\pi[G_{t+1} \mid s_t=s, a_t=a, s_{t+1}=s'] = \mathbb{E}_\pi[G_{t+1} \mid s_{t+1}=s'] = V^\pi(s')$. Pela linearidade da esperança, segue a <ref to="eq:9-9-bellman-v"/>. Para $Q^*$, substituímos a média sobre a política futura pelo melhor valor alcançável em $s'$, que é $\max_{a'} Q^*(s', a')$.
+      </proof>
+
+      <example id="exm:9-9-cadeia-bellman">
+        <title>Cadeia de três estados à mão</title>
+        Considere uma cadeia determinística $A \to B \to C$, onde $C$ é terminal, a recompensa vale $r = 1$ apenas ao chegar em $C$ ($r(A, B) = 0$, $r(B, C) = 1$) e $\gamma = 0{,}9$. Calcule $V(A)$, $V(B)$ e $V(C)$.
+
+        <strong>Solução.</strong> Começando de trás para frente a partir do estado terminal:
+        <list marker="dash">
+          <item>$V(C) = 0$ (terminal);</item>
+          <item>$V(B) = r(B, C) + \gamma V(C) = 1 + 0{,}9 \cdot 0 = 1{,}0$;</item>
+          <item>$V(A) = r(A, B) + \gamma V(B) = 0 + 0{,}9 \cdot 1{,}0 = 0{,}9$.</item>
+        </list>
+      </example>
+
+      Quando há muitos estados ou ciclos, podemos calcular $V^\pi$ por <strong>avaliação iterativa de política</strong>: partimos de $V_0(s) = 0$ e aplicamos repetidamente a equação de Bellman como regra de atualização até convergir. O código abaixo confirma os valores do <ref to="exm:9-9-cadeia-bellman"/>.
+
+      <code lang="python" id="cod:9-9-bellman-iter">
+import numpy as np
+
+gamma = 0.9
+V = np.zeros(3)  # índices: 0 = A, 1 = B, 2 = C (terminal)
+
+for it in range(1, 5):
+    V_novo = np.zeros(3)
+    V_novo[0] = 0.0 + gamma * V[1]  # A -> B, r = 0
+    V_novo[1] = 1.0 + gamma * V[2]  # B -> C, r = 1
+    V_novo[2] = 0.0                 # C terminal
+    V = V_novo
+    print(f"Iteração {it}: V(A)={V[0]:.2f}, V(B)={V[1]:.2f}, V(C)={V[2]:.2f}")
+
+# Iteração 1: V(A)=0.00, V(B)=1.00, V(C)=0.00
+# Iteração 2: V(A)=0.90, V(B)=1.00, V(C)=0.00
+# Iteração 3: V(A)=0.90, V(B)=1.00, V(C)=0.00
+# Iteração 4: V(A)=0.90, V(B)=1.00, V(C)=0.00
+      </code>
+
+      <example id="exm:9-9-estimulo-valor">
+        <title>Valor de um estímulo condicionado</title>
+        Em um experimento de condicionamento, um som neutro ($s_{\text{som}}$) é seguido $1\text{ s}$ depois por uma recompensa de suco ($r = 1$) e pelo fim da tentativa ($s_{\text{fim}}$). Com $\gamma = 0{,}9$, antes do treino o animal não espera nada ($V(s_{\text{som}}) = 0$). Após aprender a transição, o som passa a ter valor:
+        $$V(s_{\text{som}}) = 0 + 0{,}9 \cdot V_{\text{espera}} = 0{,}9 \cdot 1 = 0{,}9$$
+        (ou, se o suco chega no próprio passo seguinte ao som com $r = 1$ direto para $s_{\text{fim}}$, $V(s_{\text{som}}) = 1 + 0{,}9 \cdot 0 = 1$). Mesmo sem ter valor nutricional próprio, o som carrega o valor da recompensa futura esperada — ideia central da próxima seção.
+      </example>
+
+      <remark id="rem:9-9-armadilha-2">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Esquecer de zerar o estado terminal:</strong> se $V(s_{\text{term}}) \ne 0$, o algoritmo injeta recompensas fantasmas após o fim do episódio.</item>
+          <item><strong>Aplicar $\max$ no estado atual em vez do próximo:</strong> na equação de otimalidade para $Q^*(s, a)$, o máximo $\max_{a'} Q^*(s', a')$ é sobre as ações possíveis no <em>próximo</em> estado $s'$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-9-2-1">
+        <title>Básico — Cadeia com recompensa intermediária</title>
+        Na cadeia determinística $A \to B \to C$ ($C$ terminal), suponha $r(A, B) = 2$, $r(B, C) = 5$ e $\gamma = 0{,}8$. Calcule $V(C)$, $V(B)$ e $V(A)$ pela equação de Bellman.
+        <hint><title>Ver dica</title>Comece com $V(C) = 0$ e recue um estado por vez.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="dash">
+            <item>$V(C) = 0$ (estado terminal);</item>
+            <item>$V(B) = 5 + 0{,}8 \cdot 0 = 5$;</item>
+            <item>$V(A) = 2 + 0{,}8 \cdot 5 = 2 + 4 = 6$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-9-2-2">
+        <title>Intermediário — Escolha estocástica de um roedor</title>
+        No ponto de escolha $s_0$, a ação $a_1$ encerra a tentativa imediatamente dando $r = 4$ com probabilidade $0{,}5$ ou $r = 0$ com probabilidade $0{,}5$. A ação $a_2$ leva deterministicamente ($r = 0$) a uma câmara $s_1$, onde uma única ação disponível entrega $r = 3$ e encerra. Com $\gamma = 0{,}9$, calcule $Q^*(s_0, a_1)$, $Q^*(s_0, a_2)$ e a ação ótima $\pi^*(s_0)$.
+        <hint><title>Ver dica</title>Calcule primeiro $V^*(s_1) = \max_a Q^*(s_1, a)$ e use-o na equação de $Q^*(s_0, a_2)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para $a_1$, ambos os desfechos levam ao estado terminal ($V = 0$):
+          $$Q^*(s_0, a_1) = 0{,}5(4 + 0{,}9 \cdot 0) + 0{,}5(0 + 0{,}9 \cdot 0) = 2{,}0.$$
+          Em $s_1$, a única ação leva ao terminal com $r = 3$, logo $\max_{a'} Q^*(s_1, a') = 3{,}0$. Assim:
+          $$Q^*(s_0, a_2) = 1{,}0 \cdot (0 + 0{,}9 \cdot 3{,}0) = 2{,}7.$$
+          Como $2{,}7 > 2{,}0$, a política ótima escolhe $\pi^*(s_0) = a_2$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-9-2-3">
+        <title>Avançado — Avaliação iterativa em ciclo</title>
+        Considere dois estados não terminais em ciclo: $s_0 \to s_1$ ($r = 0$) e $s_1 \to s_0$ ($r = 1$), com $\gamma = 0{,}5$. Resolva o sistema de Bellman algebricamente para achar $V(s_0)$ e $V(s_1)$ exatos e escreva um código NumPy com $20$ iterações para conferir.
+        <hint><title>Ver dica</title>Substitua $V(s_0) = 0{,}5\,V(s_1)$ dentro de $V(s_1) = 1 + 0{,}5\,V(s_0)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Substituindo $V(s_0) = 0{,}5\,V(s_1)$ em $V(s_1) = 1 + 0{,}5\,V(s_0)$:
+          $$V(s_1) = 1 + 0{,}25\,V(s_1) \implies 0{,}75\,V(s_1) = 1 \implies V(s_1) = \frac{4}{3} \approx 1{,}3333, \quad V(s_0) = \frac{2}{3} \approx 0{,}6667.$$
+          Código de conferência:
+          <code lang="python" id="cod:9-9-ciclo">
+import numpy as np
+
+gamma = 0.5
+V = np.zeros(2)
+for _ in range(20):
+    V = np.array([0.0 + gamma * V[1], 1.0 + gamma * V[0]])
+print(f"V(s0)={V[0]:.4f}, V(s1)={V[1]:.4f}")  # V(s0)=0.6667, V(s1)=1.3333
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-9-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Aprendizado por diferença temporal e dopamina</title>
+      <intro>
+        Na vida real o agente não conhece o mapa $p(s' \mid s, a)$ de antemão: ele aprende atualizando suas previsões passo a passo a partir da surpresa entre o esperado e o observado.
+      </intro>
+
+      Em 1972, Robert Rescorla e Allan Wagner propuseram um modelo simples de condicionamento clássico (pavloviano): quando um estímulo prediz uma recompensa $\lambda$, o valor esperado $V$ é atualizado após cada tentativa pelo <strong>erro de predição</strong> $(\lambda - V)$:
+      <equation id="eq:9-9-rw">
+        \Delta V = \alpha(\lambda - V) \qquad \Longleftrightarrow \qquad V \leftarrow V + \alpha(\lambda - V)
+      </equation>
+      Por exemplo, com $V_0 = 0$, $\alpha = 0{,}3$ e $\lambda = 1$: na 1ª tentativa $\Delta V = 0{,}3(1 - 0) = 0{,}3 \implies V_1 = 0{,}3$; na 2ª, $\Delta V = 0{,}3(1 - 0{,}3) = 0{,}21 \implies V_2 = 0{,}51$; na 3ª, $\Delta V = 0{,}3(1 - 0{,}51) = 0{,}147 \implies V_3 = 0{,}657$.
+
+      O modelo de Rescorla–Wagner explica o aprendizado entre tentativas, mas trata cada tentativa como um bloco único sem tempo interno. Para capturar o que ocorre <em>dentro</em> da tentativa, Richard Sutton (1988) criou o algoritmo de <strong>diferença temporal</strong> TD(0).
+
+      <definition id="def:9-9-td0">
+        <title>Erro de diferença temporal TD(0)</title>
+        Ao observar uma transição $s_t \to s_{t+1}$ com recompensa $r_{t+1}$, definimos o <strong>erro TD</strong> (ou erro de predição de recompensa, <em>RPE</em>) e a atualização de $V(s_t)$ com taxa $\alpha \in (0, 1]$ por:
+        <equations id="eq:9-9-td0">
+          \delta_t &= r_{t+1} + \gamma V(s_{t+1}) - V(s_t) \\
+          V(s_t) &\leftarrow V(s_t) + \alpha\,\delta_t
+        </equations>
+        <intuition>
+          Se $\delta_t > 0$, o desfecho foi melhor que o previsto; se $\delta_t = 0$, saiu exatamente como esperado; se $\delta_t < 0$, foi pior que o esperado. Note que quando $V$ converge para a equação de Bellman, $\mathbb{E}[\delta_t] = 0$.
+        </intuition>
+      </definition>
+
+      Em um marco da neurociência computacional, Wolfram Schultz, Peter Dayan e Read Montague (1997, <em>Science</em>) mostraram que neurônios dopaminérgicos do mesencéfalo — na <strong>área tegmentar ventral (VTA)</strong> e na <strong>substância negra parte compacta (SNc)</strong> — reproduzem qualitativamente o sinal $\delta_t$:
+      <list marker="number">
+        <item><strong>Antes do condicionamento:</strong> disparam em salva (<em>burst</em>) logo após uma recompensa inesperada ($\delta > 0$ na recompensa);</item>
+        <item><strong>Após o condicionamento:</strong> a salva migra para o estímulo condicionado que prediz a recompensa ($\delta > 0$ no estímulo), enquanto a recompensa prevista gera atividade basal ($\delta \approx 0$);</item>
+        <item><strong>Omissão da recompensa esperada:</strong> quando o estímulo ocorre mas a recompensa é omitida, os disparos caem abaixo da linha de base no instante em que a recompensa era esperada ($\delta < 0$).</item>
+      </list>
+      Essa é uma das correspondências mais fortes entre teoria computacional e eletrofisiologia, embora a dopamina cumpra outros papéis essenciais no cérebro — como no controle motor (cuja perda na SNc caracteriza a doença de Parkinson).
+
+      <example id="exm:9-9-td-mao">
+        <title>Dois passos de TD(0) à mão</title>
+        Considere uma tentativa $s_1 \text{ (estímulo)} \to s_2 \text{ (espera)} \to s_3 \text{ (terminal)}$, com $r_2 = 0$, $r_3 = 1$, $\gamma = 0{,}9$, $\alpha = 0{,}5$ e valores iniciais $V(s_1) = V(s_2) = V(s_3) = 0$. Calcule as atualizações nas duas primeiras tentativas.
+
+        <strong>Solução.</strong>
+        <list marker="dash">
+          <item><strong>Tentativa 1:</strong> em $s_1 \to s_2$, $\delta_1 = 0 + 0{,}9(0) - 0 = 0 \implies V(s_1) = 0$. Em $s_2 \to s_3$, $\delta_2 = 1 + 0{,}9(0) - 0 = 1 \implies V(s_2) \leftarrow 0 + 0{,}5(1) = 0{,}5$.</item>
+          <item><strong>Tentativa 2:</strong> em $s_1 \to s_2$, $\delta_1 = 0 + 0{,}9(0{,}5) - 0 = 0{,}45 \implies V(s_1) \leftarrow 0 + 0{,}5(0{,}45) = 0{,}225$. Em $s_2 \to s_3$, $\delta_2 = 1 + 0{,}9(0) - 0{,}5 = 0{,}5 \implies V(s_2) \leftarrow 0{,}5 + 0{,}5(0{,}5) = 0{,}75$.</item>
+        </list>
+        Veja o erro positivo recuando um passo de $s_2$ para o estímulo $s_1$ já na tentativa 2!
+      </example>
+
+      <example id="exm:9-9-cond-relogio">
+        <title>Simulação de condicionamento e resposta dopaminérgica</title>
+        Para simular o experimento de Schultz e colaboradores ao longo de $T = 20$ instantes ($t = 0, \dots, 19$), representamos o tempo após o estímulo como um "relógio" interno (<em>tapped delay line</em>): cada instante a partir do estímulo em $t = 5$ tem seu próprio estado $V_t$, enquanto o período anterior ($t < 5$) mantém valor fixo $V_t = 0$ porque o momento do estímulo é imprevisível. Assim, quando $V_5$ cresce, a chegada do estímulo gera $\delta_5 = r_5 + \gamma V_5 - V_4 = \gamma V_5 > 0$. Abaixo usamos $\gamma = 1{,}0$ (episódio finito), $\alpha = 0{,}1$ e recompensa em $t = 15$ por $200$ tentativas, seguida de uma tentativa com omissão.
+
+        <code lang="python" id="cod:9-9-dopamina-td">
+import numpy as np
+
+def simular_tentativa(V, recompensa, t_est=5, gamma=1.0, alpha=0.1, atualizar=True):
+    delta = np.zeros_like(recompensa)
+    for t in range(1, len(recompensa)):
+        delta[t] = recompensa[t] + gamma * V[t] - V[t - 1]
+        if atualizar and (t - 1) >= t_est:
+            V[t - 1] += alpha * delta[t]
+    return delta
+
+T, t_est, t_rec = 20, 5, 15
+rec = np.zeros(T); rec[t_rec] = 1.0
+V = np.zeros(T)
+
+for tentativa in range(1, 201):
+    d = simular_tentativa(V, rec, t_est=t_est, gamma=1.0, alpha=0.1, atualizar=True)
+    if tentativa in (1, 200):
+        print(f"Tentativa {tentativa:3d} -> delta_est={d[t_est]:.3f}, delta_rec={d[t_rec]:.3f}")
+
+d_om = simular_tentativa(V, np.zeros(T), t_est=t_est, gamma=1.0, alpha=0.1, atualizar=False)
+print(f"Omissão (201) -> delta_est={d_om[t_est]:.3f}, delta_rec={d_om[t_rec]:.3f}")
+
+# Tentativa   1 -> delta_est=0.000, delta_rec=1.000
+# Tentativa 200 -> delta_est≈0.996, delta_rec≈0.000
+# Omissão (201) -> delta_est≈0.996, delta_rec=-1.000
+        </code>
+      </example>
+
+      <figure src="fig/t09-dopamina-td.svg" alt="Três painéis mostrando o erro TD ao longo de 20 instantes: pico na recompensa na tentativa 1, pico deslocado para o estímulo na tentativa 200 e vale negativo na omissão da recompensa" id="fig:9-9-dopamina">
+        <caption>Simulação TD(0) do erro de predição $\delta_t$ (estímulo em $t=5$, recompensa em $t=15$, $\gamma=1{,}0$, $\alpha=0{,}1$), reproduzindo o padrão clássico de neurônios dopaminérgicos da VTA/SNc.</caption>
+      </figure>
+
+      <remark id="rem:9-9-armadilha-3">
+        <title>Armadilha comum</title>
+        Dizer que "a dopamina é o neurotransmissor do prazer" é impreciso: após o condicionamento, os neurônios dopaminérgicos quase não respondem ao receber a recompensa esperada ($\delta \approx 0$); eles sinalizam a <em>surpresa</em> em relação ao esperado ($\delta_t$), além de atuarem em funções motoras e motivacionais.
+      </remark>
+
+      <exercise id="exr:9-9-3-1">
+        <title>Básico — Rescorla–Wagner à mão</title>
+        Partindo de $V_0 = 0$, com $\alpha = 0{,}4$ e $\lambda = 2$, calcule $\Delta V$ e $V$ nas três primeiras tentativas pela equação de Rescorla–Wagner.
+        <hint><title>Ver dica</title>Aplique $\Delta V = \alpha(\lambda - V)$ e some ao valor anterior.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="dash">
+            <item>Tentativa 1: $\Delta V_1 = 0{,}4(2 - 0) = 0{,}8 \implies V_1 = 0{,}8$;</item>
+            <item>Tentativa 2: $\Delta V_2 = 0{,}4(2 - 0{,}8) = 0{,}48 \implies V_2 = 1{,}28$;</item>
+            <item>Tentativa 3: $\Delta V_3 = 0{,}4(2 - 1{,}28) = 0{,}4(0{,}72) = 0{,}288 \implies V_3 = 1{,}568$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-9-3-2">
+        <title>Intermediário — Omissão de suco em primata</title>
+        Um macaco aprendeu que uma luz ($s_1$) prediz suco ($r = 1$) no instante seguinte ($s_2$, terminal), de modo que $V(s_1) = 0{,}9$ e $V(s_2) = 0$, com $\gamma = 0{,}9$ e $\alpha = 0{,}2$. Em uma tentativa-surpresa sem suco ($r = 0$), calcule $\delta_1$, o novo $V(s_1)$ e interprete fisiologicamente o sinal de $\delta_1$.
+        <hint><title>Ver dica</title>Substitua $r_2 = 0$ em $\delta_1 = r_2 + \gamma V(s_2) - V(s_1)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          $$\delta_1 = 0 + 0{,}9(0) - 0{,}9 = -0{,}9.$$
+          Atualização: $V(s_1) \leftarrow 0{,}9 + 0{,}2(-0{,}9) = 0{,}72$. Como $\delta_1 < 0$, os neurônios dopaminérgicos da VTA/SNc sofrem uma supressão fásica (queda abaixo da taxa basal de disparo) no momento em que o suco era esperado.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-9-3-3">
+        <title>Avançado — Efeito do desconto no pico do estímulo</title>
+        Se trocarmos $\gamma = 1{,}0$ por $\gamma = 0{,}95$ no modelo do <ref to="exm:9-9-cond-relogio"/> (estímulo em $t=5$ e recompensa $r_{15} = 1$ em $t=15$), qual é o valor teórico de $\delta_5$ após convergência completa? O que isso significa biologicamente?
+        <hint><title>Ver dica</title>Na convergência, $V_{14} = 1$, $V_{13} = \gamma$, e assim por diante até $V_5$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Na convergência, cada passo atrás multiplica o valor por $\gamma$: $V_{14}^* = 1$, $V_{13}^* = \gamma$, $\dots$, $V_5^* = \gamma^9$. Como $V_4^* = 0$ e $r_5 = 0$:
+          $$\delta_5^* = r_5 + \gamma V_5^* - V_4^* = \gamma^{10} = 0{,}95^{10} \approx 0{,}599.$$
+          Biologicamente, quanto maior o atraso entre o estímulo condicionado e a recompensa quando $\gamma < 1$, menor é a resposta dopaminérgica evocada pelo estímulo.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-9-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Q-learning e um mundo em grade</title>
+      <intro>
+        Avaliar estados não basta para escolher ações sem conhecer o mapa: o <em>Q-learning</em> aprende diretamente o valor de cada par estado-ação a partir da experiência.
+      </intro>
+
+      No algoritmo <strong>Q-learning</strong> (Watkins, 1989), estimamos uma tabela $Q(s, a)$ aproximando $Q^*(s, a)$ a cada transição $(s, a, r, s')$:
+
+      <definition id="def:9-9-qlearning">
+        <title>Regra de atualização do Q-learning</title>
+        Dada uma transição $(s, a, r, s')$ com taxa de aprendizado $\alpha \in (0, 1]$ e desconto $\gamma \in [0, 1)$:
+        <equation id="eq:9-9-qlearning">
+          Q(s, a) \leftarrow Q(s, a) + \alpha \Bigl[r + \gamma \max_{a' \in \mathcal{A}} Q(s', a') - Q(s, a)\Bigr]
+        </equation>
+        Se $s'$ for um estado terminal, definimos $\max_{a'} Q(s', a') = 0$, de modo que o alvo vale simplesmente $r$.
+        <intuition>
+          O Q-learning aprende o valor ótimo mesmo enquanto o agente explora ações aleatórias, pois o alvo usa a melhor ação futura $\max_{a'} Q(s', a')$.
+        </intuition>
+      </definition>
+
+      Por essa razão, o <em>Q-learning</em> é um método <strong>fora da política</strong> (<em>off-policy</em>): ele atualiza usando a melhor ação futura $\max_{a'} Q(s', a')$ mesmo quando o agente segue uma política exploratória $\varepsilon$-gulosa; já o algoritmo <strong>SARSA</strong> é <strong>na política</strong> (<em>on-policy</em>), pois substitui o máximo por $Q(s', a')$ usando a ação $a'$ efetivamente sorteada pela política atual em $s'$.
+
+      <example id="exm:9-9-q-mao">
+        <title>Duas atualizações de Q-learning à mão</title>
+        Suponha $\alpha = 0{,}5$, $\gamma = 0{,}9$, $Q(s_0, \text{dir}) = 0$, $Q(s_1, \text{cima}) = 0{,}4$ e $Q(s_1, \text{dir}) = 0{,}8$.
+        <list marker="number">
+          <item>De $s_0$, o agente vai para a direita com $r = 0$ e chega a $s_1$:
+            $$\max_{a'} Q(s_1, a') = \max(0{,}4;\; 0{,}8) = 0{,}8 \implies Q(s_0, \text{dir}) \leftarrow 0 + 0{,}5\bigl(0 + 0{,}9 \cdot 0{,}8 - 0\bigr) = 0{,}36.$$
+          </item>
+          <item>Em seguida, de $s_1$, vai para a direita com $r = 1$ e atinge o objetivo terminal $s_2$:
+            $$Q(s_1, \text{dir}) \leftarrow 0{,}8 + 0{,}5\bigl(1 + 0{,}9 \cdot 0 - 0{,}8\bigr) = 0{,}8 + 0{,}1 = 0{,}9.$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:9-9-grade">
+        <title>Q-learning em um mundo em grade $4 \times 4$</title>
+        Considere uma grade $4 \times 4$ determinística: início em $(0, 0)$, objetivo terminal em $(3, 3)$ com recompensa $+1$ e recompensa $0$ nos demais passos (bater na borda mantém a posição). O caminho ótimo exige $6$ passos ($3$ para baixo e $3$ para a direita). Como a recompensa $+1$ chega no $6^\text{o}$ passo ($r_1 = \dots = r_5 = 0$, $r_6 = 1$), o retorno ótimo no início é:
+        $$Q^*\bigl((0,0), a^*\bigr) = G_0 = 0 + \dots + \gamma^5 \cdot 1 = 0{,}9^5 = 0{,}59049 \approx 0{,}590.$$
+
+        <code lang="python" id="cod:9-9-qlearning-grade">
+import numpy as np
+
+rng = np.random.default_rng(0)
+acoes = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # cima, baixo, esquerda, direita
+setas = ["↑", "↓", "←", "→"]
+
+Q = np.zeros((4, 4, 4))
+alpha, gamma, eps = 0.5, 0.9, 0.1
+
+for _ in range(500):
+    linha, col = 0, 0
+    for _ in range(200):
+        if rng.random() < eps:
+            a = int(rng.integers(4))
+        else:
+            q_vals = Q[linha, col]
+            melhores = np.flatnonzero(q_vals == q_vals.max())
+            a = int(rng.choice(melhores))
+
+        dl, dc = acoes[a]
+        nl = min(max(linha + dl, 0), 3)
+        nc = min(max(col + dc, 0), 3)
+        terminou = (nl == 3 and nc == 3)
+        r = 1.0 if terminou else 0.0
+
+        alvo = r if terminou else r + gamma * Q[nl, nc].max()
+        Q[linha, col, a] += alpha * (alvo - Q[linha, col, a])
+        linha, col = nl, nc
+        if terminou:
+            break
+
+print(f"Q*(início, melhor ação) ≈ {Q[0, 0].max():.3f} (teórico: {gamma**5:.3f})")
+
+for i in range(4):
+    linha_str = ["G" if (i == 3 and j == 3) else setas[int(np.argmax(Q[i, j]))] for j in range(4)]
+    print(" ".join(linha_str))
+
+linha, col, passos = 0, 0, 0
+while not (linha == 3 and col == 3) and passos < 20:
+    a = int(np.argmax(Q[linha, col]))
+    dl, dc = acoes[a]
+    linha = min(max(linha + dl, 0), 3)
+    col = min(max(col + dc, 0), 3)
+    passos += 1
+print(f"Passos do caminho guloso: {passos}")
+
+# Q*(início, melhor ação) ≈ 0.590 (teórico: 0.590)
+# (Grade 4x4 com setas → e ↓ apontando até G; células fora do caminho ótimo variam conforme os empates)
+# Passos do caminho guloso: 6
+        </code>
+      </example>
+
+      Quando há milhões de estados (como os pixels de um jogo ou voxels cerebrais), uma tabela $Q(s, a)$ não cabe na memória. O <strong>Deep RL</strong> substitui a tabela por uma rede neural $Q_{\boldsymbol{\theta}}(s, a)$ (Tema 9.1): no <strong>DQN</strong> (Mnih et al., 2015, <em>Nature</em>), uma CNN aprende a jogar Atari diretamente dos pixels minimizando o erro TD quadrático. Essa linha levou ao <strong>AlphaGo</strong> (Silver et al., 2016), que combinou redes profundas com busca em árvore, e ao <strong>RLHF</strong> do Tema 9.8, no qual modelos de linguagem otimizam respostas segundo preferências humanas.
+
+      Na neurobiologia, a arquitetura <strong>ator–crítico</strong> (<em>actor–critic</em>) é uma hipótese influente para os <strong>núcleos da base</strong> (em especial o estriado): qualitativamente, o estriado ventral atuaria como <em>crítico</em> estimando $V(s)$, a dopamina da VTA/SNc forneceria o erro $\delta_t$ e o estriado dorsal atuaria como <em>ator</em> ajustando a seleção de ações pela via direta e indireta. Trata-se, contudo, de uma simplificação funcional: esses circuitos também participam da execução motora, formação de hábitos e envolvem outros neuromoduladores.
+
+      <remark id="rem:9-9-armadilha-4">
+        <title>Armadilha comum</title>
+        Na atualização do <em>Q-learning</em>, nunca tome $\max$ sobre as ações do estado atual $s$ — o máximo é sempre sobre as ações $a'$ do <em>próximo</em> estado $s'$ (e vale $0$ quando $s'$ é terminal). Além disso, não confunda <em>Q-learning</em> (que usa $\max_{a'}$, <em>off-policy</em>) com SARSA (que usa a ação realmente escolhida $a'$, <em>on-policy</em>).
+      </remark>
+
+      <exercise id="exr:9-9-4-1">
+        <title>Básico — Uma atualização de Q-learning</title>
+        Considere $Q(s, a_1) = 0{,}2$, $Q(s', a_1) = 0{,}5$, $Q(s', a_2) = 0{,}8$, $\alpha = 0{,}5$ e $\gamma = 0{,}9$. O agente executa $a_1$ em $s$, recebe $r = 0{,}1$ e vai para $s'$ (não terminal). Calcule o novo $Q(s, a_1)$.
+        <hint><title>Ver dica</title>Encontre $\max(Q(s', a_1), Q(s', a_2))$ primeiro.</hint>
+        <solution collapsible="true" collapsed="true">
+          Temos $\max_{a'} Q(s', a') = \max(0{,}5;\; 0{,}8) = 0{,}8$. O alvo TD é $0{,}1 + 0{,}9(0{,}8) = 0{,}82$, e o erro vale $0{,}82 - 0{,}2 = 0{,}62$. Logo:
+          $$Q(s, a_1) \leftarrow 0{,}2 + 0{,}5(0{,}62) = 0{,}51.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-9-4-2">
+        <title>Intermediário — Q-learning versus SARSA na prática</title>
+        Com os mesmos valores em $s'$ ($Q(s', a_1) = 0{,}5$, $Q(s', a_2) = 0{,}8$), suponha $Q(s, a_1) = 0{,}2$, $r = 0$, $\gamma = 0{,}9$ e $\alpha = 0{,}5$. Se, por exploração $\varepsilon$-gulosa, o agente escolher a ação $a_1$ em $s'$, compare o novo $Q(s, a_1)$ pelo <em>Q-learning</em> e pelo SARSA.
+        <hint><title>Ver dica</title>No SARSA, use $Q(s', a_1)$ no alvo em vez de $\max_{a'} Q(s', a')$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="dash">
+            <item><strong>Q-learning (off-policy):</strong> alvo $0 + 0{,}9(0{,}8) = 0{,}72 \implies Q(s, a_1) \leftarrow 0{,}2 + 0{,}5(0{,}72 - 0{,}2) = 0{,}46$;</item>
+            <item><strong>SARSA (on-policy):</strong> usa a ação $a_1$ realmente escolhida, logo o alvo é $0 + 0{,}9(0{,}5) = 0{,}45 \implies Q(s, a_1) \leftarrow 0{,}2 + 0{,}5(0{,}45 - 0{,}2) = 0{,}325$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-9-4-3">
+        <title>Avançado — Grade com armadilha em Python</title>
+        Adapte o código do <ref to="cod:9-9-qlearning-grade"/> colocando uma armadilha terminal em $(1, 1)$ com recompensa $r = -1{,}0$. Verifique se o agente continua aprendendo um caminho ótimo de $6$ passos até $(3, 3)$ evitando $(1, 1)$ e obtendo $Q^*((0,0), a^*) \approx 0{,}590$.
+        <hint><title>Ver dica</title>Trate <c>(nl == 1 and nc == 1)</c> como estado terminal com recompensa <c>-1.0</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" id="cod:9-9-grade-armadilha">
+import numpy as np
+
+rng = np.random.default_rng(0)
+acoes = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+Q = np.zeros((4, 4, 4))
+alpha, gamma, eps = 0.5, 0.9, 0.1
+
+for _ in range(500):
+    linha, col = 0, 0
+    for _ in range(200):
+        if rng.random() < eps:
+            a = int(rng.integers(4))
+        else:
+            q_vals = Q[linha, col]
+            a = int(rng.choice(np.flatnonzero(q_vals == q_vals.max())))
+
+        dl, dc = acoes[a]
+        nl = min(max(linha + dl, 0), 3)
+        nc = min(max(col + dc, 0), 3)
+        objetivo = (nl == 3 and nc == 3)
+        armadilha = (nl == 1 and nc == 1)
+        terminou = objetivo or armadilha
+        r = 1.0 if objetivo else (-1.0 if armadilha else 0.0)
+
+        alvo = r if terminou else r + gamma * Q[nl, nc].max()
+        Q[linha, col, a] += alpha * (alvo - Q[linha, col, a])
+        linha, col = nl, nc
+        if terminou:
+            break
+
+linha, col, passos = 0, 0, 0
+while not (linha == 3 and col == 3) and passos < 20:
+    dl, dc = acoes[int(np.argmax(Q[linha, col]))]
+    linha = min(max(linha + dl, 0), 3)
+    col = min(max(col + dc, 0), 3)
+    passos += 1
+print(f"Q*(início) ≈ {Q[0, 0].max():.3f}, Passos: {passos}")  # Q*(início) ≈ 0.590, Passos: 6
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-9-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>MDP e retorno:</strong> $(\mathcal{S}, \mathcal{A}, p, r, \gamma)$ modela decisões sequenciais; o retorno descontado é $G_t = \sum_{k=0}^{\infty} \gamma^k r_{t+k+1}$ (com $G_t = c / (1 - \gamma)$ para recompensa constante $c$).</item>
+        <item><strong>Exploração $\times$ aproveitamento:</strong> a política $\varepsilon$-gulosa equilibra testar ações novas e aproveitar a melhor estimativa atual.</item>
+        <item><strong>Bellman:</strong> $V^\pi(s) = \sum_a \pi(a \mid s)\sum_{s'} p(s' \mid s, a)[r + \gamma V^\pi(s')]$ e $Q^*(s, a) = \sum_{s'} p(s' \mid s, a)[r + \gamma \max_{a'} Q^*(s', a')]$, com $V = 0$ nos estados terminais.</item>
+        <item><strong>Rescorla–Wagner e TD(0):</strong> $\Delta V = \alpha(\lambda - V)$ evolui para $\delta_t = r_{t+1} + \gamma V(s_{t+1}) - V(s_t)$ e $V(s_t) \leftarrow V(s_t) + \alpha \delta_t$.</item>
+        <item><strong>Dopamina como RPE:</strong> disparos fásicos na VTA/SNc acompanham $\delta_t$ — migram da recompensa para o estímulo preditivo e caem abaixo da base na omissão.</item>
+        <item><strong>Q-learning e Deep RL:</strong> $Q(s, a) \leftarrow Q(s, a) + \alpha[r + \gamma \max_{a'} Q(s', a') - Q(s, a)]$ é <em>off-policy</em>; trocar a tabela por redes gera o DQN, enquanto os núcleos da base sugerem uma organização ator–crítico.</item>
+      </list>
+    </section>
+
+    <section id="sec:9-9-alem">
+      <title>Para ir além</title>
+      Para consolidar este módulo, consulte os materiais de referência — <em>Deep Learning Book</em> — Ian Goodfellow (base teórica muito sólida), Andrej Karpathy — aulas de LLM e backprop no YouTube, e o livro clássico de Richard Sutton &amp; Andrew Barto (<em>Reinforcement Learning: An Introduction</em>, 2ª ed., 2018) — além das documentações oficiais do <link to="https://pytorch.org/tutorials/">PyTorch Tutorials</link> e do <link to="https://numpy.org/doc/stable/">NumPy</link>.
+
+      Com esta aula encerramos o Módulo 9! No projeto final — construir uma CNN para classificar ressonâncias ou um <em>Transformer</em> para decodificar estímulos de fMRI público, documentando tudo em repositório — você combina fundamentos e <em>backprop</em> (9.1), arquiteturas visuais/temporais/de atenção (9.2, 9.3, 9.5), representações latentes (9.4), conectomas em grafos (9.6), modelos generativos (9.7), LLMs (9.8) e alinhamento por recompensa (9.9). O próximo passo da trilha é o <strong>Módulo 10 — Neurociência Computacional</strong> (em construção).
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 9 · Deep Learning — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

@@ -1,0 +1,881 @@
+<document>
+  <title>Módulo 7 · Estatística e Probabilidade</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-7-1">Voltar ao guia (Tema 7.1)</link></meta-item>
+    <meta-item key="Módulo">Módulo 7 · Estatística e Probabilidade — Encontrando Certezas no Caos Experimental</meta-item>
+    <meta-item key="Nível">Básico</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-7-1">
+    <title>Combinatória</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Contar sem enumerar: a base do cálculo de probabilidades.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> A biologia experimental e a neurociência lidam diariamente com explosões combinatórias e incerteza. Um código genético de apenas quatro bases nitrogenadas combina-se em trincas para especificar dezenas de aminoácidos; dezenas de eletrodos em um eletroencefalograma (EEG) formam milhares de pares possíveis para análises de conectividade funcional; e a neuroimagem por ressonância magnética funcional (fMRI) vive de estatística — p-valores, comparações múltiplas entre dezenas de milhares de <em>voxels</em> e medidas ruidosas. Além disso, modelos Bayesianos dominam as teorias modernas de percepção e tomada de decisão no cérebro.
+
+    Antes de calcular a probabilidade de um resultado experimental ter surgido "por acaso", você precisa saber quantas configurações possíveis o sistema admite. Enumerar uma por uma só funciona para brinquedos minúsculos: ninguém lista à mão as $4^{10} = 1\,048\,576$ sequências de DNA de dez bases ou os $2\,016$ pares de eletrodos de uma touca de EEG com $64$ canais. A combinatória fornece regras exatas para contar sem precisar listar — e, como você verá ao final desta aula, contar possibilidades é a porta de entrada direta para a definição de probabilidade.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>aplicar os princípios multiplicativo e aditivo para contar configurações em etapas e em casos mutuamente exclusivos;</item>
+      <item>diferenciar sequências com repetição, permutações, arranjos e permutações com repetição, calculando cada caso com fatoriais;</item>
+      <item>calcular combinações simples e com repetição, usar a relação de Stifel e interpretar o triângulo de Pascal;</item>
+      <item>conectar a contagem à probabilidade clássica e ao binômio de Newton em problemas de genética, biologia molecular e neurociência;</item>
+      <item>enumerar e simular experimentos combinatórios em Python para conferir cálculos teóricos.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Módulo 1 (Pré-Cálculo, tema Álgebra: propriedades de potências) e Módulo 6 (Programação em Python: variáveis, laços, funções e biblioteca <c>numpy</c>). Este é o primeiro tema do Módulo 7 (Estatística e Probabilidade) e prepara diretamente o próximo tema, <mark>Variável aleatória</mark>.
+
+    <section id="sec:7-1-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Princípio multiplicativo e princípio aditivo</title>
+      <intro>
+        Para contar configurações complexas sem listar cada caso, quebramos o processo em escolhas sucessivas (multiplicação) ou em cenários alternativos separados (soma).
+      </intro>
+
+      Imagine montar o protocolo de um ensaio comportamental em laboratório. Você precisa escolher um estímulo visual entre $3$ imagens (rosto, casa ou ferramenta) e, em seguida, um som de alerta entre $2$ frequências (grave ou agudo). Se você desenhar uma árvore de possibilidades (<em>possibility tree</em>), o tronco se abre em $3$ ramos para as imagens e cada um desses ramos se divide em $2$ pontas para os sons, totalizando $3 \cdot 2 = 6$ pares possíveis. Essa ideia simples — multiplicar o número de opções em cada etapa — é o motor de quase toda a combinatória.
+
+      Em outras situações, porém, as opções não acontecem em sequência, mas como alternativas que não se misturam. Se um pesquisador pode registrar a atividade de um neurônio usando <em>ou</em> uma das $4$ pipetas de vidro disponíveis na bancada <em>ou</em> um dos $2$ conjuntos de multieletrodos, ele não combina uma pipeta com um multieletrodo: ele escolhe uma técnica ou outra, tendo $4 + 2 = 6$ equipamentos possíveis. Saber distinguir quando multiplicar e quando somar resolve metade dos erros de contagem.
+
+      <definition id="def:7-1-principio-multiplicativo">
+        <title>Princípio multiplicativo (regra do produto)</title>
+        Suponha que um procedimento seja formado por $k$ etapas sucessivas. Se há $n_1$ escolhas possíveis na etapa $1$, e, para cada escolha feita na etapa $1$, há $n_2$ escolhas possíveis na etapa $2$, e assim por diante até $n_k$ escolhas na etapa $k$, então o número total de resultados distintos é o produto:
+        $$n_1 \cdot n_2 \cdots n_k.$$
+        Em particular, se cada uma das $k$ posições de uma sequência pode ser preenchida independentemente por qualquer um de $n$ símbolos (permitindo repetição), o número total de sequências possíveis é:
+        $$n^k.$$
+        <intuition>
+          Cada nova etapa multiplica o tamanho da árvore de possibilidades pelo seu fator de ramificação. Mesmo escolhas binárias simples ($n = 2$) crescem exponencialmente quando encadeadas em muitas etapas ($2^k$).
+        </intuition>
+      </definition>
+
+      <definition id="def:7-1-principio-aditivo">
+        <title>Princípio aditivo (regra da soma)</title>
+        Se um conjunto de configurações possíveis $A$ pode ser particionado em $r$ casos <strong>disjuntos</strong> (mutuamente exclusivos) $A_1, A_2, \dots, A_r$ — isto é, $A = A_1 \cup A_2 \cup \dots \cup A_r$ e $A_i \cap A_j = \emptyset$ sempre que $i \ne j$ —, então o total de configurações é a soma das quantidades de cada caso:
+        $$|A| = |A_1| + |A_2| + \dots + |A_r|.$$
+      </definition>
+
+      Quando dois conjuntos $A_1$ e $A_2$ possuem elementos em comum ($A_1 \cap A_2 \ne \emptyset$), somar $|A_1| + |A_2|$ conta a interseção duas vezes. Nesse caso, vale o princípio da inclusão-exclusão para dois conjuntos:
+      $$|A_1 \cup A_2| = |A_1| + |A_2| - |A_1 \cap A_2|.$$
+
+      <example id="exm:7-1-codons">
+        <title>O tamanho do código genético e sequências de DNA</title>
+        No RNA mensageiro (mRNA), a informação genética é lida em palavras formadas por $4$ bases nitrogenadas: adenina ($\text{A}$), uracila ($\text{U}$), guanina ($\text{G}$) e citosina ($\text{C}$).
+        <list marker="a">
+          <item>Por que a evolução não poderia usar palavras de apenas $2$ bases (duplas) para codificar os $20$ aminoácidos padrão das proteínas?</item>
+          <item>Quantos códons (trincas de $3$ bases) existem no total? Sabendo que $3$ deles atuam como códons de parada (<em>stop codons</em>: $\text{UAA}$, $\text{UAG}$ e $\text{UGA}$), quantos codificam aminoácidos?</item>
+          <item>Quantas sequências distintas de DNA de comprimento $10$ podem ser formadas com as $4$ bases ($\text{A}, \text{T}, \text{G}, \text{C}$)?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Com palavras de $2$ posições e $4$ escolhas possíveis em cada posição, o princípio multiplicativo fornece $4 \cdot 4 = 4^2 = 16$ duplas possíveis. Como $16 < 20$, duplas são insuficientes para atribuir pelo menos uma palavra a cada um dos $20$ aminoácidos.</item>
+          <item>Com $3$ posições e $4$ bases possíveis em cada uma, temos:
+            $$4 \cdot 4 \cdot 4 = 4^3 = 64 \text{ códons possíveis.}$$
+            Como os códons de parada e os códons codificantes formam dois conjuntos disjuntos que esgotam os $64$ códons, pelo princípio aditivo temos $\text{codificantes} + 3 = 64$, logo $64 - 3 = 61$ códons especificam aminoácidos (gerando redundância, ou degenerescência, no código genético).</item>
+          <item>Para $10$ posições independentes com $4$ bases cada:
+            $$4^{10} = (2^2)^{10} = 2^{20} = 1\,024 \cdot 1\,024 = 1\,048\,576 \text{ sequências.}$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:7-1-padroes-neurais">
+        <title>Padrões binários de atividade em uma população de neurônios</title>
+        Suponha que você registre simultaneamente $10$ neurônios corticais em janelas de $10\text{ ms}$. Em cada janela, simplificamos o estado de cada neurônio para binário: $1$ se disparou ao menos um potencial de ação, $0$ se permaneceu em silêncio.
+        <list marker="a">
+          <item>Quantos padrões de atividade distintos esses $10$ neurônios podem gerar em uma janela?</item>
+          <item>Quantos desses padrões são "esparsos", contendo no máximo $1$ neurônio ativo?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Cada neurônio escolhe entre $2$ estados ($0$ ou $1$), independentemente dos demais. Pelo princípio multiplicativo em $10$ etapas:
+            $$2^{10} = 1\,024 \text{ padrões binários possíveis.}$$
+          </item>
+          <item>Dividimos "no máximo $1$ neurônio ativo" em dois casos disjuntos:
+            <list marker="dash">
+              <item><em>Caso 1 (nenhum ativo):</em> todos os $10$ neurônios estão em $0$, o que dá exatamente $1$ padrão;</item>
+              <item><em>Caso 2 (exatamente um ativo):</em> há $10$ escolhas para qual neurônio assume o valor $1$ (enquanto os outros $9$ ficam em $0$), o que dá $10$ padrões.</item>
+            </list>
+            Pelo princípio aditivo, existem $1 + 10 = 11$ padrões com no máximo $1$ neurônio ativo.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:7-1-mult-vs-soma">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Somar em vez de multiplicar:</strong> se você precisa escolher uma base para a posição 1 ($4$ opções) <em>e</em> uma base para a posição 2 ($4$ opções), as escolhas ocorrem em sequência e você deve multiplicar ($4 \cdot 4 = 16$), nunca somar ($4 + 4 = 8$). A regra prática é: <strong>"e"</strong> (etapas combinadas) sugere multiplicar; <strong>"ou"</strong> (casos exclusivos) sugere somar.</item>
+          <item><strong>Somar casos que se sobrepõem:</strong> quantos códons começam com $\text{A}$ <em>ou</em> terminam com $\text{A}$? Começam com $\text{A}$: $1 \cdot 4 \cdot 4 = 16$. Terminam com $\text{A}$: $4 \cdot 4 \cdot 1 = 16$. A resposta <em>não</em> é $16 + 16 = 32$, porque os $1 \cdot 4 \cdot 1 = 4$ códons da forma $\text{ANA}$ (isto é, $\text{A}$ na primeira posição, qualquer uma das $4$ bases na segunda e $\text{A}$ na terceira) pertencem aos dois grupos. Subtraindo a interseção, obtemos $16 + 16 - 4 = 28$.</item>
+        </list>
+      </remark>
+
+      Em Python, o módulo padrão <c>itertools</c> permite gerar todos os elementos de um produto cartesiano com <c>itertools.product</c> e confirmar contagens pequenas diretamente.
+
+      <code lang="python" id="cod:7-1-codons">
+import itertools
+
+bases = ["A", "U", "G", "C"]
+codons = ["".join(c) for c in itertools.product(bases, repeat=3)]
+comecam_com_a = [c for c in codons if c[0] == "A"]
+
+print(f"Total de códons: {len(codons)}")                 # Total de códons: 64
+print(f"Códons que começam com A: {len(comecam_com_a)}") # Códons que começam com A: 16
+print(f"DNA de 10 bases: {4**10}")                       # DNA de 10 bases: 1048576
+print(f"Padrões de 10 neurônios: {2**10}")               # Padrões de 10 neurônios: 1024
+      </code>
+
+      Também podemos conferir nossas contagens simulando sorteios uniformes com o gerador de números aleatórios <c>np.random.default_rng(42)</c> (fixando a semente aleatória, ou <em>random seed</em>, para que os resultados sejam reproduzíveis). Se cada um dos $64$ códons tiver a mesma chance de ser sorteado, a fração de códons de parada em $100\,000$ sorteios deve se aproximar de $3 / 64 = 0{,}046875$.
+
+      <code lang="python" id="cod:7-1-sim-principios">
+import numpy as np
+
+rng = np.random.default_rng(42)
+n_sim = 100_000
+
+# Codificamos A=0, U=1, G=2, C=3 para vetorização rápida
+codons = rng.integers(0, 4, size=(n_sim, 3))
+
+# Códons de parada: UAA=(1,0,0), UAG=(1,0,2), UGA=(1,2,0)
+eh_uaa = (codons[:, 0] == 1) & (codons[:, 1] == 0) & (codons[:, 2] == 0)
+eh_uag = (codons[:, 0] == 1) & (codons[:, 1] == 0) & (codons[:, 2] == 2)
+eh_uga = (codons[:, 0] == 1) & (codons[:, 1] == 2) & (codons[:, 2] == 0)
+freq_parada = (eh_uaa | eh_uag | eh_uga).mean()
+
+print(f"Frequência simulada de parada: {freq_parada:.4f}")  # aprox. 0.0469 (teórico: 3/64 = 0.046875)
+      </code>
+
+      <exercise id="exr:7-1-1-1">
+        <title>Básico — Placas de identificação de animais</title>
+        Para identificar camundongos em um biotério, o laboratório cria códigos formados por $2$ letras (dentre $26$ disponíveis no alfabeto) seguidas de $3$ dígitos (de $0$ a $9$).
+        <list marker="a">
+          <item>Quantos códigos distintos existem se letras e dígitos puderem se repetir?</item>
+          <item>Quantos códigos existem se as letras puderem se repetir, mas os $3$ dígitos tiverem de ser distintos entre si?</item>
+        </list>
+        <hint><title>Ver dica</title>Aplique o princípio multiplicativo posição por posição. No item (b), o primeiro dígito tem $10$ opções, o segundo tem $9$ e o terceiro tem $8$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Temos $26$ opções para cada uma das $2$ letras e $10$ opções para cada um dos $3$ dígitos:
+              $$26 \cdot 26 \cdot 10 \cdot 10 \cdot 10 = 676 \cdot 1\,000 = 676\,000 \text{ códigos.}$$
+            </item>
+            <item>As $2$ letras mantêm $26 \cdot 26 = 676$ escolhas. Para os dígitos sem repetição, o primeiro tem $10$ opções, o segundo tem $9$ opções restantes e o terceiro tem $8$:
+              $$26^2 \cdot 10 \cdot 9 \cdot 8 = 676 \cdot 720 = 486\,720 \text{ códigos.}$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-1-1-2">
+        <title>Básico — Códons com adenina</title>
+        Considere todos os $64$ códons possíveis de RNA mensageiro (comprimento $3$, alfabeto $\{\text{A}, \text{U}, \text{G}, \text{C}\}$).
+        <list marker="a">
+          <item>Quantos códons começam com a base $\text{A}$?</item>
+          <item>Quantos códons contêm <strong>pelo menos uma</strong> base $\text{A}$ em alguma das $3$ posições?</item>
+        </list>
+        <hint><title>Ver dica</title>No item (b), em vez de somar casos com $1$, $2$ ou $3$ adeninas, conte o total de códons e subtraia os que não têm nenhuma adenina.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>A primeira posição fica fixa em $\text{A}$ ($1$ opção), enquanto a segunda e a terceira posições têm $4$ opções cada:
+              $$1 \cdot 4 \cdot 4 = 16 \text{ códons.}$$
+            </item>
+            <item>O conjunto de todos os $64$ códons divide-se em dois casos disjuntos: os que contêm pelo menos um $\text{A}$ e os que não contêm nenhum $\text{A}$. Um códon sem $\text{A}$ usa apenas as $3$ bases $\{\text{U}, \text{G}, \text{C}\}$, totalizando $3^3 = 27$ códons. Pelo princípio aditivo, os que possuem pelo menos um $\text{A}$ são:
+              $$64 - 27 = 37 \text{ códons.}$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-1-1-3">
+        <title>Intermediário — Tripeptídeos sintéticos</title>
+        As proteínas são construídas a partir de $20$ aminoácidos padrão. Um laboratório quer sintetizar tripeptídeos (cadeias ordenadas com $3$ aminoácidos).
+        <list marker="a">
+          <item>Quantos tripeptídeos distintos existem no total?</item>
+          <item>Quantos tripeptídeos têm o primeiro e o último aminoácido idênticos?</item>
+        </list>
+        <hint><title>Ver dica</title>No item (b), depois de escolher o primeiro aminoácido ($20$ opções) e o segundo ($20$ opções), quantas escolhas restam para o terceiro?</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Cada uma das $3$ posições pode receber qualquer um dos $20$ aminoácidos:
+              $$20^3 = 20 \cdot 20 \cdot 20 = 8\,000 \text{ tripeptídeos.}$$
+            </item>
+            <item>Escolhemos o primeiro aminoácido ($20$ opções) e o aminoácido central ($20$ opções). Como o terceiro deve ser idêntico ao primeiro, ele tem apenas $1$ escolha obrigatória:
+              $$20 \cdot 20 \cdot 1 = 400 \text{ tripeptídeos.}$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-1-1-4">
+        <title>Avançado — Simulação de padrões neurais esparsos em Python</title>
+        Retome os $1\,024$ padrões binários de atividade de $10$ neurônios do <ref to="exm:7-1-padroes-neurais"/>. Escreva um bloco de código em Python que:
+        <list marker="a">
+          <item>use <c>itertools.product([0, 1], repeat=10)</c> para conferir exatamente que $11$ padrões têm no máximo $1$ neurônio ativo;</item>
+          <item>use <c>rng = np.random.default_rng(42)</c> para sortear $100\,000$ padrões binários uniformes de $10$ neurônios e comparar a frequência simulada de padrões esparsos ($\le 1$ neurônio ativo) com o valor teórico $11 / 1\,024 \approx 0{,}0107$.</item>
+        </list>
+        <hint><title>Ver dica</title>Com <c>numpy</c>, gere uma matriz de forma <c>(100_000, 10)</c> via <c>rng.integers(0, 2, size=(100_000, 10))</c> e some ao longo de <c>axis=1</c> para contar quantos neurônios estão ativos em cada amostra.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import itertools
+import numpy as np
+
+# (a) Contagem exata por enumeração
+padroes = list(itertools.product([0, 1], repeat=10))
+esparsos_exato = sum(sum(p) <= 1 for p in padroes)
+print(f"Total de padrões: {len(padroes)}")            # Total de padrões: 1024
+print(f"Padrões esparsos (<= 1 ativo): {esparsos_exato}")  # Padrões esparsos (<= 1 ativo): 11
+
+# (b) Simulação com semente fixa
+rng = np.random.default_rng(42)
+amostras = rng.integers(0, 2, size=(100_000, 10))
+ativos_por_amostra = amostras.sum(axis=1)
+freq_esparsos = (ativos_por_amostra <= 1).mean()
+
+print(f"Frequência simulada: {freq_esparsos:.4f}")   # aprox. 0.0107 (teórico: 11/1024 ≈ 0.0107)
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:7-1-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Permutações e arranjos</title>
+      <intro>
+        Quando não podemos repetir itens e a ordem em que eles aparecem faz diferença, saímos das potências e entramos no território dos fatoriais.
+      </intro>
+
+      Em um experimento de psicofísica ou fMRI com $4$ condições visuais diferentes, apresentar sempre a condição A antes da condição B pode viciar os resultados por fadiga ou aprendizado. A solução clássica é o contrabalanceamento (<em>counterbalancing</em>): variar a ordem das condições entre participantes ou blocos. Ao contrário dos códons, aqui não queremos repetir uma condição dentro do mesmo bloco: uma vez escolhida a primeira condição ($4$ opções), restam apenas $3$ opções para a segunda, $2$ para a terceira e $1$ para a última.
+
+      <definition id="def:7-1-fatorial">
+        <title>Fatorial</title>
+        Para todo número inteiro positivo $n \ge 1$, o <strong>fatorial</strong> de $n$, denotado por $n!$, é o produto dos inteiros de $1$ até $n$:
+        $$n! = n \cdot (n - 1) \cdot (n - 2) \cdots 2 \cdot 1.$$
+        Por definição, adotamos para zero:
+        $$0! = 1.$$
+        <intuition>
+          Por que $0! = 1$ e não $0$? Porque queremos que a relação de recorrência $n! = n \cdot (n - 1)!$ valha até para $n = 1$: substituindo $n = 1$, obtemos $1! = 1 \cdot 0!$, o que exige $0! = 1$. Em termos de contagem, existe exatamente $1$ maneira de ordenar um conjunto vazio de objetos: não fazer nada.
+        </intuition>
+      </definition>
+
+      <definition id="def:7-1-permutacao-arranjo">
+        <title>Permutações e arranjos simples</title>
+        Considere um conjunto com $n$ objetos <strong>distintos</strong>.
+        <list marker="dash">
+          <item>Uma <strong>permutação simples</strong> é qualquer ordenação completa de todos os $n$ objetos. O número total de permutações é:
+            $$P_n = n!$$
+          </item>
+          <item>Para $0 \le k \le n$, um <strong>arranjo simples</strong> de $n$ objetos tomados $k$ a $k$ é uma sequência ordenada de $k$ objetos distintos escolhidos dentre os $n$ disponíveis. Denotamos a quantidade de arranjos por $A(n, k)$.</item>
+        </list>
+      </definition>
+
+      <proposition id="prop:7-1-arranjo">
+        <title>Fórmula do arranjo simples</title>
+        Para quaisquer inteiros $n \ge 0$ e $0 \le k \le n$, o número de arranjos de $n$ objetos tomados $k$ a $k$ é:
+        $$A(n, k) = \frac{n!}{(n - k)!} = n(n - 1)(n - 2)\cdots(n - k + 1).$$
+      </proposition>
+      <proof of="prop:7-1-arranjo" collapsible="true" collapsed="true">
+        Para formar uma sequência ordenada de $k$ posições sem repetição a partir de $n$ objetos, temos $n$ escolhas para a $1^\text{a}$ posição, $(n - 1)$ escolhas restantes para a $2^\text{a}$ posição, e assim sucessivamente até a $k^\text{a}$ posição, na qual restam $n - (k - 1) = n - k + 1$ objetos. Pelo princípio multiplicativo, o total é $n(n - 1)\cdots(n - k + 1)$.
+
+        Multiplicando e dividindo essa expressão por $(n - k)!$, completamos no numerador todos os fatores de $n$ até $1$:
+        $$n(n - 1)\cdots(n - k + 1) \cdot \frac{(n - k)!}{(n - k)!} = \frac{n!}{(n - k)!}.$$
+        Em particular, quando $k = n$, temos $A(n, n) = \frac{n!}{0!} = n!$, recuperando as permutações simples; e quando $k = 0$, $A(n, 0) = \frac{n!}{n!} = 1$.
+      </proof>
+
+      E quando alguns dos $n$ objetos que queremos ordenar são idênticos entre si? Imagine contar quantas fitas de DNA diferentes de comprimento $6$ podemos montar usando um estoque fixo de bases: duas adeninas ($\text{A}$), duas timinas ($\text{T}$), uma guanina ($\text{G}$) e uma citosina ($\text{C}$). Se pintássemos etiquetas invisíveis distinguindo $\text{A}_1$ de $\text{A}_2$ e $\text{T}_1$ de $\text{T}_2$, haveria $6! = 720$ ordens. Mas trocar $\text{A}_1$ com $\text{A}_2$ ($2!$ trocas) ou $\text{T}_1$ com $\text{T}_2$ ($2!$ trocas) não muda a sequência biológica real. Logo, cada sequência distinta foi contada $2! \cdot 2!$ vezes, e precisamos dividir por esse fator de repetição.
+
+      <definition id="def:7-1-permutacao-repeticao">
+        <title>Permutação com repetição</title>
+        Se temos $n$ objetos no total, dos quais $n_1$ são idênticos de um tipo $1$, $n_2$ são idênticos de um tipo $2$, ..., e $n_r$ são idênticos de um tipo $r$ (com $n_1 + n_2 + \dots + n_r = n$), o número de ordenações distintas é:
+        $$P_n^{(n_1, n_2, \dots, n_r)} = \frac{n!}{n_1!\, n_2! \cdots n_r!}.$$
+      </definition>
+
+      <example id="exm:7-1-contrabalanceamento">
+        <title>Contrabalanceamento e seleção de estímulos em ensaios</title>
+        <list marker="a">
+          <item>Um experimento de neuroimagem apresenta $4$ condições cognitivas distintas (repouso, faces, casas e palavras) em blocos consecutivos. Quantas ordens de apresentação existem para contrabalancear os blocos entre participantes?</item>
+          <item>Suponha agora que o pesquisador possua um banco com $8$ estímulos visuais distintos e precise escolher, em ordem, quais $3$ serão exibidos nos $3$ primeiros ensaios de uma sessão (sem repetir estímulo). De quantas maneiras pode montar essa abertura?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Como usamos todas as $4$ condições distintas e a ordem importa, trata-se de uma permutação simples de $4$ elementos:
+            $$P_4 = 4! = 4 \cdot 3 \cdot 2 \cdot 1 = 24 \text{ ordens possíveis.}$$
+          </item>
+          <item>Aqui escolhemos $k = 3$ estímulos dentre $n = 8$, sem repetição e com ordem relevante (o $1^\text{o}$ ensaio é diferente do $2^\text{o}$ e do $3^\text{o}$). Aplicamos o arranjo simples:
+            $$A(8, 3) = \frac{8!}{(8 - 3)!} = \frac{8!}{5!} = 8 \cdot 7 \cdot 6 = 336 \text{ sequências.}$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:7-1-dna-composicao">
+        <title>Sequências de DNA com composição de bases fixa</title>
+        Quantas sequências de DNA distintas de comprimento $6$ possuem exatamente $2$ adeninas ($\text{A}$), $2$ timinas ($\text{T}$), $1$ guanina ($\text{G}$) e $1$ citosina ($\text{C}$)?
+
+        <strong>Solução.</strong> Temos $n = 6$ posições no total, com contagens repetidas $n_{\text{A}} = 2$, $n_{\text{T}} = 2$, $n_{\text{G}} = 1$ e $n_{\text{C}} = 1$. Pela fórmula da permutação com repetição:
+        $$\frac{6!}{2!\, 2!\, 1!\, 1!} = \frac{720}{2 \cdot 2 \cdot 1 \cdot 1} = \frac{720}{4} = 180 \text{ sequências distintas.}$$
+      </example>
+
+      <remark id="rem:7-1-ordem-vs-reposicao">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Trocar $n^k$ por $A(n, k)$ (ou vice-versa):</strong> antes de calcular, pergunte se os elementos podem se repetir. Nas trincas de RNA ($4^3 = 64$), bases se repetem (<c>AAA</c> é válido). Nos $3$ primeiros ensaios com estímulos inéditos ($A(8, 3) = 336$), não há repetição.</item>
+          <item><strong>Dividir apenas pelos grupos maiores que $1$ e esquecer fatoriais no denominador:</strong> na permutação com repetição $\frac{6!}{2!\,2!}$, lembre de multiplicar os fatoriais no denominador ($2! \cdot 2! = 4$), e não somá-los ($2! + 2! = 4$ por coincidência aqui, mas para $3!$ e $2!$ o produto é $12$, enquanto a soma seria $8$).</item>
+        </list>
+      </remark>
+
+      A biblioteca padrão <c>math</c> do Python oferece <c>math.factorial(n)</c> e <c>math.perm(n, k)</c>, enquanto <c>itertools.permutations</c> enumera todas as ordenações.
+
+      <code lang="python" id="cod:7-1-perm-arr">
+import itertools
+import math
+
+print(f"4! = {math.factorial(4)}")                     # 4! = 24
+print(f"A(8, 3) = {math.perm(8, 3)}")                  # A(8, 3) = 336
+
+seq_unicas = set(itertools.permutations("AATTGC"))
+print(f"Sequências DNA (2A, 2T, 1G, 1C): {len(seq_unicas)}")  # Sequências DNA (2A, 2T, 1G, 1C): 180
+      </code>
+
+      Agora vamos conferir uma propriedade probabilística por simulação: ao embaralhar aleatoriamente $4$ condições experimentais ($0, 1, 2, 3$), qual a fração das ordens em que a condição $0$ aparece imediatamente antes da condição $1$? Tratando o bloco $(0, 1)$ como uma única unidade, permutamos $3$ blocos ($\{(0, 1), 2, 3\}$) de $3! = 6$ maneiras entre as $4! = 24$ possíveis, dando exatamente $6 / 24 = 0{,}25$.
+
+      <code lang="python" id="cod:7-1-sim-perm">
+import numpy as np
+
+rng = np.random.default_rng(42)
+n_sim = 100_000
+
+# Cada linha é uma permutação uniforme de {0, 1, 2, 3}
+perms = rng.random((n_sim, 4)).argsort(axis=1)
+
+# Verifica se 0 aparece imediatamente antes de 1 em algum par consecutivo
+bloco_01 = ((perms[:, :-1] == 0) & (perms[:, 1:] == 1)).any(axis=1)
+
+print(f"Frequência simulada (0 logo antes de 1): {bloco_01.mean():.4f}")  # aprox. 0.25 (teórico: 6/24 = 0.25)
+      </code>
+
+      <exercise id="exr:7-1-2-1">
+        <title>Básico — Ordens de estímulos auditivos</title>
+        Um experimento de psicoacústica apresenta $5$ tons puros de frequências distintas em sequência, uma vez cada.
+        <list marker="a">
+          <item>Quantas ordens diferentes de apresentação existem no total?</item>
+          <item>Se o protocolo exigir que o tom de referência ($1\,000\text{ Hz}$) seja sempre o primeiro da sequência, quantas ordens continuam válidas?</item>
+        </list>
+        <hint><title>Ver dica</title>No item (b), fixe a primeira posição e permute apenas os $4$ tons restantes.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como são $5$ estímulos distintos ordenados sem repetição:
+              $$P_5 = 5! = 5 \cdot 4 \cdot 3 \cdot 2 \cdot 1 = 120 \text{ ordens.}$$
+            </item>
+            <item>Com o tom de referência fixo na $1^\text{a}$ posição ($1$ escolha), restam $4$ posições para permutar os outros $4$ tons:
+              $$1 \cdot 4! = 24 \text{ ordens válidas.}$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-1-2-2">
+        <title>Básico — Sequência de fármacos</title>
+        Um ensaio pré-clínico dispõe de $10$ compostos candidatos e precisa testar uma sequência de $3$ deles em um protocolo de três dias consecutivos (dia 1, dia 2 e dia 3), sem repetir nenhum composto. Quantas sequências experimentais distintas podem ser montadas?
+        <hint><title>Ver dica</title>A ordem dos dias importa e não há repetição: use $A(10, 3)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Escolhemos $3$ compostos ordenadamente entre $10$ disponíveis, sem repetição:
+          $$A(10, 3) = \frac{10!}{(10 - 3)!} = \frac{10!}{7!} = 10 \cdot 9 \cdot 8 = 720 \text{ sequências.}$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-1-2-3">
+        <title>Intermediário — Pentapeptídeos com composição fixa</title>
+        Quantos peptídeos lineares distintos de $5$ aminoácidos podem ser montados usando exatamente $2$ alaninas ($\text{Ala}$), $2$ glicinas ($\text{Gly}$) e $1$ serina ($\text{Ser}$)?
+        <hint><title>Ver dica</title>A cadeia tem ordem definida (N-terminal para C-terminal), mas há aminoácidos repetidos: use permutação com repetição.</hint>
+        <solution collapsible="true" collapsed="true">
+          Temos $n = 5$ posições, com multiplicidades $n_{\text{Ala}} = 2$, $n_{\text{Gly}} = 2$ e $n_{\text{Ser}} = 1$. Pela fórmula da permutação com repetição:
+          $$\frac{5!}{2!\, 2!\, 1!} = \frac{120}{2 \cdot 2 \cdot 1} = \frac{120}{4} = 30 \text{ peptídeos distintos.}$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-1-2-4">
+        <title>Avançado — Contagem e simulação de arranjos em Python</title>
+        Um pesquisador escolhe $4$ estímulos distintos em sequência dentre $6$ disponíveis (numerados de $0$ a $5$).
+        <list marker="a">
+          <item>Use <c>math.perm</c> e <c>itertools.permutations</c> em Python para confirmar o total de arranjos $A(6, 4) = 360$ e verificar quantos deles começam com o estímulo $0$ ($A(5, 3) = 60$).</item>
+          <item>Simule $100\,000$ sorteios aleatórios de $4$ estímulos dentre $6$ sem reposição com <c>rng = np.random.default_rng(42)</c> e compare a frequência empírica de o estímulo $0$ aparecer na primeira posição com o valor teórico $60 / 360 = 1/6 \approx 0{,}1667$.</item>
+        </list>
+        <hint><title>Ver dica</title>Para sortear $4$ índices distintos de $0$ a $5$ em lote no NumPy, use <c>rng.random((100_000, 6)).argsort(axis=1)[:, :4]</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import itertools
+import math
+import numpy as np
+
+# (a) Conferência exata
+arranjos = list(itertools.permutations(range(6), 4))
+comeca_com_0 = [a for a in arranjos if a[0] == 0]
+
+print(f"A(6, 4) via math.perm: {math.perm(6, 4)}")          # A(6, 4) via math.perm: 360
+print(f"Total enumerado: {len(arranjos)}")                 # Total enumerado: 360
+print(f"Começam com 0 (exato): {len(comeca_com_0)}")       # Começam com 0 (exato): 60
+
+# (b) Simulação com semente fixa
+rng = np.random.default_rng(42)
+sorteios = rng.random((100_000, 6)).argsort(axis=1)[:, :4]
+freq_comeca_0 = (sorteios[:, 0] == 0).mean()
+
+print(f"Frequência simulada: {freq_comeca_0:.4f}")         # aprox. 0.1667 (teórico: 60/360 = 1/6)
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:7-1-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Combinações e o triângulo de Pascal</title>
+      <intro>
+        Na maioria dos problemas estatísticos e experimentais, o que importa é o conjunto escolhido — e não a ordem em que você o selecionou.
+      </intro>
+
+      Considere uma touca de EEG com $64$ eletrodos. Para estudar conectividade funcional, você mede a sincronia entre pares de eletrodos — digamos, entre o eletrodo $\text{Cz}$ e o eletrodo $\text{Fz}$. O par $\{\text{Cz}, \text{Fz}\}$ é exatamente o mesmo par que $\{\text{Fz}, \text{Cz}\}$; listar os dois seria contar a mesma conexão duas vezes! Quando escolhemos $k$ elementos dentre $n$ sem repetição e <strong>a ordem não importa</strong>, estamos formando um subconjunto, chamado de <strong>combinação</strong>.
+
+      <definition id="def:7-1-combinacao">
+        <title>Combinação simples e coeficiente binomial</title>
+        Para inteiros $0 \le k \le n$, o número de subconjuntos (combinações) de $k$ elementos escolhidos dentre $n$ elementos distintos é denotado por $C(n, k)$ ou $\binom{n}{k}$ (lê-se "$n$ escolhe $k$") e vale:
+        $$C(n, k) = \binom{n}{k} = \frac{n!}{k!\, (n - k)!}.$$
+        <intuition>
+          De onde vem o $k!$ extra no denominador? Lembre que um arranjo $A(n, k) = \frac{n!}{(n - k)!}$ escolhe um subconjunto de $k$ itens <em>e</em> os coloca em ordem. Como qualquer subconjunto de $k$ elementos admite exatamente $k!$ ordens internas possíveis, vale $A(n, k) = k! \cdot C(n, k)$. Dividir o número de arranjos por $k!$ elimina a ordem e deixa apenas os subconjuntos distintos.
+        </intuition>
+      </definition>
+
+      Por convenção, quando $k < 0$ ou $k > n$, definimos $\binom{n}{k} = 0$, pois não existem subconjuntos desse tamanho. Note ainda que $\binom{n}{0} = \frac{n!}{0!\, n!} = 1$ (há apenas um subconjunto vazio) e $\binom{n}{n} = 1$ (há apenas o conjunto inteiro).
+
+      Os coeficientes binomiais obedecem a duas identidades fundamentais que economizam contas e revelam uma estrutura visual elegante.
+
+      <proposition id="prop:7-1-simetria-stifel">
+        <title>Simetria e relação de Stifel</title>
+        Para quaisquer inteiros $n \ge 1$ e $0 \le k \le n$, valem:
+        <list marker="number">
+          <item><strong>Simetria:</strong> $\displaystyle \binom{n}{k} = \binom{n}{n - k}$.</item>
+          <item><strong>Relação de Stifel:</strong> para $1 \le k \le n - 1$, $\displaystyle \binom{n}{k} = \binom{n - 1}{k - 1} + \binom{n - 1}{k}$.</item>
+        </list>
+      </proposition>
+      <proof of="prop:7-1-simetria-stifel" collapsible="true" collapsed="true">
+        <strong>1. Simetria.</strong> Escolher quais $k$ elementos entram no subconjunto equivale exatamente a escolher quais $n - k$ elementos ficam de fora. Algebricamente:
+        $$\binom{n}{n - k} = \frac{n!}{(n - k)!\, (n - (n - k))!} = \frac{n!}{(n - k)!\, k!} = \binom{n}{k}.$$
+
+        <strong>2. Relação de Stifel (argumento de contagem).</strong> Fixe um elemento especial $x$ entre os $n$ elementos disponíveis. Todo subconjunto de tamanho $k$ cai em um de dois casos disjuntos:
+        <list marker="dash">
+          <item><em>$x$ está no subconjunto:</em> como $x$ já ocupa $1$ vaga, restam $k - 1$ vagas para preencher com os outros $n - 1$ elementos, o que pode ser feito de $\binom{n - 1}{k - 1}$ maneiras;</item>
+          <item><em>$x$ não está no subconjunto:</em> todas as $k$ vagas precisam ser preenchidas usando apenas os outros $n - 1$ elementos, o que pode ser feito de $\binom{n - 1}{k}$ maneiras.</item>
+        </list>
+        Pelo princípio aditivo, somando os dois casos obtemos $\binom{n}{k} = \binom{n - 1}{k - 1} + \binom{n - 1}{k}$.
+      </proof>
+
+      Se você empilhar os coeficientes binomiais linha por linha, começando em $n = 0$ no topo e colocando $k = 0, 1, \dots, n$ da esquerda para a direita, forma-se o famoso <strong>triângulo de Pascal</strong>, ilustrado na <ref to="fig:7-1-pascal"/>. As bordas valem sempre $1$ ($\binom{n}{0} = \binom{n}{n} = 1$), cada linha é espelhada da esquerda para a direita pela simetria, e a relação de Stifel garante que todo número interno é simplesmente a soma dos dois números imediatamente acima dele!
+
+      <figure src="fig/triangulo-pascal.svg" alt="Triângulo de Pascal das linhas n = 0 até n = 8, com destaque para a relação de Stifel C(6,2) + C(6,3) = 15 + 20 = 35 = C(7,3) e a soma 2^n de cada linha à direita" id="fig:7-1-pascal">
+        <caption>Triângulo de Pascal para $n = 0$ até $n = 8$. Cada entrada interna resulta da soma das duas entradas vizinhas na linha superior (relação de Stifel), e a soma dos termos da linha $n$ vale $2^n$.</caption>
+      </figure>
+
+      E se quisermos escolher $k$ itens dentre $n$ tipos <em>permitindo repetições</em>, mas ainda assim <em>sem importar a ordem</em>? Por exemplo, imagine sortear $2$ alelos de um gene que admite $n$ variantes alélicas na população para formar o genótipo de um organismo diploide: a ordem dos alelos não importa ($\text{AB}$ e $\text{BA}$ formam o mesmo genótipo heterozigoto), mas um alelo pode repetir ($\text{AA}$, homozigoto).
+
+      <definition id="def:7-1-comb-repeticao">
+        <title>Combinação com repetição</title>
+        O número de maneiras de escolher $k$ itens dentre $n$ tipos distintos, sem importar a ordem e permitindo repetições, é dado por:
+        $$CR(n, k) = \binom{n + k - 1}{k}.$$
+        <intuition>
+          Pense no método das estrelas e barras (<em>stars and bars</em>): represente os $k$ itens escolhidos por $k$ estrelas ($\star$) e separe os $n$ tipos usando $n - 1$ barras divisórias ($\mid$). Cada escolha corresponde a distribuir $k$ estrelas em uma fila com $n + k - 1$ posições ao todo, o que significa escolher quais $k$ posições recebem estrelas: $\binom{n + k - 1}{k}$.
+        </intuition>
+      </definition>
+
+      <example id="exm:7-1-eeg-neuronios">
+        <title>Conectividade em EEG e seleção de neurônios</title>
+        <list marker="a">
+          <item>Um sistema de EEG possui $64$ canais. Quantos pares não ordenados de eletrodos existem para calcular uma matriz de conectividade funcional?</item>
+          <item>Em um registro eletrofisiológico com $10$ neurônios identificados, de quantas maneiras podemos selecionar um grupo de $3$ neurônios para estudar correlações de disparo triplas?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Um par de eletrodos é um subconjunto de tamanho $k = 2$ escolhido dentre $n = 64$, sem ordem:
+            $$\binom{64}{2} = \frac{64!}{2!\, 62!} = \frac{64 \cdot 63}{2 \cdot 1} = 32 \cdot 63 = 2\,016 \text{ pares.}$$
+          </item>
+          <item>Selecionamos $k = 3$ neurônios dentre $n = 10$, sem importar a ordem:
+            $$\binom{10}{3} = \frac{10!}{3!\, 7!} = \frac{10 \cdot 9 \cdot 8}{3 \cdot 2 \cdot 1} = \frac{720}{6} = 120 \text{ trios.}$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:7-1-genotipos-abo">
+        <title>Genótipos diploides com $n$ alelos e sistema ABO</title>
+        Considere um locus autossômico em um organismo diploide que apresenta $n$ alelos distintos na população.
+        <list marker="a">
+          <item>Mostre que existem $\frac{n(n + 1)}{2}$ genótipos possíveis para esse gene.</item>
+          <item>Aplique o resultado ao sistema sanguíneo ABO humano ($n = 3$ alelos: $\text{A}$, $\text{B}$ e $\text{O}$), listando os genótipos e comparando com os fenótipos.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Um genótipo diploide é formado por $2$ alelos sem ordem. Dividimos em dois casos disjuntos:
+            <list marker="dash">
+              <item><em>Homozigotos:</em> os dois alelos são iguais, dando $n$ genótipos (um para cada alelo);</item>
+              <item><em>Heterozigotos:</em> os dois alelos são distintos, o que equivale a escolher um par dentre $n$ alelos, dando $\binom{n}{2} = \frac{n(n - 1)}{2}$ genótipos.</item>
+            </list>
+            Pelo princípio aditivo, o total de genótipos é:
+            $$\binom{n}{2} + n = \frac{n(n - 1)}{2} + \frac{2n}{2} = \frac{n^2 - n + 2n}{2} = \frac{n(n + 1)}{2}.$$
+            Observe que esse mesmo resultado sai diretamente pela combinação com repetição de $k = 2$ alelos dentre $n$ tipos: $CR(n, 2) = \binom{n + 2 - 1}{2} = \binom{n + 1}{2} = \frac{(n + 1)n}{2}$.
+          </item>
+          <item>Para o sistema ABO ($n = 3$):
+            $$\frac{3(3 + 1)}{2} = \frac{12}{2} = 6 \text{ genótipos.}$$
+            São eles: $3$ homozigotos ($\text{AA}, \text{BB}, \text{OO}$) e $\binom{3}{2} = 3$ heterozigotos ($\text{AO}, \text{BO}, \text{AB}$). Como $\text{A}$ e $\text{B}$ são codominantes entre si e ambos dominam $\text{O}$, esses $6$ genótipos produzem $4$ fenótipos sanguíneos distintos ($\text{A}$, $\text{B}$, $\text{AB}$ e $\text{O}$).
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:7-1-ordem-importa">
+        <title>Armadilha comum</title>
+        Decidir se a ordem importa é o passo mais crítico da combinatória. Para pares de eletrodos em um EEG de $64$ canais, escolher o primeiro eletrodo ($64$ opções) e depois o segundo ($63$ opções) dá $64 \cdot 63 = 4\,032$ — o <strong>dobro</strong> do correto! Isso acontece porque o par $(\text{Cz}, \text{Fz})$ foi contado separadamente de $(\text{Fz}, \text{Cz})$. Só não dividimos por $2!$ quando há uma direção ou papel distinto (por exemplo, "eletrodo que envia sinal $\to$ eletrodo que recebe sinal").
+      </remark>
+
+      Em Python, <c>math.comb(n, k)</c> calcula coeficientes binomiais com exatidão inteira, e <c>itertools.combinations</c> enumera todos os subconjuntos.
+
+      <code lang="python" id="cod:7-1-comb-stifel">
+import itertools
+import math
+
+print(f"Pares EEG (64 canais): {math.comb(64, 2)}")       # Pares EEG (64 canais): 2016
+print(f"Trios de 10 neurônios: {math.comb(10, 3)}")     # Trios de 10 neurônios: 120
+
+# Enumeração de combinações simples
+trios_enum = list(itertools.combinations(range(10), 3))
+print(f"Trios de neurônios enumerados: {len(trios_enum)}")  # Trios de neurônios enumerados: 120
+
+# Conferência de Stifel: C(8, 3) == C(7, 2) + C(7, 3)
+esq = math.comb(8, 3)
+dir_ = math.comb(7, 2) + math.comb(7, 3)
+print(f"Stifel: {esq} == {dir_}")                        # Stifel: 56 == 56
+
+# Enumeração de genótipos ABO com repetição
+alelos = ["A", "B", "O"]
+genotipos = ["".join(g) for g in itertools.combinations_with_replacement(alelos, 2)]
+print(f"Genótipos ABO ({len(genotipos)}): {genotipos}") # Genótipos ABO (6): ['AA', 'AB', 'AO', 'BB', 'BO', 'OO']
+      </code>
+
+      Para conferir via simulação, imagine que dentre os $10$ neurônios registrados ($3$ excitatórios e $7$ inibitórios), sorteamos $3$ neurônios ao acaso sem reposição. A fração teórica de trios formados exclusivamente por neurônios inibitórios é $\frac{\binom{7}{3}}{\binom{10}{3}} = \frac{35}{120} = \frac{7}{24} \approx 0{,}2917$.
+
+      <code lang="python" id="cod:7-1-sim-comb">
+import math
+import numpy as np
+
+rng = np.random.default_rng(42)
+n_sim = 100_000
+
+# Índices 0, 1, 2 = excitatórios; índices 3..9 = inibitórios
+sorteios = rng.random((n_sim, 10)).argsort(axis=1)[:, :3]
+todos_inibitorios = (sorteios >= 3).all(axis=1)
+
+teorico = math.comb(7, 3) / math.comb(10, 3)
+print(f"Frequência simulada: {todos_inibitorios.mean():.4f}")  # aprox. 0.2917 (teórico: 35/120 = 7/24)
+print(f"Valor teórico exato: {teorico:.4f}")                   # Valor teórico exato: 0.2917
+      </code>
+
+      <exercise id="exr:7-1-3-1">
+        <title>Básico — Pares de neurônios em uma micro-rede</title>
+        Em uma simulação com $100$ neurônios, queremos testar todas as conexões possíveis entre pares não ordenados de neurônios distintos. Quantos pares existem?
+        <hint><title>Ver dica</title>Como o par $\{i, j\}$ é igual ao par $\{j, i\}$, calcule $\binom{100}{2}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculamos o número de combinações de $100$ elementos tomados $2$ a $2$:
+          $$\binom{100}{2} = \frac{100 \cdot 99}{2} = 50 \cdot 99 = 4\,950 \text{ pares.}$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-1-3-2">
+        <title>Básico — Genótipos para um gene com quatro alelos</title>
+        Suponha que um gene envolvido na pigmentação em uma espécie diploide possua $4$ alelos distintos na população. Quantos genótipos diploides diferentes podem existir para esse gene?
+        <hint><title>Ver dica</title>Some os homozigotos ($4$) aos heterozigotos ($\binom{4}{2}$), ou use diretamente $\frac{n(n + 1)}{2}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Temos $4$ genótipos homozigotos e $\binom{4}{2} = \frac{4 \cdot 3}{2} = 6$ genótipos heterozigotos. Somando os dois casos:
+          $$4 + 6 = 10 \text{ genótipos distintos.}$$
+          Pela fórmula fechada do <ref to="exm:7-1-genotipos-abo"/>, $\frac{4(4 + 1)}{2} = \frac{20}{2} = 10$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-1-3-3">
+        <title>Intermediário — Região de interesse em EEG de 32 canais</title>
+        Uma pesquisadora trabalha com uma touca de EEG de $32$ canais e deseja selecionar um subconjunto de $5$ eletrodos para definir uma região de interesse (<em>ROI</em>, de <em>region of interest</em>) no córtex frontal. Quantos subconjuntos distintos de $5$ eletrodos podem ser formados? Faça a conta passo a passo simplificando as frações.
+        <hint><title>Ver dica</title>Escreva $\binom{32}{5} = \frac{32 \cdot 31 \cdot 30 \cdot 29 \cdot 28}{5 \cdot 4 \cdot 3 \cdot 2 \cdot 1}$ e cancele $5 \cdot 3 \cdot 2 = 30$ e $32 / 4 = 8$ antes de multiplicar.</hint>
+        <solution collapsible="true" collapsed="true">
+          Aplicando a definição de combinação:
+          $$\binom{32}{5} = \frac{32!}{5!\, 27!} = \frac{32 \cdot 31 \cdot 30 \cdot 29 \cdot 28}{5 \cdot 4 \cdot 3 \cdot 2 \cdot 1}.$$
+          Como $5 \cdot 3 \cdot 2 = 30$, cancelamos o $30$ do numerador, e simplificamos $\frac{32}{4} = 8$:
+          $$\binom{32}{5} = 8 \cdot 31 \cdot 29 \cdot 28.$$
+          Multiplicando por partes: $8 \cdot 31 = 248$ e $29 \cdot 28 = 812$. Por fim:
+          $$248 \cdot 812 = 248 \cdot (800 + 12) = 198\,400 + 2\,976 = 201\,376 \text{ subconjuntos.}$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-1-3-4">
+        <title>Avançado — Combinação com repetição e sorteio de eletrodos em Python</title>
+        <list marker="a">
+          <item>Um protocolo experimental aplica $4$ sessões em sequência, onde cada sessão usa uma dentre $3$ modalidades sensoriais (visual, auditiva ou tátil), podendo repetir modalidades. Se só importar quantas sessões foram de cada modalidade (sem importar a ordem), quantas composições distintas existem? Confira em Python usando <c>itertools.combinations_with_replacement</c> e <c>math.comb</c>.</item>
+          <item>Escreva no mesmo script uma simulação com <c>rng = np.random.default_rng(42)</c> sorteando $100\,000$ subconjuntos aleatórios de $5$ eletrodos dentre $32$ (como no <ref to="exr:7-1-3-3"/>) para estimar a probabilidade de um eletrodo específico (índice $0$) ser incluído na ROI, conferindo com o valor teórico $\frac{\binom{31}{4}}{\binom{32}{5}} = \frac{5}{32} = 0{,}15625$.</item>
+        </list>
+        <hint><title>Ver dica</title>No item (a), temos $n = 3$ modalidades e $k = 4$ sessões, logo $CR(3, 4) = \binom{3 + 4 - 1}{4} = \binom{6}{4}$. No item (b), verifique <c>(sorteios == 0).any(axis=1).mean()</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Matematicamente, no item (a), escolher $k = 4$ sessões entre $n = 3$ tipos com repetição e sem ordem resulta em:
+          $$CR(3, 4) = \binom{3 + 4 - 1}{4} = \binom{6}{4} = \binom{6}{2} = \frac{6 \cdot 5}{2} = 15 \text{ composições.}$$
+          No item (b), se o eletrodo $0$ está fixo na ROI, restam $\binom{31}{4}$ maneiras de escolher os outros $4$ eletrodos, logo a probabilidade exata é $\frac{\binom{31}{4}}{\binom{32}{5}} = \frac{5}{32} = 0{,}15625$.
+
+          <code lang="python" numbered="false">
+import itertools
+import math
+import numpy as np
+
+# (a) Combinação com repetição
+modalidades = ["visual", "auditiva", "tátil"]
+composicoes = list(itertools.combinations_with_replacement(modalidades, 4))
+print(f"CR(3, 4) via math.comb: {math.comb(3 + 4 - 1, 4)}")  # CR(3, 4) via math.comb: 15
+print(f"Total enumerado: {len(composicoes)}")                # Total enumerado: 15
+
+# (b) Simulação de ROI com 5 eletrodos dentre 32
+rng = np.random.default_rng(42)
+rois = rng.random((100_000, 32)).argsort(axis=1)[:, :5]
+inclui_eletrodo_0 = (rois == 0).any(axis=1).mean()
+teorico = math.comb(31, 4) / math.comb(32, 5)
+
+print(f"Frequência simulada (eletrodo 0 na ROI): {inclui_eletrodo_0:.5f}")  # aprox. 0.15625 (teórico: 5/32 = 0.15625)
+print(f"Valor teórico exato: {teorico:.5f}")                                # Valor teórico exato: 0.15625
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:7-1-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Da contagem à probabilidade</title>
+      <intro>
+        Quando todos os resultados elementares de um experimento têm a mesma chance de acontecer, calcular probabilidades resume-se a contar casos favoráveis e dividir pelo total de casos possíveis.
+      </intro>
+
+      Na prática, quase todas as ferramentas combinatórias que você acabou de estudar existem para responder perguntas de probabilidade. Ao cruzar dois indivíduos heterozigotos $Aa \times Aa$, ou ao procurar um sítio de reconhecimento enzimático ao longo de um genoma, comparamos o tamanho de um evento de interesse com o tamanho do universo de possibilidades.
+
+      <definition id="def:7-1-prob-classica">
+        <title>Probabilidade clássica (equiprovável)</title>
+        Seja $\Omega$ um espaço amostral (<em>sample space</em>) finito cujos resultados elementares são <strong>igualmente prováveis</strong> (equiprováveis). A probabilidade de um evento $A \subseteq \Omega$ ocorrer é dada pela razão:
+        $$P(A) = \frac{|A|}{|\Omega|},$$
+        isto é, o número de casos favoráveis dividido pelo número total de casos possíveis.
+      </definition>
+
+      Guarde um aviso essencial: a fórmula $P(A) = |A|/|\Omega|$ <strong>só vale quando os resultados de $\Omega$ são equiprováveis</strong>. Se um canal iônico abre com probabilidade $0{,}8$ e permanece fechado com probabilidade $0{,}2$, ou se um dado é viciado, não podemos simplesmente dividir contagens como se os dois estados tivessem o mesmo peso. A definição geral de probabilidade (axiomas e distribuições com pesos desiguais) será desenvolvida no próximo tema, <mark>Variável aleatória</mark>.
+
+      Antes de irmos para lá, há uma ponte algébrica clássica que une as combinações diretamente às probabilidades de ensaios repetidos: o binômio de Newton.
+
+      <theorem id="thm:7-1-binomio-newton">
+        <title>Binômio de Newton</title>
+        Para quaisquer números reais $a, b \in \mathbb{R}$ e todo inteiro $n \ge 0$, vale a expansão:
+        $$(a + b)^n = \sum_{k=0}^{n} \binom{n}{k} a^k b^{n-k}.$$
+      </theorem>
+      <proof of="thm:7-1-binomio-newton" collapsible="true" collapsed="true">
+        Escreva a potência como um produto de $n$ fatores idênticos:
+        $$(a + b)^n = \underbrace{(a + b)(a + b)\cdots(a + b)}_{n \text{ fatores}}.$$
+        Ao expandir esse produto pela propriedade distributiva, cada parcela resulta da escolha de $a$ ou de $b$ em cada um dos $n$ parênteses. Para obter o termo $a^k b^{n-k}$, precisamos escolher exatamente $k$ parênteses de onde retiramos $a$ (retirando $b$ dos $n - k$ parênteses restantes). O número de maneiras de escolher quais $k$ fatores fornecem $a$ é exatamente $\binom{n}{k}$. Somando sobre todos os valores possíveis $k = 0, 1, \dots, n$, obtemos $\sum_{k=0}^{n} \binom{n}{k} a^k b^{n-k}$.
+      </proof>
+
+      Substituindo $a = 1$ e $b = 1$ no <ref to="thm:7-1-binomio-newton"/>, surge imediatamente uma identidade notável que já aparecera nas somas das linhas da <ref to="fig:7-1-pascal"/>:
+      <equation id="eq:7-1-soma-binomiais">
+        \sum_{k=0}^{n} \binom{n}{k} = (1 + 1)^n = 2^n.
+      </equation>
+      Faz todo sentido combinatório: a soma dos números de subconjuntos de tamanho $0, 1, \dots, n$ é o total de subconjuntos de um conjunto com $n$ elementos, que também é $2^n$ (para cada elemento, decidimos entre incluí-lo ou não).
+
+      Agora veja o que acontece quando substituímos $a = p$ (probabilidade de sucesso em uma tentativa) e $b = 1 - p$ (probabilidade de fracasso) em $n$ tentativas independentes. Cada sequência específica com $k$ sucessos e $n - k$ fracassos tem probabilidade $p^k (1 - p)^{n - k}$. Como existem $\binom{n}{k}$ sequências disjuntas com exatamente $k$ sucessos (basta escolher em quais $k$ tentativas o sucesso ocorreu), o princípio aditivo nos dá:
+      <equation id="eq:7-1-binomial-antecipada">
+        P(\text{exatamente } k \text{ sucessos em } n \text{ tentativas}) = \binom{n}{k} p^k (1 - p)^{n - k}.
+      </equation>
+      Repare que, pela <ref to="eq:7-1-binomial-antecipada"/>, somar essas probabilidades para $k = 0, \dots, n$ devolve $(p + (1 - p))^n = 1^n = 1$, exatamente como exige a probabilidade total! No próximo tema (<mark>Variável aleatória</mark>), formalizaremos essa expressão como a <em>distribuição binomial</em>, escrevendo $X \sim \text{Binomial}(n, p)$.
+
+      <example id="exm:7-1-punnett">
+        <title>Cruzamento mendeliano $Aa \times Aa$ e prole de 4 filhos</title>
+        Considere um caráter mendeliano simples governado por um alelo dominante $A$ e um recessivo $a$, no cruzamento entre dois indivíduos heterozigotos ($Aa \times Aa$).
+        <list marker="a">
+          <item>Monte o quadro de Punnett para um único filho e calcule a probabilidade de cada genótipo ($AA$, $Aa$, $aa$).</item>
+          <item>Se o casal tiver $4$ filhos independentes, qual é a probabilidade de que <strong>exatamente $2$</strong> deles sejam heterozigotos ($Aa$)?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Cada genitor produz gametas $A$ e $a$ com chances iguais ($1/2$ cada). Cruzando os gametas maternos e paternos no quadro de Punnett, obtemos $4$ combinações elementares equiprováveis:
+            $$\Omega = \{AA,\; Aa,\; aA,\; aa\}, \qquad |\Omega| = 4.$$
+            Tanto $Aa$ (pai $A$, mãe $a$) quanto $aA$ (pai $a$, mãe $A$) produzem o genótipo heterozigoto. Logo, pela probabilidade clássica, na proporção genotípica $1:2:1$:
+            $$P(AA) = \frac{1}{4}, \qquad P(Aa) = \frac{2}{4} = \frac{1}{2}, \qquad P(aa) = \frac{1}{4}.$$
+          </item>
+          <item>Para cada filho, a probabilidade de ser heterozigoto é $p = \frac{1}{2}$ e a de não ser é $1 - p = \frac{1}{2}$. Em $n = 4$ filhos, existem $2^4 = 16$ sequências igualmente prováveis indicando para cada filho se ele é heterozigoto ($H$) ou homozigoto ($O$). Dessas, quantas têm exatamente $2$ $H$ e $2$ $O$? Exatamente $\binom{4}{2} = \frac{4 \cdot 3}{2} = 6$ sequências. Aplicando a <ref to="eq:7-1-binomial-antecipada"/>:
+            $$P(\text{exatamente 2 filhos } Aa) = \binom{4}{2} \left(\frac{1}{2}\right)^2 \left(\frac{1}{2}\right)^2 = 6 \cdot \frac{1}{4} \cdot \frac{1}{4} = \frac{6}{16} = \frac{3}{8} = 0{,}375.$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:7-1-sitio-restricao">
+        <title>Frequência esperada de um sítio de restrição no DNA</title>
+        A enzima de restrição EcoRI reconhece e corta o sítio palindrômico de $6$ pares de bases ($6\text{ pb}$) cuja sequência na fita $5' \to 3'$ é $\text{GAATTC}$. Em um modelo simplificado no qual as $4$ bases ($\text{A}, \text{T}, \text{G}, \text{C}$) ocorrem de forma independente e equiprovável ($P = 1/4$ cada) ao longo de uma fita simples de DNA, qual é a probabilidade de o motivo $\text{GAATTC}$ aparecer começando em uma posição sorteada ao acaso?
+
+        <strong>Solução.</strong> Uma janela de $6$ bases pode assumir $4^6$ sequências distintas equiprováveis:
+        $$4^6 = (2^2)^6 = 2^{12} = 4\,096.$$
+        Apenas $1$ dessas $4\,096$ sequências é exatamente $\text{GAATTC}$. Portanto:
+        $$P(\text{sítio}) = \frac{1}{4^6} = \left(\frac{1}{4}\right)^6 = \frac{1}{4\,096} \approx 0{,}000244 = 2{,}44 \times 10^{-4}.$$
+        Isso significa que, em uma fita simples aleatória lida em $5' \to 3'$, o motivo de $6$ bases surge, em média, cerca de uma vez a cada $4\,096$ nucleotídeos, correspondendo no duplex ao sítio de restrição palindrômico de $6\text{ pb}$ da EcoRI! (Em genomas reais, o conteúdo de GC varia e certos motivos são selecionados ou evitados, mas o cálculo equiprovável fornece a linha de base nula indispensável.)
+      </example>
+
+      <remark id="rem:7-1-nao-equiprovavel">
+        <title>Armadilha comum</title>
+        Um erro clássico é contar "rótulos" agregados em vez de resultados elementares equiprováveis. No cruzamento $Aa \times Aa$, há $3$ genótipos ($AA, Aa, aa$), mas responder que $P(Aa) = 1/3$ está errado porque o heterozigoto reúne duas combinações elementares de gametas ($Aa$ e $aA$), valendo $2/4 = 1/2$. Sempre confira se cada elemento de $\Omega$ tem de fato o mesmo peso antes de escrever $|A|/|\Omega|$.
+      </remark>
+
+      Vamos simular $100\,000$ famílias de $4$ filhos do cruzamento $Aa \times Aa$ sorteando os gametas de pai e mãe diretamente no <c>numpy</c>, e conferir tanto a conta manual $\binom{4}{2}(1/2)^4 = 3/8$ quanto o módulo <c>scipy.stats</c> (que usaremos intensivamente a partir do próximo tema).
+
+      <code lang="python" id="cod:7-1-sim-punnett">
+import math
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(42)
+n_familias = 100_000
+
+# 0 representa o alelo 'a', 1 representa o alelo 'A'
+gameta_pai = rng.integers(0, 2, size=(n_familias, 4))
+gameta_mae = rng.integers(0, 2, size=(n_familias, 4))
+
+# Heterozigoto (Aa ou aA) ocorre quando os alelos dos pais são diferentes
+eh_het = gameta_pai != gameta_mae
+n_het_por_familia = eh_het.sum(axis=1)
+freq_exatamente_2 = (n_het_por_familia == 2).mean()
+
+# Conferência teórica: combinação exata e scipy.stats
+teorico_comb = math.comb(4, 2) * (0.5**2) * (0.5**2)
+teorico_scipy = stats.binom.pmf(2, n=4, p=0.5)
+
+print(f"Frequência simulada (100 mil famílias): {freq_exatamente_2:.4f}")  # aprox. 0.375 (teórico: 3/8 = 0.375)
+print(f"Teórico (combinação): {teorico_comb:.4f}")                       # Teórico (combinação): 0.3750
+print(f"Teórico (scipy.stats): {teorico_scipy:.4f}")                     # Teórico (scipy.stats): 0.3750
+      </code>
+
+      <exercise id="exr:7-1-4-1">
+        <title>Básico — Probabilidade clássica com códons</title>
+        Sorteando uniformemente ao acaso um dentre os $64$ códons de RNA mensageiro, qual é a probabilidade de ele:
+        <list marker="a">
+          <item>ser um códon de parada ($\text{UAA}$, $\text{UAG}$ ou $\text{UGA}$);</item>
+          <item>não conter nenhuma base uracila ($\text{U}$)?</item>
+        </list>
+        <hint><title>Ver dica</title>Os $64$ códons são equiprováveis. No item (b), conte quantos códons podem ser formados usando apenas $\{\text{A}, \text{G}, \text{C}\}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Existem $3$ códons de parada entre os $64$ possíveis:
+              $$P(\text{parada}) = \frac{3}{64} \approx 0{,}0469 \quad (4{,}69\%).$$
+            </item>
+            <item>Os códons sem $\text{U}$ usam apenas as $3$ bases $\{\text{A}, \text{G}, \text{C}\}$ em cada posição, totalizando $3^3 = 27$ códons favoráveis:
+              $$P(\text{sem U}) = \frac{27}{64} \approx 0{,}4219 \quad (42{,}19\%).$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-1-4-2">
+        <title>Intermediário — Evento complementar no cruzamento $Aa \times Aa$</title>
+        Em um cruzamento mendeliano $Aa \times Aa$, considere $3$ filhos gerados de maneira independente. Qual é a probabilidade de que <strong>pelo menos $1$</strong> filho tenha o genótipo recessivo $aa$?
+        <hint><title>Ver dica</title>Calcule primeiro a probabilidade do evento complementar: <em>nenhum</em> dos $3$ filhos ter o genótipo $aa$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para cada filho isoladamente, $P(aa) = \frac{1}{4}$, logo a probabilidade de não ser $aa$ (ser $AA$ ou $Aa$) é:
+          $$P(\text{não } aa) = 1 - \frac{1}{4} = \frac{3}{4}.$$
+          Como os $3$ filhos são independentes, a probabilidade de nenhum deles ser $aa$ é:
+          $$P(\text{nenhum } aa) = \left(\frac{3}{4}\right)^3 = \frac{27}{64}.$$
+          Portanto, a probabilidade de haver pelo menos um filho $aa$ é o complemento:
+          $$P(\text{pelo menos 1 } aa) = 1 - \frac{27}{64} = \frac{37}{64} \approx 0{,}5781 \quad (57{,}81\%).$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-1-4-3">
+        <title>Intermediário — Padrões neurais com número par de disparos</title>
+        Use o binômio de Newton (<ref to="thm:7-1-binomio-newton"/>) para descobrir quantos padrões binários de $8$ neurônios apresentam um número <strong>par</strong> de neurônios ativos ($0, 2, 4, 6$ ou $8$). Em seguida, indique a probabilidade de sortear um padrão par ao acaso entre os $2^8 = 256$ padrões possíveis.
+        <hint><title>Ver dica</title>Escreva as expansões de $(1 + 1)^8$ e $(1 - 1)^8$ e some as duas equações para cancelar os termos de índice $k$ ímpar.</hint>
+        <solution collapsible="true" collapsed="true">
+          Pelo binômio de Newton com $n = 8$:
+          $$(1 + 1)^8 = \binom{8}{0} + \binom{8}{1} + \binom{8}{2} + \binom{8}{3} + \binom{8}{4} + \binom{8}{5} + \binom{8}{6} + \binom{8}{7} + \binom{8}{8} = 2^8 = 256.$$
+          Agora fazemos $a = -1$ e $b = 1$, obtendo sinais alternados:
+          $$(-1 + 1)^8 = \binom{8}{0} - \binom{8}{1} + \binom{8}{2} - \binom{8}{3} + \binom{8}{4} - \binom{8}{5} + \binom{8}{6} - \binom{8}{7} + \binom{8}{8} = 0^8 = 0.$$
+          Somando as duas igualdades, os coeficientes de $k$ ímpar se anulam e os de $k$ par dobram:
+          $$2\left[\binom{8}{0} + \binom{8}{2} + \binom{8}{4} + \binom{8}{6} + \binom{8}{8}\right] = 256 \implies \binom{8}{0} + \binom{8}{2} + \binom{8}{4} + \binom{8}{6} + \binom{8}{8} = 128.$$
+          Logo, exatamente metade dos padrões ($128$ de $256$) tem um número par de neurônios ativos, o que dá probabilidade $\frac{128}{256} = \frac{1}{2} = 0{,}5$. (Conferindo pela linha $8$ da <ref to="fig:7-1-pascal"/>: $1 + 28 + 70 + 28 + 1 = 128$.)
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-1-4-4">
+        <title>Avançado — Simulação de sítios de restrição em fita de DNA</title>
+        Retome o <ref to="exm:7-1-sitio-restricao"/>. Escreva um código em Python usando <c>rng = np.random.default_rng(42)</c> para gerar uma fita sintética aleatória de DNA com $100\,000$ bases equiprováveis ($\text{A}, \text{T}, \text{G}, \text{C}$), conte quantas vezes a sequência $\text{GAATTC}$ aparece em janelas deslizantes de $6$ bases e compare a frequência empírica por janela com o valor teórico $(1/4)^6 = 1 / 4\,096 \approx 0{,}000244$.
+        <hint><title>Ver dica</title>Codifique as bases como inteiros $0, 1, 2, 3$ em um vetor de tamanho $100\,000$ e use fatiamentos deslocados (<c>fita[:-5]</c>, <c>fita[1:-4]</c>, ..., <c>fita[5:]</c>) para testar todas as $99\,995$ janelas de uma só vez.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+
+rng = np.random.default_rng(42)
+n_bases = 100_000
+
+# Codificamos A=0, T=1, G=2, C=3; logo GAATTC = [2, 0, 0, 1, 1, 3]
+fita = rng.integers(0, 4, size=n_bases)
+
+eh_sitio = (
+    (fita[:-5] == 2)
+    & (fita[1:-4] == 0)
+    & (fita[2:-3] == 0)
+    & (fita[3:-2] == 1)
+    & (fita[4:-1] == 1)
+    & (fita[5:] == 3)
+)
+
+ocorrencias = int(eh_sitio.sum())
+freq_empirica = eh_sitio.mean()
+prob_teorica = (1 / 4) ** 6
+
+print(f"Ocorrências de GAATTC: {ocorrencias}")        # aprox. 24 (esperado: 99995/4096 ≈ 24.4; o valor exato depende da semente)
+print(f"Frequência empírica: {freq_empirica:.6f}")   # aprox. 0.000244
+print(f"Probabilidade teórica: {prob_teorica:.6f}")  # Probabilidade teórica: 0.000244
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:7-1-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Princípio multiplicativo:</strong> escolhas em $k$ etapas sucessivas com $n_1, n_2, \dots, n_k$ opções geram $n_1 \cdot n_2 \cdots n_k$ resultados; sequências de comprimento $k$ com $n$ símbolos repetíveis dão $n^k$ possibilidades.</item>
+        <item><strong>Princípio aditivo:</strong> casos mutuamente exclusivos se somam ($|A_1 \cup A_2| = |A_1| + |A_2|$ quando $A_1 \cap A_2 = \emptyset$); se houver sobreposição, subtraia a interseção: $|A_1 \cup A_2| = |A_1| + |A_2| - |A_1 \cap A_2|$.</item>
+        <item><strong>Fatorial e permutação simples:</strong> $n! = n(n - 1)\cdots 2 \cdot 1$ e $0! = 1$; há $P_n = n!$ ordenações completas de $n$ objetos distintos.</item>
+        <item><strong>Arranjo simples (ordem importa, sem repetição):</strong> $A(n, k) = \dfrac{n!}{(n - k)!} = n(n - 1)\cdots(n - k + 1)$.</item>
+        <item><strong>Permutação com repetição:</strong> $\dfrac{n!}{n_1!\, n_2! \cdots n_r!}$, onde $n_1 + \dots + n_r = n$ são as quantidades de elementos indistinguíveis em cada classe.</item>
+        <item><strong>Combinação simples (ordem não importa, sem repetição):</strong> $\dbinom{n}{k} = \dfrac{n!}{k!\, (n - k)!} = \dfrac{A(n, k)}{k!}$, satisfazendo a simetria $\dbinom{n}{k} = \dbinom{n}{n - k}$ e a relação de Stifel $\dbinom{n}{k} = \dbinom{n - 1}{k - 1} + \dbinom{n - 1}{k}$.</item>
+        <item><strong>Combinação com repetição:</strong> escolher $k$ itens dentre $n$ tipos permitindo repetição e ignorando a ordem dá $CR(n, k) = \dbinom{n + k - 1}{k}$.</item>
+        <item><strong>Probabilidade clássica e binômio de Newton:</strong> em espaços finitos equiprováveis, $P(A) = \dfrac{|A|}{|\Omega|}$; além disso, $(a + b)^n = \displaystyle\sum_{k=0}^{n} \dbinom{n}{k} a^k b^{n-k}$, implicando $\displaystyle\sum_{k=0}^{n} \dbinom{n}{k} = 2^n$ e a fórmula $\dbinom{n}{k} p^k (1 - p)^{n - k}$ para $k$ sucessos em $n$ tentativas independentes.</item>
+      </list>
+    </section>
+
+    <section id="sec:7-1-alem">
+      <title>Para ir além</title>
+      Com a combinatória dominada, o próximo passo no Módulo 7 é <strong>Variável aleatória</strong>, onde vamos generalizar a probabilidade para resultados não equiprováveis, definir esperança matemática e variância e estudar as distribuições fundamentais (Binomial, Poisson e Normal) que sustentam a estatística experimental — rumo ao projeto final do módulo: montar o design estatístico completo de um experimento de neuroimagem, especificando testes de hipóteses com correção para comparações múltiplas e rodando-os em simulação no Python.
+
+      Para consolidar os conceitos deste tema, utilize os materiais recomendados do Módulo 7:
+      <list marker="dash">
+        <item><strong>Livro-texto:</strong> <em>Tertuliano — Princípios de Probabilidade</em>. Acompanhe os exercícios do livro: o tema é muito complexo à primeira vista, mas se desmistifica com o tempo e a repetição.</item>
+        <item><strong>Apoio em vídeo:</strong> aulas pontuais no YouTube para desmistificar os temas espinhosos à primeira vista (ex.: <em>StatQuest</em>).</item>
+        <item><strong>Documentação oficial:</strong> <link to="https://docs.scipy.org/doc/scipy/reference/stats.html">SciPy — Módulo <c>scipy.stats</c></link>, referência das distribuições e testes estatísticos que usaremos a partir dos próximos temas.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 7 · Estatística e Probabilidade — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

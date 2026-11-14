@@ -1,0 +1,1156 @@
+<document>
+  <title>Módulo 8 · Machine Learning</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-8-4">Voltar ao guia (Tema 8.4)</link></meta-item>
+    <meta-item key="Módulo">Módulo 8 · Machine Learning — Criando a Inteligência Clássica</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-8-4">
+    <title>Métricas estatísticas</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Acurácia engana: precisão, recall e AUC para avaliar de verdade.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Suponha um detector de crises epilépticas em janelas de eletroencefalograma (EEG) em que apenas $1\%$ do registro tem atividade ictal. Um modelo preguiçoso que sempre responda "sem crise" acerta $99\%$ das vezes — e deixa escapar $100\%$ das crises. Em biologia e neurociência, eventos decisivos (crises, oscilações hipocampais raras, tumores malignos, mutações patogênicas) costumam ser minoritários; olhar apenas para a acurácia esconde falhas catastróficas.
+
+    O mesmo vale para alvos contínuos. Em modelos de codificação (<em>encoding models</em>) com fMRI, é comum reportar apenas a correlação entre atividade prevista e observada; porém, uma previsão com o dobro da amplitude real tem correlação perfeita e produz erros físicos enormes. Escolher a métrica certa permite avaliar um modelo com rigor científico antes de avançar para o Tema 8.5 (Reamostragem).
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>construir e interpretar matrizes de confusão binárias (VP, FP, VN, FN) e multiclasse no <c>scikit-learn</c>, comparando sempre com uma linha de base ingênua;</item>
+      <item>calcular precisão, <em>recall</em> (sensibilidade), especificidade e $F_1$, ligando-os aos erros tipo I/II e à prevalência pela regra de Bayes;</item>
+      <item>traçar a curva ROC e calcular a AUC à mão e em Python, usando a curva precisão–<em>recall</em> para classes raras;</item>
+      <item>avaliar regressão com MSE, RMSE, MAE e $R^2$ no teste, distinguindo $R^2$ negativo da correlação de Pearson;</item>
+      <item>lidar com classes desbalanceadas usando acurácia balanceada, divisão estratificada, pesos de classe e ajuste de limiar por custo.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Temas 8.1, 8.2 e 8.3 do Módulo 8; Módulo 7 (variável aleatória, inferência Bayesiana/prevalência e erros tipo I e II em testes de hipóteses).
+
+    <section id="sec:8-4-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Matriz de confusão e acurácia</title>
+      <intro>
+        Antes de resumir um classificador em um único número, abrimos a tabela completa de acertos e erros para saber quem é confundido com quem.
+      </intro>
+
+      No Tema 8.3 (Classificação), medimos classificadores pela fração de acertos no teste. Essa única porcentagem mistura dois erros com consequências biológicas opostas: perder um evento real e disparar um alarme falso. A <strong>matriz de confusão</strong> (<em>confusion matrix</em>) separa essas falhas em uma tabela simples.
+
+      <definition id="def:8-4-matriz-confusao">
+        <title>Contagens binárias, matriz de confusão, acurácia e taxa de erro</title>
+        Em classificação binária ($y_i \in \{0, 1\}$) sobre $n$ amostras de teste, comparamos o rótulo real $y_i$ com a previsão $\hat{y}_i$:
+        <list marker="dash">
+          <item><strong>Verdadeiro positivo ($\mathrm{VP}$, <em>true positive</em> — TP):</strong> $y_i = 1, \hat{y}_i = 1$ (positivo correto).</item>
+          <item><strong>Falso positivo ($\mathrm{FP}$, <em>false positive</em> — FP):</strong> $y_i = 0, \hat{y}_i = 1$ (alarme falso).</item>
+          <item><strong>Verdadeiro negativo ($\mathrm{VN}$, <em>true negative</em> — TN):</strong> $y_i = 0, \hat{y}_i = 0$ (negativo correto).</item>
+          <item><strong>Falso negativo ($\mathrm{FN}$, <em>false negative</em> — FN):</strong> $y_i = 1, \hat{y}_i = 0$ (positivo perdido).</item>
+        </list>
+        Vale $n = \mathrm{VP} + \mathrm{FP} + \mathrm{VN} + \mathrm{FN}$. A <strong>acurácia</strong> (<em>accuracy</em>) e a <strong>taxa de erro</strong> (<em>error rate</em>) são:
+        <equation id="eq:8-4-acuracia">
+          \text{Acurácia} = \frac{\mathrm{VP} + \mathrm{VN}}{n}, \qquad \text{Taxa de erro} = 1 - \text{Acurácia} = \frac{\mathrm{FP} + \mathrm{FN}}{n}.
+        </equation>
+        <intuition>
+          A acurácia dá o mesmo peso a alarmes falsos ($\mathrm{FP}$) e omissões ($\mathrm{FN}$), misturando acertos da classe rara e da abundante.
+        </intuition>
+      </definition>
+
+      No <c>scikit-learn</c>, <c>confusion_matrix(y_true, y_pred)</c> adota sempre a convenção: <strong>linhas = classe verdadeira</strong> e <strong>colunas = classe prevista</strong>, em ordem crescente ($0$, depois $1$), como na <ref to="tbl:8-4-confusao-sklearn"/>.<sidenote>Atenção ao ler literatura: artigos e outros pacotes (como <em>caret</em> em R) às vezes usam a matriz transposta (linhas = previsto) ou põem a classe positiva ($1$) primeiro; confira sempre os rótulos.</sidenote>
+
+      <table id="tbl:8-4-confusao-sklearn">
+        <title>Convenção da função confusion_matrix(y_true, y_pred) no scikit-learn</title>
+        <header>
+          <column>Classe verdadeira \ Prevista</column>
+          <column align="right">Previsto 0 (negativo)</column>
+          <column align="right">Previsto 1 (positivo)</column>
+        </header>
+        <row><column><strong>Verdadeiro 0 (negativo)</strong></column><column align="right">$\mathrm{VN}$ (TN)</column><column align="right">$\mathrm{FP}$ (FP)</column></row>
+        <row><column><strong>Verdadeiro 1 (positivo)</strong></column><column align="right">$\mathrm{FN}$ (FN)</column><column align="right">$\mathrm{VP}$ (TP)</column></row>
+        <caption>Na diagonal principal ficam os acertos ($\mathrm{VN}$ e $\mathrm{VP}$); fora dela ficam os erros ($\mathrm{FP}$ e $\mathrm{FN}$). Ao aplicar <c>.ravel()</c>, o NumPy lê linha por linha e devolve <c>tn, fp, fn, tp</c>.</caption>
+      </table>
+
+      Na <strong>classificação multiclasse</strong> com $K \ge 3$ categorias (como decodificar $K$ estímulos visuais em MVPA), a matriz fica $K \times K$: a entrada da linha $r$ e coluna $c$ conta quantas amostras da classe real $r$ foram previstas como $c$. A diagonal traz os acertos, a soma da linha $r$ dá o total real da classe $r$, e as células fora da diagonal revelam quais estímulos se confundem.
+
+      Antes de comemorar uma acurácia, compare-a com uma <strong>linha de base ingênua</strong> (<em>baseline</em>). Com $K$ classes balanceadas, o nível de acaso é $1/K$ (Tema 8.3). Com uma classe mais frequente, prever sempre a <strong>classe majoritária</strong> — <c>DummyClassifier(strategy="most_frequent")</c> no <c>scikit-learn</c> — já alcança a proporção dominante. Qualquer modelo útil precisa vencer esse chute nos erros que importam.
+
+      <example id="exm:8-4-eeg-crises">
+        <title>Detector automático de crises epilépticas em janelas de EEG</title>
+        Um sistema analisa $n = 200$ janelas de $2\text{ s}$ de EEG no teste: $20$ com crise ($y = 1$) e $180$ basais ($y = 0$). Ele obtém $\mathrm{VP} = 16$, $\mathrm{FN} = 4$, $\mathrm{FP} = 6$ e $\mathrm{VN} = 174$.
+        <list marker="a">
+          <item>Monte a matriz de confusão (<c>scikit-learn</c>) e calcule acurácia e taxa de erro.</item>
+          <item>Qual a matriz e a acurácia de um classificador ingênuo que sempre prevê "sem crise" ($0$)?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Com classe verdadeira nas linhas ($0$, depois $1$) e prevista nas colunas:
+            $$\mathbf{M} = \begin{pmatrix} \mathrm{VN} & \mathrm{FP} \\ \mathrm{FN} & \mathrm{VP} \end{pmatrix} = \begin{pmatrix} 174 & 6 \\ 4 & 16 \end{pmatrix}.$$
+            Somas das linhas: $174 + 6 = 180$ (normais) e $4 + 16 = 20$ (crises), $n = 200$. Pela <ref to="eq:8-4-acuracia"/>:
+            $$\text{Acurácia} = \frac{16 + 174}{200} = \frac{190}{200} = 0{,}95 \quad (95{,}0\%), \qquad \text{Taxa de erro} = 1 - 0{,}95 = 0{,}05 \quad (5{,}0\%).$$
+          </item>
+          <item>O ingênuo prevê sempre $0$, zerando a segunda coluna: $\mathrm{VN} = 180$, $\mathrm{FP} = 0$, $\mathrm{FN} = 20$ e $\mathrm{VP} = 0$. Sua matriz é $\begin{pmatrix} 180 & 0 \\ 20 & 0 \end{pmatrix}$ e sua acurácia vale:
+            $$\text{Acurácia}_{\text{ingênuo}} = \frac{180 + 0}{200} = 0{,}90 \quad (90{,}0\%).$$
+            Embora $95{,}0\%$ pareça apenas $5$ pontos acima de $90{,}0\%$, o modelo acertou $16$ das $20$ crises, e o ingênuo perdeu todas ($\mathrm{VP} = 0$).
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:8-4-multiclasse-mvpa">
+        <title>Matriz de confusão multiclasse na decodificação de três estímulos</title>
+        Em MVPA no córtex temporal ventral, decodificamos $K = 3$ categorias — rosto ($1$), casa ($2$) e ferramenta ($3$) — em $n = 90$ ensaios ($30$ por classe), obtendo (linhas = real, colunas = previsto):
+        $$\mathbf{M} = \begin{pmatrix} 26 & 2 & 2 \\ 3 & 24 & 3 \\ 4 & 5 & 21 \end{pmatrix}.$$
+        Calcule a acurácia global, compare com o acaso e indique onde o decodificador mais erra.
+
+        <strong>Solução.</strong> Diagonal principal:
+        $$\text{Acertos} = 26 + 24 + 21 = 71.$$
+        $$\text{Acurácia} = \frac{71}{90} \approx 0{,}789 \quad (78{,}9\%), \qquad \text{Taxa de erro} = \frac{19}{90} \approx 0{,}211 \quad (21{,}1\%).$$
+        Com $3$ classes balanceadas, o acaso é $\frac{1}{3} \approx 0{,}333$ ($33{,}3\%$); logo, $78{,}9\%$ supera muito o acaso. Os acertos por classe são $26/30$ ($86{,}7\%$, rosto), $24/30$ ($80{,}0\%$, casa) e $21/30$ ($70{,}0\%$, ferramenta). O maior erro está na terceira linha: "ferramenta" foi confundida $5$ vezes com "casa" e $4$ com "rosto".
+      </example>
+
+      Abaixo, simulamos janelas espectrais de EEG ($10\%$ de crises) comparando um <c>DummyClassifier</c> com a regressão logística vista no Tema 8.3.
+
+      <code lang="python" id="cod:8-4-confusao">
+import numpy as np
+from sklearn.dummy import DummyClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(0)
+
+# Simulação de 800 janelas de EEG com 6 bandas/atributos (10% de crises)
+n_janelas = 800
+y = rng.binomial(1, 0.10, size=n_janelas)
+X = rng.normal(0.0, 1.0, size=(n_janelas, 6))
+deslocamento_crise = np.array([1.0, 0.8, -0.4, 0.3, 0.5, 1.1])
+X[y == 1] += 1.2 * deslocamento_crise
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.25, stratify=y, random_state=0
+)
+
+# Linha de base ingênua: prevê sempre a classe majoritária
+ingenuo = DummyClassifier(strategy="most_frequent")
+ingenuo.fit(X_treino, y_treino)
+acc_ingenuo = accuracy_score(y_teste, ingenuo.predict(X_teste))
+
+# Classificador logístico padronizado
+modelo = make_pipeline(
+    StandardScaler(),
+    LogisticRegression(C=1.0, max_iter=1000, random_state=0),
+)
+modelo.fit(X_treino, y_treino)
+y_pred = modelo.predict(X_teste)
+
+cm = confusion_matrix(y_teste, y_pred)
+tn, fp, fn, tp = cm.ravel()
+acc_modelo = accuracy_score(y_teste, y_pred)
+
+print(f"Acurácia ingênua (classe majoritária): {acc_ingenuo:.3f}")
+# Acurácia ingênua (classe majoritária): 0.895
+print(f"Acurácia da regressão logística:       {acc_modelo:.3f}")
+# Acurácia da regressão logística:       0.955
+print(f"Matriz (TN, FP, FN, TP): {tn}, {fp}, {fn}, {tp}")
+# Matriz (TN, FP, FN, TP): 175, 4, 5, 16
+      </code>
+
+      Nessa simulação, o classificador ingênuo já acerta cerca de $89{,}5\%$ chutando "sem crise", enquanto a regressão logística atinge $95{,}5\%$ e identifica a maioria das crises reais.
+
+      <remark id="rem:8-4-armadilha-acc">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Reportar acurácia sem linha de base:</strong> dizer que um modelo atingiu $90\%$ não significa nada sem informar a proporção da classe majoritária (ou $1/K$ se balanceado).</item>
+          <item><strong>Inverter linhas e colunas:</strong> bibliotecas e artigos variam; no <c>scikit-learn</c>, linhas são <c>y_true</c> e colunas são <c>y_pred</c>. Conferir a soma das linhas evita trocar $\mathrm{FP}$ por $\mathrm{FN}$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-4-1-1">
+        <title>Básico — Leitura da matriz de confusão de um detector de spikes</title>
+        Um algoritmo de detecção automática de potenciais de ação (<em>spikes</em>) avaliou $500$ janelas curtas de registro extracelular, produzindo a matriz de confusão do <c>scikit-learn</c>:
+        $$\mathbf{M} = \begin{pmatrix} 410 & 15 \\ 25 & 50 \end{pmatrix}.$$
+        Identifique os valores de $\mathrm{VN}$, $\mathrm{FP}$, $\mathrm{FN}$ e $\mathrm{VP}$, calcule a acurácia e a taxa de erro, e informe a acurácia da linha de base majoritária.
+        <hint><title>Ver dica</title>Na matriz do <c>scikit-learn</c>, a primeira linha é a classe verdadeira $0$ ($\mathrm{VN}, \mathrm{FP}$) e a segunda é a classe verdadeira $1$ ($\mathrm{FN}, \mathrm{VP}$).</hint>
+        <solution collapsible="true" collapsed="true">
+          Pela convenção do <c>scikit-learn</c>: $\mathrm{VN} = 410$, $\mathrm{FP} = 15$, $\mathrm{FN} = 25$, $\mathrm{VP} = 50$ ($n = 500$).
+          <list marker="dash">
+            <item><strong>Acurácia:</strong> $\dfrac{410 + 50}{500} = \dfrac{460}{500} = 0{,}92$ ($92{,}0\%$).</item>
+            <item><strong>Taxa de erro:</strong> $1 - 0{,}92 = 0{,}08$ ($8{,}0\%$, $40$ erros em $500$).</item>
+            <item><strong>Linha de base majoritária:</strong> $410 + 15 = 425$ janelas sem <em>spike</em> e $75$ com <em>spike</em>; prever sempre "sem <em>spike</em>" alcança $\dfrac{425}{500} = 0{,}85$ ($85{,}0\%$).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-4-1-2">
+        <title>Intermediário — Decodificação multiclasse de três modalidades sensoriais</title>
+        Um decodificador classificou $n = 120$ ensaios em $K = 3$ estímulos ($40$ visuais, $40$ auditivos e $40$ táteis), gerando a matriz (linhas = real, colunas = previsto):
+        $$\mathbf{M} = \begin{pmatrix} 34 & 4 & 2 \\ 6 & 28 & 6 \\ 3 & 7 & 30 \end{pmatrix}.$$
+        <list marker="a">
+          <item>Calcule a acurácia global e compare com o acaso.</item>
+          <item>Qual modalidade teve maior acerto individual e qual par concentrou mais confusões?</item>
+        </list>
+        <hint><title>Ver dica</title>Divida cada entrada da diagonal pelo total da respectiva linha ($40$).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Diagonal: $34 + 28 + 30 = 92$ em $120$. Acurácia global: $\frac{92}{120} \approx 0{,}767$ ($76{,}7\%$), bem acima do acaso $\frac{1}{3} \approx 0{,}333$ ($33{,}3\%$).</item>
+            <item>Taxas por classe: visual $\frac{34}{40} = 0{,}85$ ($85{,}0\%$), auditiva $\frac{28}{40} = 0{,}70$ ($70{,}0\%$), tátil $\frac{30}{40} = 0{,}75$ ($75{,}0\%$). Maior acerto: <strong>visual</strong>. Maior confusão fora da diagonal: entre <strong>auditivo e tátil</strong> ($6 + 7 = 13$ erros).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-4-1-3">
+        <title>Avançado — Matriz de confusão multiclasse e linha de base em Python</title>
+        Usando o conjunto <c>load_wine</c> do <c>scikit-learn</c> ($K = 3$ classes), divida os dados com <c>test_size=0.30</c>, <c>stratify=y</c> e <c>random_state=0</c>, compare a acurácia do <c>DummyClassifier(strategy="most_frequent")</c> com um <c>Pipeline</c> de <c>StandardScaler</c> e <c>LogisticRegression(C=1.0, max_iter=1000, random_state=0)</c>, e imprima a matriz de confusão do modelo logístico.
+        <hint><title>Ver dica</title>Importe <c>load_wine</c> de <c>sklearn.datasets</c> e passe <c>y_teste, y_pred</c> nessa ordem para <c>confusion_matrix</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+from sklearn.datasets import load_wine
+from sklearn.dummy import DummyClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+dados = load_wine()
+X, y = dados.data, dados.target
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.30, stratify=y, random_state=0
+)
+
+ingenuo = DummyClassifier(strategy="most_frequent")
+ingenuo.fit(X_treino, y_treino)
+acc_ingenuo = accuracy_score(y_teste, ingenuo.predict(X_teste))
+
+modelo = make_pipeline(
+    StandardScaler(),
+    LogisticRegression(C=1.0, max_iter=1000, random_state=0),
+)
+modelo.fit(X_treino, y_treino)
+y_pred = modelo.predict(X_teste)
+acc_modelo = accuracy_score(y_teste, y_pred)
+
+print(f"Acurácia ingênua: {acc_ingenuo:.3f}")
+# Acurácia ingênua: 0.389
+print(f"Acurácia logística: {acc_modelo:.3f}")
+# Acurácia logística: 1.000
+print("Matriz de confusão:")
+print(confusion_matrix(y_teste, y_pred))
+# [[18  0  0]
+#  [ 0 21  0]
+#  [ 0  0 15]]
+          </code>
+          A regressão logística padronizada supera amplamente a linha de base majoritária (cerca de $39\%$), sem nenhum erro fora da diagonal neste conjunto de teste (o que não garante $100\%$ em dados novos).
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-4-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Precisão, recall, especificidade e F1</title>
+      <intro>
+        Cada célula da matriz responde a uma pergunta prática distinta: acertar quando o alarme toca não é o mesmo que capturar todos os eventos reais.
+      </intro>
+
+      No detector de crises, um neurologista faz duas perguntas: "que fração das crises reais foi detectada?" e "quando o alarme toca, qual a chance de ser crise de verdade?". Elas definem o <strong>recall</strong> (sensibilidade) e a <strong>precisão</strong>.
+
+      <definition id="def:8-4-metricas-binarias">
+        <title>Precisão, recall, especificidade, FPR e escore $F_1$</title>
+        A partir das contagens $\mathrm{VP}, \mathrm{FP}, \mathrm{VN}, \mathrm{FN}$ (com denominadores positivos), definimos:
+        <list marker="dash">
+          <item><strong>Precisão</strong> (<em>precision</em>, ou valor preditivo positivo — $\mathrm{VPP}$): fração dos alarmes positivos que são realmente positivos:
+            $$\text{Precisão} = \frac{\mathrm{VP}}{\mathrm{VP} + \mathrm{FP}}.$$
+          </item>
+          <item><strong>Recall</strong>, <strong>sensibilidade</strong> (<em>sensitivity</em>) ou <strong>taxa de verdadeiros positivos</strong> ($\mathrm{TPR}$): fração dos positivos reais detectados:
+            $$\text{Recall} = \text{Sensibilidade} = \mathrm{TPR} = \frac{\mathrm{VP}}{\mathrm{VP} + \mathrm{FN}}.$$
+          </item>
+          <item><strong>Especificidade</strong> (<em>specificity</em>) ou <strong>taxa de verdadeiros negativos</strong> ($\mathrm{TNR}$): fração dos negativos reais descartados corretamente:
+            $$\text{Especificidade} = \mathrm{TNR} = \frac{\mathrm{VN}}{\mathrm{VN} + \mathrm{FP}}.$$
+          </item>
+          <item><strong>Taxa de falsos positivos</strong> ($\mathrm{FPR}$): fração dos negativos reais classificados como positivos:
+            $$\mathrm{FPR} = \frac{\mathrm{FP}}{\mathrm{VN} + \mathrm{FP}} = 1 - \text{Especificidade}.$$
+          </item>
+          <item><strong>Escore $F_1$</strong> (<em>$F_1$-score</em>): média harmônica entre precisão e <em>recall</em>:
+            <equation id="eq:8-4-f1">
+              F_1 = \frac{2 \cdot \text{Precisão} \cdot \text{Recall}}{\text{Precisão} + \text{Recall}}.
+            </equation>
+          </item>
+        </list>
+        <intuition>
+          A precisão olha para a <em>coluna</em> dos previstos positivos ("confiabilidade do alarme"); o <em>recall</em>, para a <em>linha</em> dos positivos reais ("cobertura dos casos"); a especificidade, para a <em>linha</em> dos negativos reais ("controle de alarmes falsos"). O $F_1$ só fica alto quando precisão e <em>recall</em> são altos juntos.
+        </intuition>
+      </definition>
+
+      A fórmula do $F_1$ na <ref to="eq:8-4-f1"/> pode ser escrita diretamente com $\mathrm{VP}$, $\mathrm{FP}$ e $\mathrm{FN}$, acelerando contas à mão e mostrando que $\mathrm{VN}$ não entra no cálculo.
+
+      <proposition id="prop:8-4-f1-contagem">
+        <title>Fórmula direta do escore $F_1$ em função das contagens</title>
+        Para $\mathrm{VP} > 0$, vale a identidade:
+        $$F_1 = \frac{2\,\mathrm{VP}}{2\,\mathrm{VP} + \mathrm{FP} + \mathrm{FN}}.$$
+      </proposition>
+      <proof of="prop:8-4-f1-contagem" collapsible="true" collapsed="true">
+        Sejam $P = \frac{\mathrm{VP}}{\mathrm{VP} + \mathrm{FP}}$ a precisão e $R = \frac{\mathrm{VP}}{\mathrm{VP} + \mathrm{FN}}$ o <em>recall</em>. Invertendo ambos e somando:
+        $$\frac{1}{P} + \frac{1}{R} = \frac{\mathrm{VP} + \mathrm{FP}}{\mathrm{VP}} + \frac{\mathrm{VP} + \mathrm{FN}}{\mathrm{VP}} = \frac{2\,\mathrm{VP} + \mathrm{FP} + \mathrm{FN}}{\mathrm{VP}}.$$
+        Como a média harmônica de $P$ e $R$ é $F_1 = \frac{2}{\frac{1}{P} + \frac{1}{R}}$, obtemos imediatamente:
+        $$F_1 = \frac{2\,\mathrm{VP}}{2\,\mathrm{VP} + \mathrm{FP} + \mathrm{FN}}.$$
+      </proof>
+
+      Quase sempre há um <strong>compromisso entre precisão e <em>recall</em></strong> (<em>precision–recall trade-off</em>): aumentar a sensibilidade eleva o <em>recall</em>, mas gera mais falsos positivos e derruba a precisão; exigir muita certeza eleva a precisão, mas perde casos limítrofes e reduz o <em>recall</em>.
+
+      Essas métricas conectam-se aos <strong>Testes de hipóteses</strong> (Módulo 7). Associando $H_0$ à classe negativa ("sem crise") e $H_1$ à positiva, um falso positivo ($\mathrm{FP}$) é um <strong>erro tipo I</strong> e $\mathrm{FPR} = 1 - \text{Especificidade}$ faz o papel de $\alpha$. Já um falso negativo ($\mathrm{FN}$) é um <strong>erro tipo II</strong>, $1 - \text{Recall}$ é a taxa de erro tipo II e o <em>recall</em> corresponde ao <strong>poder estatístico</strong>.
+
+      Pela <strong>Inferência Bayesiana</strong> (Módulo 7), a precisão equivale a $\Pr(y = 1 \mid \hat{y} = 1)$. Aplicando a regra de Bayes com prevalência (<em>base rate</em>) $\pi = \Pr(y = 1)$:
+      <equation id="eq:8-4-vpp-bayes">
+        \text{Precisão} = \mathrm{VPP} = \frac{\text{Sensibilidade} \cdot \pi}{\text{Sensibilidade} \cdot \pi + (1 - \text{Especificidade}) \cdot (1 - \pi)}.
+      </equation>
+      Sensibilidade e especificidade dependem do comportamento dentro de cada classe; a precisão depende dramaticamente da prevalência $\pi$.
+
+      <example id="exm:8-4-detector-spikes">
+        <title>Avaliando um detector de disparos neuronais</title>
+        Um classificador de <em>spikes</em> obteve no teste $\mathrm{VP} = 30$, $\mathrm{FP} = 10$, $\mathrm{FN} = 20$ e $\mathrm{VN} = 140$. Calcule precisão, <em>recall</em>, especificidade, $\mathrm{FPR}$ e $F_1$.
+
+        <strong>Solução.</strong> Aplicamos diretamente as definições da <ref to="def:8-4-metricas-binarias"/>:
+        <list marker="dash">
+          <item><strong>Precisão:</strong> $\dfrac{30}{30 + 10} = \dfrac{30}{40} = 0{,}75$ ($75{,}0\%$).</item>
+          <item><strong>Recall (sensibilidade):</strong> $\dfrac{30}{30 + 20} = \dfrac{30}{50} = 0{,}60$ ($60{,}0\%$).</item>
+          <item><strong>Especificidade:</strong> $\dfrac{140}{140 + 10} = \dfrac{140}{150} = \dfrac{14}{15} \approx 0{,}933$ ($93{,}3\%$).</item>
+          <item><strong>Taxa de falsos positivos ($\mathrm{FPR}$):</strong> $1 - \dfrac{14}{15} = \dfrac{1}{15} \approx 0{,}067$ ($6{,}7\%$).</item>
+          <item><strong>Escore $F_1$:</strong> pela média harmônica,
+            $$F_1 = \frac{2 \cdot 0{,}75 \cdot 0{,}60}{0{,}75 + 0{,}60} = \frac{0{,}90}{1{,}35} = \frac{2}{3} \approx 0{,}667.$$
+            Conferindo pela <ref to="prop:8-4-f1-contagem"/>: $\dfrac{2 \cdot 30}{2 \cdot 30 + 10 + 20} = \dfrac{60}{90} = \dfrac{2}{3} \approx 0{,}667$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:8-4-bayes-prevalencia">
+        <title>O choque da prevalência baixa na precisão (regra de Bayes)</title>
+        Um detector de atividade epiléptica em EEG tem sensibilidade $= 90\%$ ($0{,}90$) e especificidade $= 95\%$ ($0{,}95$), mas a condição ocorre com prevalência $\pi = 1\%$ ($0{,}01$). Qual é a precisão (VPP) desse detector?
+
+        <strong>Solução.</strong> Temos $1 - \text{Especificidade} = 0{,}05$ e $1 - \pi = 0{,}99$. Pela <ref to="eq:8-4-vpp-bayes"/>:
+        $$\text{Precisão} = \frac{0{,}90 \cdot 0{,}01}{0{,}90 \cdot 0{,}01 + 0{,}05 \cdot 0{,}99} = \frac{0{,}009}{0{,}009 + 0{,}0495} = \frac{0{,}009}{0{,}0585} = \frac{2}{13} \approx 0{,}1538 \quad (15{,}4\%).$$
+        Em $10\,000$ janelas: $100$ são positivas reais ($90\text{ VP}$, $10\text{ FN}$) e $9\,900$ negativas ($0{,}05 \times 9\,900 = 495\text{ FP}$, $9\,405\text{ VN}$). Dos $90 + 495 = 585$ alarmes, só $90$ são reais ($90 / 585 \approx 15{,}4\%$): quase $85\%$ são falsos!
+      </example>
+
+      No <c>scikit-learn</c>, <c>precision_score</c>, <c>recall_score</c>, <c>f1_score</c> e <c>classification_report</c> calculam essas métricas. Abaixo, avaliamos uma regressão logística em <c>load_breast_cancer</c> com a classe maligna como positiva ($y = 1$).
+
+      <code lang="python" id="cod:8-4-metricas-clf">
+from sklearn.datasets import load_breast_cancer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (
+    classification_report,
+    f1_score,
+    precision_score,
+    recall_score,
+)
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+dados = load_breast_cancer()
+X = dados.data
+# Na base original, 0 = maligno e 1 = benigno; invertemos para 1 = maligno (positivo clínico)
+y = (dados.target == 0).astype(int)
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.25, stratify=y, random_state=0
+)
+
+modelo = make_pipeline(
+    StandardScaler(),
+    LogisticRegression(C=1.0, max_iter=1000, random_state=0),
+)
+modelo.fit(X_treino, y_treino)
+y_pred = modelo.predict(X_teste)
+
+prec = precision_score(y_teste, y_pred)
+rec = recall_score(y_teste, y_pred)
+f1 = f1_score(y_teste, y_pred)
+
+print(f"Precisão (maligno): {prec:.3f}")
+# Precisão (maligno): 1.000
+print(f"Recall (maligno):   {rec:.3f}")
+# Recall (maligno):   0.962
+print(f"F1-score (maligno): {f1:.3f}")
+# F1-score (maligno): 0.981
+print(classification_report(y_teste, y_pred, target_names=["Benigno", "Maligno"], digits=3))
+#               precision    recall  f1-score   support
+#
+#      Benigno      0.978     1.000     0.989        90
+#      Maligno      1.000     0.962     0.981        53
+#
+#     accuracy                          0.986       143
+#    macro avg      0.989     0.981     0.985       143
+# weighted avg      0.986     0.986     0.986       143
+      </code>
+
+      O <c>classification_report</c> exibe precisão, <em>recall</em> e $F_1$ para cada classe: o <em>recall</em> da classe "Benigno" ($1{,}000$, nenhum falso positivo neste teste) é justamente a especificidade da classe "Maligno".
+
+      <remark id="rem:8-4-armadilha-prec-esp">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Confundir precisão com especificidade:</strong> ambas têm $\mathrm{FP}$ no denominador, mas precisão é $\frac{\mathrm{VP}}{\mathrm{VP} + \mathrm{FP}}$ (entre os previstos positivos) e especificidade é $\frac{\mathrm{VN}}{\mathrm{VN} + \mathrm{FP}}$ (entre os negativos reais).</item>
+          <item><strong>Ignorar a prevalência:</strong> pelo <ref to="exm:8-4-bayes-prevalencia"/>, um teste com $95\%$ de especificidade pode ter precisão baixíssima quando a condição é rara.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-4-2-1">
+        <title>Básico — Métricas em classificação de estágios do sono</title>
+        Em $250$ épocas de EEG polissonográfico classificadas entre sono REM ($y = 1$) e não-REM ($y = 0$), um modelo obteve $\mathrm{VP} = 45$, $\mathrm{FN} = 15$, $\mathrm{FP} = 5$ e $\mathrm{VN} = 185$. Calcule precisão, <em>recall</em>, especificidade, $\mathrm{FPR}$ e escore $F_1$.
+        <hint><title>Ver dica</title>Verifique antes os totais: $45 + 15 = 60$ épocas reais de sono REM e $5 + 185 = 190$ épocas não-REM.</hint>
+        <solution collapsible="true" collapsed="true">
+          Aplicando as definições diretamente:
+          <list marker="dash">
+            <item><strong>Precisão:</strong> $\dfrac{45}{45 + 5} = \dfrac{45}{50} = 0{,}90$ ($90{,}0\%$).</item>
+            <item><strong>Recall (sensibilidade):</strong> $\dfrac{45}{45 + 15} = \dfrac{45}{60} = 0{,}75$ ($75{,}0\%$).</item>
+            <item><strong>Especificidade:</strong> $\dfrac{185}{185 + 5} = \dfrac{185}{190} = \dfrac{37}{38} \approx 0{,}974$ ($97{,}4\%$).</item>
+            <item><strong>FPR:</strong> $\dfrac{5}{190} = \dfrac{1}{38} \approx 0{,}026$ ($2{,}6\%$).</item>
+            <item><strong>Escore $F_1$:</strong> $F_1 = \dfrac{2 \cdot 0{,}90 \cdot 0{,}75}{0{,}90 + 0{,}75} = \dfrac{1{,}35}{1{,}65} = \dfrac{9}{11} \approx 0{,}818$ (ou $\dfrac{2 \cdot 45}{90 + 5 + 15} = \dfrac{90}{110} = \dfrac{9}{11}$).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-4-2-2">
+        <title>Intermediário — Regra de Bayes em triagem neurológica</title>
+        Um biomarcador sanguíneo para triagem de uma neuropatia com prevalência $\pi = 2\%$ ($0{,}02$) apresenta sensibilidade de $95\%$ e especificidade de $90\%$.
+        <list marker="a">
+          <item>Calcule a precisão (valor preditivo positivo) desse biomarcador.</item>
+          <item>Considerando uma coorte de $1\,000$ pacientes, quantos falsos positivos e quantos verdadeiros positivos aparecem? Como isso justifica o valor encontrado em (a)?</item>
+        </list>
+        <hint><title>Ver dica</title>Use a <ref to="eq:8-4-vpp-bayes"/> com $1 - \text{Especificidade} = 0{,}10$ e $1 - \pi = 0{,}98$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Substituindo na fórmula de Bayes:
+              $$\mathrm{VPP} = \frac{0{,}95 \cdot 0{,}02}{0{,}95 \cdot 0{,}02 + 0{,}10 \cdot 0{,}98} = \frac{0{,}019}{0{,}019 + 0{,}098} = \frac{0{,}019}{0{,}117} = \frac{19}{117} \approx 0{,}1624 \quad (16{,}2\%).$$
+            </item>
+            <item>Em $1\,000$ pacientes, $20$ são afetados ($0{,}95 \times 20 = 19\text{ VP}$, $1\text{ FN}$) e $980$ saudáveis ($0{,}10 \times 980 = 98\text{ FP}$, $882\text{ VN}$). Dos $19 + 98 = 117$ exames positivos, apenas $19$ são doentes ($\frac{19}{117} \approx 16{,}2\%$), pois $10\%$ da grande maioria saudável supera $95\%$ da minoria doente.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-4-2-3">
+        <title>Avançado — Por que o $F_1$ pune modelos desequilibrados</title>
+        Mostre algebricamente que, para quaisquer $P, R \in (0, 1]$, o escore $F_1$ é sempre menor ou igual à média aritmética $\frac{P + R}{2}$, ocorrendo igualdade apenas quando $P = R$. Em seguida, compare os dois valores para um detector neuronal que alcançou $P = 0{,}90$ e $R = 0{,}10$.
+        <hint><title>Ver dica</title>Calcule a diferença $\frac{P + R}{2} - \frac{2PR}{P + R}$ reduzindo ao mesmo denominador $2(P + R)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Subtraindo a média harmônica da média aritmética para $P, R > 0$:
+          $$\frac{P + R}{2} - \frac{2PR}{P + R} = \frac{(P + R)^2 - 4PR}{2(P + R)} = \frac{P^2 + 2PR + R^2 - 4PR}{2(P + R)} = \frac{(P - R)^2}{2(P + R)}.$$
+          Como $(P - R)^2 \ge 0$ e $2(P + R) > 0$, essa diferença é sempre não negativa, logo $F_1 \le \frac{P + R}{2}$, com igualdade se e somente se $P = R$.
+
+          Para $P = 0{,}90$ e $R = 0{,}10$, a média aritmética daria $\frac{0{,}90 + 0{,}10}{2} = 0{,}50$, mas o escore $F_1$ vale apenas:
+          $$F_1 = \frac{2 \cdot 0{,}90 \cdot 0{,}10}{0{,}90 + 0{,}10} = \frac{0{,}18}{1{,}00} = 0{,}18.$$
+          A média harmônica é puxada para baixo pelo menor valor, impedindo que um modelo que acerta poucos positivos pareça bom.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-4-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Limiar, curva ROC e AUC</title>
+      <intro>
+        Em vez de fixar um único corte, a curva ROC mostra todos os compromissos entre capturar positivos e gerar falsos alarmes.
+      </intro>
+
+      Muitos classificadores (<c>predict_proba</c>, <c>decision_function</c>) devolvem um <strong>escore contínuo</strong> $s(\mathbf{x})$ em vez de $0$ ou $1$. Para decidir, escolhemos um <strong>limiar</strong> (<em>threshold</em>) $\tau$ e prevemos $\hat{y} = 1$ se $s(\mathbf{x}) \ge \tau$.
+
+      O padrão $\tau = 0{,}5$ não é obrigatório. Reduzir $\tau$ classifica mais amostras como positivas, elevando $\mathrm{TPR}$ e $\mathrm{FPR}$ juntos; aumentar $\tau$ exige mais evidência, reduzindo $\mathrm{FPR}$ à custa de $\mathrm{TPR}$. Varrer $\tau$ gera a trajetória no plano $(\mathrm{FPR}, \mathrm{TPR})$ chamada <strong>curva ROC</strong> (<em>Receiver Operating Characteristic</em>).
+
+      <definition id="def:8-4-roc-auc">
+        <title>Curva ROC e área sob a curva (AUC)</title>
+        Dado um escore contínuo $s(\mathbf{x}) \in \mathbb{R}$, cada limiar $\tau \in \mathbb{R}$ produz um par $(\mathrm{FPR}(\tau),\, \mathrm{TPR}(\tau))$. A <strong>curva ROC</strong> traça $\mathrm{TPR}(\tau)$ (vertical) contra $\mathrm{FPR}(\tau)$ (horizontal) ao variar $\tau$, de $(0, 0)$ (ninguém previsto positivo) até $(1, 1)$ (todos previstos positivos).
+
+        A <strong>AUC</strong> (<em>Area Under the ROC Curve</em>) é a área sob essa curva, em $[0, 1]$. Em amostras finitas com $n_+$ positivos e $n_-$ negativos, a AUC amostral é literalmente a estatística $U$ de Mann–Whitney dividida por $n_+ n_-$ (o teste de postos do Módulo 7):
+        <equation id="eq:8-4-auc-pares">
+          \mathrm{AUC} = \frac{1}{n_+ n_-} \sum_{i : y_i = 1} \sum_{j : y_j = 0} \Bigl[\mathbf{1}\{s(\mathbf{x}_i) > s(\mathbf{x}_j)\} + \tfrac{1}{2}\mathbf{1}\{s(\mathbf{x}_i) = s(\mathbf{x}_j)\}\Bigr],
+        </equation>
+        isto é, a probabilidade de um positivo aleatório receber escore maior que o de um negativo aleatório (empates valem $1/2$).
+        <intuition>
+          Um classificador aleatório caminha sobre a diagonal $\mathrm{TPR} = \mathrm{FPR}$ ($\mathrm{AUC} = 0{,}5$). Um perfeito passa pelo canto $(0, 1)$ ($\mathrm{AUC} = 1{,}0$). Se $\mathrm{AUC} < 0{,}5$, o modelo ordena as classes ao contrário.
+        </intuition>
+      </definition>
+
+      Na <ref to="fig:8-4-roc"/>, o modelo completo aproxima-se do canto ideal $(0, 1)$ (AUC alta), enquanto o modelo restrito fica perto da diagonal do acaso ($\mathrm{AUC} = 0{,}5$).
+
+      <figure src="fig/t04-roc.svg" alt="Gráfico com duas curvas ROC comparando um modelo completo e um modelo com duas variáveis, além da linha pontilhada diagonal do acaso com AUC igual a 0,500 e destaque para o limiar 0,5" id="fig:8-4-roc">
+        <caption>Curvas ROC de dois classificadores e a diagonal do acaso ($\mathrm{AUC} = 0{,}5$). Quanto mais a curva se aproxima do canto superior esquerdo $(0;\, 1)$, melhor o modelo separa positivos de negativos ao longo de todos os limiares.</caption>
+      </figure>
+
+      Como $\mathrm{TPR}$ só divide pelos positivos e $\mathrm{FPR}$ só pelos negativos, a curva ROC não muda com a prevalência. Em classes muito raras, isso pode enganar: com $10\,000$ negativos e $10$ positivos, $\mathrm{FPR} = 0{,}05$ já gera $500$ falsos alarmes contra no máximo $10$ acertos! Nesses casos, examine também a <strong>curva precisão–<em>recall</em></strong> (<c>average_precision_score</c> no <c>scikit-learn</c>), pois a precisão confronta $\mathrm{FP}$ diretamente com $\mathrm{VP}$.
+
+      <example id="exm:8-4-roc-mao">
+        <title>Construindo a curva ROC e calculando a AUC à mão</title>
+        Um modelo atribuiu os seguintes escores ordenados a $n_+ = 4$ amostras positivas ($+$) e $n_- = 4$ amostras negativas ($-$):
+        $$(0{,}95,\,+), \quad (0{,}85,\,+), \quad (0{,}70,\,-), \quad (0{,}60,\,+), \quad (0{,}50,\,-), \quad (0{,}40,\,+), \quad (0{,}30,\,-), \quad (0{,}20,\,-).$$
+        Construa os pontos $(\mathrm{FPR}, \mathrm{TPR})$ da curva ROC e calcule a AUC por contagem de pares e pela área dos retângulos.
+
+        <strong>Solução.</strong> Reduzindo o limiar $\tau$ passo a passo (prevendo positivo quando $s \ge \tau$), cada positivo incluído sobe $\mathrm{TPR}$ em $1/4 = 0{,}25$ e cada negativo incluído avança $\mathrm{FPR}$ em $1/4 = 0{,}25$:
+        <list marker="dash">
+          <item>$\tau > 0{,}95$: $\mathrm{VP}=0, \mathrm{FP}=0 \implies (0{,}00;\; 0{,}00)$;</item>
+          <item>$\tau = 0{,}95$: entra $+$ $\implies (0{,}00;\; 0{,}25)$;</item>
+          <item>$\tau = 0{,}85$: entra $+$ $\implies (0{,}00;\; 0{,}50)$;</item>
+          <item>$\tau = 0{,}70$: entra $-$ $\implies (0{,}25;\; 0{,}50)$;</item>
+          <item>$\tau = 0{,}60$: entra $+$ $\implies (0{,}25;\; 0{,}75)$;</item>
+          <item>$\tau = 0{,}50$: entra $-$ $\implies (0{,}50;\; 0{,}75)$;</item>
+          <item>$\tau = 0{,}40$: entra $+$ $\implies (0{,}50;\; 1{,}00)$;</item>
+          <item>$\tau = 0{,}30$: entra $-$ $\implies (0{,}75;\; 1{,}00)$;</item>
+          <item>$\tau = 0{,}20$: entra $-$ $\implies (1{,}00;\; 1{,}00)$.</item>
+        </list>
+
+        Agora contamos os $n_+ \cdot n_- = 4 \cdot 4 = 16$ pares $(+, -)$ bem ordenados usando a <ref to="eq:8-4-auc-pares"/>:
+        <list marker="dash">
+          <item>$+_1 (0{,}95)$ supera os $4$ negativos: $+4$;</item>
+          <item>$+_2 (0{,}85)$ supera os $4$ negativos: $+4$;</item>
+          <item>$+_3 (0{,}60)$ supera $0{,}50$, $0{,}30$ e $0{,}20$: $+3$;</item>
+          <item>$+_4 (0{,}40)$ supera $0{,}30$ e $0{,}20$: $+2$.</item>
+        </list>
+        Somando os pares bem ordenados: $4 + 4 + 3 + 2 = 13$ de $16$, logo:
+        $$\mathrm{AUC} = \frac{13}{16} = 0{,}8125.$$
+        Conferindo pela área dos quatro retângulos de largura $0{,}25$ sob a escada ROC:
+        $$\text{Área} = 0{,}25 \cdot 0{,}50 + 0{,}25 \cdot 0{,}75 + 0{,}25 \cdot 1{,}00 + 0{,}25 \cdot 1{,}00 = 0{,}125 + 0{,}1875 + 0{,}25 + 0{,}25 = 0{,}8125.$$
+      </example>
+
+      <example id="exm:8-4-limiar-clinico">
+        <title>Escolhendo o limiar na detecção de eventos neurais raros</title>
+        Um modelo prevê $\hat{p}$ de uma janela de EEG conter complexo ponta-onda epiléptico. Em um registro com prevalência de $1\%$ ($10$ positivos e $990$ negativos), dois limiares dão:
+        <list marker="dash">
+          <item><strong>Limiar $\tau_1 = 0{,}50$:</strong> $\mathrm{TPR} = 0{,}70$ ($7\text{ VP}, 3\text{ FN}$) e $\mathrm{FPR} = 0{,}01$ ($10\text{ FP}, 980\text{ VN}$);</item>
+          <item><strong>Limiar $\tau_2 = 0{,}20$:</strong> $\mathrm{TPR} = 0{,}90$ ($9\text{ VP}, 1\text{ FN}$) e $\mathrm{FPR} = 0{,}05$ ($50\text{ FP}, 940\text{ VN}$).</item>
+        </list>
+        Compare precisão e <em>recall</em> nos dois limiares.
+
+        <strong>Solução.</strong> Em $\tau_1 = 0{,}50$, o <em>recall</em> é $70\%$ e a precisão é $\frac{7}{17} \approx 41{,}2\%$. Em $\tau_2 = 0{,}20$, o <em>recall</em> sobe para $90\%$ ($1$ evento perdido), mas os falsos positivos quintuplicam e a precisão cai para $\frac{9}{59} \approx 15{,}3\%$. Para triagem médica, $\tau_2$ é útil; para intervenção automática invasiva, é arriscado.
+      </example>
+
+      A seguir, calculamos curva ROC, AUC e precisão média (<c>average_precision_score</c>) usando <c>predict_proba</c> em <c>load_breast_cancer</c>.
+
+      <code lang="python" id="cod:8-4-roc">
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_breast_cancer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import average_precision_score, roc_auc_score, roc_curve
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+dados = load_breast_cancer()
+X = dados.data
+y = (dados.target == 0).astype(int)  # 1 = maligno
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.25, stratify=y, random_state=0
+)
+
+modelos = [
+    (
+        "Regressão logística",
+        make_pipeline(StandardScaler(), LogisticRegression(C=1.0, max_iter=1000, random_state=0)),
+    ),
+    (
+        "KNN (K=25)",
+        make_pipeline(StandardScaler(), KNeighborsClassifier(n_neighbors=25)),
+    ),
+]
+
+plt.figure(figsize=(6, 4.5))
+for nome, clf in modelos:
+    clf.fit(X_treino, y_treino)
+    escores = clf.predict_proba(X_teste)[:, 1]
+    fpr, tpr, _ = roc_curve(y_teste, escores)
+    auc = roc_auc_score(y_teste, escores)
+    ap = average_precision_score(y_teste, escores)
+    print(f"{nome:20s} | AUC: {auc:.3f} | Precisão média (AP): {ap:.3f}")
+    # Regressão logística  | AUC: 0.996 | Precisão média (AP): 0.994
+    # KNN (K=25)           | AUC: 0.988 | Precisão média (AP): 0.980
+    plt.plot(fpr, tpr, linewidth=2, label=f"{nome} (AUC = {auc:.3f})")
+
+plt.plot([0, 1], [0, 1], "k--", label="Acaso (AUC = 0.500)")
+plt.xlabel("Taxa de falsos positivos (FPR)")
+plt.ylabel("Taxa de verdadeiros positivos (TPR)")
+plt.title("Curva ROC no diagnóstico mamário")
+plt.legend(loc="lower right")
+plt.grid(True, linestyle="--", alpha=0.4)
+plt.tight_layout()
+plt.show()
+      </code>
+
+      <remark id="rem:8-4-armadilha-roc">
+        <title>Armadilha comum</title>
+        <strong>Passar rótulos <c>predict(X_teste)</c> para <c>roc_auc_score</c> em vez de escores contínuos.</strong> Com apenas $0$ e $1$, não há limiares para varrer: a "curva" colapsa em dois segmentos ligando $(0,0)$, $(\mathrm{FPR}, \mathrm{TPR})$ e $(1,1)$, devolvendo $\frac{\mathrm{TPR} + \mathrm{TNR}}{2}$ e perdendo a ordenação probabilística. Passe sempre <c>predict_proba(X_teste)[:, 1]</c> ou <c>decision_function(X_teste)</c>.
+      </remark>
+
+      <exercise id="exr:8-4-3-1">
+        <title>Básico — Troca de limiar em um detector de crises</title>
+        Um classificador atribuiu os escores $\{0{,}82;\; 0{,}65;\; 0{,}45;\; 0{,}25\}$ a quatro janelas positivas reais e $\{0{,}72;\; 0{,}38;\; 0{,}20;\; 0{,}10\}$ a quatro janelas negativas reais. Calcule $\mathrm{VP}$, $\mathrm{FP}$, $\mathrm{TPR}$ e $\mathrm{FPR}$ usando os limiares $\tau = 0{,}70$ e $\tau = 0{,}30$ (prevendo $1$ se escore $\ge \tau$).
+        <hint><title>Ver dica</title>Conte quantos escores positivos e negativos são maiores ou iguais a $\tau$ em cada caso.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="dash">
+            <item><strong>Para $\tau = 0{,}70$:</strong> entre os positivos, apenas $0{,}82 \ge 0{,}70$ ($\mathrm{VP} = 1$, $\mathrm{TPR} = 1/4 = 0{,}25$). Entre os negativos, apenas $0{,}72 \ge 0{,}70$ ($\mathrm{FP} = 1$, $\mathrm{FPR} = 1/4 = 0{,}25$).</item>
+            <item><strong>Para $\tau = 0{,}30$:</strong> entre os positivos, $0{,}82$, $0{,}65$ e $0{,}45$ superam o limiar ($\mathrm{VP} = 3$, $\mathrm{TPR} = 3/4 = 0{,}75$). Entre os negativos, $0{,}72$ e $0{,}38$ superam o limiar ($\mathrm{FP} = 2$, $\mathrm{FPR} = 2/4 = 0{,}50$).</item>
+          </list>
+          Reduzir o limiar triplicou a captura de crises ($\mathrm{TPR}$ de $0{,}25$ para $0{,}75$), dobrando os falsos alarmes ($\mathrm{FPR}$ de $0{,}25$ para $0{,}50$).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-4-3-2">
+        <title>Intermediário — Curva ROC e AUC à mão com empate</title>
+        Considere $3$ amostras positivas com escores $\{0{,}9;\; 0{,}6;\; 0{,}4\}$ e $3$ amostras negativas com escores $\{0{,}7;\; 0{,}6;\; 0{,}2\}$. Calcule a $\mathrm{AUC}$ pela contagem de pares com a regra de $1/2$ para empates, liste os vértices $(\mathrm{FPR}, \mathrm{TPR})$ da curva ROC e confirme o resultado pela área geométrica.
+        <hint><title>Ver dica</title>No limiar $\tau = 0{,}6$, um positivo e um negativo entram simultaneamente, criando um segmento inclinado na curva ROC cujo trecho é um trapézio.</hint>
+        <solution collapsible="true" collapsed="true">
+          Há $3 \times 3 = 9$ pares $(+, -)$. Comparando cada positivo com os três negativos $\{0{,}7;\; 0{,}6;\; 0{,}2\}$:
+          <list marker="dash">
+            <item>$0{,}9$ ($+$) vence os $3$ negativos: $+3{,}0$;</item>
+            <item>$0{,}6$ ($+$) perde para $0{,}7$, empata com $0{,}6$ ($+0{,}5$) e vence $0{,}2$ ($+1{,}0$): $+1{,}5$;</item>
+            <item>$0{,}4$ ($+$) perde para $0{,}7$ e $0{,}6$, e vence $0{,}2$: $+1{,}0$.</item>
+          </list>
+          Logo, a pontuação total é $3{,}0 + 1{,}5 + 1{,}0 = 5{,}5$ e $\mathrm{AUC} = \dfrac{5{,}5}{9} = \dfrac{11}{18} \approx 0{,}611$.
+
+          Os vértices da curva ROC ao reduzir $\tau$ são: $(0, 0)$ para $\tau > 0{,}9$; $(0,\, 1/3)$ em $\tau = 0{,}9$; $(1/3,\, 1/3)$ em $\tau = 0{,}7$; $(2/3,\, 2/3)$ em $\tau = 0{,}6$ (empate move $\mathrm{FPR}$ e $\mathrm{TPR}$ juntos); $(2/3,\, 1)$ em $\tau = 0{,}4$; e $(1, 1)$ em $\tau = 0{,}2$. Somando as áreas dos três intervalos de largura $1/3$:
+          $$\text{Área} = \frac{1}{3} \cdot \frac{1}{3} + \frac{\frac{1}{3} + \frac{2}{3}}{2} \cdot \frac{1}{3} + \frac{1}{3} \cdot 1 = \frac{1}{9} + \frac{1}{6} + \frac{1}{3} = \frac{2 + 3 + 6}{18} = \frac{11}{18} \approx 0{,}611.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-4-3-3">
+        <title>Avançado — Efeito do erro de passar <c>predict</c> em vez de <c>predict_proba</c></title>
+        Adapte o código da <ref to="cod:8-4-roc"/> para comparar <c>roc_auc_score(y_teste, escores)</c> (usando <c>predict_proba(X_teste)[:, 1]</c>) com o valor incorreto obtido ao passar <c>modelo.predict(X_teste)</c>, verificando que este último coincide exatamente com <c>balanced_accuracy_score</c>.
+        <hint><title>Ver dica</title>Importe <c>balanced_accuracy_score</c> de <c>sklearn.metrics</c> e compare os dois números para a regressão logística.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+from sklearn.datasets import load_breast_cancer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import balanced_accuracy_score, roc_auc_score
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+dados = load_breast_cancer()
+X = dados.data
+y = (dados.target == 0).astype(int)
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.25, stratify=y, random_state=0
+)
+
+modelo = make_pipeline(
+    StandardScaler(),
+    LogisticRegression(C=1.0, max_iter=1000, random_state=0),
+)
+modelo.fit(X_treino, y_treino)
+
+escores = modelo.predict_proba(X_teste)[:, 1]
+rotulos = modelo.predict(X_teste)
+
+auc_correta = roc_auc_score(y_teste, escores)
+auc_errada = roc_auc_score(y_teste, rotulos)
+acc_bal = balanced_accuracy_score(y_teste, rotulos)
+
+print(f"AUC correta (predict_proba): {auc_correta:.3f}")
+# AUC correta (predict_proba): 0.996
+print(f"AUC errada (predict 0/1):    {auc_errada:.3f}")
+# AUC errada (predict 0/1):    0.981
+print(f"Acurácia balanceada:         {acc_bal:.3f}")
+# Acurácia balanceada:         0.981
+          </code>
+          Passar rótulos binários subestima a capacidade de ordenação do modelo e reduz a AUC à média $(\mathrm{TPR} + \mathrm{TNR}) / 2$, que é exatamente a acurácia balanceada no limiar $0{,}5$.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-4-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Métricas de regressão: MSE, RMSE, MAE e R²</title>
+      <intro>
+        Para alvos contínuos — taxa de disparo ou sinal BOLD —, distinguimos o erro na unidade física da variância explicada fora da amostra.
+      </intro>
+
+      Nos Temas 8.1 e 8.2 vimos $\mathrm{MSE}$ e $R^2$. No teste, precisamos escolher entre métricas sensíveis ou robustas a valores extremos e evitar erros ao interpretar $R^2$ e correlação de Pearson.
+
+      <definition id="def:8-4-metricas-reg">
+        <title>MSE, RMSE, MAE e coeficiente de determinação ($R^2$)</title>
+        Para $n$ observações contínuas $y_1, \dots, y_n$ com média $\bar{y} = \frac{1}{n}\sum_{i=1}^n y_i$ e previsões $\hat{y}_1, \dots, \hat{y}_n$, definimos:
+        <list marker="dash">
+          <item><strong>Erro quadrático médio ($\mathrm{MSE}$, <em>mean squared error</em>):</strong>
+            $$\mathrm{MSE} = \frac{1}{n}\sum_{i=1}^n (y_i - \hat{y}_i)^2 \qquad \text{(unidade: unidade de } y\text{ ao quadrado)}.$$
+          </item>
+          <item><strong>Raiz do erro quadrático médio ($\mathrm{RMSE}$, <em>root mean squared error</em>):</strong>
+            $$\mathrm{RMSE} = \sqrt{\mathrm{MSE}} = \sqrt{\frac{1}{n}\sum_{i=1}^n (y_i - \hat{y}_i)^2} \qquad \text{(mesma unidade de } y\text{)}.$$
+          </item>
+          <item><strong>Erro absoluto médio ($\mathrm{MAE}$, <em>mean absolute error</em>):</strong>
+            $$\mathrm{MAE} = \frac{1}{n}\sum_{i=1}^n |y_i - \hat{y}_i| \qquad \text{(mesma unidade de } y\text{)}.$$
+          </item>
+          <item><strong>Coeficiente de determinação ($R^2$):</strong> usando $\mathrm{RSS} = \sum_{i=1}^n (y_i - \hat{y}_i)^2$ e $\mathrm{TSS} = \sum_{i=1}^n (y_i - \bar{y})^2$ (supondo $\mathrm{TSS} > 0$):
+            <equation id="eq:8-4-r2">
+              R^2 = 1 - \frac{\mathrm{RSS}}{\mathrm{TSS}} = 1 - \frac{\sum_{i=1}^n (y_i - \hat{y}_i)^2}{\sum_{i=1}^n (y_i - \bar{y})^2}.
+            </equation>
+          </item>
+        </list>
+        <intuition>
+          Se $y$ está em $\text{Hz}$, o $\mathrm{MSE}$ sai em $\text{Hz}^2$ (difícil de intuir fisicamente), enquanto o $\mathrm{RMSE}$ e o $\mathrm{MAE}$ devolvem o erro típico diretamente em $\text{Hz}$. Como o $\mathrm{MSE}$ eleva cada erro ao quadrado, um único <em>outlier</em> de erro $10$ pesa $100$ vezes mais que um erro $1$ no $\mathrm{MSE}$, enquanto no $\mathrm{MAE}$ pesa apenas $10$ vezes mais.
+        </intuition>
+      </definition>
+
+      A ideia escolar de que "$R^2 \in [0, 1]$ e vale $r^2$" <strong>só vale na regressão linear ordinária com intercepto no próprio treino</strong>. No conjunto de teste ocorrem dois fenômenos decisivos.
+
+      <proposition id="prop:8-4-r2-teste">
+        <title>Comportamento do $R^2$ no conjunto de teste</title>
+        Em um conjunto de teste com $\mathrm{TSS} > 0$:
+        <list marker="number">
+          <item>Vale $R^2 \le 1$, atingindo $R^2 = 1$ apenas quando $\hat{y}_i = y_i$ para toda amostra e $R^2 = 0$ quando o modelo tem exatamente o mesmo erro quadrático que o modelo trivial constante $\hat{y}_i = \bar{y}_{\text{teste}}$.</item>
+          <item><strong>O $R^2$ pode ser negativo ($R^2 < 0$):</strong> sempre que $\mathrm{RSS} > \mathrm{TSS}$, o modelo prevê pior no teste do que simplesmente chutar a média $\bar{y}_{\text{teste}}$.</item>
+          <item><strong>$R^2$ não é igual a $r^2$ em geral:</strong> a correlação de Pearson $r(\mathbf{y}, \hat{\mathbf{y}})$ permanece inalterada sob qualquer deslocamento ou reescala positiva $a\hat{y}_i + b$ ($a > 0$), ao passo que o $R^2$ penaliza imediatamente erros de escala ou de deslocamento.</item>
+        </list>
+      </proposition>
+
+      Em estudos de <em>encoding models</em> com fMRI ou eletrofisiologia, costuma-se reportar a correlação $r$ entre resposta prevista e observada para avaliar o ritmo temporal. Mas, se você precisa da magnitude física correta (em $\text{Hz}$ ou $\text{mV}$), $r$ sozinho esconde erros graves de calibração, como mostra o segundo exemplo abaixo.
+
+      <example id="exm:8-4-reg-mao">
+        <title>MSE, RMSE, MAE e efeito de um outlier em taxas de disparo</title>
+        Em cinco ensaios de teste, um neurônio disparou às taxas observadas $\mathbf{y} = (10, 15, 20, 25, 30)\text{ Hz}$, e um modelo previu $\hat{\mathbf{y}} = (11, 14, 21, 24, 26)\text{ Hz}$.
+        <list marker="a">
+          <item>Calcule $\mathrm{MSE}$, $\mathrm{RMSE}$, $\mathrm{MAE}$ e $R^2$.</item>
+          <item>Suponha que no quinto ensaio o modelo tivesse errado muito mais, prevendo $\hat{y}_5 = 20\text{ Hz}$ (erro de $10\text{ Hz}$) em vez de $26\text{ Hz}$. Compare o impacto no $\mathrm{MAE}$ e no $\mathrm{RMSE}$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>A média é $\bar{y} = \frac{10 + 15 + 20 + 25 + 30}{5} = 20\text{ Hz}$, os desvios são $(-10, -5, 0, 5, 10)\text{ Hz}$ e $\mathrm{TSS} = 100 + 25 + 0 + 25 + 100 = 250\text{ Hz}^2$. Os erros $e_i = y_i - \hat{y}_i$ são $(-1,\, +1,\, -1,\, +1,\, +4)\text{ Hz}$:
+            $$\mathrm{RSS} = (-1)^2 + 1^2 + (-1)^2 + 1^2 + 4^2 = 1 + 1 + 1 + 1 + 16 = 20\text{ Hz}^2,$$
+            $$\mathrm{MSE} = \frac{20}{5} = 4\text{ Hz}^2, \qquad \mathrm{RMSE} = \sqrt{4} = 2\text{ Hz},$$
+            $$\mathrm{MAE} = \frac{|-1| + |1| + |-1| + |1| + |4|}{5} = \frac{8}{5} = 1{,}6\text{ Hz},$$
+            $$R^2 = 1 - \frac{20}{250} = 1 - 0{,}08 = 0{,}92.$$
+          </item>
+          <item>Com $\hat{y}_5 = 20\text{ Hz}$, $e_5 = 30 - 20 = 10\text{ Hz}$. O $\mathrm{MAE}$ vai a $\frac{1 + 1 + 1 + 1 + 10}{5} = 2{,}8\text{ Hz}$ ($+1{,}2\text{ Hz}$). O $\mathrm{MSE}$ salta para $\frac{1 + 1 + 1 + 1 + 100}{5} = 20{,}8\text{ Hz}^2$ e o $\mathrm{RMSE}$ para $\sqrt{20{,}8} \approx 4{,}56\text{ Hz}$ (mais que dobrou!), mostrando a sensibilidade do $\mathrm{MSE}$/$\mathrm{RMSE}$ a <em>outliers</em>.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:8-4-pearson-vs-r2">
+        <title>Correlação $r = 1$ com $R^2$ negativo em um encoding model</title>
+        Em quatro blocos de teste, um modelo de <em>encoding</em> tenta prever a taxa de disparo observada $\mathbf{y} = (10, 20, 30, 40)\text{ Hz}$. Compare dois modelos mal calibrados: o Modelo A prevê o dobro da resposta, $\hat{\mathbf{y}}_A = (20, 40, 60, 80)\text{ Hz}$, e o Modelo B soma um viés fixo, $\hat{\mathbf{y}}_B = (40, 50, 60, 70)\text{ Hz}$. Calcule a correlação de Pearson $r$ e o $R^2$ de ambos.
+
+        <strong>Solução.</strong> A média de $\mathbf{y}$ é $\bar{y} = 25\text{ Hz}$ e $\mathrm{TSS} = (-15)^2 + (-5)^2 + 5^2 + 15^2 = 225 + 25 + 25 + 225 = 500\text{ Hz}^2$.
+        <list marker="dash">
+          <item><strong>Modelo A ($\hat{y}_i = 2y_i$):</strong> como $\hat{\mathbf{y}}_A$ é uma função linear estritamente crescente de $\mathbf{y}$, a correlação de Pearson é perfeita: $r_A = +1{,}00$ ($r_A^2 = 1{,}00$). Porém, os erros são $(-10, -20, -30, -40)\text{ Hz}$, dando $\mathrm{RSS}_A = 100 + 400 + 900 + 1\,600 = 3\,000\text{ Hz}^2$ e:
+            $$R^2_A = 1 - \frac{3\,000}{500} = 1 - 6 = -5{,}00.$$
+          </item>
+          <item><strong>Modelo B ($\hat{y}_i = y_i + 30$):</strong> novamente $r_B = +1{,}00$, mas todos os erros valem $-30\text{ Hz}$, dando $\mathrm{RSS}_B = 4 \cdot 900 = 3\,600\text{ Hz}^2$ e:
+            $$R^2_B = 1 - \frac{3\,600}{500} = 1 - 7{,}2 = -6{,}20.$$
+          </item>
+        </list>
+        Em ambos, $r = +1{,}00$, mas $R^2 < 0$ porque prever $\bar{y} = 25\text{ Hz}$ erraria bem menos que previsões com escala ou viés errados.
+      </example>
+
+      Abaixo, calculamos essas métricas em um modelo de codificação neural, ilustrando a diferença entre <c>r2_score</c> e Pearson sob erro de escala e deslocamento.
+
+      <code lang="python" id="cod:8-4-regressao">
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+
+rng = np.random.default_rng(0)
+
+# Simulação de 300 ensaios de encoding: 3 características do estímulo -> taxa de disparo (Hz)
+n = 300
+X = rng.uniform(0.0, 1.0, size=(n, 3))
+y = 15.0 + X @ np.array([25.0, -10.0, 18.0]) + rng.normal(0.0, 4.0, size=n)
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.25, random_state=0
+)
+
+modelo = LinearRegression()
+modelo.fit(X_treino, y_treino)
+y_pred = modelo.predict(X_teste)
+
+mse = mean_squared_error(y_teste, y_pred)
+rmse = np.sqrt(mse)  # scikit-learn >= 1.4 também tem root_mean_squared_error; np.sqrt funciona em qualquer versão
+mae = mean_absolute_error(y_teste, y_pred)
+r2 = r2_score(y_teste, y_pred)
+r_pearson = np.corrcoef(y_teste, y_pred)[0, 1]
+
+# Previsão descalibrada: mesma ordem relativa, mas escala e deslocamento errados
+y_descalibrado = 1.8 * y_pred + 15.0
+r2_desc = r2_score(y_teste, y_descalibrado)
+r_desc = np.corrcoef(y_teste, y_descalibrado)[0, 1]
+
+print(f"MSE teste:  {mse:.3f} Hz² | RMSE teste: {rmse:.3f} Hz | MAE teste: {mae:.3f} Hz")
+# MSE teste:  14.492 Hz² | RMSE teste: 3.807 Hz | MAE teste: 3.035 Hz
+print(f"Modelo calibrado    -> R²: {r2:.3f} | Pearson r: {r_pearson:.3f}")
+# Modelo calibrado    -> R²: 0.839 | Pearson r: 0.919
+print(f"Modelo descalibrado -> R²: {r2_desc:.3f} | Pearson r: {r_desc:.3f}")
+# Modelo descalibrado -> R²: -17.419 | Pearson r: 0.919
+      </code>
+
+      <remark id="rem:8-4-armadilha-reg">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Avaliar pelo $R^2$ de treino:</strong> adicionar preditores aleatórios sempre mantém ou sobe o $R^2$ de treino; avalie $\mathrm{RMSE}$, $\mathrm{MAE}$ e $R^2$ no teste.</item>
+          <item><strong>Tratar $r^2$ de Pearson como $R^2$:</strong> correlação ignora erros sistemáticos de amplitude ou viés constante, enquanto o $R^2$ do <c>scikit-learn</c> mede o erro quadrático real frente à média de teste.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-4-4-1">
+        <title>Básico — MSE, RMSE, MAE e $R^2$ em potencial de membrana</title>
+        Em quatro registros de potencial de membrana próximos ao repouso, observaram-se os valores $\mathbf{y} = (-70, -66, -62, -58)\text{ mV}$ e um modelo previu $\hat{\mathbf{y}} = (-70, -64, -64, -62)\text{ mV}$. Calcule $\mathrm{MSE}$, $\mathrm{RMSE}$, $\mathrm{MAE}$ (com as unidades corretas) e $R^2$.
+        <hint><title>Ver dica</title>Calcule primeiro $\bar{y} = -64\text{ mV}$ e os desvios $y_i - \bar{y}$ para achar $\mathrm{TSS}$, depois calcule os resíduos $e_i = y_i - \hat{y}_i$.</hint>
+        <solution collapsible="true" collapsed="true">
+          A média das observações é $\bar{y} = \frac{-70 - 66 - 62 - 58}{4} = \frac{-256}{4} = -64\text{ mV}$. Os desvios até a média são $(-6, -2, +2, +6)\text{ mV}$, logo $\mathrm{TSS} = 36 + 4 + 4 + 36 = 80\text{ mV}^2$.
+
+          Os erros $e_i = y_i - \hat{y}_i$ são: $e_1 = -70 - (-70) = 0$, $e_2 = -66 - (-64) = -2$, $e_3 = -62 - (-64) = +2$ e $e_4 = -58 - (-62) = +4\text{ mV}$. Portanto:
+          <list marker="dash">
+            <item>$\mathrm{RSS} = 0^2 + (-2)^2 + 2^2 + 4^2 = 0 + 4 + 4 + 16 = 24\text{ mV}^2$.</item>
+            <item>$\mathrm{MSE} = \dfrac{24}{4} = 6\text{ mV}^2$.</item>
+            <item>$\mathrm{RMSE} = \sqrt{6} \approx 2{,}45\text{ mV}$.</item>
+            <item>$\mathrm{MAE} = \dfrac{|0| + |-2| + |2| + |4|}{4} = \dfrac{8}{4} = 2\text{ mV}$.</item>
+            <item>$R^2 = 1 - \dfrac{24}{80} = 1 - 0{,}30 = 0{,}70$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-4-4-2">
+        <title>Intermediário — $R^2$ negativo e correlação de Pearson</title>
+        Em quatro blocos de fMRI, a variação percentual observada do sinal BOLD foi $\mathbf{y} = (0, 2, 4, 6)$. Compare o Modelo A, que prevê $\hat{\mathbf{y}}_A = (1, 2, 3, 4)$, com o Modelo B, que prevê $\hat{\mathbf{y}}_B = (5, 7, 9, 11)$, calculando $R^2$ e o sinal/valor da correlação de Pearson $r$ para ambos.
+        <hint><title>Ver dica</title>Note que $\hat{\mathbf{y}}_A = 1 + 0{,}5\,\mathbf{y}$ e $\hat{\mathbf{y}}_B = \mathbf{y} + 5$, ambas transformações lineares positivas de $\mathbf{y}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          A média observada é $\bar{y} = 3$ e $\mathrm{TSS} = (-3)^2 + (-1)^2 + 1^2 + 3^2 = 20$.
+          <list marker="dash">
+            <item><strong>Modelo A:</strong> os resíduos $y_i - \hat{y}_{A,i}$ são $(-1, 0, 1, 2)$, logo $\mathrm{RSS}_A = 1 + 0 + 1 + 4 = 6$ e $R^2_A = 1 - \frac{6}{20} = 0{,}70$. Como $\hat{y}_A = 1 + 0{,}5\,y$, a correlação de Pearson vale $r_A = +1{,}00$.</item>
+            <item><strong>Modelo B:</strong> todos os resíduos valem $-5$, logo $\mathrm{RSS}_B = 4 \cdot 25 = 100$ e $R^2_B = 1 - \frac{100}{20} = -4{,}00$. Como $\hat{y}_B = y + 5$, a correlação continua $r_B = +1{,}00$, mostrando mais uma vez que $r = 1$ pode conviver com $R^2$ fortemente negativo.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-4-4-3">
+        <title>Avançado — Sensibilidade de RMSE e MAE a outliers em Python</title>
+        Usando o conjunto <c>load_diabetes</c> do <c>scikit-learn</c>, ajuste uma regressão linear (<c>test_size=0.25, random_state=0</c>) e compare $\mathrm{RMSE}$ e $\mathrm{MAE}$ no conjunto de teste antes e depois de adicionar um único <em>outlier</em> de $+200$ à primeira observação de <c>y_teste</c> (simulando um erro grosseiro de medição). Qual métrica sofreu o maior salto percentual?
+        <hint><title>Ver dica</title>Faça uma cópia com <c>y_com_outlier = y_teste.copy()</c> e some <c>200.0</c> ao elemento <c>[0]</c> antes de recalcular <c>np.sqrt(mean_squared_error(...))</c> e <c>mean_absolute_error(...)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.datasets import load_diabetes
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.model_selection import train_test_split
+
+dados = load_diabetes()
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    dados.data, dados.target, test_size=0.25, random_state=0
+)
+
+modelo = LinearRegression().fit(X_treino, y_treino)
+y_pred = modelo.predict(X_teste)
+
+rmse_limpo = np.sqrt(mean_squared_error(y_teste, y_pred))
+mae_limpo = mean_absolute_error(y_teste, y_pred)
+
+y_com_outlier = y_teste.copy()
+y_com_outlier[0] += 200.0
+
+rmse_out = np.sqrt(mean_squared_error(y_com_outlier, y_pred))
+mae_out = mean_absolute_error(y_com_outlier, y_pred)
+
+print(f"Sem outlier -> RMSE: {rmse_limpo:.3f} | MAE: {mae_limpo:.3f}")
+# Sem outlier -> RMSE: 56.393 | MAE: 45.121
+print(f"Com outlier -> RMSE: {rmse_out:.3f} | MAE: {mae_out:.3f}")
+# Com outlier -> RMSE: 61.853 | MAE: 46.922
+          </code>
+          Um único valor atípico aumentou o $\mathrm{RMSE}$ em cerca de $5{,}5$ unidades (cerca de $+9{,}7\%$) e o $\mathrm{MAE}$ em cerca de $1{,}8$ unidade (cerca de $+4{,}0\%$), pois o termo ao quadrado amplifica desvios extremos.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-4-5">
+      <eyebrow>Subtema 5</eyebrow>
+      <title>Classes desbalanceadas</title>
+      <intro>
+        Na biologia e na clínica, o evento de interesse costuma ser raro; lidar com desbalanceamento impede o modelo de ignorar a minoria.
+      </intro>
+
+      Quando $99\%$ das janelas de EEG são normais ($1\%$ crises) — ou $98\%$ das janelas de potencial de campo local no hipocampo não têm <em>sharp-wave ripples</em> —, surge o <strong>paradoxo da acurácia</strong>: prever sempre a classe majoritária acerta $99\%$, enquanto um detector real pode ter acurácia <em>menor</em> pelos falsos positivos.
+
+      <definition id="def:8-4-acuracia-balanceada">
+        <title>Acurácia balanceada</title>
+        Em um problema com $K$ classes, a <strong>acurácia balanceada</strong> (<em>balanced accuracy</em>) é a média aritmética dos <em>recalls</em> de cada classe:
+        <equation id="eq:8-4-acc-bal">
+          \text{Acurácia balanceada} = \frac{1}{K} \sum_{k=1}^K \text{Recall}_k.
+        </equation>
+        No caso binário ($K = 2$), o <em>recall</em> da classe $1$ é a sensibilidade ($\mathrm{TPR}$) e o da classe $0$ é a especificidade ($\mathrm{TNR}$):
+        $$\text{Acurácia balanceada} = \frac{\text{Sensibilidade} + \text{Especificidade}}{2} = \frac{\mathrm{TPR} + \mathrm{TNR}}{2}.$$
+        <intuition>
+          Dando o mesmo peso a cada classe independentemente do tamanho, um classificador ingênuo que sempre chuta a maioria tira exatamente $1/K$ ($0{,}50$ no binário), nunca $99\%$.
+        </intuition>
+      </definition>
+
+      Para treinar e avaliar sob desbalanceamento, adotamos cinco práticas:
+      <list marker="number">
+        <item><strong>Divisão estratificada (<c>stratify=y</c>):</strong> <c>train_test_split(..., stratify=y)</c> preserva a proporção da classe rara no treino e no teste.</item>
+        <item><strong>Pesos de classe (<c>class_weight="balanced"</c>):</strong> atribui à classe $k$ o peso $w_k = \frac{n}{K \cdot n_k}$ na função custo (como em <c>LogisticRegression</c>), punindo mais erros na minoria.</item>
+        <item><strong>Mover o limiar $\tau$:</strong> mantendo o modelo padrão, compare <c>predict_proba(X)[:, 1]</c> com um limiar $\tau$ ajustado ao custo de $\mathrm{FP}$ e $\mathrm{FN}$.</item>
+        <item><strong>Reamostragem só no treino:</strong> em casos severos, aplique subamostragem (<em>undersampling</em>) ou superamostragem (<em>oversampling</em>) <strong>apenas no treino</strong>, preservando a prevalência real no teste.</item>
+        <item><strong>Métrica guiada por custo:</strong> se $\mathrm{FN}$ é grave (crise perdida), priorize <em>recall</em>, acurácia balanceada ou precisão–<em>recall</em>; se $\mathrm{FP}$ é caro (estimulação indesejada), controle precisão e $\mathrm{FPR}$.</item>
+      </list>
+
+      <example id="exm:8-4-ripples-desbalanceado">
+        <title>Detecção de sharp-wave ripples hipocampais (prevalência de 1%)</title>
+        Em um registro contínuo de sono de ondas lentas dividido em $n = 1\,000$ janelas de $100\text{ ms}$, apenas $10$ janelas ($1\%$) contêm eventos de <em>sharp-wave ripples</em> ($y = 1$), enquanto $990$ ($99\%$) são atividade de fundo ($y = 0$). Compare:
+        <list marker="dash">
+          <item><strong>Classificador ingênuo:</strong> prevê sempre "fundo" ($0$), obtendo $\mathrm{VP}=0, \mathrm{FN}=10, \mathrm{FP}=0, \mathrm{VN}=990$.</item>
+          <item><strong>Detector neural:</strong> obtém $\mathrm{VP}=8, \mathrm{FN}=2, \mathrm{FP}=99, \mathrm{VN}=891$.</item>
+        </list>
+
+        <strong>Solução.</strong> Calculamos acurácia simples e acurácia balanceada para ambos:
+        <list marker="dash">
+          <item><strong>Classificador ingênuo:</strong>
+            $$\text{Acurácia} = \frac{990}{1\,000} = 99{,}0\%, \qquad \text{Recall} = \frac{0}{10} = 0\%, \qquad \text{Especificidade} = \frac{990}{990} = 100\%,$$
+            $$\text{Acurácia balanceada} = \frac{0 + 1}{2} = 0{,}50 \quad (50{,}0\%).$$
+          </item>
+          <item><strong>Detector neural:</strong>
+            $$\text{Acurácia} = \frac{8 + 891}{1\,000} = \frac{899}{1\,000} = 89{,}9\%, \qquad \text{Recall} = \frac{8}{10} = 0{,}80 \quad (80{,}0\%),$$
+            $$\text{Especificidade} = \frac{891}{990} = 0{,}90 \quad (90{,}0\%), \qquad \text{Acurácia balanceada} = \frac{0{,}80 + 0{,}90}{2} = 0{,}85 \quad (85{,}0\%).$$
+          </item>
+        </list>
+        Apesar da acurácia bruta menor ($89{,}9\%$ vs. $99{,}0\%$), o detector salta de $50{,}0\%$ para $85{,}0\%$ em acurácia balanceada por capturar $80\%$ dos <em>ripples</em> (precisão $\frac{8}{107} \approx 7{,}5\%$, útil como triagem visual).
+      </example>
+
+      <example id="exm:8-4-pesos-custo">
+        <title>Pesos balanceados e escolha guiada pelo custo dos erros</title>
+        Em um conjunto de treino com $n = 1\,000$ amostras ($K = 2$ classes), há $n_1 = 50$ positivos ($5\%$) e $n_0 = 950$ negativos ($95\%$).
+        <list marker="a">
+          <item>Calcule os pesos $w_0$ e $w_1$ atribuídos por <c>class_weight="balanced"</c> pela fórmula $w_k = \frac{n}{K \cdot n_k}$.</item>
+          <item>Em um protocolo clínico onde deixar escapar um evento positivo ($\mathrm{FN}$) custa $10$ vezes mais do que um alarme falso ($\mathrm{FP}$), compare dois modelos em $100$ novos pacientes: Modelo X ($\mathrm{FN} = 4$, $\mathrm{FP} = 2$) e Modelo Y ($\mathrm{FN} = 1$, $\mathrm{FP} = 12$).</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Pela fórmula do <c>scikit-learn</c>:
+            $$w_1 = \frac{1\,000}{2 \cdot 50} = 10{,}0, \qquad w_0 = \frac{1\,000}{2 \cdot 950} = \frac{10}{19} \approx 0{,}526.$$
+            A razão $w_1 / w_0 = 19$ iguala $950 / 50 = 19$, dando peso total igual às duas classes ($50 \cdot 10 = 950 \cdot \frac{10}{19} = 500$).
+          </item>
+          <item>Usando custo unitário $1$ para $\mathrm{FP}$ e $10$ para $\mathrm{FN}$:
+            <list marker="dash">
+              <item><strong>Modelo X:</strong> $4 + 2 = 6$ erros totais, mas custo $= 10 \cdot 4 + 1 \cdot 2 = 42$.</item>
+              <item><strong>Modelo Y:</strong> $1 + 12 = 13$ erros totais (acurácia menor!), mas custo $= 10 \cdot 1 + 1 \cdot 12 = 22$.</item>
+            </list>
+            O Modelo Y erra mais no total, mas reduz o custo quase à metade ao evitar falsos negativos graves.
+          </item>
+        </list>
+      </example>
+
+      Abaixo, comparamos a regressão logística padrão e com <c>class_weight="balanced"</c> em uma base sintética com $95\%$ negativos e $5\%$ positivos.
+
+      <code lang="python" id="cod:8-4-desbalanceado">
+from sklearn.datasets import make_classification
+from sklearn.dummy import DummyClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (
+    accuracy_score,
+    balanced_accuracy_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+X, y = make_classification(
+    n_samples=2000,
+    n_features=12,
+    n_informative=4,
+    n_redundant=2,
+    weights=[0.95, 0.05],
+    flip_y=0.02,
+    class_sep=2.0,
+    random_state=0,
+)
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.25, stratify=y, random_state=0
+)
+
+modelos = [
+    ("Ingênuo (majoritário)", DummyClassifier(strategy="most_frequent")),
+    (
+        "Logística padrão",
+        make_pipeline(StandardScaler(), LogisticRegression(C=1.0, max_iter=1000, random_state=0)),
+    ),
+    (
+        "Logística balanceada",
+        make_pipeline(
+            StandardScaler(),
+            LogisticRegression(C=1.0, class_weight="balanced", max_iter=1000, random_state=0),
+        ),
+    ),
+]
+
+for nome, clf in modelos:
+    clf.fit(X_treino, y_treino)
+    y_pred = clf.predict(X_teste)
+    escores = clf.predict_proba(X_teste)[:, 1]
+    acc = accuracy_score(y_teste, y_pred)
+    acc_bal = balanced_accuracy_score(y_teste, y_pred)
+    rec = recall_score(y_teste, y_pred, zero_division=0)
+    prec = precision_score(y_teste, y_pred, zero_division=0)
+    auc = roc_auc_score(y_teste, escores)
+    print(
+        f"{nome:22s} | Acc: {acc:.3f} | AccBal: {acc_bal:.3f} | "
+        f"Rec: {rec:.3f} | Prec: {prec:.3f} | AUC: {auc:.3f}"
+    )
+
+# Saída do laço:
+# Ingênuo (majoritário)  | Acc: 0.936 | AccBal: 0.500 | Rec: 0.000 | Prec: 0.000 | AUC: 0.500
+# Logística padrão       | Acc: 0.946 | AccBal: 0.578 | Rec: 0.156 | Prec: 1.000 | AUC: 0.772
+# Logística balanceada   | Acc: 0.702 | AccBal: 0.710 | Rec: 0.719 | Prec: 0.141 | AUC: 0.818
+      </code>
+
+      Observe o contraste didático: a logística padrão tem acurácia de cerca de $0{,}946$ (pouco acima dos $0{,}936$ do ingênuo), mas só encontra cerca de $16\%$ dos positivos; com <c>class_weight="balanced"</c>, o <em>recall</em> sobe para cerca de $0{,}72$ e a acurácia balanceada para cerca de $0{,}71$, ao preço de derrubar a acurácia bruta ($\approx 0{,}70$) e a precisão ($\approx 0{,}14$, muitos alarmes falsos).
+
+      <remark id="rem:8-4-armadilha-desb">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Reamostrar ou escolher $\tau$ olhando o teste:</strong> reamostrar antes da divisão vaza exemplos entre treino e teste; ajustar $\tau$ no teste vicia a avaliação. No Tema 8.5 (Reamostragem), usaremos validação cruzada para escolher limiares com segurança.</item>
+          <item><strong>Esquecer <c>stratify=y</c>:</strong> com $1\%$–$5\%$ de positivos, uma divisão aleatória pode alterar a prevalência no teste e distorcer precisão, $F_1$ e curva precisão–<em>recall</em>.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-4-5-1">
+        <title>Básico — Paradoxo da acurácia em ripples hipocampais</title>
+        Em $1\,000$ janelas de potencial de campo local com prevalência de $2\%$ de <em>sharp-wave ripples</em> ($20$ positivos e $980$ negativos), um detector obteve $\mathrm{VP} = 16$, $\mathrm{FN} = 4$, $\mathrm{FP} = 49$ e $\mathrm{VN} = 931$. Compare a acurácia simples e a acurácia balanceada desse detector com as do classificador ingênuo majoritário.
+        <hint><title>Ver dica</title>Calcule separadamente $\text{Recall} = \mathrm{VP}/20$ e $\text{Especificidade} = \mathrm{VN}/980$, depois tire a média dos dois.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="dash">
+            <item><strong>Classificador ingênuo (sempre negativo):</strong> acerta $980$ em $1\,000$, logo sua acurácia vale $98{,}0\%$. Como $\text{Recall} = 0$ e $\text{Especificidade} = 1$, sua acurácia balanceada é $\frac{0 + 1}{2} = 0{,}50$ ($50{,}0\%$).</item>
+            <item><strong>Detector:</strong>
+              $$\text{Acurácia} = \frac{16 + 931}{1\,000} = \frac{947}{1\,000} = 94{,}7\%,$$
+              $$\text{Recall} = \frac{16}{20} = 0{,}80 \quad (80{,}0\%), \qquad \text{Especificidade} = \frac{931}{980} = 0{,}95 \quad (95{,}0\%),$$
+              $$\text{Acurácia balanceada} = \frac{0{,}80 + 0{,}95}{2} = 0{,}875 \quad (87{,}5\%).$$
+            </item>
+          </list>
+          Embora a acurácia simples do detector ($94{,}7\%$) fique abaixo dos $98{,}0\%$ do ingênuo, a acurácia balanceada mostra a vantagem real ($87{,}5\%$ vs. $50{,}0\%$).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-4-5-2">
+        <title>Intermediário — Pesos de classe e limiar guiado por custo</title>
+        Em um estudo multiclasse desbalanceado com $n = 600$ amostras distribuídas em $K = 3$ estágios ($n_1 = 300$, $n_2 = 200$, $n_3 = 100$):
+        <list marker="a">
+          <item>Calcule os pesos $w_1, w_2, w_3$ gerados por <c>class_weight="balanced"</c>.</item>
+          <item>Em um problema binário de triagem em que um falso negativo custa $8$ vezes mais que um falso positivo, explique qual mudança de limiar $\tau$ (aumentar ou diminuir a partir de $0{,}5$) tende a reduzir o custo total esperado e qual métrica sofre queda inevitável com essa escolha.</item>
+        </list>
+        <hint><title>Ver dica</title>Use $w_k = \frac{n}{K \cdot n_k}$ em (a). Em (b), lembre que reduzir $\tau$ classifica mais casos como positivos.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Aplicando $w_k = \frac{600}{3 \cdot n_k} = \frac{200}{n_k}$:
+              $$w_1 = \frac{200}{300} = \frac{2}{3} \approx 0{,}667, \qquad w_2 = \frac{200}{200} = 1{,}000, \qquad w_3 = \frac{200}{100} = 2{,}000.$$
+              A classe mais rara ($n_3 = 100$) recebe peso três vezes maior que a classe mais frequente ($n_1 = 300$).
+            </item>
+            <item>Como $\mathrm{FN}$ custa mais que $\mathrm{FP}$, devemos <strong>diminuir</strong> $\tau < 0{,}5$ para capturar mais positivos (subindo <em>recall</em> e reduzindo $\mathrm{FN}$). A queda inevitável ocorre na <strong>precisão</strong> (e especificidade), pelo aumento de falsos positivos.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-4-5-3">
+        <title>Avançado — Varredura de limiar em dados desbalanceados com Python</title>
+        Gere uma base sintética com <c>make_classification(n_samples=2000, n_features=12, n_informative=4, n_redundant=2, weights=[0.95, 0.05], flip_y=0.02, class_sep=2.0, random_state=0)</c>, divida com <c>test_size=0.25</c> e <c>stratify=y</c>, treine uma regressão logística padrão padronizada e compare acurácia, acurácia balanceada, <em>recall</em>, precisão e $F_1$ nos limiares $\tau \in \{0{,}50;\; 0{,}30;\; 0{,}15\}$ aplicados a <c>predict_proba(X_teste)[:, 1]</c>.
+        <hint><title>Ver dica</title>Converta a comparação booleana entre <c>escores</c> e <c>tau</c> para inteiros usando <c>.astype(int)</c> dentro de um laço sobre <c>[0.50, 0.30, 0.15]</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+from sklearn.datasets import make_classification
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (
+    accuracy_score,
+    balanced_accuracy_score,
+    f1_score,
+    precision_score,
+    recall_score,
+)
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+X, y = make_classification(
+    n_samples=2000,
+    n_features=12,
+    n_informative=4,
+    n_redundant=2,
+    weights=[0.95, 0.05],
+    flip_y=0.02,
+    class_sep=2.0,
+    random_state=0,
+)
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.25, stratify=y, random_state=0
+)
+
+modelo = make_pipeline(
+    StandardScaler(),
+    LogisticRegression(C=1.0, max_iter=1000, random_state=0),
+)
+modelo.fit(X_treino, y_treino)
+escores = modelo.predict_proba(X_teste)[:, 1]
+
+for tau in (0.50, 0.30, 0.15):
+    y_pred = (escores >= tau).astype(int)
+    acc = accuracy_score(y_teste, y_pred)
+    acc_bal = balanced_accuracy_score(y_teste, y_pred)
+    rec = recall_score(y_teste, y_pred, zero_division=0)
+    prec = precision_score(y_teste, y_pred, zero_division=0)
+    f1 = f1_score(y_teste, y_pred, zero_division=0)
+    print(
+        f"tau={tau:.2f} | Acc: {acc:.3f} | AccBal: {acc_bal:.3f} | "
+        f"Rec: {rec:.3f} | Prec: {prec:.3f} | F1: {f1:.3f}"
+    )
+
+# Saída do laço:
+# tau=0.50 | Acc: 0.946 | AccBal: 0.578 | Rec: 0.156 | Prec: 1.000 | F1: 0.270
+# tau=0.30 | Acc: 0.958 | AccBal: 0.686 | Rec: 0.375 | Prec: 0.923 | F1: 0.533
+# tau=0.15 | Acc: 0.910 | AccBal: 0.719 | Rec: 0.500 | Prec: 0.356 | F1: 0.416
+          </code>
+          Ao baixar $\tau$ de $0{,}50$ para $0{,}15$, o <em>recall</em> ($0{,}16 \to 0{,}38 \to 0{,}50$) e a acurácia balanceada sobem, enquanto a precisão cai ($1{,}00 \to 0{,}92 \to 0{,}36$); a acurácia bruta não cai de forma monótona (sobe um pouco em $\tau = 0{,}30$ e só cai em $\tau = 0{,}15$), e o $F_1$ é máximo em $\tau = 0{,}30$ entre os três limiares.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-4-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Matriz de confusão (<c>scikit-learn</c>):</strong> linhas = real, colunas = previsto; para $\{0, 1\}$, <c>.ravel()</c> devolve <c>tn, fp, fn, tp</c>. Compare com acaso ($1/K$) ou classe majoritária (<c>DummyClassifier</c>).</item>
+        <item><strong>Acurácia e taxa de erro:</strong> $\text{Acurácia} = \dfrac{\mathrm{VP} + \mathrm{VN}}{n}$ e $\mathrm{Erro} = \dfrac{\mathrm{FP} + \mathrm{FN}}{n}$; equipara $\mathrm{FP}$ e $\mathrm{FN}$ e falha em classes raras.</item>
+        <item><strong>Precisão, recall, especificidade e $F_1$:</strong> $\text{Precisão} = \dfrac{\mathrm{VP}}{\mathrm{VP} + \mathrm{FP}}$, $\text{Recall} = \mathrm{TPR} = \dfrac{\mathrm{VP}}{\mathrm{VP} + \mathrm{FN}}$, $\text{Especificidade} = \mathrm{TNR} = \dfrac{\mathrm{VN}}{\mathrm{VN} + \mathrm{FP}}$, $\mathrm{FPR} = 1 - \text{Especificidade}$ e $F_1 = \dfrac{2 \cdot \text{Precisão} \cdot \text{Recall}}{\text{Precisão} + \text{Recall}} = \dfrac{2\,\mathrm{VP}}{2\,\mathrm{VP} + \mathrm{FP} + \mathrm{FN}}$.</item>
+        <item><strong>Regra de Bayes:</strong> $\mathrm{VPP} = \dfrac{\mathrm{Sens} \cdot \pi}{\mathrm{Sens} \cdot \pi + (1 - \mathrm{Esp})(1 - \pi)}$; sob baixa prevalência $\pi$, até alta especificidade gera muitos falsos alarmes.</item>
+        <item><strong>Curva ROC e AUC:</strong> $\mathrm{TPR}$ contra $\mathrm{FPR}$ ao variar $\tau$ sobre escores contínuos (nunca $0/1$); a $\mathrm{AUC}$ mede ordenação ($0{,}5$ = acaso, $1$ = perfeito). Em classes raras, complemente com precisão–<em>recall</em> (<c>average_precision_score</c>).</item>
+        <item><strong>Métricas de regressão:</strong> $\mathrm{MSE} = \frac{1}{n}\sum (y_i - \hat{y}_i)^2$, $\mathrm{RMSE} = \sqrt{\mathrm{MSE}}$ (mesma unidade de $y$, sensível a <em>outliers</em>), $\mathrm{MAE} = \frac{1}{n}\sum |y_i - \hat{y}_i|$ (mais robusto) e $R^2 = 1 - \dfrac{\mathrm{RSS}}{\mathrm{TSS}}$.</item>
+        <item><strong>$R^2$ no teste vs. Pearson:</strong> no teste, $R^2$ pode ser negativo ($\mathrm{RSS} > \mathrm{TSS}$) e difere de $r^2$, pois correlação ignora erros de escala ou deslocamento.</item>
+        <item><strong>Classes desbalanceadas:</strong> use <c>stratify=y</c>, acurácia balanceada $\frac{1}{K}\sum_{k=1}^K \text{Recall}_k$ (<c>balanced_accuracy_score</c>), <c>class_weight="balanced"</c> ou ajuste $\tau$ pelo custo dos erros.</item>
+      </list>
+    </section>
+
+    <section id="sec:8-4-alem">
+      <title>Para ir além</title>
+      O próximo passo é o <strong>Tema 8.5 (Reamostragem)</strong>, sobre validação cruzada e <em>bootstrap</em> para estimar métricas e ajustar hiperparâmetros e limiares sem vazamento. Como prática, aplique essas métricas a um conjunto médico da UCI ou a dados neurais abertos.
+      <list marker="dash">
+        <item><strong>Livro-texto base:</strong> <link to="https://www.statlearning.com/">ISLR — Introduction to Statistical Learning</link> — avaliação de classificadores e ROC no capítulo de <em>Classification</em>.</item>
+        <item><strong>Notas do curso:</strong> Notas de aula da matéria do IMPATech.</item>
+        <item><strong>Aprofundamento teórico:</strong> <em>Elements of Statistical Learning</em>.</item>
+        <item><strong>Documentação oficial (Métricas):</strong> <link to="https://scikit-learn.org/stable/modules/model_evaluation.html">Scikit-learn — Model Evaluation</link>.</item>
+        <item><strong>Documentação oficial (Cuidados metodológicos):</strong> <link to="https://scikit-learn.org/stable/common_pitfalls.html">Scikit-learn — Common Pitfalls</link> e <link to="https://scikit-learn.org/stable/user_guide.html">Guia do usuário</link>.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 8 · Machine Learning — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

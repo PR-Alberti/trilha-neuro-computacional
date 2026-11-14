@@ -1,0 +1,962 @@
+<document>
+  <title>Módulo 6 · Programação (Python)</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-6-3">Voltar ao guia (Tema 6.3)</link></meta-item>
+    <meta-item key="Módulo">Módulo 6 · Programação (Python) — Saindo da Teoria para a Prática Ferramental</meta-item>
+    <meta-item key="Nível">Básico</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-6-3">
+    <title>Informática básica</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Arquivos, pastas, formatos e terminal: o que todo mundo assume que você já sabe.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Da análise de disparos neuronais (<em>spikes</em>) ao pré-processamento de eletroencefalografia (EEG, amostrado entre $250$ e $1\,000\text{ Hz}$) e de ressonância magnética funcional (fMRI, com tempo de repetição $\text{TR} \approx 2\text{ s}$), a neurociência computacional vive em Python. Bibliotecas especializadas como MNE (para EEG e MEG) e nilearn (para neuroimagem) dependem de arquivos organizados em pastas previsíveis, formatos padronizados e metadados íntegros. Reprodutibilidade e versionamento são exigências de laboratórios e revistas científicas — não detalhes burocráticos.
+
+    Nos temas anteriores, você aprendeu a preparar sua bancada digital em <mark>Ambientes</mark> e a escrever variáveis, condicionais e laços em <mark>Comandos iniciais e lógica básica</mark>. Até aqui, porém, seus dados viveram apenas dentro da memória temporária do código. No mundo real — e no projeto final deste módulo, em que você vai baixar dados neurais públicos via API, limpá-los, gerar gráficos e publicar tudo no GitHub —, os registros ficam gravados em disco. Se você não souber onde seus arquivos moram, como ler tabelas CSV ou arquivos JSON sem corromper acentos e como navegar pelo terminal, qualquer projeto trava antes mesmo da primeira análise.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>representar e manipular caminhos de arquivos e pastas de forma portátil usando <c>pathlib</c>;</item>
+      <item>distinguir arquivos de texto e binários, ler e escrever CSV, TSV e JSON em Python e reconhecer formatos padrão da neurociência;</item>
+      <item>navegar, criar, copiar, mover, inspecionar e apagar arquivos no terminal (Linux/macOS, PowerShell e Google Colab);</item>
+      <item>diagnosticar e corrigir problemas de codificação de texto (UTF-8 vs. Latin-1, <em>mojibake</em>) e CSVs brasileiros com ponto e vírgula.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Ter concluído os temas <mark>Ambientes</mark> (Google Colab e noção básica de execução) e <mark>Comandos iniciais e lógica básica</mark> (variáveis, tipos, condicionais, laços <c>for</c> e <em>f-strings</em>).
+
+    <section id="sec:6-3-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Arquivos, pastas e caminhos</title>
+      <intro>
+        Antes de abrir um conjunto de dados em Python, você precisa saber exatamente em qual galho da árvore de pastas o arquivo está guardado — e como apontar para ele sem quebrar seu script em outro computador.
+      </intro>
+
+      Pense em um arquivo de computador como um tubo de amostra em um ultrafreezer de laboratório. Você não joga cem tubos soltos na mesma prateleira: coloca os tubos dentro de caixas etiquetadas por sujeito, organiza as caixas em estantes por experimento e guarda tudo dentro de um freezer específico. No computador, as estantes e caixas são as <strong>pastas</strong> — também chamadas de <strong>diretórios</strong> (<em>directories</em>) — e os tubos são os <strong>arquivos</strong> (<em>files</em>).
+
+      Todo sistema operacional organiza pastas e arquivos em uma estrutura hierárquica parecida com uma árvore genealógica invertida: começa em um único tronco principal no topo e vai se ramificando em subpastas.
+
+      <definition id="def:6-3-arvore-caminhos">
+        <title>Sistema de arquivos, raiz, pasta pessoal e pasta de trabalho</title>
+        <list marker="dash">
+          <item><strong>Raiz (<em>root</em>):</strong> o ponto mais alto da árvore de arquivos. No Linux e no macOS (e no Google Colab), a raiz é representada por uma barra simples: <c>/</c>. No Windows, cada unidade de disco tem sua própria raiz, como <c>C:\</c>.</item>
+          <item><strong>Pasta pessoal (<em>home directory</em>):</strong> a pasta reservada ao seu usuário para guardar documentos e projetos, abreviada no terminal por <c>~</c> (por exemplo, <c>/home/ana</c> no Linux, <c>/Users/ana</c> no macOS ou <c>C:\Users\ana</c> no Windows).</item>
+          <item><strong>Pasta de trabalho atual (<em>working directory</em>):</strong> a pasta onde seu terminal ou script Python está "posicionado" neste exato momento. Tudo o que você abrir sem dar o endereço completo será procurado ali dentro.</item>
+        </list>
+        <intuition>
+          Se o sistema de arquivos é o prédio inteiro do instituto de pesquisa, a raiz é a portaria principal, a pasta pessoal é o seu laboratório e a pasta de trabalho atual é a bancada em frente à qual você está de pé agora.
+        </intuition>
+      </definition>
+
+      Para localizar qualquer arquivo nessa árvore, escrevemos o seu <strong>caminho</strong> (<em>path</em>), que é a sequência de pastas que leva até ele. Existem duas formas de dar esse endereço: partindo do zero (da portaria do prédio) ou partindo de onde você já está (da sua bancada).
+
+      <definition id="def:6-3-abs-rel">
+        <title>Caminho absoluto, caminho relativo e atalhos . e ..</title>
+        <list marker="dash">
+          <item><strong>Caminho absoluto (<em>absolute path</em>):</strong> começa sempre na raiz do sistema (<c>/</c> no Linux/macOS ou <c>C:\</c> no Windows) e especifica o trajeto completo até o destino, independentemente de onde o programa está rodando.</item>
+          <item><strong>Caminho relativo (<em>relative path</em>):</strong> parte da pasta de trabalho atual. Nunca começa com <c>/</c> nem com letra de unidade.</item>
+          <item><strong><c>.</c> e <c>..</c>:</strong> um ponto simples (<c>.</c>) representa a <em>própria pasta atual</em>; dois pontos (<c>..</c>) representam a <em>pasta mãe</em> (um nível acima na árvore).</item>
+        </list>
+      </definition>
+
+      Por exemplo, suponha que a pasta de trabalho atual seja <c>/home/ana/projeto_eeg</c> e que exista um arquivo em <c>/home/ana/projeto_eeg/dados/sujeito-01/sessao-01.csv</c>. Esse endereço longo é o caminho absoluto. Já <c>dados/sujeito-01/sessao-01.csv</c> é o caminho relativo equivalente a partir de <c>projeto_eeg</c>. Se você estivesse dentro de <c>/home/ana/projeto_eeg/scripts</c> e quisesse alcançar a pasta <c>dados</c> que está ao lado de <c>scripts</c>, subiria um nível com <c>..</c> e entraria em <c>dados</c>: <c>../dados/sujeito-01/sessao-01.csv</c>.
+
+      Há um detalhe técnico que pega muita gente de surpresa quando compartilha código entre sistemas diferentes: o <strong>separador de pastas</strong>. Linux, macOS e servidores na nuvem (como o Google Colab) usam barra normal (<c>/</c>), enquanto o Windows tradicionalmente usa barra invertida (<c>\</c>). Além disso, em strings Python, a barra invertida <c>\</c> funciona como caractere de escape — ela inicia sequências especiais como <c>\n</c> (quebra de linha) ou <c>\t</c> (tabulação). Se você escrever <c>"C:\novo_experimento\dados.csv"</c>, o Python interpreta <c>\n</c> como uma quebra de linha no meio do nome da pasta! Da mesma forma, tentar montar endereços colando strings com <c>+</c> e barras na mão costuma quebrar quando o mesmo script sai do seu notebook Windows e vai rodar no Colab em Linux.
+
+      A solução moderna e oficial do Python é o módulo padrão <c>pathlib</c>. Com a classe <c>Path</c>, você constrói caminhos usando o operador <c>/</c> entre objetos <c>Path</c> e strings — mesmo quando um dos lados ainda não existe no disco —, e o Python cuida automaticamente do separador correto para o sistema operacional em que o script estiver rodando. Além disso, o <c>Path</c> já traz métodos prontos para inspecionar extensões, subir para a pasta mãe e criar diretórios sem precisar manipular texto manualmente.
+
+      <proposition id="prop:6-3-pathlib-uso">
+        <title>Operações essenciais com pathlib.Path</title>
+        Importando <c>from pathlib import Path</c>, você dispõe de ferramentas portáteis para criar, decompor e verificar caminhos:
+        <list marker="dash">
+          <item><c>Path.cwd()</c>: devolve o caminho absoluto da pasta de trabalho atual (<em>current working directory</em>); <c>Path.home()</c> devolve a pasta pessoal.</item>
+          <item><c>Path("dados") / "sujeito-01" / "sessao-01.csv"</c>: combina segmentos de caminho de forma segura em qualquer sistema operacional.</item>
+          <item>Atributos de decomposição de um objeto <c>p</c>: <c>p.name</c> (nome completo com extensão), <c>p.stem</c> (nome sem a última extensão), <c>p.suffix</c> (última extensão, com o ponto) e <c>p.parent</c> (pasta que contém <c>p</c>).</item>
+          <item><c>p.exists()</c>: retorna <c>True</c> se o arquivo ou pasta já existir no disco e <c>False</c> caso contrário.</item>
+          <item><c>p.mkdir(parents=True, exist_ok=True)</c>: cria a pasta <c>p</c> no disco; <c>parents=True</c> cria pastas intermediárias que ainda não existam, e <c>exist_ok=True</c> evita erro caso a pasta já exista.</item>
+        </list>
+      </proposition>
+
+      Vamos ver isso rodando em Python. Você pode copiar cada bloco abaixo para uma célula independente do Google Colab e executá-lo diretamente:
+
+      <code lang="python" id="cod:6-3-pathlib-basico">
+from pathlib import Path
+
+pasta_atual = Path.cwd()
+caminho = Path("dados") / "sujeito-01" / "sessao-01.csv"
+
+print("Pasta atual:", pasta_atual)   # ex.: /content (varia conforme a máquina)
+print("Caminho:", caminho)           # dados/sujeito-01/sessao-01.csv
+print("Nome:", caminho.name)         # sessao-01.csv
+print("Tronco:", caminho.stem)       # sessao-01
+print("Extensão:", caminho.suffix)   # .csv
+print("Pasta mãe:", caminho.parent)  # dados/sujeito-01
+      </code>
+
+      Repare como <c>Path("dados") / "sujeito-01" / "sessao-01.csv"</c> não cria nenhum arquivo nem pasta no disco por si só: ele apenas monta um objeto que representa o endereço. Para realmente criar pastas no disco, chamamos <c>.mkdir(...)</c>, e para verificar se algo já foi gravado ali, chamamos <c>.exists()</c>.
+
+      <example id="exm:6-3-caminhos-rel-abs">
+        <title>Identificando caminhos absolutos, relativos e verificando existência</title>
+        Suponha que recebemos dois endereços de arquivos de EEG: um escrito de forma relativa e outro começando na raiz do Linux. Queremos testar em Python qual deles é absoluto e confirmar se um caminho fictício existe no disco.
+
+        <code lang="python" id="cod:6-3-exm-abs">
+from pathlib import Path
+
+caminho_rel = Path("exemplo_inexistente") / "eeg" / "registro.edf"
+caminho_abs = Path("/dados/eeg/registro.edf")
+
+print("Relativo é absoluto?", caminho_rel.is_absolute())  # False
+print("Com / inicial é absoluto?", caminho_abs.is_absolute())  # True
+print("Existe no disco?", caminho_rel.exists())  # False
+        </code>
+
+        <strong>Passo a passo:</strong> o método <c>.is_absolute()</c> verifica se o endereço parte da raiz do sistema. Como <c>caminho_rel</c> começa em <c>exemplo_inexistente</c>, ele depende da pasta atual e retorna <c>False</c>; já <c>caminho_abs</c> começa em <c>/</c> e retorna <c>True</c>. Por fim, <c>.exists()</c> consulta o disco e retorna <c>False</c>, pois ainda não criamos essa pasta nem esse arquivo.
+      </example>
+
+      <example id="exm:6-3-organizar-experimento">
+        <title>Organizando a árvore de pastas de um experimento de neurofisiologia</title>
+        Em um experimento com dois sujeitos e duas sessões de registro cada, queremos montar e criar automaticamente a árvore de pastas <c>exp_neuro/dados/brutos/sujeito-XX/sessao-YY</c> usando laços <c>for</c> e <c>pathlib</c>. (Usamos abaixo coleções simples entre colchetes — <em>listas</em> —, que você vai estudar em profundidade no próximo tema, <mark>Estruturas de dados básicas</mark>.)
+
+        <code lang="python" id="cod:6-3-exm-arvore">
+from pathlib import Path
+
+raiz_exp = Path("exp_neuro") / "dados" / "brutos"
+sujeitos = ["sujeito-01", "sujeito-02"]
+sessoes = ["sessao-01", "sessao-02"]
+
+for suj in sujeitos:
+    for ses in sessoes:
+        pasta_sessao = raiz_exp / suj / ses
+        pasta_sessao.mkdir(parents=True, exist_ok=True)
+        arquivo = pasta_sessao / "eventos.tsv"
+        print(f"Pasta: {pasta_sessao} | Existe? {pasta_sessao.exists()} | Alvo: {arquivo.name}")
+
+# Pasta: exp_neuro/dados/brutos/sujeito-01/sessao-01 | Existe? True | Alvo: eventos.tsv
+# Pasta: exp_neuro/dados/brutos/sujeito-01/sessao-02 | Existe? True | Alvo: eventos.tsv
+# Pasta: exp_neuro/dados/brutos/sujeito-02/sessao-01 | Existe? True | Alvo: eventos.tsv
+# Pasta: exp_neuro/dados/brutos/sujeito-02/sessao-02 | Existe? True | Alvo: eventos.tsv
+        </code>
+
+        <strong>Passo a passo:</strong> o laço externo percorre cada sujeito e o laço interno percorre cada sessão, montando o caminho completo com o operador <c>/</c>. Ao chamar <c>pasta_sessao.mkdir(parents=True, exist_ok=True)</c>, o Python cria de uma vez as pastas <c>exp_neuro</c>, <c>dados</c>, <c>brutos</c>, o sujeito e a sessão — e não reclama se você rodar a célula pela segunda vez.
+      </example>
+
+      <remark id="rem:6-3-armadilha-caminhos">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Caminho relativo que "some" no notebook:</strong> se o seu código tenta abrir <c>Path("dados/sujeito-01.csv")</c> e dispara <c>FileNotFoundError</c>, quase sempre você está rodando o script a partir de outra pasta de trabalho (por exemplo, dentro de <c>scripts/</c> em vez da raiz do projeto). Chame <c>print(Path.cwd())</c> para descobrir onde o Python realmente está procurando.</item>
+          <item><strong>Espaços e acentos em nomes de arquivos:</strong> evite nomes como <c>Sessão 1 (cópia).csv</c>. Espaços obrigam o uso constante de aspas no terminal, e acentos podem gerar dor de cabeça entre sistemas operacionais diferentes. Prefira letras minúsculas, dígitos, hífen (<c>-</c>) ou sublinhado (<c>_</c>), como <c>sessao-01.csv</c>.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:6-3-1-1">
+        <title>Básico — Absoluto, relativo e resolução com ..</title>
+        Considere os três caminhos no estilo Linux abaixo:
+        <list marker="a">
+          <item><c>/home/pesquisador/experimento/dados.csv</c></item>
+          <item><c>dados/brutos/sujeito-01.csv</c></item>
+          <item><c>dados/brutos/../processados/sujeito-01.csv</c></item>
+        </list>
+        Diga quais são absolutos e quais são relativos, determine qual caminho simplificado o item (c) representa após resolver o <c>..</c> e escreva um pequeno script usando <c>pathlib</c> que imprima <c>.is_absolute()</c> para os três e use <c>.resolve()</c> no item (c).
+        <hint><title>Ver dica</title>Lembre que caminhos iniciados por <c>/</c> são absolutos e que <c>..</c> sobe uma pasta (anulando a pasta imediatamente anterior).</hint>
+        <solution collapsible="true" collapsed="true">
+          O caminho (a) começa com <c>/</c>, logo é <strong>absoluto</strong>. Os caminhos (b) e (c) não começam com <c>/</c>, portanto são <strong>relativos</strong> à pasta de trabalho atual. No item (c), entrar em <c>brutos</c> e imediatamente subir um nível com <c>..</c> retorna para <c>dados</c>; seguindo então para <c>processados/sujeito-01.csv</c>, o caminho simplificado equivale a <c>dados/processados/sujeito-01.csv</c>. Quando chamamos <c>.resolve()</c> em um caminho relativo, o <c>pathlib</c> prefixa a pasta atual (<c>Path.cwd()</c>) e elimina os <c>..</c>:
+
+          <code lang="python" id="cod:6-3-sol-1-1">
+from pathlib import Path
+
+p_a = Path("/home/pesquisador/experimento/dados.csv")
+p_b = Path("dados/brutos/sujeito-01.csv")
+p_c = Path("dados/brutos/../processados/sujeito-01.csv")
+
+print("a absoluto?", p_a.is_absolute())  # True
+print("b absoluto?", p_b.is_absolute())  # False
+print("c absoluto?", p_c.is_absolute())  # False
+print("c resolvido:", p_c.resolve())     # .../dados/processados/sujeito-01.csv (prefixado pela pasta atual)
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-3-1-2">
+        <title>Básico — Inspecionando partes de um caminho de registro neural</title>
+        Crie um objeto <c>Path</c> para <c>registros/eeg/sub-04_sessao-02.edf</c> usando o operador <c>/</c>. Em seguida, imprima separadamente o nome do arquivo com extensão, o nome sem extensão, a extensão e a pasta mãe.
+        <hint><title>Ver dica</title>Use os atributos <c>.name</c>, <c>.stem</c>, <c>.suffix</c> e <c>.parent</c> do objeto <c>Path</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Construímos o caminho com <c>Path("registros") / "eeg" / "sub-04_sessao-02.edf"</c> para manter a portabilidade e acessamos cada atributo diretamente sem fatiar strings na mão:
+
+          <code lang="python" id="cod:6-3-sol-1-2">
+from pathlib import Path
+
+arq = Path("registros") / "eeg" / "sub-04_sessao-02.edf"
+
+print("Nome:", arq.name)       # Nome: sub-04_sessao-02.edf
+print("Stem:", arq.stem)       # Stem: sub-04_sessao-02
+print("Sufixo:", arq.suffix)   # Sufixo: .edf
+print("Pasta:", arq.parent)    # Pasta: registros/eeg
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-3-1-3">
+        <title>Intermediário — Caminhos de 3 sujeitos × 2 sessões com pathlib</title>
+        Monte um script que defina os sujeitos <c>["sujeito-01", "sujeito-02", "sujeito-03"]</c> e as sessões <c>["sessao-01", "sessao-02"]</c>, gere os $6$ caminhos de arquivo no formato <c>dados/sujeito/sessao/spikes.csv</c> (substituindo pelos nomes de cada sujeito e sessão), crie as pastas correspondentes com <c>.mkdir(...)</c> e imprima todos os $6$ caminhos.
+        <hint><title>Ver dica</title>Aninhe dois laços <c>for</c>; crie a pasta pai com <c>caminho.parent.mkdir(parents=True, exist_ok=True)</c> antes de imprimir <c>caminho</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para evitar criar uma pasta chamada <c>spikes.csv</c> por acidente, chamamos <c>.mkdir(...)</c> sobre <c>caminho.parent</c> (a pasta da sessão), nunca sobre o caminho do arquivo em si. O laço aninhado gera todas as $3 \times 2 = 6$ combinações em ordem:
+
+          <code lang="python" id="cod:6-3-sol-1-3">
+from pathlib import Path
+
+sujeitos = ["sujeito-01", "sujeito-02", "sujeito-03"]
+sessoes = ["sessao-01", "sessao-02"]
+
+for suj in sujeitos:
+    for ses in sessoes:
+        caminho = Path("dados") / suj / ses / "spikes.csv"
+        caminho.parent.mkdir(parents=True, exist_ok=True)
+        print(caminho)
+
+# dados/sujeito-01/sessao-01/spikes.csv
+# dados/sujeito-01/sessao-02/spikes.csv
+# dados/sujeito-02/sessao-01/spikes.csv
+# dados/sujeito-02/sessao-02/spikes.csv
+# dados/sujeito-03/sessao-01/spikes.csv
+# dados/sujeito-03/sessao-02/spikes.csv
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-3-1-4">
+        <title>Avançado — Estrutura modular para EEG e fMRI</title>
+        Suponha que um estudo multimodal coleta EEG e fMRI para os sujeitos <c>sub-01</c> e <c>sub-02</c>. Escreva um script que crie as pastas <c>estudo_multimodal/sub-01/eeg</c>, <c>estudo_multimodal/sub-01/func</c>, <c>estudo_multimodal/sub-02/eeg</c> e <c>estudo_multimodal/sub-02/func</c>, crie um arquivo vazio <c>README.txt</c> na raiz de <c>estudo_multimodal</c> usando <c>.touch()</c> e verifique com <c>.exists()</c> se tanto o <c>README.txt</c> quanto todas as pastas foram criadas.
+        <hint><title>Ver dica</title>Use um segundo laço para percorrer <c>["eeg", "func"]</c> dentro de cada sujeito; em objetos <c>Path</c>, o método <c>.touch()</c> cria um arquivo vazio se ele ainda não existir.</hint>
+        <solution collapsible="true" collapsed="true">
+          Combinamos a raiz do projeto, o laço de sujeitos e o laço de modalidades. Note que <c>readme.parent.mkdir(parents=True, exist_ok=True)</c> garante que a pasta <c>estudo_multimodal</c> exista antes de chamarmos <c>readme.touch()</c>:
+
+          <code lang="python" id="cod:6-3-sol-1-4">
+from pathlib import Path
+
+raiz = Path("estudo_multimodal")
+readme = raiz / "README.txt"
+readme.parent.mkdir(parents=True, exist_ok=True)
+readme.touch()
+print("README existe?", readme.exists())  # README existe? True
+
+for suj in ["sub-01", "sub-02"]:
+    for mod in ["eeg", "func"]:
+        pasta = raiz / suj / mod
+        pasta.mkdir(parents=True, exist_ok=True)
+        print(f"{pasta}: {pasta.exists()}")
+
+# estudo_multimodal/sub-01/eeg: True
+# estudo_multimodal/sub-01/func: True
+# estudo_multimodal/sub-02/eeg: True
+# estudo_multimodal/sub-02/func: True
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-3-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Extensões e formatos de dados</title>
+      <intro>
+        Saber onde o arquivo está é metade do caminho; a outra metade é entender como os dados estão organizados lá dentro para lê-los corretamente sem adivinhar.
+      </intro>
+
+      Na superfície, os arquivos terminam com sufixos como <c>.txt</c>, <c>.csv</c>, <c>.json</c> ou <c>.edf</c>. Essa terminação é a <strong>extensão</strong> (<em>file extension</em>). Mas cuidado: a extensão funciona apenas como uma etiqueta colada por fora do frasco — uma <strong>convenção</strong> para humanos e programas saberem o que esperar. Se alguém pegar uma tabela separada por tabulação e renomeá-la para <c>.txt</c> ou <c>.csv</c>, o conteúdo interno não muda mágica nenhuma: o que manda de verdade é a estrutura dos bytes gravados lá dentro.
+
+      Quanto ao conteúdo, todo arquivo pertence a uma de duas grandes famílias:
+
+      <definition id="def:6-3-texto-binario">
+        <title>Arquivos de texto versus arquivos binários</title>
+        <list marker="dash">
+          <item><strong>Arquivo de texto plano (<em>plain text</em>):</strong> armazena caracteres legíveis por humanos (letras, dígitos, pontuação, quebras de linha). Você pode abri-lo em qualquer editor simples — como Bloco de Notas, VS Code ou pelo comando <c>cat</c> — e enxergar a informação diretamente. Exemplos: <c>.txt</c>, <c>.py</c>, <c>.csv</c>, <c>.tsv</c>, <c>.json</c>.</item>
+          <item><strong>Arquivo binário (<em>binary file</em>):</strong> armazena números e estruturas compactadas diretamente em formato de máquina, sem tradução imediata para caracteres legíveis. Se você tentar abri-lo como texto puro, verá apenas símbolos desconexos. Ocupam menos espaço e carregam muito mais rápido, mas exigem uma biblioteca específica para decodificação. Exemplos: imagens <c>.png</c>, matrizes <c>.npy</c> e registros neurais brutos.</item>
+        </list>
+      </definition>
+
+      Na ciência de dados e na neurociência, três formatos de texto dominam o armazenamento de tabelas pequenas, listas de eventos e metadados:
+
+      <list marker="number">
+        <item><strong>CSV (<em>Comma-Separated Values</em>):</strong> arquivo tabular em que cada linha é um registro e as colunas são separadas por vírgula (<c>,</c>).
+          <code lang="text" numbered="false" lines="false">
+animal,condicao,taxa_hz
+camundongo-01,controle,12.0
+camundongo-01,estimulo,48.0
+          </code>
+        </item>
+        <item><strong>TSV (<em>Tab-Separated Values</em>):</strong> igual ao CSV, mas usa o caractere de tabulação (<c>\t</c>) como separador. É ótimo quando os próprios campos de texto contêm vírgulas.
+          <code lang="text" numbered="false" lines="false">
+onset	duration	trial_type
+1.500	0.200	estimulo_visual
+4.000	0.200	controle
+          </code>
+        </item>
+        <item><strong>JSON (<em>JavaScript Object Notation</em>):</strong> formato hierárquico de pares <em>chave–valor</em> (muito parecido com dicionários em Python), ideal para metadados que não cabem bem em uma tabela retangular.
+          <code lang="text" numbered="false" lines="false">
+{
+  "sujeito": "sub-01",
+  "frequencia_amostragem_hz": 500,
+  "num_canais": 64,
+  "data": "2026-05-12"
+}
+          </code>
+        </item>
+      </list>
+
+      E quanto aos dados pesados da neurociência? Você ainda não precisa programar com eles agora, mas vale já reconhecer suas siglas ao navegar por repositórios públicos como o OpenNeuro:
+      <list marker="dash">
+        <item><c>.npy</c>: arquivo binário nativo do NumPy (Módulo 6, tema <mark>Bibliotecas</mark>) para matrizes numéricas;</item>
+        <item><c>.edf</c>: <em>European Data Format</em>, formato binário clássico de registros contínuos de EEG;</item>
+        <item><c>.fif</c>: formato binário padrão usado pela biblioteca MNE para dados de MEG e EEG;</item>
+        <item><c>.nii</c> / <c>.nii.gz</c>: formato NIfTI (normal ou comprimido com gzip) para volumes 3D e séries temporais 4D de ressonância magnética (fMRI), lido pelo nilearn.</item>
+      </list>
+      Além disso, a comunidade de neuroimagem e eletrofisiologia adota o padrão <strong>BIDS</strong> (<em>Brain Imaging Data Structure</em>), no qual os arquivos binários vêm acompanhados por arquivos TSV e JSON padronizados, como <c>participants.tsv</c> (idade, sexo e grupo dos voluntários) e <c>*_events.tsv</c> (instante de cada estímulo e resposta durante a sessão).
+
+      Para ler e gravar arquivos de texto em Python usando apenas a biblioteca padrão, usamos o gerenciador de contexto <c>with open(...) as arq:</c>. O bloco <c>with</c> garante que o arquivo seja fechado automaticamente ao terminar — mesmo se ocorrer um erro no meio do caminho. Os modos principais são <c>"w"</c> (<em>write</em>: cria ou sobrescreve o arquivo do zero) e <c>"r"</c> (<em>read</em>: abre apenas para leitura). Sempre informe <c>encoding="utf-8"</c> (veremos o porquê na <ref to="sec:6-3-4"/>).
+
+      <code lang="python" id="cod:6-3-open-txt">
+from pathlib import Path
+
+pasta = Path("arquivos_texto")
+pasta.mkdir(parents=True, exist_ok=True)
+caminho = pasta / "notas_experimento.txt"
+
+with open(caminho, "w", encoding="utf-8") as arq:
+    arq.write("Sujeito: Rato-03\n")
+    arq.write("Potencial de repouso: -70 mV\n")
+
+with open(caminho, "r", encoding="utf-8") as arq:
+    conteudo = arq.read()
+
+print(conteudo.strip())
+# Sujeito: Rato-03
+# Potencial de repouso: -70 mV
+      </code>
+
+      Para CSV e TSV, nunca tente separar colunas na mão com <c>.split(",")</c> se houver risco de textos com aspas ou vírgulas internas: use o módulo padrão <c>csv</c> (com <c>csv.writer</c> para gravar e <c>csv.DictReader</c> para ler cada linha já associada ao nome de cada coluna). Ao abrir arquivos para o módulo <c>csv</c>, passe também <c>newline=""</c> para evitar linhas em branco extras no Windows. (Mais adiante, no tema <mark>Bibliotecas</mark>, você conhecerá o <c>pandas.read_csv</c>, que lê tabelas grandes em uma única linha de código.)
+
+      Para arquivos JSON, o módulo padrão <c>json</c> traz duas funções diretas: <c>json.dump(dados, arq, indent=2, ensure_ascii=False)</c> grava uma estrutura Python no arquivo, e <c>json.load(arq)</c> lê o arquivo de volta para a memória.
+
+      <example id="exm:6-3-csv-experimentos">
+        <title>Tabela de experimentos em CSV e média de disparo por condição</title>
+        Vamos gravar uma tabela com seis registros de disparos neuronais (<c>animal</c>, <c>condicao</c>, <c>taxa_hz</c>) usando <c>csv.writer</c>. Em seguida, vamos ler o arquivo com <c>csv.DictReader</c> e calcular a taxa média de disparo na condição <c>controle</c> e na condição <c>estimulo</c>. (Note que <c>csv.DictReader</c> devolve cada linha como um <em>dicionário</em> — tipo de dados que será detalhado no próximo tema, <mark>Estruturas de dados básicas</mark>.)
+
+        <code lang="python" id="cod:6-3-exm-csv">
+import csv
+from pathlib import Path
+
+pasta = Path("arquivos_csv")
+pasta.mkdir(parents=True, exist_ok=True)
+caminho_csv = pasta / "disparos.csv"
+
+linhas = [
+    ["animal", "condicao", "taxa_hz"],
+    ["camundongo-01", "controle", 12.0],
+    ["camundongo-01", "estimulo", 48.0],
+    ["camundongo-02", "controle", 15.0],
+    ["camundongo-02", "estimulo", 54.0],
+    ["camundongo-03", "controle", 18.0],
+    ["camundongo-03", "estimulo", 60.0],
+]
+
+with open(caminho_csv, "w", encoding="utf-8", newline="") as arq:
+    escritor = csv.writer(arq)
+    escritor.writerows(linhas)
+
+soma_ctrl = 0.0
+n_ctrl = 0
+soma_est = 0.0
+n_est = 0
+
+with open(caminho_csv, "r", encoding="utf-8", newline="") as arq:
+    leitor = csv.DictReader(arq)
+    for linha in leitor:
+        taxa = float(linha["taxa_hz"])
+        if linha["condicao"] == "controle":
+            soma_ctrl += taxa
+            n_ctrl += 1
+        elif linha["condicao"] == "estimulo":
+            soma_est += taxa
+            n_est += 1
+
+print(f"Média controle: {soma_ctrl / n_ctrl:.1f} Hz")  # Média controle: 15.0 Hz
+print(f"Média estímulo: {soma_est / n_est:.1f} Hz")    # Média estímulo: 54.0 Hz
+        </code>
+
+        <strong>Passo a passo:</strong> <c>escritor.writerows(linhas)</c> grava o cabeçalho e os seis registros no arquivo. Na leitura, <c>csv.DictReader(arq)</c> usa a primeira linha como nomes de coluna, permitindo acessar <c>linha["condicao"]</c> e <c>linha["taxa_hz"]</c>. Como todo conteúdo lido de um arquivo de texto chega como string (<c>"12.0"</c>), convertemos explicitamente com <c>float(...)</c> antes de acumular as somas: $(12{,}0 + 15{,}0 + 18{,}0)/3 = 15{,}0\text{ Hz}$ no controle e $(48{,}0 + 54{,}0 + 60{,}0)/3 = 54{,}0\text{ Hz}$ durante o estímulo.
+      </example>
+
+      <example id="exm:6-3-json-metadados">
+        <title>Metadados de uma sessão de EEG em JSON</title>
+        Em um registro de EEG, os parâmetros técnicos da gravação (frequência de amostragem, número de canais, data e tarefa) costumam ficar em um arquivo JSON ao lado do sinal bruto. Veja como gravar e reler esses metadados preservando tipos numéricos:
+
+        <code lang="python" id="cod:6-3-exm-json">
+import json
+from pathlib import Path
+
+pasta = Path("arquivos_json")
+pasta.mkdir(parents=True, exist_ok=True)
+caminho_json = pasta / "sessao-01_eeg.json"
+
+metadados = {
+    "sujeito": "sub-01",
+    "frequencia_amostragem_hz": 500,
+    "num_canais": 64,
+    "data": "2026-05-12",
+    "tarefa": "oddball_auditivo"
+}
+
+with open(caminho_json, "w", encoding="utf-8") as arq:
+    json.dump(metadados, arq, indent=2, ensure_ascii=False)
+
+with open(caminho_json, "r", encoding="utf-8") as arq:
+    lido = json.load(arq)
+
+print(lido["sujeito"], lido["frequencia_amostragem_hz"], lido["num_canais"])
+print("Tipo da frequência:", type(lido["frequencia_amostragem_hz"]))
+# sub-01 500 64
+# Tipo da frequência: <class 'int'>
+        </code>
+
+        <strong>Passo a passo:</strong> ao contrário do CSV, onde tudo é lido como texto, o formato JSON distingue cadeias de caracteres (entre aspas) de números inteiros e decimais. Por isso <c>json.load(arq)</c> já devolve <c>500</c> como <c>int</c>. O argumento <c>indent=2</c> deixa o arquivo formatado em várias linhas legíveis, e <c>ensure_ascii=False</c> preserva acentos reais no arquivo em vez de códigos <c>\u...</c>.
+      </example>
+
+      <remark id="rem:6-3-armadilha-formatos">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Confiar cegamente na extensão:</strong> arquivos com extensão <c>.csv</c> frequentemente vêm separados por ponto e vírgula (<c>;</c>) ou tabulação (<c>\t</c>), e arquivos <c>.txt</c> às vezes contêm JSON válido. Antes de escrever código para ler um arquivo desconhecido, dê uma espiada nas primeiras linhas dele.</item>
+          <item><strong>Usar <c>open()</c> sem <c>with</c>:</strong> se você abrir um arquivo com <c>arq = open(...)</c> e esquecer <c>arq.close()</c> (ou o programa travar antes de fechar), o arquivo pode ficar travado ou incompleto no disco. O bloco <c>with</c> fecha o arquivo sempre.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:6-3-2-1">
+        <title>Básico — Gravando e lendo parâmetros neuronais em texto</title>
+        Escreva um script que crie a pasta <c>parametros_lab</c> (se não existir), grave dentro dela o arquivo <c>neuronio.txt</c> contendo três linhas (<c>potencial_repouso_mv=-70</c>, <c>limiar_mv=-55</c> e <c>taxa_max_hz=200</c>) usando <c>with open(..., "w", encoding="utf-8")</c> e, em seguida, abra o arquivo em modo leitura e imprima cada linha sem quebras extras.
+        <hint><title>Ver dica</title>Ao percorrer um arquivo aberto linha por linha com <c>for linha in arq:</c>, cada linha termina com <c>\n</c>; use <c>linha.strip()</c> para remover a quebra de linha ao imprimir.</hint>
+        <solution collapsible="true" collapsed="true">
+          Usamos <c>Path("parametros_lab")</c> com <c>.mkdir(parents=True, exist_ok=True)</c> para garantir que a pasta exista, gravamos as três linhas com <c>\n</c> explícito no modo <c>"w"</c> e lemos com <c>for linha in arq:</c>, limpando o <c>\n</c> final com <c>.strip()</c>:
+
+          <code lang="python" id="cod:6-3-sol-2-1">
+from pathlib import Path
+
+pasta = Path("parametros_lab")
+pasta.mkdir(parents=True, exist_ok=True)
+caminho = pasta / "neuronio.txt"
+
+with open(caminho, "w", encoding="utf-8") as arq:
+    arq.write("potencial_repouso_mv=-70\n")
+    arq.write("limiar_mv=-55\n")
+    arq.write("taxa_max_hz=200\n")
+
+with open(caminho, "r", encoding="utf-8") as arq:
+    for linha in arq:
+        print(linha.strip())
+
+# potencial_repouso_mv=-70
+# limiar_mv=-55
+# taxa_max_hz=200
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-3-2-2">
+        <title>Intermediário — CSV de experimentos e taxa média global</title>
+        Crie um script que grave um arquivo CSV chamado <c>experimento_ca1.csv</c> (dentro de uma pasta criada pelo próprio script) com as colunas <c>animal</c>, <c>regiao</c> e <c>taxa_hz</c>, contendo quatro registros: <c>("R1", "CA1", 12.0)</c>, <c>("R2", "CA1", 18.0)</c>, <c>("R3", "CA1", 24.0)</c> e <c>("R4", "CA1", 26.0)</c>. Leia o arquivo de volta com <c>csv.DictReader</c> e imprima a taxa média de disparo em Hz.
+        <hint><title>Ver dica</title>Lembre que <c>linha["taxa_hz"]</c> vem como texto (<c>str</c>) do CSV; converta com <c>float(...)</c> antes de somar e contar os registros.</hint>
+        <solution collapsible="true" collapsed="true">
+          Gravamos cabeçalho e dados com <c>csv.writer</c>. Na leitura, acumulamos <c>soma</c> e <c>total</c> dentro do laço do <c>csv.DictReader</c>: $(12{,}0 + 18{,}0 + 24{,}0 + 26{,}0) / 4 = 80{,}0 / 4 = 20{,}0\text{ Hz}$.
+
+          <code lang="python" id="cod:6-3-sol-2-2">
+import csv
+from pathlib import Path
+
+pasta = Path("exercicios_csv")
+pasta.mkdir(parents=True, exist_ok=True)
+caminho = pasta / "experimento_ca1.csv"
+
+dados = [
+    ["animal", "regiao", "taxa_hz"],
+    ["R1", "CA1", 12.0],
+    ["R2", "CA1", 18.0],
+    ["R3", "CA1", 24.0],
+    ["R4", "CA1", 26.0],
+]
+
+with open(caminho, "w", encoding="utf-8", newline="") as arq:
+    csv.writer(arq).writerows(dados)
+
+soma = 0.0
+contagem = 0
+with open(caminho, "r", encoding="utf-8", newline="") as arq:
+    for linha in csv.DictReader(arq):
+        soma += float(linha["taxa_hz"])
+        contagem += 1
+
+print(f"Taxa média: {soma / contagem:.1f} Hz")  # Taxa média: 20.0 Hz
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-3-2-3">
+        <title>Intermediário — Metadados JSON e duração de um registro eletrofisiológico</title>
+        Grave em um arquivo JSON os metadados de uma sessão com <c>"frequencia_amostragem_hz": 1000</c>, <c>"num_amostras": 150000</c> e <c>"num_canais": 32</c>. Leia o JSON de volta com <c>json.load</c> e calcule a duração total do registro em segundos.
+        <hint><title>Ver dica</title>A duração em segundos é a razão <c>num_amostras / frequencia_amostragem_hz</c>, pois $1\text{ Hz} = 1\text{ amostra/s}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Com $1\,000$ amostras por segundo, $150\,000$ amostras correspondem a $150\,000 / 1\,000 = 150{,}0\text{ s}$ (ou $2\text{ min } 30\text{ s}$). Como <c>json.load</c> preserva os números como <c>int</c>, podemos dividi-los diretamente:
+
+          <code lang="python" id="cod:6-3-sol-2-3">
+import json
+from pathlib import Path
+
+pasta = Path("exercicios_json")
+pasta.mkdir(parents=True, exist_ok=True)
+caminho = pasta / "metadados_registro.json"
+
+meta = {
+    "frequencia_amostragem_hz": 1000,
+    "num_amostras": 150000,
+    "num_canais": 32
+}
+
+with open(caminho, "w", encoding="utf-8") as arq:
+    json.dump(meta, arq, indent=2)
+
+with open(caminho, "r", encoding="utf-8") as arq:
+    carregado = json.load(arq)
+
+duracao_s = carregado["num_amostras"] / carregado["frequencia_amostragem_hz"]
+print(f"Duração do registro: {duracao_s:.1f} s")  # Duração do registro: 150.0 s
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-3-2-4">
+        <title>Avançado — Lendo eventos no padrão BIDS (TSV)</title>
+        Simule um arquivo <c>sub-01_events.tsv</c> (separado por tabulação <c>\t</c>) com as colunas <c>onset</c>, <c>duration</c> e <c>trial_type</c>, gravando quatro eventos: <c>(1.0, 0.5, "alvo")</c>, <c>(3.0, 0.5, "distrator")</c>, <c>(5.5, 0.5, "alvo")</c> e <c>(8.0, 0.5, "alvo")</c>. Em seguida, leia o arquivo usando <c>csv.DictReader</c> configurado para TSV, conte quantos eventos são do tipo <c>"alvo"</c> e calcule a duração somada apenas desses eventos.
+        <hint><title>Ver dica</title>Tanto <c>csv.writer</c> quanto <c>csv.DictReader</c> aceitam o argumento <c>delimiter="\t"</c> para trabalhar com arquivos TSV.</hint>
+        <solution collapsible="true" collapsed="true">
+          Um arquivo TSV segue exatamente a mesma lógica do CSV, trocando apenas o delimitador para <c>"\t"</c>. Dos quatro eventos, três são <c>"alvo"</c>, cada um com <c>0.5</c> s, totalizando <c>1.5</c> s:
+
+          <code lang="python" id="cod:6-3-sol-2-4">
+import csv
+from pathlib import Path
+
+pasta = Path("exercicios_bids")
+pasta.mkdir(parents=True, exist_ok=True)
+caminho = pasta / "sub-01_events.tsv"
+
+eventos = [
+    ["onset", "duration", "trial_type"],
+    [1.0, 0.5, "alvo"],
+    [3.0, 0.5, "distrator"],
+    [5.5, 0.5, "alvo"],
+    [8.0, 0.5, "alvo"],
+]
+
+with open(caminho, "w", encoding="utf-8", newline="") as arq:
+    csv.writer(arq, delimiter="\t").writerows(eventos)
+
+qtd_alvo = 0
+duracao_alvo = 0.0
+with open(caminho, "r", encoding="utf-8", newline="") as arq:
+    for linha in csv.DictReader(arq, delimiter="\t"):
+        if linha["trial_type"] == "alvo":
+            qtd_alvo += 1
+            duracao_alvo += float(linha["duration"])
+
+print(f"Alvos: {qtd_alvo} | Duração total: {duracao_alvo:.1f} s")
+# Alvos: 3 | Duração total: 1.5 s
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-3-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>O terminal na prática</title>
+      <intro>
+        Interfaces gráficas escondem o que o computador faz por baixo dos panos; o terminal coloca você no controle direto das pastas, dos arquivos e dos scripts que vai versionar no GitHub.
+      </intro>
+
+      O <strong>terminal</strong> — também chamado de linha de comando ou <em>shell</em> — é uma janela onde você conversa com o sistema operacional digitando comandos curtos de texto em vez de clicar em ícones. Por que vale a pena aprender isso agora? Porque servidores de computação científica, clusters de neuroimagem, o Google Colab e ferramentas essenciais como <c>git</c> e <c>pip</c> vivem no terminal. Além disso, o que leva vinte cliques em pastas diferentes pode ser resolvido em uma única linha no terminal.
+
+      No Linux, no macOS e no Google Colab, o shell padrão costuma ser o <strong>Bash</strong> (ou Zsh, muito compatível). No Windows, o terminal moderno é o <strong>PowerShell</strong>. A boa notícia é que os comandos mais usados para navegar — <c>cd</c>, <c>mkdir</c> e até <c>ls</c> (como apelido para <c>dir</c> no PowerShell) — funcionam nos dois mundos, embora opções específicas como <c>ls -l</c> ou <c>wc -l</c> pertençam ao estilo Linux/macOS (disponível também no Windows via Git Bash ou WSL).
+
+      Fora do laboratório ou ao baixar conjuntos de dados públicos da internet, você também precisa saber inspecionar rapidamente o tamanho e o conteúdo de tabelas grandes antes de carregá-las em Python. No terminal, você consegue conferir quantas amostras existem em um registro com <c>wc -l</c> e olhar só o cabeçalho com <c>head</c>, sem travar o computador tentando abrir um arquivo de centenas de megabytes em um editor de texto comum.
+
+      Para ganhar velocidade desde o primeiro dia, decore dois atalhos de teclado do terminal:
+      <list marker="dash">
+        <item><strong>Tecla <c>Tab</c>:</strong> completa automaticamente nomes de arquivos e pastas já existentes (basta digitar as primeiras letras e apertar <c>Tab</c>, o que evita erros de digitação);</item>
+        <item><strong>Setas para cima e para baixo:</strong> percorrem o histórico dos comandos que você já digitou antes, permitindo repetir ou ajustar um comando longo sem redigitar tudo.</item>
+      </list>
+
+      <definition id="def:6-3-comandos-bash">
+        <title>Kit de sobrevivência no terminal (Bash)</title>
+        <list marker="dash">
+          <item><c>pwd</c> (<em>print working directory</em>): mostra o caminho absoluto da pasta atual.</item>
+          <item><c>ls</c>: lista arquivos e pastas da pasta atual. Com <c>ls -l</c>, exibe detalhes (permissões, tamanho e data); com <c>ls -a</c>, inclui arquivos ocultos cujo nome começa com ponto (como <c>.gitignore</c> ou <c>.venv</c>); <c>ls -la</c> combina ambos.</item>
+          <item><c>cd pasta</c> (<em>change directory</em>): entra em <c>pasta</c>. Atalhos essenciais: <c>cd ..</c> sobe um nível; <c>cd ~</c> (ou só <c>cd</c>) vai para sua pasta pessoal; <c>cd -</c> volta para a pasta onde você estava imediatamente antes.</item>
+          <item><c>mkdir -p a/b/c</c>: cria pastas (a opção <c>-p</c> cria toda a cadeia intermediária de uma vez sem reclamar se já existir).</item>
+          <item><c>touch arquivo.txt</c>: cria um arquivo vazio se ele não existir (ou atualiza sua data de modificação).</item>
+          <item><c>cp origem destino</c>: copia um arquivo (para copiar uma pasta inteira, use <c>cp -r</c>).</item>
+          <item><c>mv origem destino</c>: move um arquivo ou pasta para outro lugar — e também serve para <strong>renomear</strong> (ex.: <c>mv antigo.csv novo.csv</c>).</item>
+          <item><c>rm arquivo</c>: apaga um arquivo permanentemente; <c>rm -r pasta</c> apaga uma pasta e tudo dentro dela.</item>
+          <item><c>cat arquivo</c> e <c>head arquivo</c>: <c>cat</c> imprime o conteúdo inteiro no terminal (bom para arquivos curtos); <c>head -n 5 arquivo</c> mostra só as $5$ primeiras linhas.</item>
+          <item><c>wc -l arquivo</c>: conta quantas linhas existem em um arquivo de texto.</item>
+          <item><strong>Curinga <c>*</c>:</strong> casa com qualquer sequência de caracteres. Por exemplo, <c>ls *.csv</c> lista apenas os arquivos terminados em <c>.csv</c>.</item>
+        </list>
+      </definition>
+
+      <example id="exm:6-3-terminal-experimento">
+        <title>Montando pastas e filtrando arquivos CSV pelo terminal</title>
+        Veja uma sequência típica no terminal (Linux, macOS, Git Bash ou Colab) para criar a estrutura de um experimento, gerar arquivos de teste e listar apenas os CSVs:
+
+        <code lang="bash" id="cod:6-3-exm-bash-1">
+pwd
+mkdir -p exp_cortex/brutos exp_cortex/processados
+cd exp_cortex/brutos
+touch suj01.csv suj02.csv notas.txt
+ls -l
+ls *.csv
+cp notas.txt ../processados/
+mv suj01.csv sub-01.csv
+ls
+        </code>
+
+        <strong>O que acontece em cada linha:</strong> <c>pwd</c> confirma onde estamos; <c>mkdir -p</c> cria <c>exp_cortex</c> e as duas subpastas de uma só vez; <c>cd exp_cortex/brutos</c> entra na pasta dos dados brutos; <c>touch</c> cria três arquivos vazios; <c>ls -l</c> exibe os detalhes completos; <c>ls *.csv</c> filtra e mostra somente <c>suj01.csv</c> e <c>suj02.csv</c>; <c>cp</c> copia <c>notas.txt</c> subindo um nível (<c>..</c>) para <c>processados/</c>; e <c>mv</c> renomeia <c>suj01.csv</c> para <c>sub-01.csv</c>. No Windows (PowerShell), <c>pwd</c>, <c>cd</c>, <c>mkdir</c>, <c>ls</c> (ou <c>dir</c>), <c>cp</c> e <c>mv</c> também existem e funcionam para tarefas cotidianas, embora algumas opções como <c>ls -la</c> sejam específicas do estilo Bash/Unix.
+      </example>
+
+      E no <strong>Google Colab</strong>, onde você só vê células de notebook? Como vimos no tema <mark>Ambientes</mark>, você pode rodar comandos do sistema Linux colocando um ponto de exclamação <c>!</c> antes da linha (como <c>!ls</c> ou <c>!wc -l arquivo.csv</c>). Porém, existe uma diferença sutil e famosa entre <c>!cd</c> e <c>%cd</c>: cada linha com <c>!</c> abre um subprocesso temporário que executa o comando e fecha logo depois. Se você rodar <c>!cd exp_cortex</c>, esse subprocesso muda de pasta e morre na mesma hora — na célula seguinte, o notebook continua na pasta original! Para mudar de pasta de verdade e manter a mudança nas células seguintes, use o comando mágico <c>%cd</c> (com sinal de porcentagem).
+
+      <example id="exm:6-3-terminal-inspecao">
+        <title>Inspecionando um arquivo de eventos no Colab com head, wc -l e %cd</title>
+        Suponha que você esteja no Google Colab e queira entrar em uma pasta recém-criada, inspecionar as primeiras linhas de um arquivo TSV de eventos e contar quantas linhas ele possui:
+
+        <code lang="bash" id="cod:6-3-exm-bash-2">
+%cd exp_neuro/dados/brutos/sujeito-01/sessao-01
+!pwd
+!head -n 5 eventos.tsv
+!wc -l eventos.tsv
+        </code>
+
+        <strong>O que acontece em cada linha:</strong> <c>%cd</c> altera a pasta de trabalho do próprio processo do notebook, fazendo o <c>!pwd</c> seguinte confirmar o novo endereço. <c>!head -n 5 eventos.tsv</c> mostra só o cabeçalho e as quatro primeiras linhas (muito mais seguro do que <c>cat</c> se o arquivo tiver $100\,000$ linhas), e <c>!wc -l eventos.tsv</c> imprime a contagem total de linhas do arquivo.
+      </example>
+
+      <remark id="rem:6-3-armadilha-terminal">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>O perigo irreversível de <c>rm</c> e <c>rm -r</c>:</strong> o terminal <strong>não tem lixeira</strong>. Quando você executa <c>rm dados.csv</c> ou <c>rm -r pasta</c>, os arquivos desaparecem imediatamente sem confirmação nem botão de desfazer. Confira o comando duas vezes antes de apertar <em>Enter</em> — e nunca coloque um espaço acidental antes do <c>*</c> (como <c>rm -r *</c> na pasta errada).</item>
+          <item><strong>Usar <c>!cd</c> no Colab:</strong> escrever <c>!cd minha_pasta</c> não dá erro nenhum, mas também não muda a pasta das próximas células. Sempre use <c>%cd minha_pasta</c> no Colab ou Jupyter.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:6-3-3-1">
+        <title>Básico — Navegando e listando arquivos ocultos</title>
+        Escreva uma sequência de comandos Bash que: (1) mostre a pasta atual; (2) vá para sua pasta pessoal; (3) liste todos os arquivos com detalhes, incluindo arquivos ocultos; (4) entre em uma subpasta chamada <c>projetos</c>; e (5) volte para a pasta onde você estava no passo 2.
+        <hint><title>Ver dica</title>Lembre dos atalhos <c>~</c> (pasta pessoal) e <c>-</c> (pasta anterior) para o comando <c>cd</c>, e das opções <c>-l</c> e <c>-a</c> do <c>ls</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Usamos <c>pwd</c> para checar a posição inicial, <c>cd ~</c> para ir à pasta pessoal, <c>ls -la</c> para listar com detalhes e ocultos, <c>cd projetos</c> para entrar na subpasta e <c>cd -</c> para retornar diretamente à pasta anterior:
+
+          <code lang="bash" id="cod:6-3-sol-3-1">
+pwd
+cd ~
+ls -la
+cd projetos
+cd -
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-3-3-2">
+        <title>Intermediário — Criando pastas e organizando registros por comando</title>
+        Escreva uma sequência de comandos Bash para: (1) criar as pastas <c>lab_eeg/brutos</c> e <c>lab_eeg/limpos</c> de uma vez; (2) criar os arquivos vazios <c>suj01.csv</c>, <c>suj02.csv</c> e <c>protocolo.txt</c> na pasta atual; (3) listar apenas os arquivos <c>.csv</c>; (4) mover todos os arquivos <c>.csv</c> para dentro de <c>lab_eeg/brutos/</c>; e (5) copiar <c>protocolo.txt</c> para <c>lab_eeg/limpos/</c>.
+        <hint><title>Ver dica</title>Use <c>mkdir -p</c> para criar os dois caminhos na mesma linha e o curinga <c>*.csv</c> tanto no <c>ls</c> quanto no <c>mv</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          O comando <c>mv *.csv lab_eeg/brutos/</c> expande o curinga para todos os arquivos terminados em <c>.csv</c> da pasta atual e os move de uma vez para o diretório de destino, preservando os nomes originais:
+
+          <code lang="bash" id="cod:6-3-sol-3-2">
+mkdir -p lab_eeg/brutos lab_eeg/limpos
+touch suj01.csv suj02.csv protocolo.txt
+ls *.csv
+mv *.csv lab_eeg/brutos/
+cp protocolo.txt lab_eeg/limpos/
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-3-3-3">
+        <title>Intermediário — Inspecionando e contando eventos no terminal</title>
+        Suponha que você recebeu um arquivo <c>sessao_events.tsv</c> com uma linha de cabeçalho seguida pelos eventos de um experimento de fMRI. Que comandos Bash você executaria para ver apenas as $10$ primeiras linhas do arquivo (sem despejar tudo na tela) e contar quantas linhas ele tem no total? Se o contador devolver <c>241</c>, quantos eventos experimentais ocorreram?
+        <hint><title>Ver dica</title>Combine <c>head</c> com <c>-n 10</c> e use <c>wc -l</c> para contar linhas; não esqueça de descontar o cabeçalho.</hint>
+        <solution collapsible="true" collapsed="true">
+          Usamos <c>head -n 10</c> para pré-visualizar o início do arquivo e <c>wc -l</c> para contar o total de linhas. Como a primeira linha é o cabeçalho com os nomes das colunas, um total de $241$ linhas indica $241 - 1 = 240$ eventos experimentais registrados.
+
+          <code lang="bash" id="cod:6-3-sol-3-3">
+head -n 10 sessao_events.tsv
+wc -l sessao_events.tsv
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-3-3-4">
+        <title>Avançado — Corrigindo navegação em células do Google Colab</title>
+        Um colega rodou em uma célula do Colab o comando <c>!cd dados_experimento</c> e, na célula seguinte, executou <c>!ls</c>, mas o arquivo <c>spikes.csv</c> que estava dentro de <c>dados_experimento</c> não apareceu na listagem. Explique por que isso aconteceu e escreva os comandos corretos para entrar na pasta, confirmar a mudança de diretório e listar os arquivos.
+        <hint><title>Ver dica</title>Lembre da diferença entre abrir um subshell descartável com <c>!</c> e mudar o estado do processo do notebook com um comando mágico <c>%</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          O prefixo <c>!</c> cria um subshell temporário apenas para aquela linha: <c>!cd dados_experimento</c> muda o diretório desse subshell e o encerra logo em seguida, deixando a pasta de trabalho do notebook intacta. Usando <c>%cd</c>, a mudança persiste para todas as células seguintes:
+
+          <code lang="bash" id="cod:6-3-sol-3-4">
+%cd dados_experimento
+!pwd
+!ls -l
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-3-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Codificação de texto</title>
+      <intro>
+        Computadores só armazenam zeros e uns; entender como letras e acentos viram bytes explica por que tabelas brasileiras chegam cheias de símbolos estranhos e como consertar isso em uma linha.
+      </intro>
+
+      Na memória ou no disco, não existe nenhuma letra "A" nem "ç" desenhada: tudo é armazenado como sequências de <strong>bits</strong> (dígitos binários $0$ ou $1$) agrupados de oito em oito para formar um <strong>byte</strong>. Como um byte tem $8$ bits, existem $2^8 = 256$ combinações possíveis (números inteiros de $0$ a $255$). Para guardar texto, a humanidade precisou criar tabelas de tradução — chamadas de <strong>codificações de caracteres</strong> (<em>character encodings</em>) — que dizem qual número representa qual símbolo.
+
+      Nos primeiros computadores dos Estados Unidos, adotou-se a tabela <strong>ASCII</strong>, que usava apenas $7$ bits por caractere ($2^7 = 128$ símbolos): letras de <c>A</c> a <c>Z</c> sem acento, dígitos de <c>0</c> a <c>9</c> e pontuação básica. Para o inglês, bastava; para o português, o espanhol, o grego ($\mu\text{V}$, $\Omega$) ou qualquer outro idioma fora dos EUA, era insuficiente.
+
+      Surgiram então dezenas de tabelas regionais de $1$ byte (como <strong>Latin-1</strong> / ISO-8859-1 e <strong>Windows-1252</strong> / <c>cp1252</c>), que aproveitaram os códigos de $128$ a $255$ para incluir acentos e cedilhas. O problema é que cada região usava os mesmos números para letras diferentes — e ainda assim não cabiam todos os alfabetos do mundo. A solução definitiva veio com o padrão <strong>Unicode</strong> e sua codificação mais popular na web, no Linux e em Python: o <strong>UTF-8</strong>.
+
+      <definition id="def:6-3-utf8-mojibake">
+        <title>Unicode, UTF-8 e mojibake</title>
+        <list marker="dash">
+          <item><strong>Unicode:</strong> catálogo universal que atribui um código numérico único a praticamente todo símbolo existente em qualquer idioma ou notação científica.</item>
+          <item><strong>UTF-8:</strong> forma de gravar códigos Unicode em bytes com <strong>tamanho variável</strong>. Caracteres do ASCII (como <c>a</c>, <c>1</c>, <c>,</c>) ocupam apenas $1$ byte; caracteres acentuados do português (como <c>ç</c>, <c>ã</c>, <c>é</c>) ou letras gregas (como <c>μ</c>) ocupam $2$ bytes; símbolos mais raros ocupam $3$ ou $4$ bytes.</item>
+          <item><strong><em>Mojibake</em>:</strong> texto corrompido com símbolos estranhos (como <c>aÃ§Ã£o</c> no lugar de <c>ação</c>) que aparece quando um arquivo gravado em uma codificação (geralmente UTF-8) é lido usando outra tabela (como Latin-1 ou <c>cp1252</c>).</item>
+        </list>
+        <intuition>
+          Em UTF-8, a palavra <c>"ação"</c> tem $4$ caracteres para você, mas ocupa $6$ bytes no disco: <c>a</c> ($1$ byte), <c>ç</c> ($2$ bytes), <c>ã</c> ($2$ bytes) e <c>o</c> ($1$ byte). Se um programa desavisado tentar ler esses $6$ bytes como Latin-1 (onde cada byte vira uma letra separada), os dois bytes de <c>ç</c> viram <c>Ã§</c> e os dois bytes de <c>ã</c> viram <c>Ã£</c>, produzindo <c>"aÃ§Ã£o"</c>.
+        </intuition>
+      </definition>
+
+      Por essa razão, sempre passe <c>encoding="utf-8"</c> ao abrir arquivos em Python. No Linux e no macOS o padrão já costuma ser UTF-8, mas no Windows o Python historicamente pode herdar uma codificação regional como <c>cp1252</c> se você omitir o argumento — fazendo um mesmo script funcionar no Colab e falhar no computador de um colega.
+
+      <example id="exm:6-3-bytes-mojibake">
+        <title>Contando bytes em UTF-8 e entendendo o mojibake na prática</title>
+        Vamos verificar em Python o tamanho em caracteres versus o tamanho em bytes UTF-8 da palavra <c>"ação"</c> e simular exatamente como nasce o <em>mojibake</em> <c>"aÃ§Ã£o"</c>:
+
+        <code lang="python" id="cod:6-3-exm-utf8">
+palavra = "ação"
+bytes_utf8 = palavra.encode("utf-8")
+
+print("Caracteres:", len(palavra))       # Caracteres: 4
+print("Bytes UTF-8:", len(bytes_utf8))   # Bytes UTF-8: 6
+print("Bytes brutos:", bytes_utf8)       # Bytes brutos: b'a\xc3\xa7\xc3\xa3o'
+
+texto_quebrado = bytes_utf8.decode("latin-1")
+print("Lido errado como latin-1:", texto_quebrado)  # Lido errado como latin-1: aÃ§Ã£o
+        </code>
+
+        <strong>Passo a passo:</strong> <c>len("ação")</c> conta caracteres Unicode e devolve <c>4</c>. Quando transformamos a string em bytes com <c>.encode("utf-8")</c>, obtemos <c>6</c> bytes: <c>a</c> ($1$ byte), <c>\xc3\xa7</c> ($2$ bytes para <c>ç</c>), <c>\xc3\xa3</c> ($2$ bytes para <c>ã</c>) e <c>o</c> ($1$ byte). Ao decodificar esses mesmos $6$ bytes usando <c>.decode("latin-1")</c>, cada byte é traduzido isoladamente: <c>0xC3</c> vira <c>Ã</c>, <c>0xA7</c> vira <c>§</c> e <c>0xA3</c> vira <c>£</c>, gerando exatamente <c>"aÃ§Ã£o"</c>.
+      </example>
+
+      Outros dois detalhes de texto vivem causando tropeços ao trocar arquivos entre Windows, Linux e planilhas:
+
+      <list marker="number">
+        <item><strong>Finais de linha (<c>\n</c> versus <c>\r\n</c>):</strong> Linux e macOS terminam cada linha com um único caractere de quebra (<c>\n</c>, <em>Line Feed</em>). O Windows tradicionalmente usa dois caracteres (<c>\r\n</c>, <em>Carriage Return + Line Feed</em>). Ao gravar em Python com <c>open(..., "w", encoding="utf-8", newline="\n")</c>, você padroniza o arquivo com <c>\n</c> em qualquer sistema.</item>
+        <item><strong>O CSV "brasileiro" do Excel:</strong> como em português usamos a vírgula como separador decimal (<c>3,5</c> em vez de <c>3.5</c>), o Excel configurado em português salva arquivos CSV usando <strong>ponto e vírgula</strong> (<c>;</c>) para separar as colunas e <strong>vírgula</strong> (<c>,</c>) nos números decimais. Se você tentar ler esse arquivo com o padrão do <c>csv.reader</c> (que espera vírgula entre colunas) e passar direto para <c>float()</c>, o Python vai quebrar. A solução tem dois passos simples: passar <c>delimiter=";"</c> ao leitor CSV e trocar a vírgula por ponto com <c>.replace(",", ".")</c> antes de chamar <c>float(...)</c>.</item>
+      </list>
+
+      <example id="exm:6-3-csv-brasileiro">
+        <title>Lendo um CSV "brasileiro" exportado pelo Excel</title>
+        Suponha que um colaborador exportou do Excel em português uma tabela de potenciais de repouso e limiar de três neurônios corticais usando ponto e vírgula como delimitador e vírgula decimal. Vamos gravar esse arquivo exatamente nesse formato e lê-lo em Python para calcular o potencial de repouso médio:
+
+        <code lang="python" id="cod:6-3-exm-csv-br">
+import csv
+from pathlib import Path
+
+pasta = Path("arquivos_excel")
+pasta.mkdir(parents=True, exist_ok=True)
+caminho = pasta / "potenciais_br.csv"
+
+conteudo_br = (
+    "neuronio;repouso_mv;limiar_mv\n"
+    "N1;-70,5;-55,0\n"
+    "N2;-68,2;-54,5\n"
+    "N3;-71,3;-55,5\n"
+)
+with open(caminho, "w", encoding="utf-8", newline="\n") as arq:
+    arq.write(conteudo_br)
+
+soma_repouso = 0.0
+contagem = 0
+with open(caminho, "r", encoding="utf-8", newline="") as arq:
+    leitor = csv.reader(arq, delimiter=";")
+    cabecalho = next(leitor)  # Pula a primeira linha (nomes das colunas)
+    for linha in leitor:
+        repouso = float(linha[1].replace(",", "."))
+        soma_repouso += repouso
+        contagem += 1
+
+media_repouso = soma_repouso / contagem
+print("Colunas:", cabecalho)                      # Colunas: ['neuronio', 'repouso_mv', 'limiar_mv']
+print(f"Repouso médio: {media_repouso:.2f} mV")   # Repouso médio: -70.00 mV
+        </code>
+
+        <strong>Passo a passo:</strong> <c>csv.reader(arq, delimiter=";")</c> divide cada linha corretamente no ponto e vírgula. A função <c>next(leitor)</c> consome a primeira linha (o cabeçalho) para que o laço <c>for</c> processe apenas os números. Dentro do laço, <c>linha[1]</c> traz a segunda coluna (<c>"-70,5"</c>, depois <c>"-68,2"</c> e <c>"-71,3"</c>), <c>.replace(",", ".")</c> transforma a vírgula em ponto decimal e <c>float(...)</c> converte para número: $(-70{,}5 - 68{,}2 - 71{,}3)/3 = -210{,}0 / 3 = -70{,}00\text{ mV}$.
+      </example>
+
+      <remark id="rem:6-3-armadilha-encoding">
+        <title>Armadilha comum</title>
+        <strong>Abrir e salvar de novo no Excel:</strong> um dos erros mais frequentes em laboratórios é baixar um CSV limpo (em UTF-8 com separador vírgula), abri-lo no Excel só para "dar uma olhada" e clicar em <em>Salvar</em> ao fechar. Sem avisar, o Excel em português frequentemente converte o arquivo para codificação <c>cp1252</c>, troca o separador de colunas para <c>;</c> e altera datas e decimais — quebrando todo o pipeline de análise. Para inspecionar CSVs sem alterá-los, prefira o VS Code, o Google Colab ou <c>head</c> no terminal.
+      </remark>
+
+      <exercise id="exr:6-3-4-1">
+        <title>Básico — Caracteres versus bytes em termos de neurociência</title>
+        Use Python para imprimir o número de caracteres (<c>len(...)</c>) e o número de bytes em UTF-8 (<c>len(...encode("utf-8"))</c>) de cada uma das três strings: <c>"sinapse"</c>, <c>"mV"</c> e <c>"μV"</c> (com a letra grega mi <c>μ</c>). Explique por que <c>"μV"</c> tem a mesma quantidade de caracteres que <c>"mV"</c>, mas ocupa mais bytes.
+        <hint><title>Ver dica</title>Lembre que caracteres ASCII comuns ocupam $1$ byte em UTF-8, enquanto letras gregas fora do ASCII precisam de $2$ bytes.</hint>
+        <solution collapsible="true" collapsed="true">
+          A string <c>"sinapse"</c> tem $7$ letras ASCII, ocupando $7$ bytes; <c>"mV"</c> tem $2$ letras ASCII, ocupando $2$ bytes. Já em <c>"μV"</c>, o <c>"V"</c> ocupa $1$ byte, mas o símbolo grego <c>"μ"</c> (fora da tabela ASCII) ocupa $2$ bytes em UTF-8, totalizando $3$ bytes para apenas $2$ caracteres:
+
+          <code lang="python" id="cod:6-3-sol-4-1">
+for texto in ["sinapse", "mV", "μV"]:
+    n_chars = len(texto)
+    n_bytes = len(texto.encode("utf-8"))
+    print(f"{texto} -> {n_chars} caracteres, {n_bytes} bytes")
+
+# sinapse -> 7 caracteres, 7 bytes
+# mV -> 2 caracteres, 2 bytes
+# μV -> 2 caracteres, 3 bytes
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-3-4-2">
+        <title>Intermediário — Desfazendo mojibake por reencodificação</title>
+        Você recebeu uma lista de termos corrompidos por <em>mojibake</em>: <c>corrompido_1 = "aÃ§Ã£o"</c> e <c>corrompido_2 = "estimulaÃ§Ã£o"</c>. Esse erro aconteceu porque arquivos originalmente gravados em UTF-8 foram decodificados erroneamente como <c>latin-1</c>. Escreva um código Python que recupere os dois textos originais e explique o raciocínio por trás da sequência <c>.encode("latin-1").decode("utf-8")</c>.
+        <hint><title>Ver dica</title>Para desfazer a leitura errada, primeiro converta o texto quebrado de volta aos bytes originais usando <c>.encode("latin-1")</c> e só então decodifique esses bytes usando <c>.decode("utf-8")</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          O <em>mojibake</em> <c>"aÃ§Ã£o"</c> surgiu quando os bytes verdadeiros de UTF-8 (<c>b'a\xc3\xa7\xc3\xa3o'</c>) foram lidos pela tabela <c>latin-1</c>. Portanto, chamar <c>.encode("latin-1")</c> faz o caminho reverso da leitura errada e recupera exatamente aqueles $6$ bytes originais em bruto. Uma vez com os bytes certos na mão, <c>.decode("utf-8")</c> os interpreta pela tabela correta e devolve <c>"ação"</c> (e o mesmo vale para <c>"estimulação"</c>):
+
+          <code lang="python" id="cod:6-3-sol-4-2">
+corrompido_1 = "aÃ§Ã£o"
+corrompido_2 = "estimulaÃ§Ã£o"
+
+limpo_1 = corrompido_1.encode("latin-1").decode("utf-8")
+limpo_2 = corrompido_2.encode("latin-1").decode("utf-8")
+
+print(limpo_1)  # ação
+print(limpo_2)  # estimulação
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-3-4-3">
+        <title>Intermediário — Lendo CSV brasileiro de taxas de disparo</title>
+        Crie um arquivo <c>taxas_br.csv</c> (em uma subpasta criada pelo script) contendo quatro linhas com separador <c>;</c> e vírgula decimal: cabeçalho <c>celula;taxa_hz</c> e os registros <c>C1;10,5</c>, <c>C2;22,5</c>, <c>C3;30,0</c> e <c>C4;17,0</c>. Leia o arquivo com <c>csv.reader(..., delimiter=";")</c>, converta as taxas para <c>float</c> e imprima a taxa máxima e a taxa média com uma casa decimal.
+        <hint><title>Ver dica</title>Use <c>next(leitor)</c> para pular o cabeçalho, substitua <c>","</c> por <c>"."</c> com <c>.replace(",", ".")</c> antes de <c>float(...)</c> e atualize uma variável <c>maior_taxa</c> dentro do laço.</hint>
+        <solution collapsible="true" collapsed="true">
+          Convertendo os textos com vírgula para ponto decimal, somamos $10{,}5 + 22{,}5 + 30{,}0 + 17{,}0 = 80{,}0$, o que gera média $80{,}0 / 4 = 20{,}0\text{ Hz}$ e máximo $30{,}0\text{ Hz}$:
+
+          <code lang="python" id="cod:6-3-sol-4-3">
+import csv
+from pathlib import Path
+
+pasta = Path("exercicios_excel")
+pasta.mkdir(parents=True, exist_ok=True)
+caminho = pasta / "taxas_br.csv"
+
+with open(caminho, "w", encoding="utf-8", newline="\n") as arq:
+    arq.write("celula;taxa_hz\nC1;10,5\nC2;22,5\nC3;30,0\nC4;17,0\n")
+
+soma = 0.0
+qtd = 0
+maior = -1.0
+
+with open(caminho, "r", encoding="utf-8", newline="") as arq:
+    leitor = csv.reader(arq, delimiter=";")
+    next(leitor)
+    for linha in leitor:
+        taxa = float(linha[1].replace(",", "."))
+        soma += taxa
+        qtd += 1
+        if taxa > maior:
+            maior = taxa
+
+print(f"Máxima: {maior:.1f} Hz | Média: {soma / qtd:.1f} Hz")
+# Máxima: 30.0 Hz | Média: 20.0 Hz
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-3-4-4">
+        <title>Avançado — Padronizando finais de linha Windows para Unix</title>
+        Suponha que você recebeu uma string vinda de um arquivo antigo do Windows com finais de linha <c>\r\n</c>: <c>texto_win = "canal,unidade\r\nCz,μV\r\nPz,μV\r\n"</c>. Grave uma versão normalizada desse texto em um arquivo <c>canais_padrao.csv</c> substituindo <c>\r\n</c> por <c>\n</c> e usando <c>encoding="utf-8"</c> com <c>newline="\n"</c>. Em seguida, leia o arquivo em modo binário (<c>"rb"</c>) para comprovar que nenhum byte <c>\r</c> restou no disco.
+        <hint><title>Ver dica</title>Use <c>texto_win.replace("\r\n", "\n")</c> antes de gravar; ao abrir em modo <c>"rb"</c>, <c>arq.read()</c> retorna bytes brutos, onde você pode testar <c>b"\r" in bruto</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Substituir <c>"\r\n"</c> por <c>"\n"</c> e passar <c>newline="\n"</c> ao <c>open()</c> garante que o Python não reintroduza <c>\r</c> mesmo quando o script rodar no Windows. Lendo de volta em modo binário (<c>"rb"</c>), verificamos que <c>b"\r" in bruto</c> é <c>False</c>:
+
+          <code lang="python" id="cod:6-3-sol-4-4">
+from pathlib import Path
+
+pasta = Path("exercicios_newlines")
+pasta.mkdir(parents=True, exist_ok=True)
+caminho = pasta / "canais_padrao.csv"
+
+texto_win = "canal,unidade\r\nCz,μV\r\nPz,μV\r\n"
+texto_unix = texto_win.replace("\r\n", "\n")
+
+with open(caminho, "w", encoding="utf-8", newline="\n") as arq:
+    arq.write(texto_unix)
+
+with open(caminho, "rb") as arq:
+    bruto = arq.read()
+
+print("Contém CR (\\r)?", b"\r" in bruto)  # Contém CR (\r)? False
+print("Bytes gravados:", bruto)
+# Bytes gravados: b'canal,unidade\nCz,\xce\xbcV\nPz,\xce\xbcV\n'
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-3-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Árvore e caminhos:</strong> a raiz é <c>/</c> (Linux/macOS) ou <c>C:\</c> (Windows), a pasta pessoal é <c>~</c>, <c>.</c> é a pasta atual e <c>..</c> sobe um nível; caminhos absolutos partem da raiz e caminhos relativos partem da pasta de trabalho atual.</item>
+        <item><strong><c>pathlib</c>:</strong> importe <c>from pathlib import Path</c> e monte caminhos portáteis com <c>/</c>; use <c>Path.cwd()</c>, <c>.name</c>, <c>.stem</c>, <c>.suffix</c>, <c>.parent</c>, <c>.exists()</c> e <c>.mkdir(parents=True, exist_ok=True)</c>.</item>
+        <item><strong>Formatos de texto e neurociência:</strong> a extensão é só convenção; use CSV (<c>,</c>), TSV (<c>\t</c>) e JSON (chave–valor) para tabelas leves e metadados (como <c>participants.tsv</c> e <c>*_events.tsv</c> do padrão BIDS), reservando formatos binários como <c>.npy</c>, <c>.edf</c>, <c>.fif</c> e <c>.nii.gz</c> para matrizes e sinais.</item>
+        <item><strong>Leitura e escrita seguras:</strong> abra arquivos sempre com <c>with open(caminho, modo, encoding="utf-8")</c>; use <c>csv.writer</c>/<c>csv.DictReader</c> (com <c>newline=""</c>) para tabelas e <c>json.dump</c>/<c>json.load</c> para metadados.</item>
+        <item><strong>Terminal (Bash e Colab):</strong> domine <c>pwd</c>, <c>ls -la</c>, <c>cd</c> (<c>..</c>, <c>~</c>, <c>-</c>), <c>mkdir -p</c>, <c>touch</c>, <c>cp</c>, <c>mv</c>, <c>cat</c>, <c>head</c>, <c>wc -l</c>, o curinga <c>*</c> e o perigo irreversível de <c>rm -r</c>; no Colab, use <c>!</c> para comandos avulsos e <c>%cd</c> para mudar de pasta de forma persistente.</item>
+        <item><strong>Codificação e CSV brasileiro:</strong> em UTF-8, caracteres acentuados e gregos ocupam mais de $1$ byte; abrir UTF-8 como <c>latin-1</c>/<c>cp1252</c> gera <em>mojibake</em> (<c>aÃ§Ã£o</c>, reversível via <c>.encode("latin-1").decode("utf-8")</c>); para CSVs do Excel em português, use <c>delimiter=";"</c> e <c>.replace(",", ".")</c> antes de <c>float()</c>.</item>
+      </list>
+    </section>
+
+    <section id="sec:6-3-alem">
+      <title>Para ir além</title>
+      Dica de sobrevivência do módulo: <strong>programação se aprende programando. Escreva código até a mão cansar.</strong> Abra um notebook no <link to="https://colab.research.google.com">Google Colab</link>, crie pastas reais com <c>pathlib</c>, inspecione-as com <c>!ls -la</c> e <c>%cd</c>, grave arquivos CSV e JSON e abra-os como texto puro para ver cada caractere com os próprios olhos.
+
+      Com o domínio de arquivos, formatos e terminal que você construiu agora — somado aos dois temas anteriores (<mark>Ambientes</mark> e <mark>Comandos iniciais e lógica básica</mark>) —, você está pronto para mergulhar em listas e dicionários em <mark>Estruturas de dados básicas</mark>, avançar para <mark>Bibliotecas</mark> (onde conhecerá o <c>pandas.read_csv</c>) e encarar o projeto final do Módulo 6: baixar dados neurais públicos via API, limpá-los, gerar gráficos e publicar tudo no GitHub. Para continuar praticando:
+      <list marker="dash">
+        <item><strong>Material do módulo:</strong> <link to="https://github.com/ry4n-felinto/impytech_2026">Curso IMPATech — repositório no GitHub</link>, com roteiros e exercícios práticos em Python.</item>
+        <item><strong>Referência oficial:</strong> <link to="https://docs.python.org/pt-br/3/tutorial/">Tutorial oficial do Python (em português)</link>, especialmente a seção sobre leitura e escrita de arquivos e o módulo <c>json</c>.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 6 · Programação (Python) — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

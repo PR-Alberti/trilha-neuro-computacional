@@ -1,0 +1,9 @@
+# Módulo 08 — Machine Learning. Compile com: node scripts/compilar-aulas.mjs --modulo 8
+inputs = ["tema-01.dlt", "tema-02.dlt", "tema-03.dlt", "tema-04.dlt", "tema-05.dlt", "tema-06.dlt", "tema-07.dlt"]
+out = "../../aulas/modulo-08"
+
+[document]
+lang         = "pt-BR"
+type         = "book"
+theme-accent = "indigo"
+theme-mode   = "auto"

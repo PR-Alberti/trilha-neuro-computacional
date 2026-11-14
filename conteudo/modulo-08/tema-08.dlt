@@ -1,0 +1,760 @@
+<document>
+  <title>Módulo 8 · Machine Learning</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-8-8">Voltar ao guia (Tema 8.8)</link></meta-item>
+    <meta-item key="Módulo">Módulo 8 · Machine Learning — Criando a Inteligência Clássica</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-8-8">
+    <title>Árvores</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Decisões encadeadas e florestas aleatórias.
+    </box>
+
+    <strong>Por que isso importa.</strong> Todo biólogo já usou uma chave dicotômica para identificar espécies: uma sequência de perguntas simples ("a largura do corpo é menor que $X$?") que afunila possibilidades até um veredito. Na neurociência computacional, raciocinamos do mesmo modo ao classificar registros eletrofisiológicos em interneurônios de disparo rápido ou células piramidais a partir da duração do potencial de ação e da taxa de disparo, ou ao distinguir estágios do sono pela potência em bandas de EEG.
+
+    Diferente dos modelos lineares e da regressão <em>ridge</em> (Tema 8.6 — Regularização), as <strong>árvores de decisão</strong> (<em>decision trees</em>) não traçam uma única reta ou hiperplano: elas fatiam o espaço de variáveis em retângulos alinhados aos eixos, capturando interações não lineares sem exigir padronização de escalas. Uma árvore sozinha é fácil de ler, mas instável e propensa ao sobreajuste (<em>overfitting</em>); quando reunimos centenas delas em <strong>florestas aleatórias</strong> (<em>random forests</em>), obtemos um dos métodos tabulares mais precisos e robustos da caixa de ferramentas clássica antes do Módulo 9 (Deep Learning).
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>interpretar árvores de regressão e classificação como partições retangulares construídas por divisão binária recursiva gulosa;</item>
+      <item>calcular o índice de Gini, a entropia em base $2$ e o ganho de informação para escolher o melhor corte de um nó;</item>
+      <item>diagnosticar o sobreajuste em árvores profundas e controlá-lo via hiperparâmetros e poda por custo–complexidade (<c>ccp_alpha</c>) com validação cruzada;</item>
+      <item>explicar como <em>bagging</em> e florestas aleatórias reduzem a variância ($\rho\sigma^2 + \frac{1-\rho}{B}\sigma^2$) e estimar o desempenho pelo erro fora da bolsa (OOB);</item>
+      <item>contrastar a importância por impureza (<c>feature_importances_</c>) com a importância por permutação, evitando vieses em variáveis contínuas.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Temas 8.1 (Introdução: compromisso viés–variância), 8.3 (Classificação), 8.5 (Reamostragem: <em>bootstrap</em>, fração fora da bolsa e validação cruzada) e 8.7 (Estudo de variáveis: importância por permutação); Módulo 6 — Programação (Python) (Bibliotecas: NumPy e <c>scikit-learn</c>); Módulo 7 — Estatística e Probabilidade (Variável aleatória: variância de uma soma; Combinatória).
+
+    <section id="sec:8-8-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Árvores de decisão: dividir o espaço em retângulos</title>
+      <intro>
+        Em vez de combinar todas as variáveis em uma única equação linear, uma árvore encadeia testes simples do tipo "$x_j \le s$?" que dividem os dados em caixas retangulares homogêneas.
+      </intro>
+
+      Imagine registrar potenciais de ação extracelulares no córtex de um roedor. Um neurofisiologista separa dois grandes grupos celulares olhando duas grandezas descritas em livros-texto como Dayan &amp; Abbott e Kandel: interneurônios de disparo rápido (<em>fast-spiking</em>, geralmente positivos para parvalbumina) exibem potenciais de ação estreitos (cerca de $0{,}2$ a $0{,}4\text{ ms}$) e taxas altas, enquanto células piramidais excitadoras têm espículas mais largas (cerca de $0{,}6$ a $1{,}0\text{ ms}$) e taxas médias menores. Uma regra sequencial como "largura do <em>spike</em> $\le 0{,}50\text{ ms}$?" seguida de um refinamento pela taxa de disparo resolve o problema em retângulos fáceis de visualizar.
+
+      Formalmente, trabalhamos com uma matriz de dados $\mathbf{X} \in \mathbb{R}^{n \times p}$ (linhas $\mathbf{x}_i^\top$, colunas $j = 1, \dots, p$) e respostas $\mathbf{y} \in \mathbb{R}^n$ (ou rótulos em $\{0, 1\}$ e $\{1, \dots, K\}$).
+
+      <definition id="def:8-8-arvore">
+        <title>Árvore de decisão e divisão binária recursiva</title>
+        Uma <strong>árvore de decisão</strong> particiona o espaço de entrada $\mathbb{R}^p$ em $M$ regiões retangulares disjuntas $R_1, R_2, \dots, R_M$, chamadas <strong>folhas</strong> (<em>leaves</em>) ou nós terminais:
+        <list marker="dash">
+          <item><strong>Árvore de regressão:</strong> para qualquer amostra $\mathbf{x} \in R_m$, a previsão é a média das respostas de treino naquela folha, $\hat{f}(\mathbf{x}) = \bar{y}_{R_m} = \frac{1}{|R_m|}\sum_{i : \mathbf{x}_i \in R_m} y_i$.</item>
+          <item><strong>Árvore de classificação:</strong> prevê-se a classe majoritária da folha, $\hat{f}(\mathbf{x}) = \arg\max_k \hat{p}_{mk}$, em que $\hat{p}_{mk}$ é a proporção de amostras da classe $k$ em $R_m$.</item>
+        </list>
+        Para construir a árvore de cima para baixo por <strong>divisão binária recursiva gulosa</strong> (<em>greedy recursive binary splitting</em>), partimos da raiz (todas as amostras) e testamos cada variável $j \in \{1, \dots, p\}$ e cada ponto de corte $s$, formando os dois semi-espaços:
+        $$R_1(j, s) = \{\mathbf{x} \in \mathbb{R}^p : x_j \le s\}, \qquad R_2(j, s) = \{\mathbf{x} \in \mathbb{R}^p : x_j &gt; s\}.$$
+        Em regressão, escolhemos $(j, s)$ que minimiza a soma das $\mathrm{RSS}$ dos dois lados:
+        <equation id="eq:8-8-rss-corte">
+          \mathrm{RSS}(j, s) = \sum_{i : \mathbf{x}_i \in R_1(j,s)} (y_i - \bar{y}_{R_1})^2 + \sum_{i : \mathbf{x}_i \in R_2(j,s)} (y_i - \bar{y}_{R_2})^2,
+        </equation>
+        e repetimos o processo recursivamente dentro de $R_1$ e $R_2$ até atingir um critério de parada.
+        <intuition>
+          O adjetivo "guloso" significa que, em cada nó, a árvore escolhe a melhor divisão imediata sem olhar passos futuros: é mais rápido do que testar todas as partições possíveis do espaço, embora não garanta a árvore globalmente ótima.
+        </intuition>
+      </definition>
+
+      Observe três vantagens práticas dessa estrutura. Primeiro, como cada teste apenas compara $x_j \le s$, árvores são invariantes a transformações estritamente crescentes das variáveis: converter milissegundos para segundos ou aplicar escala logarítmica não muda as previsões, dispensando <c>StandardScaler</c>. Segundo, divisões sucessivas em variáveis distintas expressam interações naturalmente ("largura pequena E taxa alta"). Terceiro, árvores pequenas traduzem-se em fluxogramas legíveis por qualquer pesquisador, como ilustra a <ref to="fig:8-8-particao"/>.
+
+      <figure src="fig/t08-particao.svg" alt="À esquerda, gráfico de dispersão de neurônios piramidais e interneurônios fast-spiking segundo largura do spike e taxa de disparo, dividido em regiões retangulares; à direita, a árvore de decisão equivalente de profundidade 2" id="fig:8-8-particao">
+        <caption>Partição do espaço bidimensional em retângulos (esquerda) e o fluxograma equivalente de profundidade $2$ (direita) para distinguir células piramidais de interneurônios <em>fast-spiking</em>.</caption>
+      </figure>
+
+      <example id="exm:8-8-neuronios-fs">
+        <title>Classificando neurônios corticais em retângulos</title>
+        Suponha $n = 6$ neurônios registrados com largura de <em>spike</em> $x_1$ (ms) e taxa média $x_2$ (Hz), rotulados como piramidal ($y = 0$) ou <em>fast-spiking</em> ($y = 1$):
+        <list marker="dash">
+          <item>$N_1: (0{,}28;\; 62) \mapsto 1$, $N_2: (0{,}35;\; 48) \mapsto 1$, $N_3: (0{,}45;\; 42) \mapsto 1$;</item>
+          <item>$N_4: (0{,}48;\; 14) \mapsto 0$, $N_5: (0{,}72;\; 18) \mapsto 0$, $N_6: (0{,}88;\; 11) \mapsto 0$.</item>
+        </list>
+        Mostre como duas perguntas ortogonais separam perfeitamente os seis neurônios.
+
+        <strong>Solução.</strong>
+        <list marker="number">
+          <item>Um primeiro corte na raiz em $x_1 \le 0{,}60\text{ ms}$ separa de imediato $N_5$ e $N_6$ à direita, formando uma folha pura da classe $0$ (piramidal).</item>
+          <item>À esquerda ($x_1 \le 0{,}60\text{ ms}$), restam $\{N_1, N_2, N_3\}$ da classe $1$ e $N_4$ da classe $0$. Um segundo corte em $x_2 \le 28\text{ Hz}$ isola $N_4$ em uma folha pura piramidal ($x_1 \le 0{,}60$ e $x_2 \le 28$) e deixa $\{N_1, N_2, N_3\}$ em uma folha pura <em>fast-spiking</em> ($x_1 \le 0{,}60$ e $x_2 &gt; 28$).</item>
+        </list>
+        Cada folha corresponde a um retângulo fechado por desigualdades simples, sem necessidade de padronizar milissegundos e hertz para a mesma escala.
+      </example>
+
+      <example id="exm:8-8-rss-corte">
+        <title>Escolhendo o melhor ponto de corte em regressão à mão</title>
+        Considere $n = 5$ observações com uma única variável preditora $x$:
+        $$(1, 10), \quad (2, 14), \quad (3, 24), \quad (4, 32), \quad (5, 34).$$
+        Calcule a $\mathrm{RSS}$ de cada corte candidato $s \in \{1{,}5;\; 2{,}5;\; 3{,}5;\; 4{,}5\}$ e determine a primeira divisão da árvore de regressão pela <ref to="eq:8-8-rss-corte"/>.
+
+        <strong>Solução.</strong> Avaliamos os quatro pontos médios consecutivos:
+        <list marker="dash">
+          <item><strong>$s = 1{,}5$:</strong> $R_1 = \{10\}$ ($\bar{y}_1 = 10$, $\mathrm{RSS}_1 = 0$); $R_2 = \{14, 24, 32, 34\}$ ($\bar{y}_2 = \frac{104}{4} = 26$, $\mathrm{RSS}_2 = (-12)^2 + (-2)^2 + 6^2 + 8^2 = 144 + 4 + 36 + 64 = 248$). Total: $\mathrm{RSS}(1{,}5) = 248$.</item>
+          <item><strong>$s = 2{,}5$:</strong> $R_1 = \{10, 14\}$ ($\bar{y}_1 = 12$, $\mathrm{RSS}_1 = (-2)^2 + 2^2 = 8$); $R_2 = \{24, 32, 34\}$ ($\bar{y}_2 = \frac{90}{3} = 30$, $\mathrm{RSS}_2 = (-6)^2 + 2^2 + 4^2 = 36 + 4 + 16 = 56$). Total: $\mathrm{RSS}(2{,}5) = 8 + 56 = 64$.</item>
+          <item><strong>$s = 3{,}5$:</strong> $R_1 = \{10, 14, 24\}$ ($\bar{y}_1 = \frac{48}{3} = 16$, $\mathrm{RSS}_1 = (-6)^2 + (-2)^2 + 8^2 = 36 + 4 + 64 = 104$); $R_2 = \{32, 34\}$ ($\bar{y}_2 = 33$, $\mathrm{RSS}_2 = (-1)^2 + 1^2 = 2$). Total: $\mathrm{RSS}(3{,}5) = 104 + 2 = 106$.</item>
+          <item><strong>$s = 4{,}5$:</strong> $R_1 = \{10, 14, 24, 32\}$ ($\bar{y}_1 = \frac{80}{4} = 20$, $\mathrm{RSS}_1 = (-10)^2 + (-6)^2 + 4^2 + 12^2 = 100 + 36 + 16 + 144 = 296$); $R_2 = \{34\}$ ($\bar{y}_2 = 34$, $\mathrm{RSS}_2 = 0$). Total: $\mathrm{RSS}(4{,}5) = 296$.</item>
+        </list>
+        A menor soma de quadrados ocorre em $s = 2{,}5$ ($\mathrm{RSS} = 64$). A árvore prevê $\hat{y} = 12$ para $x \le 2{,}5$ e $\hat{y} = 30$ para $x &gt; 2{,}5$.
+      </example>
+
+      O código a seguir gera $n = 200$ neurônios corticais sintéticos, ajusta uma <c>DecisionTreeClassifier(max_depth=2, random_state=0)</c> e usa <c>export_text</c> para inspecionar as regras aprendidas.
+
+      <code lang="python" id="cod:8-8-arvore-neuronios">
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier, export_text
+
+rng = np.random.default_rng(0)
+n_por_classe = 100
+
+# Células piramidais (classe 0): spike mais largo e taxa menor
+larg_pir = np.clip(rng.normal(0.80, 0.12, n_por_classe), 0.35, 1.20)
+taxa_pir = np.clip(rng.normal(15.0, 6.0, n_por_classe), 1.0, 45.0)
+
+# Interneurônios fast-spiking (classe 1): spike estreito e taxa alta
+larg_fs = np.clip(rng.normal(0.32, 0.07, n_por_classe), 0.15, 0.65)
+taxa_fs = np.clip(rng.normal(55.0, 15.0, n_por_classe), 15.0, 120.0)
+
+X = np.column_stack([
+    np.concatenate([larg_pir, larg_fs]),
+    np.concatenate([taxa_pir, taxa_fs]),
+])
+y = np.array([0] * n_por_classe + [1] * n_por_classe)
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.3, stratify=y, random_state=0
+)
+
+arvore = DecisionTreeClassifier(max_depth=2, random_state=0)
+arvore.fit(X_treino, y_treino)
+
+print(export_text(arvore, feature_names=["largura_ms", "taxa_hz"]))
+# |--- largura_ms <= 0.49
+# |   |--- taxa_hz <= 20.43
+# |   |   |--- class: 0
+# |   |--- taxa_hz >  20.43
+# |   |   |--- class: 1
+# |--- largura_ms >  0.49
+# |   |--- taxa_hz <= 38.12
+# |   |   |--- class: 0
+# |   |--- taxa_hz >  38.12
+# |   |   |--- class: 1
+print(f"Acurácia de treino: {arvore.score(X_treino, y_treino):.3f}")
+# Acurácia de treino: 0.986
+print(f"Acurácia de teste : {arvore.score(X_teste, y_teste):.3f}")
+# Acurácia de teste : 0.967
+      </code>
+
+      <remark id="rem:8-8-armadilha-arvore">
+        <title>Armadilha comum</title>
+        Dois erros frequentes com árvores únicas: (1) <strong>extrapolar árvores de regressão</strong> fora do domínio de treino — como cada folha devolve uma constante $\bar{y}_{R_m}$, a previsão estaciona num platô para entradas além do menor ou maior $x_j$ observado; e (2) <strong>confundir cortes ortogonais com fronteiras inclinadas</strong> — se a fronteira real entre duas classes for uma diagonal (como $x_1 + x_2 = 1$), uma árvore precisa de uma "escada" de muitos retângulos para aproximá-la.
+      </remark>
+
+      <exercise id="exr:8-8-1-1">
+        <title>Básico — Previsão a partir de regras de uma árvore</title>
+        Uma árvore de regressão ajustada para prever a taxa de disparo ($\text{Hz}$) a partir da corrente injetada $x_1$ ($\text{nA}$) e da temperatura $x_2$ ($^\circ\text{C}$) gerou três folhas: $R_1 = \{x_1 \le 0{,}4\}$ com $\bar{y}_{R_1} = 8\text{ Hz}$; $R_2 = \{x_1 &gt; 0{,}4 \text{ e } x_2 \le 36\}$ com $\bar{y}_{R_2} = 24\text{ Hz}$; e $R_3 = \{x_1 &gt; 0{,}4 \text{ e } x_2 &gt; 36\}$ com $\bar{y}_{R_3} = 40\text{ Hz}$. Preveja a resposta para $(0{,}3;\; 37)$ e $(0{,}6;\; 37)$, e explique o que acontece se testarmos $(5{,}0;\; 37)$.
+        <hint><title>Ver dica</title>Siga as desigualdades da raiz às folhas; lembre que cada folha devolve um valor constante.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para $(0{,}3;\; 37)$, temos $x_1 = 0{,}3 \le 0{,}4$, caindo em $R_1$, cuja previsão é $8\text{ Hz}$. Para $(0{,}6;\; 37)$, temos $x_1 &gt; 0{,}4$ e $x_2 = 37 &gt; 36$, caindo em $R_3$, com previsão $40\text{ Hz}$. Para $(5{,}0;\; 37)$, embora a corrente seja muito maior, o ponto cai na mesma folha ilimitada $R_3$ e recebe $40\text{ Hz}$: árvores de regressão não extrapolam tendências lineares além da folha extrema.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-8-1-2">
+        <title>Intermediário — Escolhendo entre duas variáveis à mão</title>
+        Considere $n = 4$ amostras com preditores $(x_1, x_2)$ e resposta contínua $y$:
+        $$A:(1, 10) \mapsto 4, \qquad B:(2, 30) \mapsto 6, \qquad C:(5, 20) \mapsto 14, \qquad D:(6, 40) \mapsto 16.$$
+        Calcule a $\mathrm{RSS}$ de todos os cortes candidatos em $x_1$ e em $x_2$ e encontre a primeira divisão da árvore de regressão.
+        <hint><title>Ver dica</title>Ordene os pontos primeiro por $x_1$ (cortes em $1{,}5$; $3{,}5$; $5{,}5$) e depois por $x_2$ (cortes em $15$; $25$; $35$).</hint>
+        <solution collapsible="true" collapsed="true">
+          Em $x_1$ (ordem $A, B, C, D$, respostas $4, 6, 14, 16$):
+          <list marker="dash">
+            <item>$x_1 \le 1{,}5$: $\{4\}$ ($\mathrm{RSS}_1 = 0$) vs. $\{6, 14, 16\}$ ($\bar{y}_2 = 12$, $\mathrm{RSS}_2 = (-6)^2 + 2^2 + 4^2 = 56$) $\implies \mathrm{RSS} = 56$.</item>
+            <item>$x_1 \le 3{,}5$: $\{4, 6\}$ ($\bar{y}_1 = 5$, $\mathrm{RSS}_1 = 2$) vs. $\{14, 16\}$ ($\bar{y}_2 = 15$, $\mathrm{RSS}_2 = 2$) $\implies \mathrm{RSS} = 4$.</item>
+            <item>$x_1 \le 5{,}5$: $\{4, 6, 14\}$ ($\bar{y}_1 = 8$, $\mathrm{RSS}_1 = 16 + 4 + 36 = 56$) vs. $\{16\}$ ($0$) $\implies \mathrm{RSS} = 56$.</item>
+          </list>
+          Em $x_2$ (ordem $A, C, B, D$, respostas $4, 14, 6, 16$):
+          <list marker="dash">
+            <item>$x_2 \le 15$: $\{4\}$ ($0$) vs. $\{14, 6, 16\}$ ($\bar{y}_2 = 12$, $\mathrm{RSS}_2 = 4 + 36 + 16 = 56$) $\implies \mathrm{RSS} = 56$.</item>
+            <item>$x_2 \le 25$: $\{4, 14\}$ ($\bar{y}_1 = 9$, $\mathrm{RSS}_1 = 50$) vs. $\{6, 16\}$ ($\bar{y}_2 = 11$, $\mathrm{RSS}_2 = 50$) $\implies \mathrm{RSS} = 100$.</item>
+            <item>$x_2 \le 35$: $\{4, 14, 6\}$ ($\bar{y}_1 = 8$, $\mathrm{RSS}_1 = 16 + 36 + 4 = 56$) vs. $\{16\}$ ($0$) $\implies \mathrm{RSS} = 56$.</item>
+          </list>
+          O melhor corte é $x_1 \le 3{,}5$ ($\mathrm{RSS} = 4$).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-8-1-3">
+        <title>Avançado — Invariância à escala em dados eletrofisiológicos</title>
+        Um colega multiplicou a coluna <c>largura_ms</c> do <ref to="cod:8-8-arvore-neuronios"/> por $1\,000$ (convertendo-a para microssegundos, $\mu\text{s}$) e aplicou <c>StandardScaler</c> antes de treinar uma <c>DecisionTreeClassifier(max_depth=2, random_state=0)</c>. Mostre algebricamente por que a acurácia de teste da árvore permanece idêntica à do modelo nos dados brutos, ao contrário de um KNN ou regressão logística.
+        <hint><title>Ver dica</title>Escreva uma transformação afim positiva $x'_j = a\,x_j + b$ ($a &gt; 0$) e verifique o que acontece com a ordem dos valores e com a condição $x'_j \le a\,s + b$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Uma padronização ou mudança de unidade aplica a cada coluna uma transformação estritamente crescente $x'_j = a x_j + b$ com $a &gt; 0$ (no caso do <c>StandardScaler</c>, $a = 1/\hat{\sigma}_j &gt; 0$ e $b = -\hat{\mu}_j/\hat{\sigma}_j$). Como $a &gt; 0$, vale a equivalência exata $x_j \le s \iff a x_j + b \le a s + b$. Portanto, toda partição candidata dos dados ordenados nos dois lados do corte permanece idêntica: a árvore apenas reescala os limiares para $s' = as + b$ sem alterar quais amostras vão para a esquerda ou para a direita, nem as previsões nas folhas. Já o KNN (Tema 8.3) e a regressão regularizada (Tema 8.6) dependem de distâncias euclidianas ou normas $\|\boldsymbol{\beta}\|_2$, que mudam com a escala das colunas.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-8-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Critérios de impureza: Gini e entropia</title>
+      <intro>
+        Na classificação, não faz sentido minimizar a soma dos quadrados dos resíduos sobre rótulos categóricos; precisamos medir o quão misturadas ou "impuras" estão as classes dentro de cada nó.
+      </intro>
+
+      Suponha que um nó da árvore contenha $10$ janelas de EEG, sendo $6$ com atividade epileptiforme e $4$ sem crise. Se pudéssemos separá-las perfeitamente em um nó só com crises e outro só com janelas normais, teríamos dois nós totalmente <strong>puros</strong>. Para que o algoritmo guloso avalie todos os cortes candidatos automaticamente, precisamos de uma função numérica que valha zero quando o nó é puro e atinja o máximo quando todas as classes estão empatadas.
+
+      <definition id="def:8-8-impureza">
+        <title>Erro de classificação, índice de Gini e entropia</title>
+        Considere um nó $m$ (região $R_m$) com $N_m$ amostras pertencentes a $K$ classes $\{1, \dots, K\}$, onde $\hat{p}_{mk} = \frac{1}{N_m}\sum_{i \in R_m} \mathbb{I}(y_i = k)$ é a proporção empírica da classe $k$ no nó. Definimos três medidas de impureza:
+        <list marker="number">
+          <item><strong>Erro de classificação:</strong> $E_m = 1 - \max_k \hat{p}_{mk}$.</item>
+          <item><strong>Índice de Gini:</strong>
+            <equation id="eq:8-8-gini-entropia">
+              G_m = \sum_{k=1}^K \hat{p}_{mk}(1 - \hat{p}_{mk}) = 1 - \sum_{k=1}^K \hat{p}_{mk}^2, \qquad D_m = -\sum_{k=1}^K \hat{p}_{mk}\log_2 \hat{p}_{mk},
+            </equation>
+            onde $D_m$ é a <strong>entropia</strong> de Shannon (medida em <em>bits</em>, com logaritmo na base $2$ e a convenção $0\log_2 0 = 0$; no <c>scikit-learn</c>, corresponde a <c>criterion="entropy"</c>).
+          </item>
+        </list>
+        Para $K = 2$ classes ($\hat{p} = \hat{p}_{m1}$ e $1 - \hat{p} = \hat{p}_{m0}$), todas se anulam em $\hat{p} \in \{0, 1\}$ e atingem o máximo na mistura igualitária $\hat{p} = 0{,}5$: $G_{\max} = 0{,}5$, $D_{\max} = 1\text{ bit}$ e $E_{\max} = 0{,}5$.
+        <intuition>
+          O índice de Gini $G_m = 2\hat{p}(1-\hat{p})$ (para $K=2$) mede a probabilidade de errarmos o rótulo se atribuirmos aleatoriamente a classe sorteada segundo as proporções do próprio nó. A entropia $D_m$ mede o grau médio de surpresa (incerteza) daquela mistura em bits.
+        </intuition>
+      </definition>
+
+      Quando uma divisão candidata $(j, s)$ reparte o nó pai $m$ (com $N_m$ amostras) em filho esquerdo $L$ ($N_L$ amostras) e filho direito $R$ ($N_R$ amostras, $N_L + N_R = N_m$), calculamos a <strong>impureza ponderada</strong> e o <strong>ganho de informação</strong> (ou redução de impureza):
+      <equation id="eq:8-8-ganho">
+        I_{\text{div}} = \frac{N_L}{N_m} I(L) + \frac{N_R}{N_m} I(R), \qquad \Delta I = I(m) - I_{\text{div}},
+      </equation>
+      em que $I$ pode ser $G$ ou $D$. Escolhemos a divisão que maximiza $\Delta I$ (equivalente a minimizar $I_{\text{div}}$).
+
+      <proposition id="prop:8-8-sensibilidade">
+        <title>Por que Gini e entropia vencem o erro de classificação para crescer árvores</title>
+        Em $K = 2$ classes, as funções $G(p) = 2p(1 - p)$ e $D(p) = -p\log_2 p - (1 - p)\log_2(1 - p)$ são <strong>estritamente côncavas</strong> em $p \in [0, 1]$, ao passo que o erro de classificação $E(p) = \min(p, 1 - p)$ é linear por partes. Por isso, sempre que um corte produz filhos com proporções distintas ($\hat{p}_L \ne \hat{p}_R$), Gini e entropia garantem $\Delta G &gt; 0$ e $\Delta D &gt; 0$, enquanto o erro de classificação pode estagnar em $\Delta E = 0$.
+      </proposition>
+      <proof of="prop:8-8-sensibilidade" collapsible="true" collapsed="true">
+        Escrevendo $\hat{p}_m = \frac{N_L}{N_m}\hat{p}_L + \frac{N_R}{N_m}\hat{p}_R$, a desigualdade de Jensen para funções estritamente côncavas implica $I\!\left(\frac{N_L}{N_m}\hat{p}_L + \frac{N_R}{N_m}\hat{p}_R\right) &gt; \frac{N_L}{N_m}I(\hat{p}_L) + \frac{N_R}{N_m}I(\hat{p}_R)$ sempre que $\hat{p}_L \ne \hat{p}_R$ e $N_L, N_R &gt; 0$, logo $\Delta I &gt; 0$. Já em $E(p) = \min(p, 1-p)$, se ambos os filhos caírem do mesmo lado de $0{,}5$ (por exemplo, $\hat{p}_L = 1{,}0$ e $\hat{p}_R = 0{,}5$, ou ambos $\ge 0{,}5$), $E(p)$ é linear naquele trecho e a média ponderada iguala $E(\hat{p}_m)$, gerando $\Delta E = 0$.
+      </proof>
+
+      <example id="exm:8-8-gini-entropia">
+        <title>Comparando duas divisões com Gini e entropia à mão</title>
+        Um nó $m$ reúne $N_m = 10$ registros de EEG: $6$ com fuso do sono ($y = 1$) e $4$ sem fuso ($y = 0$). Queremos escolher entre duas divisões candidatas:
+        <list marker="dash">
+          <item><strong>Divisão A:</strong> filho esquerdo $L_A$ ($N_L = 4$) com $(4 \text{ de } 1,\; 0 \text{ de } 0)$ e filho direito $R_A$ ($N_R = 6$) com $(2 \text{ de } 1,\; 4 \text{ de } 0)$;</item>
+          <item><strong>Divisão B:</strong> filho esquerdo $L_B$ ($N_L = 5$) com $(4 \text{ de } 1,\; 1 \text{ de } 0)$ e filho direito $R_B$ ($N_R = 5$) com $(2 \text{ de } 1,\; 3 \text{ de } 0)$.</item>
+        </list>
+        Use $\log_2(0{,}6) \approx -0{,}737$, $\log_2(0{,}4) \approx -1{,}322$, $\log_2(1/3) \approx -1{,}585$, $\log_2(2/3) \approx -0{,}585$, $\log_2(0{,}8) \approx -0{,}322$ e $\log_2(0{,}2) \approx -2{,}322$. Calcule $G$ e $D$ antes e depois e escolha a melhor divisão.
+
+        <strong>Solução.</strong> No nó pai $m$ ($\hat{p}_1 = 0{,}6$, $\hat{p}_0 = 0{,}4$):
+        $$G(m) = 1 - (0{,}6^2 + 0{,}4^2) = 1 - (0{,}36 + 0{,}16) = 0{,}480,$$
+        $$D(m) = -\bigl(0{,}6\log_2 0{,}6 + 0{,}4\log_2 0{,}4\bigr) \approx 0{,}6(0{,}737) + 0{,}4(1{,}322) = 0{,}442 + 0{,}529 = 0{,}971\text{ bits}.$$
+        Avaliamos agora cada divisão pela <ref to="eq:8-8-ganho"/>:
+        <list marker="number">
+          <item><strong>Divisão A:</strong> $L_A$ é puro ($G(L_A) = 0$, $D(L_A) = 0$). Em $R_A$ ($\hat{p}_1 = 1/3$, $\hat{p}_0 = 2/3$):
+            $$G(R_A) = 1 - \left[\left(\frac{1}{3}\right)^2 + \left(\frac{2}{3}\right)^2\right] = 1 - \frac{5}{9} = \frac{4}{9} \approx 0{,}444,$$
+            $$D(R_A) \approx \frac{1}{3}(1{,}585) + \frac{2}{3}(0{,}585) = 0{,}528 + 0{,}390 = 0{,}918\text{ bits}.$$
+            Impurezas ponderadas e ganhos:
+            $$G_{\text{div}, A} = \frac{4}{10}(0) + \frac{6}{10}\left(\frac{4}{9}\right) = \frac{4}{15} \approx 0{,}267 \implies \Delta G_A = 0{,}480 - 0{,}267 = 0{,}213,$$
+            $$D_{\text{div}, A} = \frac{4}{10}(0) + \frac{6}{10}(0{,}918) \approx 0{,}551\text{ bits} \implies \Delta D_A = 0{,}971 - 0{,}551 = 0{,}420\text{ bits}.$$
+          </item>
+          <item><strong>Divisão B:</strong> em $L_B$ ($\hat{p}_1 = 0{,}8$, $\hat{p}_0 = 0{,}2$), $G(L_B) = 1 - (0{,}64 + 0{,}04) = 0{,}320$ e $D(L_B) \approx 0{,}8(0{,}322) + 0{,}2(2{,}322) = 0{,}258 + 0{,}464 = 0{,}722\text{ bits}$. Em $R_B$ ($\hat{p}_1 = 0{,}4$, $\hat{p}_0 = 0{,}6$), as proporções repetem o pai: $G(R_B) = 0{,}480$ e $D(R_B) \approx 0{,}971\text{ bits}$. Logo:
+            $$G_{\text{div}, B} = \frac{5}{10}(0{,}320) + \frac{5}{10}(0{,}480) = 0{,}400 \implies \Delta G_B = 0{,}480 - 0{,}400 = 0{,}080,$$
+            $$D_{\text{div}, B} = \frac{5}{10}(0{,}722) + \frac{5}{10}(0{,}971) \approx 0{,}846\text{ bits} \implies \Delta D_B = 0{,}971 - 0{,}846 = 0{,}125\text{ bits}.$$
+          </item>
+        </list>
+        Tanto pelo critério de Gini ($\Delta G_A = 0{,}213 &gt; 0{,}080$) quanto pela entropia ($\Delta D_A = 0{,}420 &gt; 0{,}125\text{ bits}$), escolhemos a <strong>Divisão A</strong>.
+      </example>
+
+      <example id="exm:8-8-erro-cego">
+        <title>Quando o erro de classificação fica cego a um nó puro</title>
+        Suponha um nó com $10$ amostras ($7$ da classe $1$ e $3$ da classe $0$, logo $E(m) = 1 - 0{,}7 = 0{,}300$ e $G(m) = 1 - (0{,}49 + 0{,}09) = 0{,}420$). Compare o erro de classificação e o índice de Gini na divisão $L = (4,\; 0)$ e $R = (3,\; 3)$.
+
+        <strong>Solução.</strong> Em $L$, a maioria é $1$ com $0$ erros ($E(L) = 0$, $G(L) = 0$); em $R$, há empate $3$ a $3$ ($E(R) = 0{,}500$, $G(R) = 0{,}500$). Calculando as médias ponderadas:
+        $$E_{\text{div}} = \frac{4}{10}(0) + \frac{6}{10}(0{,}500) = 0{,}300 \implies \Delta E = 0{,}300 - 0{,}300 = 0,$$
+        $$G_{\text{div}} = \frac{4}{10}(0) + \frac{6}{10}(0{,}500) = 0{,}300 \implies \Delta G = 0{,}420 - 0{,}300 = 0{,}120 &gt; 0.$$
+        O erro de classificação não vê ganho algum ($\Delta E = 0$), mesmo tendo isolado uma folha $100\%$ pura com $4$ amostras — passo essencial para que o ramo direito $R$ seja resolvido no nível seguinte. O índice de Gini recompensa esse progresso ($\Delta G = 0{,}120$).
+      </example>
+
+      Na prática, Gini e entropia costumam produzir árvores quase idênticas (o Gini é ligeiramente mais rápido por não calcular logaritmos). Conferimos isso abaixo no conjunto multiclasse <c>load_wine</c> ($K = 3$).
+
+      <code lang="python" id="cod:8-8-gini-entropia">
+from sklearn.datasets import load_wine
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+
+dados = load_wine()
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    dados.data, dados.target, test_size=0.3, stratify=dados.target, random_state=0
+)
+
+arv_gini = DecisionTreeClassifier(criterion="gini", max_depth=3, random_state=0).fit(
+    X_treino, y_treino
+)
+arv_ent = DecisionTreeClassifier(criterion="entropy", max_depth=3, random_state=0).fit(
+    X_treino, y_treino
+)
+
+print(f"Impureza na raiz (Gini)    : {arv_gini.tree_.impurity[0]:.3f}")
+# Impureza na raiz (Gini)    : 0.657
+print(f"Impureza na raiz (Entropia): {arv_ent.tree_.impurity[0]:.3f} bits")
+# Impureza na raiz (Entropia): 1.564 bits
+print(f"Acurácia teste (Gini)      : {arv_gini.score(X_teste, y_teste):.3f}")
+# Acurácia teste (Gini)      : 0.944
+print(f"Acurácia teste (Entropia)  : {arv_ent.score(X_teste, y_teste):.3f}")
+# Acurácia teste (Entropia)  : 0.926
+      </code>
+
+      <remark id="rem:8-8-armadilha-impureza">
+        <title>Armadilha comum</title>
+        Não confunda a base do logaritmo: <c>DecisionTreeClassifier(criterion="entropy")</c> usa $\log_2$ (entropia máxima de $1{,}0\text{ bit}$ em duas classes), enquanto a perda logística do Tema 8.3 usa logaritmo natural $\ln$ (valor máximo $\ln 2 \approx 0{,}693$ em duas classes). E lembre: embora o erro de classificação meça bem o desempenho final no teste, nunca o use como critério interno para crescer nós.
+      </remark>
+
+      <exercise id="exr:8-8-2-1">
+        <title>Básico — Impurezas de um nó desequilibrado</title>
+        Calcule o índice de Gini $G$, a entropia $D$ (em bits) e o erro de classificação $E$ para um nó com $N = 10$ amostras ($8$ da classe $1$ e $2$ da classe $0$), usando $\log_2(0{,}8) \approx -0{,}322$ e $\log_2(0{,}2) \approx -2{,}322$. Compare os valores com os máximos do caso equilibrado $(5,\; 5)$.
+        <hint><title>Ver dica</title>As proporções são $\hat{p}_1 = 0{,}8$ e $\hat{p}_0 = 0{,}2$; substitua diretamente nas fórmulas da <ref to="def:8-8-impureza"/>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Temos $\hat{p}_1 = 0{,}8$ e $\hat{p}_0 = 0{,}2$:
+          <list marker="dash">
+            <item>Gini: $G = 1 - (0{,}8^2 + 0{,}2^2) = 1 - (0{,}64 + 0{,}04) = 0{,}320$ (contra $G_{\max} = 0{,}500$).</item>
+            <item>Entropia: $D \approx -(0{,}8(-0{,}322) + 0{,}2(-2{,}322)) = 0{,}258 + 0{,}464 = 0{,}722\text{ bits}$ (contra $D_{\max} = 1{,}000\text{ bit}$).</item>
+            <item>Erro de classificação: $E = 1 - \max(0{,}8;\; 0{,}2) = 0{,}200$ (contra $E_{\max} = 0{,}500$).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-8-2-2">
+        <title>Intermediário — Decodificação motora em ensaios de EEG</title>
+        Em um nó com $N = 12$ ensaios ($9$ acertos motores e $3$ erros, $\hat{p}_1 = 0{,}75$, $\hat{p}_0 = 0{,}25$), considere duas divisões candidatas:
+        <list marker="dash">
+          <item><strong>Divisão 1:</strong> $L_1 = (6,\; 0)$ ($N_L = 6$) e $R_1 = (3,\; 3)$ ($N_R = 6$);</item>
+          <item><strong>Divisão 2:</strong> $L_2 = (7,\; 1)$ ($N_L = 8$) e $R_2 = (2,\; 2)$ ($N_R = 4$).</item>
+        </list>
+        Dados $\log_2(0{,}75) \approx -0{,}415$ e $\log_2(7/8) \approx -0{,}193$: (a) qual divisão vence por Gini e por entropia? (b) o que aconteceria se usássemos o erro de classificação?
+        <hint><title>Ver dica</title>Lembre que $\log_2(0{,}25) = -2$, $\log_2(1/8) = -3$ e, para nós $(3,3)$ e $(2,2)$, $\hat{p}_1 = 0{,}5$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>No pai: $G(m) = 1 - (0{,}75^2 + 0{,}25^2) = 0{,}375$; $D(m) \approx 0{,}75(0{,}415) + 0{,}25(2) = 0{,}311 + 0{,}500 = 0{,}811\text{ bits}$.
+              <list marker="dash">
+                <item><strong>Divisão 1:</strong> $G(L_1) = 0$, $G(R_1) = 0{,}500 \implies G_{\text{div},1} = \frac{6}{12}(0) + \frac{6}{12}(0{,}5) = 0{,}250$ ($\Delta G_1 = 0{,}125$). Na entropia, $D_{\text{div},1} = 0{,}5(0) + 0{,}5(1{,}000) = 0{,}500\text{ bit}$ ($\Delta D_1 = 0{,}311\text{ bits}$).</item>
+                <item><strong>Divisão 2:</strong> $G(L_2) = 1 - \left(\frac{49}{64} + \frac{1}{64}\right) = \frac{14}{64} \approx 0{,}219$ e $G(R_2) = 0{,}500 \implies G_{\text{div},2} = \frac{8}{12}\cdot\frac{14}{64} + \frac{4}{12}\cdot\frac{1}{2} = \frac{7}{48} + \frac{8}{48} = \frac{15}{48} = 0{,}3125 \approx 0{,}313$ ($\Delta G_2 = 0{,}0625$). Na entropia, $D(L_2) \approx \frac{7}{8}(0{,}193) + \frac{1}{8}(3) = 0{,}169 + 0{,}375 = 0{,}544\text{ bits}$, logo $D_{\text{div},2} \approx \frac{2}{3}(0{,}544) + \frac{1}{3}(1{,}000) \approx 0{,}696\text{ bits}$ ($\Delta D_2 \approx 0{,}115\text{ bits}$).</item>
+              </list>
+              Ambas as métricas escolhem a <strong>Divisão 1</strong>.
+            </item>
+            <item>Pelo erro de classificação, $E(m) = 0{,}250$, $E_{\text{div},1} = \frac{6}{12}(0) + \frac{6}{12}(0{,}5) = 0{,}250$ e $E_{\text{div},2} = \frac{8}{12}\left(\frac{1}{8}\right) + \frac{4}{12}\left(\frac{2}{4}\right) = \frac{3}{12} = 0{,}250$: empate triplo com $\Delta E = 0$, incapaz de reconhecer que a Divisão 1 gerou uma folha pura.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-8-2-3">
+        <title>Avançado — Máximos de Gini e da entropia binária</title>
+        Para $K = 2$ classes, prove usando derivadas que $G(p) = 2p(1 - p)$ e $D(p) = -p\log_2 p - (1 - p)\log_2(1 - p)$ atingem seus máximos em $p = 0{,}5$, valendo $G(0{,}5) = 0{,}5$ e $D(0{,}5) = 1\text{ bit}$.
+        <hint><title>Ver dica</title>Para derivar $\log_2 p = \frac{\ln p}{\ln 2}$, use $(\log_2 p)' = \frac{1}{p \ln 2}$ e verifique o sinal da derivada segunda.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para o índice de Gini, $G(p) = 2p - 2p^2$. Derivando: $G'(p) = 2 - 4p = 0 \implies p = 0{,}5$. Como $G''(p) = -4 &lt; 0$ em todo ponto, $G$ é estritamente côncava e $p = 0{,}5$ é o máximo global, com $G(0{,}5) = 2(0{,}5)(0{,}5) = 0{,}5$.
+
+          Para a entropia, escrevemos $D(p) = -\frac{1}{\ln 2}\bigl[p\ln p + (1 - p)\ln(1 - p)\bigr]$ para $p \in (0, 1)$. Derivando pela regra do produto:
+          $$D'(p) = -\frac{1}{\ln 2}\bigl[\ln p + 1 - \ln(1 - p) - 1\bigr] = \frac{1}{\ln 2}\ln\!\left(\frac{1 - p}{p}\right) = \log_2\!\left(\frac{1 - p}{p}\right).$$
+          Igualando $D'(p) = 0$, obtemos $\frac{1 - p}{p} = 1 \implies p = 0{,}5$. A derivada segunda é $D''(p) = -\frac{1}{\ln 2}\left(\frac{1}{p} + \frac{1}{1 - p}\right) &lt; 0$ em $(0, 1)$, garantindo concavidade estrita e máximo único em $p = 0{,}5$, com $D(0{,}5) = -0{,}5(-1) - 0{,}5(-1) = 1\text{ bit}$.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-8-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Profundidade, poda e sobreajuste</title>
+      <intro>
+        Se deixarmos uma árvore dividir os dados até esgotar toda impureza, ela decora cada amostra e cada oscilação de ruído do treino — e desaba quando vê novos pacientes ou ensaios.
+      </intro>
+
+      Uma árvore sem restrições continua dividindo até que todas as folhas sejam puras (ou tenham apenas uma amostra), zerando o erro de treino. O custo é o <strong>sobreajuste</strong> (Tema 8.1): folhas minúsculas moldam-se ao ruído $\varepsilon$ específico da amostra, gerando variância altíssima. Além disso, como o processo é hierárquico e guloso, pequenas perturbações nos dados de treino perto da raiz podem alterar o primeiro corte e reescrever toda a árvore abaixo dele — um problema sério de <strong>instabilidade</strong>.
+
+      Há duas maneiras de controlar o tamanho da árvore:
+      <list marker="number">
+        <item><strong>Pré-poda (critérios de parada):</strong> limitar a profundidade máxima (<c>max_depth</c>), exigir um mínimo de amostras para dividir um nó (<c>min_samples_split</c>) ou impor um mínimo de amostras em cada folha (<c>min_samples_leaf</c>). A pré-poda é rápida, mas pode parar cedo demais diante de um "efeito horizonte" (um corte fraco na raiz que abriria ótimos cortes no nível seguinte).</item>
+        <item><strong>Poda por custo–complexidade (<em>cost-complexity pruning</em>):</strong> cresce-se primeiro uma árvore grande $T_0$ e depois podam-se os ramos que menos ajudam, usando uma penalidade análoga à regularização do Tema 8.6.</item>
+      </list>
+
+      <definition id="def:8-8-poda">
+        <title>Poda por custo–complexidade</title>
+        Dada uma árvore completa $T_0$ ajustada aos dados de treino e uma subárvore podada $T \subseteq T_0$ com $|T|$ folhas, definimos o objetivo penalizado:
+        <equation id="eq:8-8-custo-complexidade">
+          R_\alpha(T) = R(T) + \alpha |T|,
+        </equation>
+        onde $R(T)$ é a soma das impurezas ponderadas (ou do erro/$\mathrm{RSS}$) sobre as folhas de $T$, $|T|$ é o número de folhas e $\alpha \ge 0$ (<c>ccp_alpha</c> no <c>scikit-learn</c>) é o hiperparâmetro de complexidade.
+        <intuition>
+          Quando $\alpha = 0$, não há multa por ter muitas folhas e vence a árvore gigante $T_0$. À medida que $\alpha$ aumenta, cada folha extra custa $\alpha$: subárvores cujos cortes reduzem $R(T)$ menos do que a multa $\alpha$ por folha adicional são podadas de baixo para cima ("poda do elo mais fraco").
+        </intuition>
+      </definition>
+
+      Como ocorre com $\lambda$ na regressão <em>ridge</em> e <em>lasso</em> (Tema 8.6), cada valor crescente de $\alpha$ gera uma sequência finita de subárvores encaixadas, acessada no <c>scikit-learn</c> por <c>cost_complexity_pruning_path</c>. Escolhemos o $\alpha$ que maximiza o desempenho na <strong>validação cruzada</strong> (Tema 8.5 — Reamostragem) dentro do conjunto de treino, preservando o teste intocado, como mostra a <ref to="fig:8-8-poda"/>.
+
+      <figure src="fig/t08-poda.svg" alt="Dois gráficos lado a lado em função de ccp_alpha no conjunto de câncer de mama: à esquerda, acurácia de treino caindo suavemente e acurácia de validação cruzada 5-fold atingindo um pico antes de cair; à direita, número de folhas decrescendo em degraus" id="fig:8-8-poda">
+        <caption>Caminho de poda por custo–complexidade em <c>load_breast_cancer</c>. Valores intermediários de <c>ccp_alpha</c> eliminam folhas redundantes e elevam a acurácia de validação cruzada em relação à árvore sem poda ($\alpha = 0$).</caption>
+      </figure>
+
+      <example id="exm:8-8-poda-custo">
+        <title>Decidindo quando podar um ramo pelo critério $R_\alpha(T)$</title>
+        Uma árvore completa $T_0$ possui $|T_0| = 4$ folhas e impureza total ponderada $R(T_0) = 0{,}090$. Se podarmos um ramo interno de $3$ folhas colapsando-o em uma única folha, obtemos a subárvore $T_1$ com $|T_1| = 2$ folhas e $R(T_1) = 0{,}290$. A partir de qual valor de $\alpha$ vale a pena podar $T_0$ para $T_1$?
+
+        <strong>Solução.</strong> Pela <ref to="eq:8-8-custo-complexidade"/>, comparamos $R_\alpha(T_1)$ e $R_\alpha(T_0)$:
+        $$R_\alpha(T_1) \le R_\alpha(T_0) \iff 0{,}290 + 2\alpha \le 0{,}090 + 4\alpha.$$
+        Subtraindo $0{,}090$ e $2\alpha$ dos dois lados:
+        $$0{,}200 \le 2\alpha \implies \alpha \ge 0{,}100.$$
+        Para $\alpha &lt; 0{,}100$, a redução de impureza compensa as $2$ folhas extras e mantemos $T_0$; para $\alpha \ge 0{,}100$, o custo de complexidade supera o ganho e escolhemos a árvore mais simples $T_1$.
+      </example>
+
+      <example id="exm:8-8-eeg-sobreajuste">
+        <title>Sobreajuste e instabilidade em classificação de estágios do sono</title>
+        Em um estudo com $n = 120$ janelas de EEG descritas por $p = 25$ bandas espectrais, uma árvore sem limite atingiu acurácia de $1{,}000$ no treino e apenas $0{,}640$ na validação cruzada $5$-fold, com profundidade $10$ e várias folhas contendo $1$ ou $2$ janelas. Ao exigir <c>min_samples_leaf=8</c> (ou ajustar <c>ccp_alpha</c> via CV), a acurácia de treino caiu para $0{,}875$, mas a de validação subiu para $0{,}805$.
+
+        <strong>Solução.</strong> A árvore livre usou as $25$ bandas para isolar janelas individuais ruidosas (folhas de tamanho $1$ ou $2$), zerando o erro de treino às custas de altíssima variância fora da amostra. Além disso, trocar uma única dobra de validação alterava a variável escolhida já na raiz. Impor pelo menos $8$ amostras por folha ou podar por custo–complexidade impede divisões motivadas por ruído isolado e reduz a diferença entre treino e validação.
+      </example>
+
+      Abaixo, aplicamos <c>cost_complexity_pruning_path</c> em <c>load_breast_cancer</c>, selecionando <c>ccp_alpha</c> por validação cruzada $5$-fold apenas sobre o treino antes da avaliação final no teste.
+
+      <code lang="python" id="cod:8-8-poda">
+import numpy as np
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
+from sklearn.tree import DecisionTreeClassifier
+
+dados = load_breast_cancer()
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    dados.data, dados.target, test_size=0.3, stratify=dados.target, random_state=0
+)
+
+arv_cheia = DecisionTreeClassifier(random_state=0).fit(X_treino, y_treino)
+caminho = DecisionTreeClassifier(random_state=0).cost_complexity_pruning_path(
+    X_treino, y_treino
+)
+alphas = np.unique(np.maximum(caminho.ccp_alphas[:-1], 0.0))
+
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
+escores_cv = [
+    cross_val_score(
+        DecisionTreeClassifier(ccp_alpha=float(a), random_state=0),
+        X_treino,
+        y_treino,
+        cv=cv,
+    ).mean()
+    for a in alphas
+]
+
+alpha_otimo = float(alphas[int(np.argmax(escores_cv))])
+arv_podada = DecisionTreeClassifier(ccp_alpha=alpha_otimo, random_state=0).fit(
+    X_treino, y_treino
+)
+
+print(f"Árvore cheia  — folhas: {arv_cheia.get_n_leaves():2d} | treino: {arv_cheia.score(X_treino, y_treino):.3f} | teste: {arv_cheia.score(X_teste, y_teste):.3f}")
+# Árvore cheia  — folhas: 17 | treino: 1.000 | teste: 0.912
+print(f"Melhor ccp_alpha (CV) : {alpha_otimo:.4f}")
+# Melhor ccp_alpha (CV) : 0.0091
+print(f"Árvore podada — folhas: {arv_podada.get_n_leaves():2d} | treino: {arv_podada.score(X_treino, y_treino):.3f} | teste: {arv_podada.score(X_teste, y_teste):.3f}")
+# Árvore podada — folhas:  6 | treino: 0.970 | teste: 0.942
+      </code>
+
+      <remark id="rem:8-8-armadilha-poda">
+        <title>Armadilha comum</title>
+        Nunca confie em uma árvore profunda só porque ela zerou o erro de treino ou exibe regras "explicáveis": árvores grandes são instáveis e suas folhas finas traduzem ruído em regras falsas. Também nunca escolha <c>ccp_alpha</c> ou <c>max_depth</c> olhando a curva de acurácia diretamente no conjunto de teste — isso vaza informação do teste (Tema 8.5); escolha sempre por validação cruzada dentro do treino.
+      </remark>
+
+      <exercise id="exr:8-8-3-1">
+        <title>Básico — Escolhendo a subárvore ótima para dois valores de $\alpha$</title>
+        Um caminho de poda gerou três subárvores encaixadas: $T_0$ ($|T_0| = 6$, $R(T_0) = 0{,}06$), $T_1$ ($|T_1| = 3$, $R(T_1) = 0{,}15$) e $T_2$ ($|T_2| = 1$, $R(T_2) = 0{,}45$). Determine qual subárvore minimiza $R_\alpha(T) = R(T) + \alpha|T|$ para $\alpha = 0{,}02$ e para $\alpha = 0{,}08$, e encontre a faixa de $\alpha$ em que $T_1$ é ótima.
+        <hint><title>Ver dica</title>Substitua os números na <ref to="eq:8-8-custo-complexidade"/> e resolva as inequações $R_\alpha(T_1) \le R_\alpha(T_0)$ e $R_\alpha(T_1) \le R_\alpha(T_2)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para $\alpha = 0{,}02$:
+          $$R_{0{,}02}(T_0) = 0{,}06 + 0{,}02(6) = 0{,}18, \quad R_{0{,}02}(T_1) = 0{,}15 + 0{,}02(3) = 0{,}21, \quad R_{0{,}02}(T_2) = 0{,}45 + 0{,}02(1) = 0{,}47.$$
+          Vence $T_0$. Para $\alpha = 0{,}08$:
+          $$R_{0{,}08}(T_0) = 0{,}06 + 0{,}08(6) = 0{,}54, \quad R_{0{,}08}(T_1) = 0{,}15 + 0{,}08(3) = 0{,}39, \quad R_{0{,}08}(T_2) = 0{,}45 + 0{,}08(1) = 0{,}53.$$
+          Vence $T_1$. Para que $T_1$ seja ótima simultaneamente contra $T_0$ e $T_2$:
+          $$0{,}15 + 3\alpha \le 0{,}06 + 6\alpha \implies 3\alpha \ge 0{,}09 \implies \alpha \ge 0{,}03,$$
+          $$0{,}15 + 3\alpha \le 0{,}45 + \alpha \implies 2\alpha \le 0{,}30 \implies \alpha \le 0{,}15.$$
+          Portanto, $T_1$ vence no intervalo $0{,}03 \le \alpha \le 0{,}15$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-8-3-2">
+        <title>Intermediário — Diagnóstico de sobreajuste em registros neurais</title>
+        Ao classificar $n = 80$ ensaios de potencial de campo local com $p = 30$ variáveis espectrais, uma <c>DecisionTreeClassifier()</c> padrão obteve acurácia de treino $1{,}000$, profundidade $11$ e acurácia de teste $0{,}625$ (contra acaso $0{,}500$). Explique o fenômeno usando a decomposição viés–variância (Tema 8.1) e proponha dois ajustes distintos no modelo para melhorar a generalização.
+        <hint><title>Ver dica</title>Considere quantas amostras restam nas folhas de uma árvore com profundidade $11$ para $n = 80$ e como <c>min_samples_leaf</c> e <c>ccp_alpha</c> restringem a variância.</hint>
+        <solution collapsible="true" collapsed="true">
+          Sem restrições, a árvore cresceu até profundidade $11$ e isolou casos ruidosos em folhas minúsculas, zerando o viés aparente no treino ($1{,}000$), mas acumulando variância extrema no teste ($0{,}625$). Dois ajustes eficazes (escolhidos por validação cruzada dentro do treino) são: (1) aumentar <c>min_samples_leaf</c> (por exemplo, testar valores em $\{4, 6, 8, 12\}$) ou limitar <c>max_depth</c> (ex.: $2$ a $5$) para impedir folhas baseadas em $1$ ou $2$ ensaios; e (2) aplicar pós-poda com <c>cost_complexity_pruning_path</c> e selecionar <c>ccp_alpha</c> via <c>StratifiedKFold</c>.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-8-3-3">
+        <title>Avançado — Explorando <c>min_samples_leaf</c> em Python</title>
+        Adapte o <ref to="cod:8-8-poda"/> para testar <c>min_samples_leaf</c> na grade <c>[1, 3, 5, 10, 20]</c> com validação cruzada $5$-fold em <c>load_breast_cancer</c>, imprimindo a acurácia média de treino, a média de CV e a acurácia final de teste do vencedor.
+        <hint><title>Ver dica</title>Use <c>StratifiedKFold(n_splits=5, shuffle=True, random_state=0)</c> dentro de um laço sobre a lista de tamanhos mínimos de folha.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
+from sklearn.tree import DecisionTreeClassifier
+
+dados = load_breast_cancer()
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    dados.data, dados.target, test_size=0.3, stratify=dados.target, random_state=0
+)
+
+grade = [1, 3, 5, 10, 20]
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
+medias_cv = []
+
+for folha_min in grade:
+    arv = DecisionTreeClassifier(min_samples_leaf=folha_min, random_state=0)
+    arv.fit(X_treino, y_treino)
+    cv_med = cross_val_score(
+        DecisionTreeClassifier(min_samples_leaf=folha_min, random_state=0),
+        X_treino,
+        y_treino,
+        cv=cv,
+    ).mean()
+    medias_cv.append(cv_med)
+    print(f"min_samples_leaf={folha_min:2d} | treino={arv.score(X_treino, y_treino):.3f} | CV={cv_med:.3f}")
+# min_samples_leaf= 1 | treino=1.000 | CV=0.909
+# min_samples_leaf= 3 | treino=0.985 | CV=0.917
+# min_samples_leaf= 5 | treino=0.972 | CV=0.927
+# min_samples_leaf=10 | treino=0.955 | CV=0.922
+# min_samples_leaf=20 | treino=0.940 | CV=0.915
+
+melhor_folha = grade[int(np.argmax(medias_cv))]
+final = DecisionTreeClassifier(min_samples_leaf=melhor_folha, random_state=0).fit(
+    X_treino, y_treino
+)
+print(f"Melhor min_samples_leaf: {melhor_folha} | Teste: {final.score(X_teste, y_teste):.3f}")
+# Melhor min_samples_leaf: 5 | Teste: 0.930
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-8-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Bagging e random forest</title>
+      <intro>
+        Se uma árvore profunda tem viés baixo e variância alta, o remédio natural da estatística é promediar muitas árvores treinadas em versões perturbadas dos dados — e impedir que todas copiem a mesma primeira pergunta.
+      </intro>
+
+      Imagine pedir o diagnóstico de um registro neural a um único especialista brilhante, porém temperamental: dependendo do detalhe que chamar sua atenção primeiro, ele muda o laudo inteiro. Agora imagine consultar um comitê de $200$ especialistas independentes e tirar a média (em regressão) ou o voto majoritário (em classificação). Mesmo que cada membro erre por variações individuais, os erros aleatórios apontam em direções opostas e se cancelam no consenso.
+
+      <definition id="def:8-8-bagging-rf">
+        <title>Bagging, random forest e erro fora da bolsa (OOB)</title>
+        <list marker="number">
+          <item><strong>Bagging (<em>bootstrap aggregating</em>):</strong> sorteamos $B$ amostras <em>bootstrap</em> $\mathcal{D}^{*1}, \dots, \mathcal{D}^{*B}$ de tamanho $n$ com reposição a partir do treino (Tema 8.5), ajustamos uma árvore profunda $\hat{f}^{*b}$ em cada réplica e agregamos por média (regressão), $\hat{f}_{\text{bag}}(\mathbf{x}) = \frac{1}{B}\sum_{b=1}^B \hat{f}^{*b}(\mathbf{x})$, ou por voto majoritário / média de probabilidades (classificação).</item>
+          <item><strong>Random forest (Breiman, 2001):</strong> além do <em>bootstrap</em>, em <strong>cada divisão de cada árvore</strong> sorteia-se um subconjunto aleatório de apenas $m \le p$ variáveis candidatas (<c>max_features</c> no <c>scikit-learn</c>). O costume clássico para classificação é $m \approx \sqrt{p}$ (<c>max_features="sqrt"</c>, padrão de <c>RandomForestClassifier</c>); em regressão, Breiman sugeriu $m \approx p/3$, embora o padrão de <c>RandomForestRegressor</c> no <c>scikit-learn</c> seja <c>max_features=1.0</c> (equivalente ao <em>bagging</em>), valendo testar <c>"sqrt"</c> ou frações menores.</item>
+          <item><strong>Erro fora da bolsa (<em>out-of-bag</em>, OOB):</strong> como cada amostra <em>bootstrap</em> deixa fora cerca de $e^{-1} \approx 36{,}8\%$ das observações (Tema 8.5), prevemos cada observação $i$ usando apenas as árvores (cerca de $36{,}8\%$ de $B$) em cujo treino $i$ não entrou (<c>oob_score=True</c>), obtendo uma estimativa de validação quase gratuita.</item>
+        </list>
+        <intuition>
+          Se existir um neurônio ou voxel muito informativo, todas as árvores do <em>bagging</em> o colocam na raiz e ficam parecidas entre si. Ao sortear apenas $m$ variáveis por nó, a <em>random forest</em> força muitas árvores a explorar combinações alternativas de preditores, tornando os erros menos correlacionados.
+        </intuition>
+      </definition>
+
+      A matemática por trás desse ganho vem diretamente da variância de uma soma vista no Módulo 7 (Variável aleatória). Note que usamos aqui $\rho \in [0, 1]$ para a correlação entre árvores (não confundir com o peso <c>l1_ratio</c> do Tema 8.6).
+
+      <proposition id="prop:8-8-variancia-media">
+        <title>Variância da média de $B$ árvores correlacionadas</title>
+        Sejam $Z_1, \dots, Z_B$ variáveis aleatórias identicamente distribuídas (as previsões individuais das $B$ árvores em um ponto $\mathbf{x}$) com variância $\operatorname{Var}(Z_b) = \sigma^2$ e correlação positiva $\rho = \operatorname{Corr}(Z_b, Z_c)$ entre qualquer par $b \ne c$. Então, a variância da média $\bar{Z} = \frac{1}{B}\sum_{b=1}^B Z_b$ é:
+        <equation id="eq:8-8-variancia-media">
+          \operatorname{Var}(\bar{Z}) = \rho\sigma^2 + \frac{1 - \rho}{B}\sigma^2.
+        </equation>
+      </proposition>
+      <proof of="prop:8-8-variancia-media" collapsible="true" collapsed="true">
+        Pela bilinearidade da covariância (Módulo 7 — Variável aleatória), existem $B$ termos diagonais com $\operatorname{Var}(Z_b) = \sigma^2$ e $B(B - 1)$ pares ordenados $b \ne c$ com $\operatorname{Cov}(Z_b, Z_c) = \rho\sigma^2$:
+        $$\operatorname{Var}\!\left(\frac{1}{B}\sum_{b=1}^B Z_b\right) = \frac{1}{B^2}\left(\sum_{b=1}^B \operatorname{Var}(Z_b) + \sum_{b \ne c} \operatorname{Cov}(Z_b, Z_c)\right) = \frac{1}{B^2}\bigl[B\sigma^2 + B(B - 1)\rho\sigma^2\bigr].$$
+        Simplificando por $B$ e reagrupando os termos em $\rho\sigma^2$:
+        $$\operatorname{Var}(\bar{Z}) = \frac{\sigma^2}{B} + \left(1 - \frac{1}{B}\right)\rho\sigma^2 = \rho\sigma^2 + \frac{1 - \rho}{B}\sigma^2.$$
+      </proof>
+
+      A <ref to="eq:8-8-variancia-media"/> revela dois fatos decisivos. Primeiro, aumentar o número de árvores $B$ faz o segundo termo $\frac{1-\rho}{B}\sigma^2$ desaparecer, estabilizando o erro sem causar sobreajuste por excesso de árvores. Segundo, o termo $\rho\sigma^2$ <strong>não desaparece</strong> quando $B \to \infty$: é aí que a <em>random forest</em> supera o <em>bagging</em>, reduzindo $\rho$ ao restringir <c>max_features</c>.
+
+      Por fim, ao investigar quais neurônios ou variáveis sustentam uma floresta, cuidado com o atributo <c>feature_importances_</c>. Ele calcula a redução média ponderada de impureza (MDI, <em>mean decrease in impurity</em>) no treino, o que favorece artificialmente variáveis contínuas ou com muitos valores distintos (pois oferecem mais pontos de corte para ajustar ruído). Como vimos no Tema 8.7 (Estudo de variáveis), prefira a <strong>importância por permutação</strong> (<c>permutation_importance</c>) medida fora da amostra.
+
+      <example id="exm:8-8-variancia-media">
+        <title>Impacto de $\rho$ e $B$ na variância da média</title>
+        Suponha árvores individuais com variância $\sigma^2 = 1$ e comitê de $B = 100$ árvores. Calcule $\operatorname{Var}(\bar{Z})$ pela <ref to="eq:8-8-variancia-media"/> quando $\rho = 0{,}5$ e compare com $\rho = 0$ (árvores não correlacionadas) e com aumentar o comitê para $B = 1\,000$ mantendo $\rho = 0{,}5$.
+
+        <strong>Solução.</strong>
+        <list marker="dash">
+          <item>Para $\sigma^2 = 1$, $\rho = 0{,}5$ e $B = 100$:
+            $$\operatorname{Var}(\bar{Z}) = 0{,}5(1) + \frac{1 - 0{,}5}{100}(1) = 0{,}500 + 0{,}005 = 0{,}505.$$
+          </item>
+          <item>Subindo para $B = 1\,000$ com o mesmo $\rho = 0{,}5$:
+            $$\operatorname{Var}(\bar{Z}) = 0{,}5 + \frac{0{,}5}{1\,000} = 0{,}5005,$$
+            um ganho minúsculo, porque o piso $\rho\sigma^2 = 0{,}5$ domina.
+          </item>
+          <item>Se reduzirmos a correlação para $\rho = 0$ com $B = 100$:
+            $$\operatorname{Var}(\bar{Z}) = 0 + \frac{1}{100}(1) = 0{,}010,$$
+            uma queda de $50$ vezes em relação a $\rho = 0{,}5$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:8-8-rf-neural">
+        <title>Decodificando $3$ estímulos a partir de $40$ neurônios com ruído de Poisson</title>
+        Simulamos $n = 360$ ensaios divididos em $K = 3$ estímulos visuais e $p = 40$ neurônios corticais cujas contagens de disparo seguem distribuições de Poisson (<c>rng.poisson</c>). Apenas $12$ neurônios são sintonizados aos estímulos ($4$ por estímulo com taxa $22\text{ Hz}$ contra base de $14\text{ Hz}$); os outros $28$ disparam ruído puro a $14\text{ Hz}$. Comparamos uma árvore única, <c>BaggingClassifier</c> e <c>RandomForestClassifier</c> com $B = 200$ árvores.
+
+        <code lang="python" id="cod:8-8-rf-neural">
+import numpy as np
+from sklearn.ensemble import BaggingClassifier, RandomForestClassifier
+from sklearn.inspection import permutation_importance
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+
+rng = np.random.default_rng(0)
+n_ensaios, n_neuronios = 360, 40
+y = np.repeat([0, 1, 2], n_ensaios // 3)
+
+# 12 neurônios com preferência de estímulo e 28 neurônios ruidosos
+taxas = np.full((n_ensaios, n_neuronios), 14.0)
+taxas[y == 0, 0:4] = 22.0
+taxas[y == 1, 4:8] = 22.0
+taxas[y == 2, 8:12] = 22.0
+X = rng.poisson(taxas)
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.3, stratify=y, random_state=0
+)
+
+arvore = DecisionTreeClassifier(random_state=0).fit(X_treino, y_treino)
+bag = BaggingClassifier(n_estimators=200, oob_score=True, random_state=0).fit(
+    X_treino, y_treino
+)
+rf = RandomForestClassifier(n_estimators=200, oob_score=True, random_state=0).fit(
+    X_treino, y_treino
+)
+
+print(f"Árvore única — teste: {arvore.score(X_teste, y_teste):.3f}")
+# Árvore única — teste: 0.722
+print(f"Bagging      — OOB  : {bag.oob_score_:.3f} | teste: {bag.score(X_teste, y_teste):.3f}")
+# Bagging      — OOB  : 0.873 | teste: 0.880
+print(f"RandomForest — OOB  : {rf.oob_score_:.3f} | teste: {rf.score(X_teste, y_teste):.3f}")
+# RandomForest — OOB  : 0.909 | teste: 0.917
+
+perm = permutation_importance(rf, X_teste, y_teste, n_repeats=10, random_state=0)
+top3_perm = np.argsort(perm.importances_mean)[::-1][:3]
+print(f"Top 3 neurônios (permutação no teste): {top3_perm.tolist()}")
+# Top 3 neurônios (permutação no teste): [2, 9, 5]
+        </code>
+        A floresta aleatória eleva a acurácia de cerca de $0{,}722$ (árvore única) para cerca de $0{,}917$, com o escore OOB (cerca de $0{,}909$) acompanhando de perto o desempenho no teste e a importância por permutação recuperando os neurônios sintonizados dentre os índices de $0$ a $11$.
+      </example>
+
+      <remark id="rem:8-8-armadilha-rf">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Achar que a <em>random forest</em> nunca sobreajusta:</strong> adicionar mais árvores (<c>n_estimators</c>) não piora a variância, mas folhas minúsculas (<c>min_samples_leaf=1</c>) em dados muito ruidosos mantêm $\rho\sigma^2$ elevado; ajustar <c>min_samples_leaf</c>, <c>max_depth</c> ou <c>max_features</c> ainda reduz o erro.</item>
+          <item><strong>Ler <c>feature_importances_</c> como verdade biológica:</strong> a importância por impureza infla variáveis contínuas ou com muitos níveis únicos e reflete apenas o treino; valide com <c>permutation_importance</c> em dados fora da amostra (Tema 8.7).</item>
+          <item><strong>Esquecer <c>random_state</c>:</strong> sorteios <em>bootstrap</em>, seleção aleatória de <c>max_features</c> e desempates dependem do gerador aleatório; fixe sempre <c>random_state=0</c> para tornar o experimento reprodutível.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-8-4-1">
+        <title>Básico — Reduzir $\rho$ versus aumentar $B$</title>
+        Cada árvore de um conjunto tem variância $\sigma^2 = 16$ e o comitê usa $B = 50$ árvores. Calcule $\operatorname{Var}(\bar{Z})$ pela <ref to="eq:8-8-variancia-media"/> para $\rho = 0{,}4$ e para $\rho = 0{,}1$, comentando qual dos dois termos domina o resultado.
+        <hint><title>Ver dica</title>Separe a parcela $\rho\sigma^2$ (piso assintótico) da parcela $\frac{1-\rho}{B}\sigma^2$ (que cai com $B$).</hint>
+        <solution collapsible="true" collapsed="true">
+          Para $\rho = 0{,}4$:
+          $$\operatorname{Var}(\bar{Z}) = 0{,}4(16) + \frac{1 - 0{,}4}{50}(16) = 6{,}4 + 0{,}012(16) = 6{,}4 + 0{,}192 = 6{,}592.$$
+          Para $\rho = 0{,}1$:
+          $$\operatorname{Var}(\bar{Z}) = 0{,}1(16) + \frac{1 - 0{,}1}{50}(16) = 1{,}6 + 0{,}018(16) = 1{,}6 + 0{,}288 = 1{,}888.$$
+          Com $\rho = 0{,}4$, quase toda a variância vem do termo $\rho\sigma^2 = 6{,}4$: reduzir a correlação entre árvores de $0{,}4$ para $0{,}1$ derruba a variância total em mais de três vezes, efeito impossível de obter apenas aumentando $B$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-8-4-2">
+        <title>Intermediário — Avaliação OOB e hiperparâmetros em dados neurais</title>
+        Em um registro de $n = 120$ ensaios e $p = 36$ eletrodos, uma <c>RandomForestClassifier(n_estimators=200, oob_score=True, random_state=0)</c> obteve <c>oob_score_ = 0.783</c>.
+        <list marker="a">
+          <item>Quantas variáveis candidatas são sorteadas em cada divisão por padrão e aproximadamente quantas das $200$ árvores votam para prever cada ensaio na estimativa OOB?</item>
+          <item>Por que a fração média fora de cada amostra <em>bootstrap</em> gira em torno de $36{,}8\%$ (Tema 8.5)?</item>
+          <item>Se o conjunto tiver $30\%$ de ruído nos rótulos, por que aumentar <c>n_estimators</c> para $2\,000$ pode não melhorar o teste, enquanto aumentar <c>min_samples_leaf</c> pode ajudar?</item>
+        </list>
+        <hint><title>Ver dica</title>Em classificação, o padrão é <c>max_features="sqrt"</c>. Para OOB, use a fração $e^{-1} \approx 0{,}368$ de $B = 200$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como <c>max_features="sqrt"</c>, sorteiam-se $\sqrt{36} = 6$ eletrodos por divisão. Como cada amostra fica fora de cerca de $36{,}8\%$ dos sorteios <em>bootstrap</em>, aproximadamente $0{,}368 \times 200 \approx 74$ árvores votam em cada ensaio OOB.</item>
+            <item>Pela <ref to="def:8-8-bagging-rf"/> e pelo Tema 8.5, em $n$ sorteios com reposição a chance de um ensaio específico não ser sorteado nenhuma vez é $(1 - 1/n)^n$; para $n = 120$, $(119/120)^{120} \approx 0{,}366$ (muito próximo do limite $e^{-1} \approx 0{,}368$).</item>
+            <item>Subir $B$ de $200$ para $2\,000$ zera apenas o pequeno termo $\frac{1-\rho}{B}\sigma^2$, mas não impede que árvores crescidas até folhas unitárias (<c>min_samples_leaf=1</c>) memorizem rótulos invertidos; aumentar <c>min_samples_leaf</c> suaviza as folhas e reduz $\sigma^2$ individual antes da média.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-8-4-3">
+        <title>Avançado — Viés de <c>feature_importances_</c> versus permutação em Python</title>
+        Crie $n = 300$ amostras com duas variáveis binárias informativas (<c>x0</c>, <c>x1</c> representando disparo ativo/inativo de dois neurônios, onde $y = 1$ se ao menos um dispara, com $10\%$ de ruído nos rótulos) e uma terceira variável de ruído contínuo puro (<c>rng.normal(0, 1, n)</c>). Ajuste uma <c>RandomForestClassifier(n_estimators=200, random_state=0)</c> e compare <c>feature_importances_</c> (impureza no treino) com <c>permutation_importance</c> no teste.
+        <hint><title>Ver dica</title>Observe que a variável contínua tem centenas de pontos de corte candidatos, enquanto as binárias têm apenas um corte possível em $0{,}5$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.inspection import permutation_importance
+from sklearn.model_selection import train_test_split
+
+rng = np.random.default_rng(0)
+n = 300
+x0 = rng.integers(0, 2, size=n)
+x1 = rng.integers(0, 2, size=n)
+x_ruido = rng.normal(0.0, 1.0, size=n)  # ruído contínuo sem relação com y
+
+y = ((x0 + x1) >= 1).astype(int)
+flip = rng.random(n) < 0.10
+y[flip] = 1 - y[flip]
+
+X = np.column_stack([x0, x1, x_ruido])
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.3, stratify=y, random_state=0
+)
+
+rf = RandomForestClassifier(n_estimators=200, random_state=0).fit(X_treino, y_treino)
+perm = permutation_importance(rf, X_teste, y_teste, n_repeats=15, random_state=0)
+
+nomes = ["neuronio_0 (binário)", "neuronio_1 (binário)", "ruído_contínuo     "]
+for nome, mdi, p_imp in zip(nomes, rf.feature_importances_, perm.importances_mean):
+    print(f"{nome} | MDI (impureza): {mdi:.3f} | Permutação (teste): {p_imp:.3f}")
+# neuronio_0 (binário) | MDI (impureza): 0.275 | Permutação (teste): 0.194
+# neuronio_1 (binário) | MDI (impureza): 0.304 | Permutação (teste): 0.219
+# ruído_contínuo      | MDI (impureza): 0.421 | Permutação (teste): -0.014
+          </code>
+          Apesar de o ruído contínuo não carregar nenhuma informação sobre $y$, suas centenas de pontos de corte permitem que as árvores ajustem o ruído dos rótulos no treino, inflando sua importância por impureza (cerca de $0{,}421$, maior que a dos neurônios reais!). Já a importância por permutação no teste zera o ruído (cerca de $-0{,}014$) e destaca apenas os dois neurônios informativos.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-8-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Partições retangulares:</strong> árvores de decisão dividem $\mathbb{R}^p$ recursivamente por cortes $x_j \le s$ de forma gulosa, prevendo a média na folha (regressão, minimizando a $\mathrm{RSS}$) ou a classe majoritária (classificação), sem exigir padronização de escalas.</item>
+        <item><strong>Critérios de impureza:</strong> índice de Gini $G_m = 1 - \sum_{k=1}^K \hat{p}_{mk}^2$ (máximo $0{,}5$ para $K=2$) e entropia $D_m = -\sum_{k=1}^K \hat{p}_{mk}\log_2\hat{p}_{mk}$ (máximo $1\text{ bit}$ para $K=2$, usada em <c>criterion="entropy"</c>). Escolhe-se a divisão que maximiza $\Delta I = I(m) - \bigl(\frac{N_L}{N_m}I(L) + \frac{N_R}{N_m}I(R)\bigr)$; ao contrário do erro de classificação, Gini e entropia são estritamente côncavos e sensíveis à criação de nós puros.</item>
+        <item><strong>Sobreajuste e poda:</strong> árvores profundas decoram ruído e são instáveis. Controlamos a complexidade por pré-poda (<c>max_depth</c>, <c>min_samples_leaf</c>) ou poda por custo–complexidade, minimizando $R_\alpha(T) = R(T) + \alpha|T|$ e escolhendo <c>ccp_alpha</c> por validação cruzada dentro do treino.</item>
+        <item><strong>Bagging e random forest:</strong> o <em>bagging</em> treina $B$ árvores em amostras <em>bootstrap</em> e agrega previsões, reduzindo a variância para $\operatorname{Var}(\bar{Z}) = \rho\sigma^2 + \frac{1-\rho}{B}\sigma^2$. A <em>random forest</em> sorteia apenas <c>max_features</c> variáveis ($\sqrt{p}$ em classificação) por divisão para diminuir a correlação $\rho$ entre árvores.</item>
+        <item><strong>OOB e importância de variáveis:</strong> cerca de $36{,}8\%$ das amostras ficam fora de cada <em>bootstrap</em>, permitindo estimar o erro fora da amostra (<c>oob_score=True</c>). Para interpretar preditores, prefira <c>permutation_importance</c> fora da amostra a <c>feature_importances_</c>, que é enviesada para variáveis contínuas.</item>
+      </list>
+    </section>
+
+    <section id="sec:8-8-alem">
+      <title>Para ir além</title>
+      Com árvores e florestas aleatórias dominadas para dados supervisionados, o próximo passo é descobrir grupos de tipos celulares e estruturas latentes quando não existem rótulos $y$ — assunto do <strong>Tema 8.9 (Aprendizado não supervisionado)</strong>. Como prática contínua do módulo, teste <c>DecisionTreeClassifier</c> e <c>RandomForestClassifier</c> em um conjunto médico do repositório UC Irvine ou em dados neurais abertos, comparando a árvore podada com a floresta em validação cruzada.
+      <list marker="dash">
+        <item><strong>Livro-base do módulo:</strong> <link to="https://www.statlearning.com/">ISLR — Introduction to Statistical Learning</link> (em Python ou R, a critério do aluno) — Capítulo 8 (<em>Tree-Based Methods</em>).</item>
+        <item><strong>Material complementar:</strong> Notas de aula da matéria do IMPATech.</item>
+        <item><strong>Aprofundamento teórico:</strong> <em>Elements of Statistical Learning</em> (versão avançada do ISLR) — Capítulos 9 (seção sobre árvores) e 15 (<em>Random Forests</em>).</item>
+        <item><strong>Documentação oficial (Árvores e florestas):</strong> <link to="https://scikit-learn.org/stable/modules/tree.html">Scikit-learn — Decision Trees</link> e <link to="https://scikit-learn.org/stable/modules/ensemble.html">Scikit-learn — Ensembles</link> (<c>BaggingClassifier</c>, <c>RandomForestClassifier</c> e OOB).</item>
+        <item><strong>Documentação oficial (Importância de variáveis):</strong> <link to="https://scikit-learn.org/stable/modules/permutation_importance.html">Scikit-learn — Permutation feature importance</link>.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 8 · Machine Learning — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

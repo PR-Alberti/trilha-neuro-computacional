@@ -1,0 +1,9 @@
+# Módulo 01 — Pré-Cálculo. Compile com: node scripts/compilar-aulas.mjs --modulo 1
+inputs = ["tema-01.dlt", "tema-02.dlt", "tema-03.dlt", "tema-04.dlt", "tema-05.dlt"]
+out = "../../aulas/modulo-01"
+
+[document]
+lang         = "pt-BR"
+type         = "book"
+theme-accent = "indigo"
+theme-mode   = "auto"

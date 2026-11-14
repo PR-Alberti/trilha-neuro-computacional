@@ -1,0 +1,879 @@
+<document>
+  <title>Módulo 1 · Pré-Cálculo</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-1-3">Voltar ao guia (Tema 1.3)</link></meta-item>
+    <meta-item key="Módulo">Módulo 1 · Pré-Cálculo — O Alicerce Matemático</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-1-3">
+    <title>Funções</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      O conceito mais importante do módulo: encarar $f(x)$ como um objeto — como uma <em>tuning curve</em>: estímulo entra, resposta sai.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Quase todo experimento em biologia quantitativa e neurociência mede uma relação de entrada e saída: você varia a concentração de um neurotransmissor e mede a corrente sináptica; muda a orientação de uma barra luminosa e registra os potenciais de ação no córtex visual; injeta corrente elétrica em um neurônio e observa sua taxa de disparo; ou analisa bandas de frequência do eletroencefalograma (EEG) em escala logarítmica. Em todas essas situações, o que liga o estímulo à resposta é uma <strong>função</strong>.
+
+    Sem fluência em funções, composições, inversas e gráficos, os modelos computacionais do cérebro e do aprendizado de máquina parecem magia. Com esse vocabulário, você passa a ler fórmulas como retratos precisos do comportamento biológico: enxerga onde um neurônio começa a responder, com que rapidez ele cresce e em que patamar ele satura. Além disso, este é o tema central do Módulo 1 e prepara diretamente o projeto final do módulo: criar e esboçar o gráfico analítico de uma função que modela a taxa de disparo de um neurônio em função da intensidade do estímulo.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>definir função, domínio (matemático e biológico), contradomínio e imagem, aplicando o teste da reta vertical;</item>
+      <item>reconhecer as famílias fundamentais de funções (afim, quadrática, exponencial, logarítmica e definidas por partes) e os três modelos clássicos de resposta neural e farmacológica (curva de sintonia gaussiana, sigmoide logística e equação de Hill);</item>
+      <item>compor funções em cascata $(g \circ f)(x) = g(f(x))$, verificar o domínio da composição e decompor expressões em camadas;</item>
+      <item>determinar quando uma função admite inversa (usando injetividade e restrição de domínio) e calcular inversas para decodificar estímulos a partir de respostas;</item>
+      <item>ler gráficos (interceptos, crescimento, máximos e saturação por assíntotas horizontais) e prever o efeito de transformações algébricas sobre curvas biológicas.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> O conteúdo de <strong>Álgebra</strong> (Tema 1.1: potenciação, equações, desigualdades e notação de intervalos) e <strong>Geometria</strong> (Tema 1.2: ângulos, áreas, perímetros, semelhança e Teorema de Pitágoras). Além disso, basta a familiaridade do ensino médio com o plano cartesiano (eixos e pares ordenados), que será formalizado em <strong>Geometria Analítica</strong> (Tema 1.5).
+
+    <section id="sec:1-3-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Introdução</title>
+      <intro>
+        Uma função é uma regra determinística que transforma cada entrada permitida em exatamente uma saída — o equivalente matemático de uma curva estímulo–resposta em um neurônio ou receptor.
+      </intro>
+
+      Imagine um neurônio sensorial no córtex visual primário (V1) respondendo a barras luminosas apresentadas em diferentes ângulos de orientação $\theta$. Para cada orientação que você apresenta na tela, o modelo prevê uma única taxa média de disparo $f(\theta)$ em hertz ($\text{Hz}$). Pode acontecer de dois ângulos simétricos produzirem a mesma taxa de disparo, mas um único ângulo não pode produzir, ao mesmo tempo, duas respostas diferentes na mesma curva determinística. Essa exigência — cada entrada válida gera <strong>exatamente uma</strong> saída — é a essência do conceito de função.
+
+      <definition id="def:1-3-funcao">
+        <title>Função, domínio, contradomínio e imagem</title>
+        Sejam $A$ e $B$ dois conjuntos não vazios. Uma <strong>função</strong> $f: A \to B$ é uma regra que associa a cada elemento $x \in A$ um <strong>único</strong> elemento $y = f(x) \in B$.
+        <list marker="dash">
+          <item><strong>Domínio ($A$ ou $D_f$):</strong> o conjunto de todas as entradas permitidas para $f$.</item>
+          <item><strong>Contradomínio ($B$):</strong> o conjunto de chegada onde os valores de saída vivem (em geral $\mathbb{R}$).</item>
+          <item><strong>Imagem ($\text{Im}(f)$):</strong> o subconjunto de $B$ formado pelos valores efetivamente atingidos pela função, isto é, $\text{Im}(f) = \{f(x) : x \in A\} \subseteq B$.</item>
+        </list>
+        <intuition>
+          Pense na função como um equipamento de laboratório calibrado: o domínio é a faixa de estímulos que o aparelho aceita na entrada; o contradomínio é o mostrador completo (números reais); e a imagem é apenas o trecho do mostrador que o ponteiro realmente percorre.
+        </intuition>
+      </definition>
+
+      Geometricamente, como saber se uma curva desenhada no plano cartesiano $(x, y)$ representa uma função $y = f(x)$? Pelo <strong>teste da reta vertical</strong>: uma curva no plano é o gráfico de uma função de $x$ se, e somente se, toda reta vertical $x = c$ corta a curva em <strong>no máximo um ponto</strong>. Se alguma reta vertical cortar a curva em dois ou mais pontos (como ocorre em uma circunferência $x^2 + y^2 = 25$), uma mesma entrada $x$ estaria associada a mais de um $y$, violando a <ref to="def:1-3-funcao"/>.
+
+      Quando escrevemos apenas uma fórmula sem declarar o domínio, adotamos o <strong>domínio natural</strong>: o maior subconjunto de $\mathbb{R}$ em que todas as operações da fórmula fazem sentido. Três restrições aparecem o tempo todo:
+      <list marker="number">
+        <item>não podemos dividir por zero;</item>
+        <item>não podemos extrair raiz de índice par (como $\sqrt{\;\cdot\;}$) de número negativo em $\mathbb{R}$;</item>
+        <item>não podemos calcular logaritmo ($\ln$ ou $\log_a$) de número menor ou igual a zero.</item>
+      </list>
+
+      Na biologia, porém, o domínio natural raramente basta: existe também o <strong>domínio imposto pelo fenômeno</strong>. Concentrações químicas $[L]$ satisfazem $[L] \ge 0$; taxas de disparo $r$ satisfazem $r \ge 0$; massas corporais $M$ exigem $M > 0$; e orientações de uma barra luminosa costumam ficar restritas a $\theta \in [0^\circ, 180^\circ)$ ou $[0^\circ, 360^\circ)$. Sempre verifique os dois filtros — o matemático e o biológico — antes de usar um modelo.
+
+      Ao longo desta trilha, você encontrará repetidamente cinco famílias de funções (várias delas iniciadas em Álgebra, no Tema 1.1):
+      <list marker="dash">
+        <item><strong>Função afim:</strong> $f(x) = ax + b$, cujo gráfico é uma reta com inclinação $a$ e valor inicial $b$. Aparece na relação passiva da membrana $V = E_L + R \cdot I$ (lei de Ohm).</item>
+        <item><strong>Função quadrática:</strong> $f(x) = ax^2 + bx + c$ ($a \ne 0$), cujo gráfico é uma parábola (como funções de erro quadrático usadas para ajustar modelos em Machine Learning).</item>
+        <item><strong>Função exponencial:</strong> $f(x) = C \cdot a^x$ ($a > 0, a \ne 1$), em especial com a base natural $e \approx 2{,}71828$, escrita $e^x$ ou $\exp(x)$. Modela crescimento populacional, decaimento radioativo ou sináptico e aparece dentro de curvas de sintonia e sigmoides.</item>
+        <item><strong>Função logarítmica:</strong> $f(x) = \log_a(x)$ ($x > 0$), especialmente o logaritmo natural $\ln(x) = \log_e(x)$ e o logaritmo decimal $\log_{10}(x)$. É a ferramenta que resolve equações exponenciais quando as bases não coincidem (como $2^t = 10$, deixada em aberto no Tema 1.1) e organiza escalas perceptivas e bandas de EEG (delta, teta, alfa, beta, gama).</item>
+        <item><strong>Funções definidas por partes (<em>piecewise functions</em>):</strong> usam regras diferentes conforme a região do domínio. Dois exemplos centrais em neurociência são a <strong>função degrau</strong> (vale $0$ abaixo de um limiar e $1$ a partir dele, como um disparo tudo-ou-nada) e a <strong>função linear com limiar</strong> (<em>threshold-linear</em>):
+          $$r(I) = \max\bigl(0,\, k \cdot (I - I_{\text{lim}})\bigr) = \begin{cases} 0, & \text{se } I \le I_{\text{lim}}, \\ k \cdot (I - I_{\text{lim}}), & \text{se } I > I_{\text{lim}}. \end{cases}$$
+          Guarde essa forma: nos Módulos 8 e 9 de Machine Learning e Redes Neurais, essa mesma função linear com limiar receberá o nome de <strong>ReLU</strong> (<em>Rectified Linear Unit</em>).
+        </item>
+      </list>
+
+      Com essas famílias na mão, podemos apresentar os três modelos quantitativos de resposta neural e farmacológica que acompanharão você neste módulo e nos próximos.
+
+      <definition id="def:1-3-modelos-neurais">
+        <title>Três modelos clássicos de resposta biológica</title>
+        <list marker="number">
+          <item><strong>Curva de sintonia (<em>tuning curve</em>) gaussiana de orientação:</strong> descreve como a taxa de disparo $f(\theta)$ de um neurônio visual varia com o ângulo $\theta$ (em graus) do estímulo:
+            <equation id="eq:1-3-gaussiana">f(\theta) = r_{\text{max}} \cdot \exp\!\left(-\frac{(\theta - \theta_{\text{pref}})^2}{2\sigma^2}\right)</equation>
+            Aqui, $r_{\text{max}} > 0$ é a taxa máxima de disparo (atingida no pico), $\theta_{\text{pref}}$ é a <strong>orientação preferida</strong> pelo neurônio e $\sigma > 0$ controla a <strong>largura da sintonia</strong> (valores maiores de $\sigma$ tornam o neurônio menos seletivo). Opcionalmente, soma-se uma taxa espontânea de linha de base $r_0 \ge 0$ (em $\text{Hz}$), escrevendo $f(\theta) = r_0 + r_{\text{max}} \cdot \exp(\dots)$.
+          </item>
+          <item><strong>Sigmoide logística da curva $f$–$I$ (taxa versus corrente):</strong> modela a taxa de disparo $r(I)$ em função da corrente injetada $I$ (ou intensidade do estímulo), capturando tanto a transição suave em torno do limiar quanto a <strong>saturação</strong> em alta estimulação:
+            <equation id="eq:1-3-sigmoide">r(I) = \frac{r_{\text{max}}}{1 + \exp\!\left(-\dfrac{I - I_{50}}{s}\right)}</equation>
+            Aqui, $r_{\text{max}} > 0$ é a taxa de saturação máxima, $I_{50}$ é a corrente de <strong>meia resposta</strong> (pois $r(I_{50}) = \frac{r_{\text{max}}}{1 + e^0} = \frac{r_{\text{max}}}{2}$) e $s > 0$ é o parâmetro de escala que controla a inclinação da subida (quanto menor $s$, mais íngreme a transição).
+          </item>
+          <item><strong>Equação de Hill para dose–resposta:</strong> modela o efeito fisiológico $E([L])$ (corrente de receptores, porcentagem de ativação ou resposta celular) em função da concentração $[L] \ge 0$ de um ligante (neurotransmissor ou fármaco):
+            <equation id="eq:1-3-hill">E([L]) = \frac{E_{\text{max}} \cdot [L]^n}{\text{EC}_{50}^n + [L]^n}</equation>
+            Aqui, $E_{\text{max}} > 0$ é o efeito máximo de saturação, $\text{EC}_{50} > 0$ é a concentração que produz metade do efeito máximo (pois $E(\text{EC}_{50}) = \frac{E_{\text{max}} \cdot \text{EC}_{50}^n}{2\,\text{EC}_{50}^n} = \frac{E_{\text{max}}}{2}$) e $n > 0$ é o <strong>coeficiente de Hill</strong>, que mede a cooperatividade da ligação (para $n = 1$, recupera a curva hiperbólica de Michaelis–Menten; para $n > 1$, a curva ganha formato sigmoidal mais acentuado).
+          </item>
+        </list>
+      </definition>
+
+      A <ref to="fig:1-3-sigmoide"/> ilustra o formato em "S" da curva $f$–$I$ sigmoide logística (<ref to="eq:1-3-sigmoide"/>), destacando a corrente de meia resposta $I_{50}$ e o teto de saturação $r_{\text{max}}$.
+
+      <figure src="fig/sigmoide.svg" alt="Gráfico da curva f-I sigmoide logística r(I) com r_max = 80 Hz, I_50 = 0,5 nA e s = 0,1 nA, destacando o ponto de meia resposta (0,5 nA; 40 Hz) e a assíntota horizontal tracejada em 80 Hz" id="fig:1-3-sigmoide">
+        <caption>Curva $f$–$I$ sigmoide logística para $r_{\text{max}} = 80\text{ Hz}$, $I_{50} = 0{,}5\text{ nA}$ e $s = 0{,}1\text{ nA}$. Em $I = I_{50}$, a taxa atinge exatamente metade do máximo ($40\text{ Hz}$); para correntes altas, a curva aproxima-se da linha tracejada $r_{\text{max}} = 80\text{ Hz}$ sem ultrapassá-la.</caption>
+      </figure>
+
+      <example id="exm:1-3-sintonia-sigmoide">
+        <title>Avaliando a curva de sintonia e a sigmoide f–I</title>
+        <list marker="a">
+          <item>Um neurônio de V1 tem curva de sintonia gaussiana com $r_{\text{max}} = 50\text{ Hz}$, $\theta_{\text{pref}} = 90^\circ$ e $\sigma = 20^\circ$. Calcule sua taxa de disparo para os ângulos $\theta = 90^\circ$, $\theta = 110^\circ$ e $\theta = 50^\circ$.</item>
+          <item>Um neurônio cortical segue a curva $f$–$I$ da <ref to="fig:1-3-sigmoide"/>, com $r_{\text{max}} = 80\text{ Hz}$, $I_{50} = 0{,}5\text{ nA}$ e $s = 0{,}1\text{ nA}$. Calcule a taxa de disparo em $I = 0{,}5\text{ nA}$, $I = 0{,}6\text{ nA}$ e $I = 0{,}4\text{ nA}$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Substituímos os parâmetros na Equação <ref to="eq:1-3-gaussiana"/>:
+            $$f(\theta) = 50 \cdot \exp\!\left(-\frac{(\theta - 90^\circ)^2}{2 \cdot (20^\circ)^2}\right) = 50 \cdot \exp\!\left(-\frac{(\theta - 90^\circ)^2}{800}\right).$$
+            <list marker="dash">
+              <item>Para $\theta = 90^\circ$: o expoente é $0$, logo $f(90^\circ) = 50 \cdot \exp(0) = 50 \cdot 1 = 50\text{ Hz}$.</item>
+              <item>Para $\theta = 110^\circ$ (um desvio de $+\sigma = +20^\circ$): o expoente vale $-\frac{20^2}{800} = -\frac{400}{800} = -\frac{1}{2}$. Como $\exp(-1/2) \approx 0{,}607$ (mais precisamente $0{,}6065$), obtemos:
+                $$f(110^\circ) = 50 \cdot \exp(-1/2) \approx 50 \cdot 0{,}6065 \approx 30{,}3\text{ Hz}.$$
+              </item>
+              <item>Para $\theta = 50^\circ$ (um desvio de $-2\sigma = -40^\circ$): o expoente vale $-\frac{(-40)^2}{800} = -\frac{1\,600}{800} = -2$. Usando $\exp(-2) \approx 0{,}1353$, temos:
+                $$f(50^\circ) = 50 \cdot \exp(-2) \approx 50 \cdot 0{,}1353 \approx 6{,}8\text{ Hz}.$$
+              </item>
+            </list>
+            Note que a resposta cai para cerca de $60{,}7\%$ do máximo a $1\sigma$ de distância do pico e para apenas $13{,}5\%$ do máximo a $2\sigma$.
+          </item>
+          <item>Substituímos $r_{\text{max}} = 80\text{ Hz}$, $I_{50} = 0{,}5\text{ nA}$ e $s = 0{,}1\text{ nA}$ na Equação <ref to="eq:1-3-sigmoide"/>:
+            <list marker="dash">
+              <item>Em $I = 0{,}5\text{ nA}$: $-\frac{0{,}5 - 0{,}5}{0{,}1} = 0$, então
+                $$r(0{,}5) = \frac{80}{1 + \exp(0)} = \frac{80}{1 + 1} = 40\text{ Hz}.$$
+              </item>
+              <item>Em $I = 0{,}6\text{ nA}$: $-\frac{0{,}6 - 0{,}5}{0{,}1} = -1$. Como $\exp(-1) \approx 0{,}3679$, temos:
+                $$r(0{,}6) = \frac{80}{1 + \exp(-1)} \approx \frac{80}{1{,}3679} \approx 58{,}5\text{ Hz}.$$
+              </item>
+              <item>Em $I = 0{,}4\text{ nA}$: $-\frac{0{,}4 - 0{,}5}{0{,}1} = +1$. Como $\exp(1) \approx 2{,}7183$, temos:
+                $$r(0{,}4) = \frac{80}{1 + \exp(1)} \approx \frac{80}{3{,}7183} \approx 21{,}5\text{ Hz}.$$
+              </item>
+            </list>
+            Repare na simetria ao redor de $I_{50}$: passos iguais de $+0{,}1\text{ nA}$ e $-0{,}1\text{ nA}$ produzem taxas $58{,}5\text{ Hz}$ e $21{,}5\text{ Hz}$ cuja soma é exatamente $80\text{ Hz} = r_{\text{max}}$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:1-3-hill-relu">
+        <title>Equação de Hill e função linear com limiar</title>
+        <list marker="a">
+          <item>Um receptor sináptico obedece à equação de Hill com $E_{\text{max}} = 100\%$, $\text{EC}_{50} = 2\;\mu\text{M}$ e $n = 2$. Calcule a porcentagem de ativação para $[L] = 1\;\mu\text{M}$, $2\;\mu\text{M}$, $4\;\mu\text{M}$ e $6\;\mu\text{M}$.</item>
+          <item>Um modelo linear com limiar (ReLU) usa $r(I) = \max\bigl(0,\, 50(I - 0{,}2)\bigr)$, com $I$ em $\text{nA}$ e $r$ em $\text{Hz}$. Calcule $r(0{,}1)$, $r(0{,}2)$ e $r(0{,}6)$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Com os parâmetros dados, a Equação <ref to="eq:1-3-hill"/> fica $E([L]) = \dfrac{100 \cdot [L]^2}{4 + [L]^2}$:
+            <list marker="dash">
+              <item>$E(1) = \dfrac{100 \cdot 1^2}{4 + 1^2} = \dfrac{100}{5} = 20\%$.</item>
+              <item>$E(2) = \dfrac{100 \cdot 2^2}{4 + 2^2} = \dfrac{400}{8} = 50\%$ (confirma $\text{EC}_{50} = 2\;\mu\text{M}$).</item>
+              <item>$E(4) = \dfrac{100 \cdot 4^2}{4 + 4^2} = \dfrac{1\,600}{20} = 80\%$.</item>
+              <item>$E(6) = \dfrac{100 \cdot 6^2}{4 + 6^2} = \dfrac{3\,600}{40} = 90\%$.</item>
+            </list>
+            Observe que dobrar a concentração de $2\;\mu\text{M}$ para $4\;\mu\text{M}$ não dobra a resposta ($50\%$ vira $80\%$, não $100\%$): a curva está saturando.
+          </item>
+          <item>Avaliamos a parte linear $50(I - 0{,}2)$ e aplicamos $\max(0, \cdot)$:
+            <list marker="dash">
+              <item>$I = 0{,}1\text{ nA}$: $50(0{,}1 - 0{,}2) = -5$, logo $r(0{,}1) = \max(0, -5) = 0\text{ Hz}$.</item>
+              <item>$I = 0{,}2\text{ nA}$: $50(0{,}2 - 0{,}2) = 0$, logo $r(0{,}2) = \max(0, 0) = 0\text{ Hz}$.</item>
+              <item>$I = 0{,}6\text{ nA}$: $50(0{,}6 - 0{,}2) = 50 \cdot 0{,}4 = 20$, logo $r(0{,}6) = \max(0, 20) = 20\text{ Hz}$.</item>
+            </list>
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:1-3-armadilha-intro">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Supor que $f(a + b) = f(a) + f(b)$:</strong> em geral, funções <em>não</em> são lineares! Para $f(x) = x^2$, temos $f(3 + 4) = 49 \ne 9 + 16 = 25$. Na biologia, isso significa que somar dois estímulos (ou dobrar a dose de um fármaco) quase nunca produz a soma exata das respostas individuais — basta ver na equação de Hill acima que $E(2 + 2) = 80\% \ne E(2) + E(2) = 100\%$.</item>
+          <item><strong>Esquecer o domínio ao avaliar uma fórmula:</strong> aplicar $\ln$ em um número negativo ou zero, dividir por zero ou inserir concentração negativa $[L] < 0$ produz resultados sem sentido matemático ou biológico.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:1-3-1-1">
+        <title>Básico — Domínio natural e teste da reta vertical</title>
+        <list marker="a">
+          <item>Determine o domínio natural de $f(x) = \dfrac{1}{\sqrt{x - 3}}$ e de $g(x) = \ln(5 - x)$, escrevendo ambos em notação de intervalos.</item>
+          <item>A equação $x^2 + y^2 = 25$ define $y$ como uma função de $x$? Justifique usando o teste da reta vertical.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), lembre que o radicando no denominador deve ser estritamente positivo (não pode ser zero nem negativo) e o argumento do $\ln$ deve ser estritamente positivo. Em (b), teste um valor simples de $x$, como $x = 0$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Em $f(x) = \dfrac{1}{\sqrt{x - 3}}$, a raiz exige $x - 3 \ge 0$, mas por estar no denominador o valor não pode ser zero. Portanto, precisamos de $x - 3 > 0 \implies x > 3$, ou seja, $D_f = (3, +\infty)$.
+
+              Em $g(x) = \ln(5 - x)$, o logaritmo exige argumento estritamente positivo: $5 - x > 0 \implies 5 > x \implies x < 5$. Logo, $D_g = (-\infty, 5)$.
+            </item>
+            <item>Não. Para $x = 0$, a equação dá $0^2 + y^2 = 25 \implies y = 5$ ou $y = -5$. Logo, a reta vertical $x = 0$ corta a circunferência em dois pontos, $(0, 5)$ e $(0, -5)$, falhando no teste da reta vertical.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-3-1-2">
+        <title>Básico — Curva de sintonia de um neurônio em V1</title>
+        Um neurônio do córtex visual possui curva de sintonia gaussiana com $r_{\text{max}} = 60\text{ Hz}$, $\theta_{\text{pref}} = 45^\circ$ e $\sigma = 15^\circ$. Calcule sua taxa de disparo para os estímulos $\theta = 45^\circ$, $\theta = 60^\circ$ e $\theta = 15^\circ$. (Use $\exp(-1/2) \approx 0{,}6065$ e $\exp(-2) \approx 0{,}1353$.)
+        <hint><title>Ver dica</title>Calcule primeiro $\theta - 45^\circ$ em cada caso e compare com $\sigma = 15^\circ$ antes de elevar ao quadrado e dividir por $2\sigma^2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          A fórmula da curva é $f(\theta) = 60 \cdot \exp\!\left(-\dfrac{(\theta - 45^\circ)^2}{2 \cdot (15^\circ)^2}\right)$.
+          <list marker="dash">
+            <item>Para $\theta = 45^\circ$: $\theta - 45^\circ = 0$, logo $f(45^\circ) = 60 \cdot \exp(0) = 60\text{ Hz}$.</item>
+            <item>Para $\theta = 60^\circ$: $\theta - 45^\circ = 15^\circ = \sigma$, então o expoente é $-\dfrac{15^2}{2 \cdot 15^2} = -\dfrac{1}{2}$. Assim:
+              $$f(60^\circ) = 60 \cdot \exp(-1/2) \approx 60 \cdot 0{,}6065 \approx 36{,}4\text{ Hz}.$$
+            </item>
+            <item>Para $\theta = 15^\circ$: $\theta - 45^\circ = -30^\circ = -2\sigma$, então o expoente é $-\dfrac{(-30)^2}{2 \cdot 15^2} = -\dfrac{900}{450} = -2$. Assim:
+              $$f(15^\circ) = 60 \cdot \exp(-2) \approx 60 \cdot 0{,}1353 \approx 8{,}1\text{ Hz}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-3-1-3">
+        <title>Intermediário — Receptor sináptico de Michaelis–Menten</title>
+        A resposta pós-sináptica $E([L])$ (em $\text{pA}$) de um canal iônico ativado por ligante segue a equação de Hill com $n = 1$, $E_{\text{max}} = 120\text{ pA}$ e $\text{EC}_{50} = 10\;\mu\text{M}$:
+        $$E([L]) = \frac{120 \cdot [L]}{10 + [L]}.$$
+        <list marker="a">
+          <item>Calcule $E(10)$, $E(30)$ e $E(90)$.</item>
+          <item>Qual concentração $[L]$ produz uma corrente de $40\text{ pA}$?</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), substitua diretamente os valores na fração. Em (b), monte a equação $\frac{120[L]}{10 + [L]} = 40$, multiplique ambos os lados por $10 + [L]$ e isole $[L]$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Substituindo cada concentração em $\mu\text{M}$:
+              <list marker="dash">
+                <item>$E(10) = \dfrac{120 \cdot 10}{10 + 10} = \dfrac{1\,200}{20} = 60\text{ pA}$.</item>
+                <item>$E(30) = \dfrac{120 \cdot 30}{10 + 30} = \dfrac{3\,600}{40} = 90\text{ pA}$.</item>
+                <item>$E(90) = \dfrac{120 \cdot 90}{10 + 90} = \dfrac{10\,800}{100} = 108\text{ pA}$.</item>
+              </list>
+            </item>
+            <item>Igualando $E([L]) = 40$:
+              $$\frac{120\,[L]}{10 + [L]} = 40 \implies 120\,[L] = 40(10 + [L]) = 400 + 40\,[L].$$
+              Subtraindo $40\,[L]$ de ambos os lados:
+              $$80\,[L] = 400 \implies [L] = \frac{400}{80} = 5\;\mu\text{M}.$$
+              <em>Conferência:</em> $E(5) = \dfrac{120 \cdot 5}{10 + 5} = \dfrac{600}{15} = 40\text{ pA}$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-3-1-4">
+        <title>Avançado — Domínio matemático versus domínio fisiológico</title>
+        <list marker="a">
+          <item>Encontre o domínio natural da função $h(x) = \dfrac{\ln(x - 1)}{\sqrt{9 - x}}$.</item>
+          <item>Um pesquisador tenta modelar a taxa de disparo de um neurônio (em $\text{Hz}$) pela função afim $r(I) = 20 I - 4$, com $I$ em $\text{nA}$. Sabendo que a taxa fisiológica real desse neurônio varia entre $0\text{ Hz}$ e o teto biofísico de $200\text{ Hz}$, para qual intervalo de correntes o modelo afim produz valores biologicamente plausíveis? Por que uma sigmoide ou função por partes costuma ser preferível para $I$ muito pequeno ou muito grande?</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), imponha simultaneamente as condições do $\ln$ e da raiz no denominador. Em (b), resolva a dupla desigualdade $0 \le 20 I - 4 \le 200$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>O numerador $\ln(x - 1)$ exige $x - 1 > 0 \implies x > 1$. O denominador $\sqrt{9 - x}$ exige $9 - x > 0 \implies x < 9$ (estrito, pois não pode anular o denominador). Note que $x = 2$ torna $\ln(1) = 0$ no numerador, o que é perfeitamente válido. Intersectando as duas condições, o domínio natural é o intervalo aberto $(1, 9)$.</item>
+            <item>Para que a taxa esteja dentro da faixa fisiológica $[0, 200]\text{ Hz}$, exigimos:
+              $$0 \le 20 I - 4 \le 200.$$
+              Somando $4$ aos três membros:
+              $$4 \le 20 I \le 204.$$
+              Dividindo por $20 > 0$:
+              $$0{,}2 \le I \le 10{,}2.$$
+              Logo, o modelo afim só permanece dentro dos limites físicos para $I \in [0{,}2;\, 10{,}2]\text{ nA}$. Para $I < 0{,}2\text{ nA}$, ele prevê taxas negativas (impossível); para $I > 10{,}2\text{ nA}$, ele prevê taxas acima de $200\text{ Hz}$ sem nunca saturar (violando o período refratário do neurônio). A função linear com limiar corrige o piso em $0\text{ Hz}$, e a sigmoide logística corrige tanto o piso quanto a saturação em $r_{\text{max}}$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:1-3-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Composição de função</title>
+      <intro>
+        Sistemas biológicos funcionam em cadeia: a saída de uma etapa fisiológica alimenta a entrada da etapa seguinte — exatamente o que a composição de funções $(g \circ f)(x) = g(f(x))$ formaliza.
+      </intro>
+
+      Pense no caminho de um sinal no sistema nervoso. Um estímulo sensorial ou corrente sináptica $I$ entra no neurônio e altera o potencial de membrana $V$; em seguida, o potencial de membrana $V$ determina a taxa de disparo $r$ no cone axonal. Se conhecemos a função $V(I)$ que transforma corrente em voltagem e a função $r(V)$ que transforma voltagem em frequência de disparos, encadear os dois processos gera uma nova função direta $I \mapsto r(V(I))$.
+
+      <definition id="def:1-3-composicao">
+        <title>Composição de funções</title>
+        Sejam $f: A \to B$ e $g: C \to D$ duas funções tais que a imagem de $f$ intersecta o domínio de $g$. A <strong>função composta</strong> $g \circ f$ (lê-se "$g$ composta com $f$" ou "$g$ após $f$") é definida por:
+        <equation id="eq:1-3-composicao">(g \circ f)(x) = g\bigl(f(x)\bigr)</equation>
+        O domínio de $g \circ f$ é o conjunto de todos os $x$ que pertencem ao domínio de $f$ <strong>e</strong> cuja saída $f(x)$ pertence ao domínio de $g$:
+        $$D_{g \circ f} = \{x \in D_f : f(x) \in D_g\}.$$
+        <intuition>
+          Leia $(g \circ f)(x)$ de dentro para fora: primeiro $x$ entra na máquina $f$, produzindo o resultado intermediário $u = f(x)$; depois, esse resultado $u$ entra na máquina $g$, produzindo $g(u)$. A ordem da escrita acompanha a ordem das caixas da direita para a esquerda.
+        </intuition>
+      </definition>
+
+      Um detalhe crucial: na composição, <strong>a ordem importa</strong>. Em geral, $g \circ f \ne f \circ g$. Para enxergar isso sem esforço, pense em colocar a meia ($f$) e depois o sapato ($g$): $(g \circ f)$ funciona normalmente, enquanto $(f \circ g)$ — tentar calçar o sapato antes da meia — produz um resultado completamente diferente. Em termos numéricos, tome $f(x) = x + 3$ e $g(x) = x^2$. Para $x = 2$:
+      $$(g \circ f)(2) = g\bigl(f(2)\bigr) = g(5) = 5^2 = 25, \qquad \text{mas} \qquad (f \circ g)(2) = f\bigl(g(2)\bigr) = f(4) = 4 + 3 = 7.$$
+
+      A composição também funciona no sentido inverso: <strong>decompor</strong> uma fórmula complexa em camadas simples. Por que treinar isso agora? Por dois motivos centrais da trilha:
+      <list marker="dash">
+        <item>no Módulo 2 (<strong>Cálculo Real</strong>), a taxa de variação de uma função composta será calculada pela <strong>regra da cadeia</strong>, que exige identificar imediatamente quem é a função interna e quem é a função externa;</item>
+        <item>no Módulo 9 (<strong>Redes Neurais e Deep Learning</strong>), uma rede neural artificial nada mais é do que uma composição de muitas camadas: cada camada aplica uma transformação linear seguida de uma função de ativação não linear (como ReLU ou sigmoide), passando a saída para a camada seguinte.</item>
+      </list>
+
+      <example id="exm:1-3-cadeia-neural">
+        <title>Cadeia estímulo → potencial → taxa de disparo</title>
+        Considere um modelo simplificado de neurônio em duas etapas:
+        <list marker="number">
+          <item><strong>Etapa passiva (lei de Ohm na membrana):</strong> uma corrente injetada $I$ (em $\text{nA}$) produz o potencial estacionário $V(I) = E_L + R \cdot I$, com potencial de repouso $E_L = -70\text{ mV}$ e resistência de entrada $R = 100\text{ M}\Omega$. Como $1\text{ M}\Omega \cdot 1\text{ nA} = 1\text{ mV}$, temos (em $\text{mV}$):
+            $$V(I) = -70 + 100 I.$$
+          </item>
+          <item><strong>Etapa de disparo (linear com limiar):</strong> o potencial $V$ produz a taxa de disparo (em $\text{Hz}$) segundo:
+            $$r(V) = \max\bigl(0,\, k \cdot (V - V_{\text{lim}})\bigr),$$
+            com limiar $V_{\text{lim}} = -55\text{ mV}$ e ganho $k = 4\text{ Hz/mV}$.
+          </item>
+        </list>
+        <list marker="a">
+          <item>Escreva a função composta $(r \circ V)(I) = r(V(I))$.</item>
+          <item>Determine a corrente mínima necessária para o neurônio começar a disparar ($r > 0$).</item>
+          <item>Calcule a taxa de disparo para $I = 0{,}10\text{ nA}$ e para $I = 0{,}25\text{ nA}$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Substituímos $V = V(I) = -70 + 100 I$ na expressão de $r(V)$:
+            $$\begin{aligned} (r \circ V)(I) &= \max\bigl(0,\, 4 \cdot \bigl((-70 + 100 I) - (-55)\bigr)\bigr) \\ &= \max\bigl(0,\, 4 \cdot (100 I - 15)\bigr) \\ &= \max\bigl(0,\, 400(I - 0{,}15)\bigr). \end{aligned}$$
+          </item>
+          <item>O neurônio dispara ($r > 0$) quando o termo linear dentro do máximo é estritamente positivo:
+            $$400(I - 0{,}15) > 0 \implies I > 0{,}15\text{ nA}.$$
+            Portanto, $I_{\text{lim}} = 0{,}15\text{ nA}$ ($150\text{ pA}$) é a corrente limiar (reobase) desse neurônio: é exatamente a corrente que eleva o potencial de $-70\text{ mV}$ até $-55\text{ mV}$.
+          </item>
+          <item>Calculando nas duas correntes:
+            <list marker="dash">
+              <item>Para $I = 0{,}10\text{ nA}$: na etapa intermediária, $V(0{,}10) = -70 + 100(0{,}10) = -60\text{ mV}$ (abaixo do limiar $-55\text{ mV}$). Logo, $(r \circ V)(0{,}10) = \max(0,\, 4(-60 + 55)) = \max(0, -20) = 0\text{ Hz}$.</item>
+              <item>Para $I = 0{,}25\text{ nA}$: na etapa intermediária, $V(0{,}25) = -70 + 100(0{,}25) = -45\text{ mV}$ (despolarizado $10\text{ mV}$ acima do limiar). Logo, $r(-45) = 4(-45 + 55) = 4 \cdot 10 = 40\text{ Hz}$. Conferindo direto pela fórmula composta: $400(0{,}25 - 0{,}15) = 400 \cdot 0{,}10 = 40\text{ Hz}$.</item>
+            </list>
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:1-3-ordem-decomposicao">
+        <title>Domínio da composição e decomposição em camadas</title>
+        <list marker="a">
+          <item>Sejam $f(x) = x - 4$ e $g(u) = \sqrt{u}$. Determine $(g \circ f)(x)$ e $(f \circ g)(x)$, com seus respectivos domínios, e avalie ambas em $x = 4$.</item>
+          <item>Decomponha a curva de sintonia gaussiana $f(\theta) = 50 \cdot \exp\!\left(-\dfrac{(\theta - 90)^2}{800}\right)$ em três funções simples encadeadas: $f(\theta) = (w \circ v \circ u)(\theta)$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Na primeira ordem, aplicamos $f$ e depois $g$:
+            $$(g \circ f)(x) = g(x - 4) = \sqrt{x - 4}.$$
+            Embora $D_f = \mathbb{R}$, precisamos que $f(x) = x - 4$ pertença a $D_g = [0, +\infty)$, logo $x - 4 \ge 0 \implies x \ge 4$. Portanto, $D_{g \circ f} = [4, +\infty)$. Em $x = 4$, $(g \circ f)(4) = \sqrt{4 - 4} = 0$.
+
+            Na ordem inversa, aplicamos $g$ e depois $f$:
+            $$(f \circ g)(x) = f(\sqrt{x}) = \sqrt{x} - 4.$$
+            Aqui, primeiro exigimos $x \in D_g = [0, +\infty)$; como $D_f = \mathbb{R}$, qualquer saída $\sqrt{x}$ é aceita por $f$. Logo, $D_{f \circ g} = [0, +\infty)$. Em $x = 4$, $(f \circ g)(4) = \sqrt{4} - 4 = 2 - 4 = -2 \ne 0$.
+          </item>
+          <item>Seguindo a ordem em que a conta é executada quando você insere um ângulo $\theta$:
+            <list marker="number">
+              <item><strong>Camada 1 (desvio angular):</strong> $u(\theta) = \theta - 90$;</item>
+              <item><strong>Camada 2 (quadrado normalizado com sinal negativo):</strong> $v(u) = -\dfrac{u^2}{800}$;</item>
+              <item><strong>Camada 3 (exponencial com ganho máximo):</strong> $w(v) = 50 \cdot e^v$.</item>
+            </list>
+            Conferindo o encadeamento:
+            $$w\bigl(v(u(\theta))\bigr) = w\!\left(-\frac{(\theta - 90)^2}{800}\right) = 50 \cdot \exp\!\left(-\frac{(\theta - 90)^2}{800}\right).$$
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:1-3-armadilha-comp">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Inverter a ordem de $(g \circ f)(x)$:</strong> lembre sempre que $f$ age primeiro e $g$ age por último, e que em regra $g \circ f \ne f \circ g$.</item>
+          <item><strong>Confundir composição com multiplicação:</strong> $(g \circ f)(x) = g(f(x))$ <em>não</em> é o produto $g(x) \cdot f(x)$. Por exemplo, se $f(x) = x^2$ e $g(x) = \ln x$, então $(g \circ f)(x) = \ln(x^2)$, enquanto o produto é $x^2 \ln(x)$.</item>
+          <item><strong>Olhar só para a fórmula simplificada ao buscar o domínio:</strong> se $f(x) = \sqrt{x}$ e $g(u) = u^2$, então $(g \circ f)(x) = (\sqrt{x})^2 = x$ quando $x \ge 0$. Você <em>não</em> pode inserir $x = -4$ só porque a fórmula final simplificou para $x$: $f(-4) = \sqrt{-4}$ já não existe em $\mathbb{R}$, então $D_{g \circ f} = [0, +\infty)$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:1-3-2-1">
+        <title>Básico — Calculando composições nas duas ordens</title>
+        Considere $f(x) = 3x - 2$ e $g(x) = x^2 + 1$.
+        <list marker="a">
+          <item>Encontre as fórmulas de $(g \circ f)(x)$ e de $(f \circ g)(x)$.</item>
+          <item>Calcule $(g \circ f)(2)$ e $(f \circ g)(2)$ e confirme que são diferentes.</item>
+        </list>
+        <hint><title>Ver dica</title>Para $(g \circ f)(x)$, substitua cada $x$ na fórmula de $g$ por $(3x - 2)$. Para $(f \circ g)(x)$, substitua $x$ na fórmula de $f$ por $(x^2 + 1)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Na ordem $g$ após $f$:
+              $$(g \circ f)(x) = g(3x - 2) = (3x - 2)^2 + 1 = (9x^2 - 12x + 4) + 1 = 9x^2 - 12x + 5.$$
+              Na ordem $f$ após $g$:
+              $$(f \circ g)(x) = f(x^2 + 1) = 3(x^2 + 1) - 2 = 3x^2 + 3 - 2 = 3x^2 + 1.$$
+            </item>
+            <item>Em $x = 2$:
+              $$(g \circ f)(2) = g\bigl(f(2)\bigr) = g(3 \cdot 2 - 2) = g(4) = 4^2 + 1 = 17,$$
+              $$(f \circ g)(2) = f\bigl(g(2)\bigr) = f(2^2 + 1) = f(5) = 3 \cdot 5 - 2 = 13.$$
+              Substituindo nas fórmulas obtidas em (a): $9(4) - 12(2) + 5 = 36 - 24 + 5 = 17$ e $3(4) + 1 = 13$. Como $17 \ne 13$, confirmamos $g \circ f \ne f \circ g$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-3-2-2">
+        <title>Básico — Domínio de funções compostas</title>
+        Sejam $f(x) = 2x - 6$ e $g(u) = \ln(u)$. Escreva as expressões de $(g \circ f)(x)$ e $(f \circ g)(x)$ e determine o domínio de cada composição em notação de intervalos.
+        <hint><title>Ver dica</title>O domínio de $g(u) = \ln(u)$ é $u > 0$. Na primeira composição, exija $f(x) > 0$; na segunda, exija $x > 0$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="dash">
+            <item>$(g \circ f)(x) = \ln(2x - 6)$. Como $D_f = \mathbb{R}$, precisamos apenas que $f(x) \in D_g$, ou seja, $2x - 6 > 0 \implies 2x > 6 \implies x > 3$. Logo, $D_{g \circ f} = (3, +\infty)$.</item>
+            <item>$(f \circ g)(x) = 2\ln(x) - 6$. Como $g$ age primeiro, exigimos $x \in D_g = (0, +\infty)$. Qualquer saída de $\ln(x)$ está no domínio de $f$, que é $\mathbb{R}$. Logo, $D_{f \circ g} = (0, +\infty)$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-3-2-3">
+        <title>Intermediário — Decompondo uma unidade de rede neural</title>
+        Considere a função de ativação logística aplicada após uma camada linear:
+        $$y(x) = \frac{1}{1 + \exp\bigl(-(3x - 6)\bigr)}.$$
+        <list marker="a">
+          <item>Escreva $y(x)$ como composição $h(z(x))$, definindo explicitamente a camada linear $z(x)$ e a função logística padrão $h(z)$.</item>
+          <item>Avalie $y(2)$ usando as duas camadas e explique o significado de $x = 2$ para essa unidade.</item>
+        </list>
+        <hint><title>Ver dica</title>Tome $z(x) = 3x - 6$ como camada interna e $h(z) = \frac{1}{1 + e^{-z}}$ como camada externa.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Definindo $z(x) = 3x - 6$ e $h(z) = \dfrac{1}{1 + \exp(-z)}$, obtemos:
+              $$(h \circ z)(x) = h\bigl(z(x)\bigr) = \frac{1}{1 + \exp\bigl(-(3x - 6)\bigr)} = y(x).$$
+            </item>
+            <item>Para $x = 2$, a primeira camada calcula $z(2) = 3(2) - 6 = 0$. Em seguida, a segunda camada calcula $h(0) = \dfrac{1}{1 + \exp(0)} = \dfrac{1}{2} = 0{,}5$. Portanto, $x = 2$ é o ponto de transição exato (meia ativação) dessa unidade logística.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-3-2-4">
+        <title>Avançado — Cascata sináptica completa</title>
+        Em uma sinapse excitatória, a concentração de neurotransmissor $c \ge 0$ (em $\mu\text{M}$) gera uma corrente pós-sináptica (em $\text{nA}$) dada por:
+        $$I(c) = \frac{0{,}5\,c}{1 + c}.$$
+        Essa corrente produz o potencial estacionário $V(I) = -70 + 80 I$ (em $\text{mV}$), que por sua vez gera a taxa de disparo $r(V) = \max\bigl(0,\, 5(V + 54)\bigr)$ (em $\text{Hz}$).
+        <list marker="a">
+          <item>Calcule a taxa de disparo resultante quando $c = 4\;\mu\text{M}$.</item>
+          <item>Qual é a concentração mínima de neurotransmissor necessária para que o neurônio comece a disparar ($r > 0$)?</item>
+          <item>Qual é o limite superior teórico da taxa de disparo desse neurônio nessa sinapse, mesmo para concentrações $c$ arbitrariamente grandes?</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), avalie passo a passo $c \mapsto I(c) \mapsto V(I) \mapsto r(V)$. Em (b), resolva de trás para frente: ache primeiro o $V$ mínimo para $r > 0$, depois o $I$ mínimo para atingir esse $V$, e por fim o $c$ correspondente. Em (c), observe qual valor $I(c) = \frac{0{,}5 c}{1 + c}$ não consegue ultrapassar.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Seguindo a composição $r\bigl(V(I(4))\bigr)$:
+              <list marker="dash">
+                <item>Corrente: $I(4) = \dfrac{0{,}5 \cdot 4}{1 + 4} = \dfrac{2}{5} = 0{,}4\text{ nA}$.</item>
+                <item>Potencial: $V(0{,}4) = -70 + 80(0{,}4) = -70 + 32 = -38\text{ mV}$.</item>
+                <item>Taxa: $r(-38) = \max\bigl(0,\, 5(-38 + 54)\bigr) = \max(0,\, 5 \cdot 16) = 80\text{ Hz}$.</item>
+              </list>
+            </item>
+            <item>Para haver disparo ($r > 0$), exigimos:
+              $$5(V + 54) > 0 \implies V > -54\text{ mV}.$$
+              Substituindo $V(I) = -70 + 80 I$:
+              $$-70 + 80 I > -54 \implies 80 I > 16 \implies I > \frac{16}{80} = 0{,}2\text{ nA}.$$
+              Agora exigimos $I(c) > 0{,}2$:
+              $$\frac{0{,}5\,c}{1 + c} > 0{,}2.$$
+              Como $1 + c > 0$ para todo $c \ge 0$, podemos multiplicar os dois lados por $1 + c$ sem inverter o sinal:
+              $$0{,}5\,c > 0{,}2 + 0{,}2\,c \implies 0{,}3\,c > 0{,}2 \implies c > \frac{0{,}2}{0{,}3} = \frac{2}{3}\;\mu\text{M} \approx 0{,}67\;\mu\text{M}.$$
+            </item>
+            <item>Para qualquer $c \ge 0$, temos $\dfrac{c}{1 + c} < 1$, aproximando-se de $1$ à medida que $c$ cresce. Assim, a corrente $I(c)$ nunca ultrapassa $0{,}5\text{ nA}$. Como $V(I)$ e $r(V)$ são crescentes, o potencial fica sempre abaixo de $V(0{,}5) = -70 + 80(0{,}5) = -30\text{ mV}$, e a taxa de disparo fica sempre abaixo de:
+              $$r(-30) = 5(-30 + 54) = 5 \cdot 24 = 120\text{ Hz}.$$
+              Logo, $120\text{ Hz}$ é o teto de saturação dessa cadeia sináptica.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:1-3-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Inversa</title>
+      <intro>
+        Se a função direta codifica como um estímulo gera uma resposta neuronal, a função inversa faz a decodificação: dada a resposta medida, qual estímulo a produziu?
+      </intro>
+
+      Em neurociência computacional, distinguimos dois problemas complementares. Na <strong>codificação</strong> (<em>encoding</em>), conhecemos o estímulo $x$ e prevemos a taxa de disparo $r = f(x)$. Na <strong>decodificação</strong> (<em>decoding</em>), observamos a taxa $r$ e queremos reconstruir o estímulo $x$ que a provocou. Nem sempre isso é possível sem ambiguidade: se dois estímulos diferentes gerarem exatamente a mesma resposta, olhar apenas para a resposta não permite dizer qual dos dois aconteceu.
+
+      <definition id="def:1-3-injetora-bijetora">
+        <title>Funções injetoras, sobrejetoras e bijetoras</title>
+        Seja $f: A \to B$ uma função.
+        <list marker="dash">
+          <item><strong>Injetora (ou um-para-um):</strong> entradas distintas sempre produzem saídas distintas. Em símbolos: se $f(x_1) = f(x_2)$, então obrigatoriamente $x_1 = x_2$. Visualmente, satisfaz o <strong>teste da reta horizontal</strong>: nenhuma reta horizontal $y = k$ corta o gráfico de $f$ em mais de um ponto.</item>
+          <item><strong>Sobrejetora:</strong> todo elemento do contradomínio $B$ é atingido por pelo menos uma entrada em $A$, isto é, $\text{Im}(f) = B$.</item>
+          <item><strong>Bijetora:</strong> é simultaneamente injetora e sobrejetora — estabelece uma correspondência exata um-para-um entre $A$ e $B$.</item>
+        </list>
+      </definition>
+
+      <definition id="def:1-3-inversa">
+        <title>Função inversa</title>
+        Se $f: A \to B$ é uma função bijetora, sua <strong>função inversa</strong> $f^{-1}: B \to A$ é a única função que associa cada saída $y \in B$ à entrada original $x \in A$ tal que $f(x) = y$. Ela satisfaz as duas identidades de cancelamento:
+        <equation id="eq:1-3-inversa">f^{-1}\bigl(f(x)\bigr) = x \quad \text{para todo } x \in A, \qquad \text{e} \qquad f\bigl(f^{-1}(y)\bigr) = y \quad \text{para todo } y \in B.</equation>
+      </definition>
+
+      Quando uma função é apenas injetora de $A$ em $B$ (isto é, algumas saídas de $B$ ficam sem uso, como valores negativos fora da imagem), basta ajustar o conjunto de chegada para $\text{Im}(f)$: a função passa a ser bijetora de $A$ em $\text{Im}(f)$, admitindo inversa $f^{-1}: \text{Im}(f) \to A$. Por isso, o critério decisivo de invertibilidade é a injetividade.
+
+      <proposition id="prop:1-3-criterio-inversa">
+        <title>Critério da monotonicidade e restrição de domínio</title>
+        Uma função admite inversa (definida em sua imagem) se, e somente se, ela é <strong>injetora</strong> em seu domínio. Em particular, toda função <strong>estritamente crescente</strong> ($x_1 < x_2 \implies f(x_1) < f(x_2)$) ou <strong>estritamente decrescente</strong> ($x_1 < x_2 \implies f(x_1) > f(x_2)$) é automaticamente injetora e, portanto, invertível.
+        <intuition>
+          Se uma função só sobe (ou só desce), ela nunca volta a passar pela mesma altura duas vezes — logo, duas entradas diferentes nunca colidem na mesma saída. Já uma função que sobe e depois desce (como $x^2$ ou uma curva de sintonia em forma de sino) repete valores; para torná-la invertível, precisamos fazer uma <strong>restrição de domínio</strong>, escolhendo apenas um trecho onde ela seja puramente crescente ou puramente decrescente.
+        </intuition>
+      </proposition>
+      <proof of="prop:1-3-criterio-inversa" collapsible="true" collapsed="true">
+        Suponha que $f$ seja estritamente crescente em $A$ e tome dois pontos distintos $x_1, x_2 \in A$, com $x_1 \ne x_2$. Sem perda de generalidade, $x_1 < x_2$. Pela definição de estritamente crescente, segue $f(x_1) < f(x_2)$, logo $f(x_1) \ne f(x_2)$. Assim, entradas distintas sempre geram saídas distintas, o que prova que $f$ é injetora (o raciocínio para funções estritamente decrescentes é idêntico, apenas trocando $<$ por $>$). Como todo elemento de $\text{Im}(f)$ vem de pelo menos um $x \in A$, e pela injetividade esse $x$ é único, $f: A \to \text{Im}(f)$ é bijetora e admite inversa.
+      </proof>
+
+      Como encontrar a fórmula da inversa algebricamente? Escreva $y = f(x)$, trate $y$ como conhecido e <strong>isole $x$</strong> usando as operações inversas de cada etapa (exatamente o que você treinou no Tema 1.1). Ao final, o domínio de $f^{-1}$ será a imagem de $f$, e a imagem de $f^{-1}$ será o domínio escolhido para $f$.
+
+      Um par de inversas que você usará durante toda a trilha é formado pela função exponencial e pelo logaritmo natural (retomando Álgebra, Tema 1.1):
+      $$f(x) = e^x \quad (D_f = \mathbb{R},\; \text{Im}(f) = (0, +\infty)) \qquad \Longleftrightarrow \qquad f^{-1}(y) = \ln(y) \quad (D_{f^{-1}} = (0, +\infty),\; \text{Im}(f^{-1}) = \mathbb{R}).$$
+      Pela Equação <ref to="eq:1-3-inversa"/>, valem $\ln(e^x) = x$ para todo $x \in \mathbb{R}$ e $e^{\ln(y)} = y$ para todo $y > 0$ (e de forma análoga para $a^x$ e $\log_a(x)$, com $a > 0, a \ne 1$).
+
+      <example id="exm:1-3-inversa-sigmoide-hill">
+        <title>Decodificando corrente na sigmoide e concentração na equação de Hill</title>
+        <list marker="a">
+          <item>Encontre a inversa da curva $f$–$I$ sigmoide logística (<ref to="eq:1-3-sigmoide"/>), $r(I) = \dfrac{r_{\text{max}}}{1 + \exp\!\left(-\dfrac{I - I_{50}}{s}\right)}$, indicando seu domínio. Em seguida, usando $r_{\text{max}} = 80\text{ Hz}$, $I_{50} = 0{,}5\text{ nA}$ e $s = 0{,}1\text{ nA}$, decodifique qual corrente $I$ gera uma taxa observada de $r = 64\text{ Hz}$.</item>
+          <item>Encontre a inversa da equação de Hill (<ref to="eq:1-3-hill"/>), $E([L]) = \dfrac{E_{\text{max}} \cdot [L]^n}{\text{EC}_{50}^n + [L]^n}$, para isolar a concentração $[L] \ge 0$ necessária para atingir um efeito desejado $E$. Teste com $E_{\text{max}} = 100\%$, $\text{EC}_{50} = 2\;\mu\text{M}$, $n = 2$ e $E = 80\%$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Como $\exp(-u)$ é estritamente decrescente, $1 + \exp(-(I - I_{50})/s)$ é estritamente decrescente e, portanto, $r(I)$ é <strong>estritamente crescente</strong> em $\mathbb{R}$, tomando valores em $(0, r_{\text{max}})$. Logo, ela é injetora e invertível para $0 < r < r_{\text{max}}$. Vamos isolar $I$ passo a passo:
+            $$\begin{aligned} r &= \frac{r_{\text{max}}}{1 + \exp\!\left(-\dfrac{I - I_{50}}{s}\right)} \\ 1 + \exp\!\left(-\frac{I - I_{50}}{s}\right) &= \frac{r_{\text{max}}}{r} \\ \exp\!\left(-\frac{I - I_{50}}{s}\right) &= \frac{r_{\text{max}}}{r} - 1 = \frac{r_{\text{max}} - r}{r}. \end{aligned}$$
+            Como $0 < r < r_{\text{max}}$, a fração $\dfrac{r_{\text{max}} - r}{r}$ é estritamente positiva, e podemos aplicar $\ln$ em ambos os lados:
+            $$-\frac{I - I_{50}}{s} = \ln\!\left(\frac{r_{\text{max}} - r}{r}\right).$$
+            Multiplicando os dois lados por $-1$ e lembrando que $-\ln(a/b) = \ln(b/a)$:
+            $$\frac{I - I_{50}}{s} = \ln\!\left(\frac{r}{r_{\text{max}} - r}\right) \implies I(r) = I_{50} + s \cdot \ln\!\left(\frac{r}{r_{\text{max}} - r}\right), \qquad 0 < r < r_{\text{max}}.$$
+            (Nota: quando normalizamos $p = r / r_{\text{max}}$, a expressão $\ln\bigl(p / (1 - p)\bigr)$ é a famosa função <strong>logit</strong>, que voltará no Módulo 8 em Regressão Logística.)
+
+            Aplicando aos dados ($r_{\text{max}} = 80\text{ Hz}$, $I_{50} = 0{,}5\text{ nA}$, $s = 0{,}1\text{ nA}$ e $r = 64\text{ Hz}$):
+            $$I(64) = 0{,}5 + 0{,}1 \cdot \ln\!\left(\frac{64}{80 - 64}\right) = 0{,}5 + 0{,}1 \cdot \ln(4).$$
+            Como $\ln(4) \approx 1{,}386$, obtemos $I(64) \approx 0{,}5 + 0{,}1386 \approx 0{,}639\text{ nA}$.
+            <em>Conferência:</em> se $I - 0{,}5 = 0{,}1 \ln 4$, então $\exp(-(I - 0{,}5)/0{,}1) = \exp(-\ln 4) = 1/4 = 0{,}25$, e $r = \frac{80}{1 + 0{,}25} = 64\text{ Hz}$.
+          </item>
+          <item>Para $[L] \ge 0$, $E([L])$ é estritamente crescente e varia em $[0, E_{\text{max}})$. Isolando $[L]$ a partir de $E = \dfrac{E_{\text{max}} [L]^n}{\text{EC}_{50}^n + [L]^n}$:
+            $$\begin{aligned} E \cdot (\text{EC}_{50}^n + [L]^n) &= E_{\text{max}} \cdot [L]^n \\ E \cdot \text{EC}_{50}^n &= (E_{\text{max}} - E) \cdot [L]^n \\ [L]^n &= \text{EC}_{50}^n \cdot \frac{E}{E_{\text{max}} - E} \\ [L](E) &= \text{EC}_{50} \cdot \left(\frac{E}{E_{\text{max}} - E}\right)^{1/n}, \qquad 0 \le E < E_{\text{max}}. \end{aligned}$$
+            Testando para $E_{\text{max}} = 100\%$, $\text{EC}_{50} = 2\;\mu\text{M}$, $n = 2$ e $E = 80\%$:
+            $$[L](80) = 2 \cdot \left(\frac{80}{100 - 80}\right)^{1/2} = 2 \cdot \sqrt{4} = 4\;\mu\text{M},$$
+            em acordo exato com o resultado do <ref to="exm:1-3-hill-relu"/>.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:1-3-inversa-gaussiana">
+        <title>Por que um único neurônio sintonizado é ambíguo — e como inverter um flanco</title>
+        Considere novamente a curva de sintonia gaussiana do <ref to="exm:1-3-sintonia-sigmoide"/>:
+        $$f(\theta) = 50 \cdot \exp\!\left(-\frac{(\theta - 90^\circ)^2}{2 \cdot (20^\circ)^2}\right), \qquad \theta \in [0^\circ, 180^\circ].$$
+        <list marker="a">
+          <item>Mostre que $f$ <strong>não</strong> é injetora em $[0^\circ, 180^\circ]$.</item>
+          <item>Restringindo o domínio ao flanco direito $\theta \in [90^\circ, 180^\circ]$, deduza a fórmula da função inversa $\theta(r)$ e calcule a orientação correspondente a meia resposta ($r = 25\text{ Hz}$).</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Já vimos no <ref to="exm:1-3-sintonia-sigmoide"/> que $f(110^\circ) \approx 30{,}3\text{ Hz}$. Mas para $\theta = 70^\circ$, temos $(70^\circ - 90^\circ)^2 = (-20^\circ)^2 = (+20^\circ)^2$, logo $f(70^\circ) = f(110^\circ) \approx 30{,}3\text{ Hz}$. Duas orientações distintas ($70^\circ$ e $110^\circ$) geram exatamente a mesma taxa de disparo. Pelo teste da reta horizontal, $f$ não é injetora.
+
+            <em>Significado biológico:</em> um único neurônio com curva de sintonia em sino não consegue decodificar a orientação do estímulo sem ambiguidade. É por isso que o córtex usa <strong>codificação em população</strong> (<em>population coding</em>): dezenas de neurônios com diferentes $\theta_{\text{pref}}$ votam em conjunto para eliminar a ambiguidade.
+          </item>
+          <item>No flanco direito $\theta \ge \theta_{\text{pref}}$ ($\theta \in [90^\circ, 180^\circ]$), à medida que $\theta$ aumenta, $(\theta - 90^\circ)^2$ cresce e a exponencial negativa cai: a função torna-se <strong>estritamente decrescente</strong>, portanto injetora! Para isolar $\theta$ a partir de $r = r_{\text{max}} \exp\!\left(-\frac{(\theta - \theta_{\text{pref}})^2}{2\sigma^2}\right)$ (com $0 < r \le r_{\text{max}}$):
+            $$\frac{r}{r_{\text{max}}} = \exp\!\left(-\frac{(\theta - \theta_{\text{pref}})^2}{2\sigma^2}\right) \implies \ln\!\left(\frac{r}{r_{\text{max}}}\right) = -\frac{(\theta - \theta_{\text{pref}})^2}{2\sigma^2}.$$
+            Multiplicando por $-1$ e usando $-\ln(r/r_{\text{max}}) = \ln(r_{\text{max}}/r)$:
+            $$(\theta - \theta_{\text{pref}})^2 = 2\sigma^2 \ln\!\left(\frac{r_{\text{max}}}{r}\right).$$
+            Como escolhemos o flanco em que $\theta - \theta_{\text{pref}} \ge 0$, ficamos exclusivamente com a raiz positiva:
+            $$\theta(r) = \theta_{\text{pref}} + \sigma \sqrt{2 \ln\!\left(\frac{r_{\text{max}}}{r}\right)}.$$
+            Para $r_{\text{max}} = 50\text{ Hz}$, $\theta_{\text{pref}} = 90^\circ$, $\sigma = 20^\circ$ e $r = 25\text{ Hz}$:
+            $$\theta(25) = 90^\circ + 20^\circ \sqrt{2 \ln(2)}.$$
+            Como $\ln(2) \approx 0{,}6931$, temos $2\ln(2) \approx 1{,}3863$ e $\sqrt{1{,}3863} \approx 1{,}1774$, o que dá:
+            $$\theta(25) \approx 90^\circ + 20^\circ \cdot 1{,}1774 \approx 90^\circ + 23{,}55^\circ = 113{,}55^\circ.$$
+            (Isso mostra também que a largura total à meia altura de uma gaussiana é $2 \cdot 23{,}55^\circ = 47{,}1^\circ$, cerca de $2{,}355\,\sigma$.)
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:1-3-armadilha-inversa">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Confundir $f^{-1}(x)$ com $\dfrac{1}{f(x)}$:</strong> o expoente $-1$ em $f^{-1}$ indica <em>função inversa</em>, nunca o inverso multiplicativo $[f(x)]^{-1} = \frac{1}{f(x)}$! Por exemplo, se $f(x) = 2x + 4$, então $f^{-1}(x) = \dfrac{x - 4}{2}$, que não tem nada a ver com $\dfrac{1}{2x + 4}$.</item>
+          <item><strong>Achar que toda função tem inversa sem checar injetividade:</strong> aplicar fórmulas prontas sem restringir o domínio faz você perder soluções (como esquecer o ângulo no flanco esquerdo da curva de sintonia ou a raiz negativa de $x^2 = 9$).</item>
+          <item><strong>Esquecer os extremos do domínio da inversa:</strong> na sigmoide, tentar calcular $I(0)$ ou $I(r_{\text{max}})$ gera $\ln(0)$ ou divisão por zero — porque a sigmoide nunca atinge exatamente $0$ nem $r_{\text{max}}$ em corrente finita.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:1-3-3-1">
+        <title>Básico — Injetividade e inversas simples</title>
+        <list marker="a">
+          <item>Encontre a função inversa de $f(x) = 3x - 9$ ($x \in \mathbb{R}$) e confira que $f^{-1}(f(5)) = 5$.</item>
+          <item>Uma população celular cresce segundo $N(t) = 100 \cdot e^{0{,}2 t}$ para $t \in \mathbb{R}$. Explique por que $N$ é injetora e encontre sua inversa $t(N)$ para $N > 0$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), escreva $y = 3x - 9$ e isole $x$. Em (b), isole $e^{0{,}2t}$ dividindo por $100$ antes de aplicar $\ln$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Partindo de $y = 3x - 9$:
+              $$y + 9 = 3x \implies x = \frac{y + 9}{3}.$$
+              Logo, $f^{-1}(y) = \dfrac{y + 9}{3}$ (ou, renomeando a variável, $f^{-1}(x) = \dfrac{x + 9}{3}$).
+              <em>Conferência:</em> $f(5) = 3(5) - 9 = 6$, e $f^{-1}(6) = \dfrac{6 + 9}{3} = \dfrac{15}{3} = 5$.
+            </item>
+            <item>Como $e^{0{,}2 t}$ é estritamente crescente em $\mathbb{R}$, $N(t) = 100 e^{0{,}2 t}$ também é estritamente crescente e, portanto, injetora (com imagem $(0, +\infty)$). Isolando $t$:
+              $$\frac{N}{100} = e^{0{,}2 t} \implies \ln\!\left(\frac{N}{100}\right) = 0{,}2\,t \implies t(N) = 5 \ln\!\left(\frac{N}{100}\right), \qquad N > 0.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-3-3-2">
+        <title>Básico — Decodificando concentração na equação de Hill</title>
+        Um fármaco agonista segue a equação de Hill com $E_{\text{max}} = 100\%$, $\text{EC}_{50} = 5\;\mu\text{M}$ e $n = 2$. Usando a inversa deduzida no <ref to="exm:1-3-inversa-sigmoide-hill"/>, calcule a concentração $[L]$ necessária para obter os efeitos $E = 20\%$ e $E = 80\%$, e confira os dois resultados na equação original.
+        <hint><title>Ver dica</title>Substitua na fórmula $[L] = \text{EC}_{50} \cdot \left(\frac{E}{E_{\text{max}} - E}\right)^{1/2}$ e observe que as frações viram quadrados perfeitos.</hint>
+        <solution collapsible="true" collapsed="true">
+          Usando $[L](E) = 5 \cdot \left(\dfrac{E}{100 - E}\right)^{1/2}$:
+          <list marker="dash">
+            <item>Para $E = 20\%$:
+              $$[L](20) = 5 \cdot \sqrt{\frac{20}{100 - 20}} = 5 \cdot \sqrt{\frac{20}{80}} = 5 \cdot \sqrt{\frac{1}{4}} = 5 \cdot \frac{1}{2} = 2{,}5\;\mu\text{M}.$$
+              <em>Conferência:</em> $E(2{,}5) = \dfrac{100 \cdot (2{,}5)^2}{5^2 + (2{,}5)^2} = \dfrac{100 \cdot 6{,}25}{25 + 6{,}25} = \dfrac{625}{31{,}25} = 20\%$.
+            </item>
+            <item>Para $E = 80\%$:
+              $$[L](80) = 5 \cdot \sqrt{\frac{80}{100 - 80}} = 5 \cdot \sqrt{\frac{80}{20}} = 5 \cdot \sqrt{4} = 5 \cdot 2 = 10\;\mu\text{M}.$$
+              <em>Conferência:</em> $E(10) = \dfrac{100 \cdot 10^2}{5^2 + 10^2} = \dfrac{10\,000}{125} = 80\%$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-3-3-3">
+        <title>Intermediário — Restrição de domínio na parábola e no flanco esquerdo</title>
+        <list marker="a">
+          <item>Explique por que $h(x) = (x - 3)^2 + 1$ não tem inversa em $\mathbb{R}$. Restrinja seu domínio a $(-\infty, 3]$, ache a inversa $h^{-1}(y)$ (indicando o domínio) e confira com $x = 1$.</item>
+          <item>Na curva gaussiana do <ref to="exm:1-3-inversa-gaussiana"/> ($r_{\text{max}} = 50\text{ Hz}$, $\theta_{\text{pref}} = 90^\circ$, $\sigma = 20^\circ$), restrinja agora o domínio ao <strong>flanco esquerdo</strong> $\theta \in [0^\circ, 90^\circ]$ e determine a expressão da inversa $\theta(r)$ e o ângulo correspondente a $r = 25\text{ Hz}$.</item>
+        </list>
+        <hint><title>Ver dica</title>Ao extrair $\sqrt{(\dots)^2}$, lembre que se a quantidade dentro do quadrado for negativa ou zero (como $x - 3 \le 0$ ou $\theta - 90^\circ \le 0$), você deve escolher o sinal negativo na frente da raiz.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Não é injetora em $\mathbb{R}$ porque pontos simétricos em torno de $x = 3$ dão o mesmo valor (por exemplo, $h(2) = (-1)^2 + 1 = 2$ e $h(4) = 1^2 + 1 = 2$). Restringindo a $x \le 3$, a função é estritamente decrescente e tem imagem $[1, +\infty)$. Isolando $x$ em $y = (x - 3)^2 + 1$:
+              $$(x - 3)^2 = y - 1 \implies x - 3 = -\sqrt{y - 1} \quad (\text{pois } x \le 3 \implies x - 3 \le 0).$$
+              Portanto, $h^{-1}(y) = 3 - \sqrt{y - 1}$ para $y \in [1, +\infty)$.
+              <em>Conferência:</em> $h(1) = (1 - 3)^2 + 1 = 5$, e $h^{-1}(5) = 3 - \sqrt{5 - 1} = 3 - 2 = 1$.
+            </item>
+            <item>No flanco esquerdo $\theta \le 90^\circ$, temos $\theta - 90^\circ \le 0$. Assim, da equação $(\theta - 90^\circ)^2 = 2\sigma^2 \ln(r_{\text{max}}/r)$, escolhemos a raiz negativa:
+              $$\theta(r) = 90^\circ - 20^\circ \sqrt{2 \ln\!\left(\frac{50}{r}\right)}.$$
+              Para $r = 25\text{ Hz}$, usando $\sqrt{2\ln 2} \approx 1{,}1774$:
+              $$\theta(25) \approx 90^\circ - 20^\circ \cdot 1{,}1774 \approx 90^\circ - 23{,}55^\circ = 66{,}45^\circ.$$
+              (Naturalmente simétrico a $113{,}55^\circ$ em torno de $90^\circ$!)
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-3-3-4">
+        <title>Avançado — Decodificação na sigmoide e crítica de armadilhas</title>
+        Um neurônio segue a curva $f$–$I$ sigmoide $r(I) = \dfrac{100}{1 + \exp\!\left(-\dfrac{I - 0{,}4}{0{,}2}\right)}$ (com $I$ em $\text{nA}$ e $r$ em $\text{Hz}$).
+        <list marker="a">
+          <item>Escreva a função inversa $I(r)$ e indique o intervalo de taxas $r$ em que ela é válida.</item>
+          <item>Estime a corrente $I$ que produz $r = 20\text{ Hz}$ (use $\ln 4 \approx 1{,}386$) e confira o resultado substituindo de volta em $r(I)$.</item>
+          <item>Compare $I(50)$ com $\dfrac{1}{r(0{,}4)}$ para mostrar por que $r^{-1} \ne 1/r$ (inclusive nas unidades), e explique por que $r = 0\text{ Hz}$ e $r = 100\text{ Hz}$ estão fora do domínio da inversa.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), use a fórmula deduzida no <ref to="exm:1-3-inversa-sigmoide-hill"/> com $r_{\text{max}} = 100$, $I_{50} = 0{,}4$ e $s = 0{,}2$. Em (b), note que $\ln(1/4) = -\ln(4)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Substituindo $r_{\text{max}} = 100\text{ Hz}$, $I_{50} = 0{,}4\text{ nA}$ e $s = 0{,}2\text{ nA}$ na inversa da sigmoide:
+              $$I(r) = 0{,}4 + 0{,}2 \cdot \ln\!\left(\frac{r}{100 - r}\right),$$
+              válida no intervalo aberto $0 < r < 100\text{ Hz}$, ou seja, $r \in (0, 100)\text{ Hz}$.
+            </item>
+            <item>Para $r = 20\text{ Hz}$:
+              $$I(20) = 0{,}4 + 0{,}2 \cdot \ln\!\left(\frac{20}{100 - 20}\right) = 0{,}4 + 0{,}2 \cdot \ln\!\left(\frac{1}{4}\right) = 0{,}4 - 0{,}2 \ln(4).$$
+              Usando $\ln 4 \approx 1{,}386$:
+              $$I(20) \approx 0{,}4 - 0{,}2 \cdot 1{,}386 = 0{,}4 - 0{,}277 = 0{,}123\text{ nA}.$$
+              <em>Conferência:</em> $-\dfrac{0{,}123 - 0{,}4}{0{,}2} = \dfrac{0{,}277}{0{,}2} = 1{,}385 \approx \ln 4$, logo $\exp(1{,}385) \approx 4$ e $r \approx \dfrac{100}{1 + 4} = 20\text{ Hz}$.
+            </item>
+            <item>Em $I = 0{,}4\text{ nA}$, temos $r(0{,}4) = 50\text{ Hz}$, logo a inversa retorna $I(50) = 0{,}4\text{ nA}$ (unidade de corrente). Já o inverso multiplicativo vale $\dfrac{1}{r(0{,}4)} = \dfrac{1}{50\text{ Hz}} = 0{,}02\text{ s}$ (unidade de tempo, totalmente distinta!). Além disso, $r = 0\text{ Hz}$ exigiria $\ln(0)$ (indefinido) e $r = 100\text{ Hz}$ exigiria divisão por $100 - 100 = 0$ (indefinida), pois a sigmoide nunca alcança exatamente $0$ nem $100$ para correntes finitas.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:1-3-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Gráfico</title>
+      <intro>
+        Ler um gráfico é enxergar a fisiologia de uma função inteira de uma só vez; transformar um gráfico é traduzir modificações biológicas — como mudança de limiar, ganho ou linha de base — diretamente para a álgebra.
+      </intro>
+
+      Em um paper de neurociência ou de aprendizado de máquina, raramente olhamos para uma fórmula isolada: quase sempre olhamos para o gráfico de $y = f(x)$. Ao ler um gráfico, quatro elementos contam a história completa do fenômeno:
+      <list marker="dash">
+        <item><strong>Interceptos:</strong> onde a curva cruza o eixo vertical ($x = 0$, dando o valor inicial ou espontâneo $f(0)$) e o eixo horizontal ($y = 0$, dando as raízes ou limiares onde a resposta se anula).</item>
+        <item><strong>Crescimento e decrescimento:</strong> em quais intervalos a saída sobe ou desce conforme a entrada aumenta.</item>
+        <item><strong>Máximos e mínimos:</strong> os picos e vales da curva (como a taxa máxima $r_{\text{max}}$ atingida na orientação preferida $\theta_{\text{pref}}$).</item>
+        <item><strong>Assíntotas horizontais (saturação):</strong> quando a entrada cresce indefinidamente (ou decresce muito) e a curva se aproxima cada vez mais de uma reta horizontal $y = L$ sem ultrapassá-la. Na <ref to="fig:1-3-sigmoide"/>, a reta tracejada $r = 80\text{ Hz}$ é a assíntota horizontal que representa a saturação biofísica do neurônio; na equação de Hill, a assíntota é $E = E_{\text{max}}$; e nas caudas da curva de sintonia gaussiana sem linha de base, a curva cai rumo à assíntota $r = 0\text{ Hz}$. (Aqui usamos a assíntota de forma intuitiva; a definição rigorosa via limites será tema central do Módulo 2, <strong>Cálculo Real</strong>.)</item>
+      </list>
+
+      Agora vamos ao outro lado da moeda: como alterações nos parâmetros de um modelo deslocam, esticam ou refletem seu gráfico?
+
+      <proposition id="prop:1-3-transformacoes">
+        <title>Transformações geométricas de gráficos</title>
+        Seja $y = f(x)$ o gráfico de referência e sejam $c > 0$, $a > 0$ e $b > 0$ constantes reais.
+        <list marker="number">
+          <item><strong>Deslocamento vertical:</strong> $f(x) + c$ desloca o gráfico $c$ unidades <strong>para cima</strong>; $f(x) - c$ desloca $c$ unidades <strong>para baixo</strong>.</item>
+          <item><strong>Deslocamento horizontal:</strong> $f(x - c)$ desloca o gráfico $c$ unidades <strong>para a direita</strong>; $f(x + c)$ desloca $c$ unidades <strong>para a esquerda</strong>.</item>
+          <item><strong>Escala vertical:</strong> $a \cdot f(x)$ estica o gráfico verticalmente por um fator $a$ (se $a > 1$) ou o comprime (se $0 < a < 1$).</item>
+          <item><strong>Escala horizontal:</strong> $f(b \cdot x)$ comprime o gráfico horizontalmente pelo fator $1/b$ (se $b > 1$) ou o estica pelo fator $1/b$ (se $0 < b < 1$). Em particular, $f(x / \sigma)$ estica horizontalmente pelo fator $\sigma$ quando $\sigma > 1$.</item>
+          <item><strong>Reflexões:</strong> $-f(x)$ reflete o gráfico em torno do <strong>eixo $x$</strong> (inverte de cabeça para baixo); $f(-x)$ reflete em torno do <strong>eixo $y$</strong> (espelha da esquerda para a direita).</item>
+          <item><strong>Gráfico da função inversa:</strong> quando $f$ é invertível, o gráfico de $y = f^{-1}(x)$ é o <strong>reflexo</strong> do gráfico de $y = f(x)$ em torno da reta diagonal $y = x$, pois cada ponto $(x_0, y_0)$ no gráfico de $f$ corresponde ao ponto $(y_0, x_0)$ no gráfico de $f^{-1}$.</item>
+        </list>
+        <intuition>
+          Por que $f(x - c)$ vai para a <em>direita</em> mesmo tendo um sinal de menos? Pense no que é preciso colocar na entrada para a função fazer o mesmo que fazia em $0$: para obter $f(0)$, agora precisamos escolher $x$ tal que $x - c = 0$, ou seja, $x = +c$ (mais à direita!). Pelo mesmo motivo, em $f(2x)$, basta andar até $x = 1/2$ para atingir o que antes acontecia em $x = 1$ — por isso o gráfico encolhe horizontalmente pela metade.
+        </intuition>
+      </proposition>
+
+      A <ref to="fig:1-3-sintonia"/> mostra essas transformações em ação na curva de sintonia gaussiana: multiplicar por $1{,}5$ estica o pico verticalmente (modulação de ganho), enquanto trocar $\theta$ por $\theta - 40^\circ$ desloca a orientação preferida $40^\circ$ para a direita sem mudar a altura nem a largura da curva.
+
+      <figure src="fig/curva-sintonia.svg" alt="Dois gráficos lado a lado de curvas de sintonia gaussianas de orientação entre 0 e 180 graus. À esquerda, curva de referência com pico de 50 Hz em 90 graus e pontos em 70 e 110 graus a cerca de 30,3 Hz. À direita, comparação da curva base tracejada com o ganho multiplicado por 1,5 (pico de 75 Hz) e com o deslocamento de 40 graus para a direita (pico em 130 graus)" id="fig:1-3-sintonia">
+        <caption>Curva de sintonia gaussiana de orientação ($\sigma = 20^\circ$). À esquerda, o modelo de referência (<ref to="exm:1-3-sintonia-sigmoide"/>) com pico em $\theta_{\text{pref}} = 90^\circ$ e largura marcada em $\theta_{\text{pref}} \pm \sigma$. À direita, duas transformações da <ref to="prop:1-3-transformacoes"/>: modulação multiplicativa de ganho ($1{,}5 \cdot f(\theta)$) e deslocamento horizontal ($f(\theta - 40^\circ)$).</caption>
+      </figure>
+
+      <example id="exm:1-3-transformacoes-sintonia">
+        <title>Transformações em modelos neurais: ganho, linha de base, largura e limiar</title>
+        Considere a curva de sintonia base $f(\theta) = 50 \cdot \exp\!\left(-\dfrac{(\theta - 90^\circ)^2}{2 \cdot (20^\circ)^2}\right)$ e a sigmoide $r(I) = \dfrac{80}{1 + \exp\!\left(-\dfrac{I - 0{,}5}{0{,}1}\right)}$. Interprete geometricamente e biologicamente cada mudança abaixo:
+        <list marker="a">
+          <item>Trocar $\theta_{\text{pref}} = 90^\circ$ para $\theta_{\text{pref}} = 130^\circ$ na curva de sintonia.</item>
+          <item>Trocar $r_{\text{max}} = 50\text{ Hz}$ para $75\text{ Hz}$ versus somar uma taxa espontânea $r_0 = 10\text{ Hz}$ na curva de sintonia.</item>
+          <item>Reduzir $\sigma = 20^\circ$ para $\sigma = 10^\circ$ na curva de sintonia.</item>
+          <item>Aumentar $I_{50} = 0{,}5\text{ nA}$ para $I_{50} = 0{,}8\text{ nA}$ na sigmoide $f$–$I$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Note que $\theta - 130^\circ = (\theta - 40^\circ) - 90^\circ$, portanto a nova curva é $f(\theta - 40^\circ)$. Pela <ref to="prop:1-3-transformacoes"/>, o gráfico inteiro <strong>desloca $40^\circ$ para a direita</strong>, mantendo a altura ($50\text{ Hz}$) e a largura ($\sigma = 20^\circ$): trata-se de outro neurônio com preferência por $130^\circ$.</item>
+          <item>Mudar $r_{\text{max}}$ de $50$ para $75$ equivale a multiplicar a função por $1{,}5$: $1{,}5 \cdot f(\theta)$ é um <strong>estiramento vertical</strong> por fator $1{,}5$. Biologicamente, isso modela a <strong>modulação de ganho</strong> (<em>gain modulation</em>), efeito clássico da atenção visual: o pico sobe de $50$ para $75\text{ Hz}$, mas as caudas distantes continuam perto de $0\text{ Hz}$. Já somar $r_0 = 10\text{ Hz}$ produz $f(\theta) + 10$, um <strong>deslocamento vertical para cima</strong> de $10\text{ Hz}$: a taxa máxima passa para $60\text{ Hz}$ e a linha de base nas caudas sobe de $0$ para $10\text{ Hz}$ (atividade espontânea aditiva).</item>
+          <item>Trocar $\sigma = 20^\circ$ por $\sigma = 10^\circ$ substitui $\dfrac{\theta - 90^\circ}{20^\circ}$ por $\dfrac{2(\theta - 90^\circ)}{20^\circ}$ em torno do centro $90^\circ$. Isso causa uma <strong>compressão horizontal</strong> pela metade ao redor de $\theta_{\text{pref}} = 90^\circ$: o neurônio mantém o pico de $50\text{ Hz}$, mas torna-se duas vezes mais seletivo à orientação.</item>
+          <item>Como $I - 0{,}8 = (I - 0{,}3) - 0{,}5$, a nova sigmoide é $r(I - 0{,}3)$: o gráfico inteiro <strong>desloca $0{,}3\text{ nA}$ para a direita</strong>. A taxa de saturação ($80\text{ Hz}$) e a inclinação ($s = 0{,}1\text{ nA}$) não mudam, mas o neurônio agora precisa de mais corrente para atingir metade da resposta máxima — isto é, ficou menos excitável.</item>
+        </list>
+      </example>
+
+      <example id="exm:1-3-leitura-reflexao">
+        <title>Leitura de assíntota e simetria da inversa em torno de y = x</title>
+        Considere a função de carregamento exponencial $h(x) = 100\bigl(1 - e^{-0{,}5 x}\bigr)$ para $x \ge 0$ (por exemplo, a porcentagem da carga máxima acumulada por uma membrana ao longo do tempo $x$, em múltiplos da constante de tempo).
+        <list marker="a">
+          <item>Encontre o intercepto vertical, o comportamento de crescimento e a assíntota horizontal de $h$.</item>
+          <item>Calcule $h(2\ln 2)$ (use $\ln 2 \approx 0{,}693$) e determine qual ponto correspondente deve pertencer ao gráfico da inversa $h^{-1}$ pelo reflexo na reta $y = x$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Em $x = 0$, temos $h(0) = 100(1 - e^0) = 100(1 - 1) = 0$: o gráfico parte da origem $(0, 0)$. Como $e^{-0{,}5 x}$ diminui estritamente quando $x$ cresce, $1 - e^{-0{,}5 x}$ é estritamente crescente para $x \ge 0$. Quando $x$ fica muito grande, $e^{-0{,}5 x}$ aproxima-se de $0$ por valores positivos; logo, $h(x)$ cresce continuamente rumo à <strong>assíntota horizontal $y = 100$</strong>, sem nunca atingi-la em $x$ finito.</item>
+          <item>Para $x_0 = 2\ln 2 \approx 1{,}386$, temos $-0{,}5 x_0 = -\ln 2$, logo $e^{-0{,}5 x_0} = e^{-\ln 2} = \dfrac{1}{2}$. Portanto:
+            $$h(2\ln 2) = 100\left(1 - \frac{1}{2}\right) = 50.$$
+            Assim, o ponto $(2\ln 2;\, 50) \approx (1{,}386;\, 50)$ pertence ao gráfico de $h$. Como o gráfico de $h^{-1}$ é o reflexo do gráfico de $h$ na reta $y = x$, o ponto simétrico $(50;\, 2\ln 2) \approx (50;\, 1{,}386)$ pertence obrigatoriamente ao gráfico de $h^{-1}$. (De fato, isolando $x$ em $y = 100(1 - e^{-0{,}5 x})$ obtemos $h^{-1}(y) = -2\ln(1 - y/100)$, e $h^{-1}(50) = -2\ln(0{,}5) = 2\ln 2$.)
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:1-3-armadilha-graf">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Trocar esquerda por direita em $f(x - c)$:</strong> ver um sinal de menos dentro dos parênteses leva muita gente a empurrar o gráfico para a esquerda. Lembre-se da regra de ouro: iguale o novo argumento a zero ($x - c = 0 \implies x = +c$) para ver onde foi parar o antigo $x = 0$. Com $c > 0$, $f(x - c)$ vai para a <strong>direita</strong> e $f(x + c)$ vai para a <strong>esquerda</strong>.</item>
+          <item><strong>Inverter compressão e estiramento horizontal:</strong> $f(2x)$ <em>não</em> dobra a largura do gráfico — ele reduz a largura pela <strong>metade</strong> (comprime horizontalmente), pois basta $x = 1$ para calcular $f(2)$. Quem dobra a largura é $f(x/2)$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:1-3-4-1">
+        <title>Básico — Transformações a partir de uma parábola base</title>
+        Partindo da função base $f(x) = x^2$, descreva em palavras o que acontece com o gráfico (incluindo a nova posição do vértice $(0, 0)$) e escreva a expressão explícita em função de $x$ para:
+        <list marker="a">
+          <item>$g_1(x) = f(x - 3) + 2$</item>
+          <item>$g_2(x) = 2\,f(x)$</item>
+          <item>$g_3(x) = -f(x + 1)$</item>
+        </list>
+        <hint><title>Ver dica</title>Identifique cada operação na <ref to="prop:1-3-transformacoes"/> (deslocamento horizontal, deslocamento vertical, escala vertical ou reflexão) antes de substituir $f(u) = u^2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$g_1(x) = (x - 3)^2 + 2$. O gráfico desloca $3$ unidades para a direita e $2$ unidades para cima; o vértice vai de $(0, 0)$ para $(3, 2)$.</item>
+            <item>$g_2(x) = 2x^2$. O gráfico é esticado verticalmente por um fator $2$ (a parábola fica mais estreita/íngreme); o vértice permanece em $(0, 0)$.</item>
+            <item>$g_3(x) = -(x + 1)^2$. O gráfico desloca $1$ unidade para a esquerda e reflete em torno do eixo $x$ (passa a abrir para baixo); o vértice vai de $(0, 0)$ para $(-1, 0)$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-3-4-2">
+        <title>Básico — Modulação aditiva versus multiplicativa na curva de sintonia</title>
+        Dois neurônios $A$ e $B$ têm as seguintes curvas de sintonia (em $\text{Hz}$):
+        $$f_A(\theta) = 10 + 40 \exp\!\left(-\frac{(\theta - 90^\circ)^2}{800}\right), \qquad f_B(\theta) = 60 \exp\!\left(-\frac{(\theta - 90^\circ)^2}{800}\right).$$
+        <list marker="a">
+          <item>Compare os valores máximos em $\theta = 90^\circ$ e as taxas nas caudas distantes (por exemplo, quando o termo exponencial fica muito próximo de zero).</item>
+          <item>Qual dos dois modelos incorpora uma linha de base espontânea (deslocamento vertical) e qual representa apenas aumento de ganho em relação a $f(\theta) = 40\exp(\dots)$?</item>
+        </list>
+        <hint><title>Ver dica</title>Avalie $\exp(0) = 1$ em $\theta = 90^\circ$ e substitua $\exp(\dots) \approx 0$ nas caudas distantes.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Em $\theta = 90^\circ$, $\exp(0) = 1$, logo $f_A(90^\circ) = 10 + 40 = 50\text{ Hz}$ e $f_B(90^\circ) = 60\text{ Hz}$. Nas caudas distantes, quando $\exp(\dots) \approx 0$, $f_A$ aproxima-se da assíntota horizontal $10\text{ Hz}$, enquanto $f_B$ aproxima-se de $0\text{ Hz}$.</item>
+            <item>O neurônio $A$ soma uma linha de base espontânea de $10\text{ Hz}$ (deslocamento vertical $+10$ sobre $40\exp(\dots)$). Já o neurônio $B$ aplica uma escala vertical (modulação multiplicativa de ganho) de fator $60/40 = 1{,}5$ sobre $40\exp(\dots)$, mantendo a linha de base em $0\text{ Hz}$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-3-4-3">
+        <title>Intermediário — Lendo e deslocando a sigmoide f–I e sua inversa</title>
+        Considere a sigmoide $r(I) = \dfrac{60}{1 + \exp\!\left(-\dfrac{I - 0{,}3}{0{,}1}\right)}$, para $I \in \mathbb{R}$.
+        <list marker="a">
+          <item>Identifique sua assíntota horizontal superior e as coordenadas do ponto de meia resposta.</item>
+          <item>Se um fármaco anestésico deslocar $I_{50}$ de $0{,}3\text{ nA}$ para $0{,}7\text{ nA}$, qual transformação geométrica ocorreu no gráfico de $r(I)$?</item>
+          <item>Na curva original, qual ponto correspondente pertence ao gráfico da função inversa $r^{-1}$?</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), o ponto de meia resposta tem $I = I_{50}$ e $r = r_{\text{max}}/2$. Em (c), lembre da simetria pela reta $y = x$: $(I_0, r_0)$ vira $(r_0, I_0)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>A assíntota horizontal superior (saturação) é a reta $r = 60\text{ Hz}$. Em $I = I_{50} = 0{,}3\text{ nA}$, temos $r(0{,}3) = \frac{60}{1 + e^0} = 30\text{ Hz}$, logo o ponto de meia resposta é $(0{,}3\text{ nA};\, 30\text{ Hz})$.</item>
+            <item>Trocar $I - 0{,}3$ por $I - 0{,}7 = (I - 0{,}4) - 0{,}3$ corresponde a substituir $I$ por $I - 0{,}4$. Portanto, o gráfico inteiro sofreu um <strong>deslocamento horizontal de $0{,}4\text{ nA}$ para a direita</strong> (o neurônio ficou menos excitável, exigindo $0{,}4\text{ nA}$ a mais para alcançar metade da taxa máxima).</item>
+            <item>Pelo reflexo em torno da reta $y = x$, o ponto $(0{,}3\text{ nA};\, 30\text{ Hz})$ no gráfico de $r$ corresponde ao ponto $(30\text{ Hz};\, 0{,}3\text{ nA})$ no gráfico de $r^{-1}$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-3-4-4">
+        <title>Avançado — Miniatura do projeto final: construindo sua curva estímulo–resposta</title>
+        No projeto final do Módulo 1, você criará e desenhará uma função que modela a taxa de disparo $r(I)$ de um neurônio em função da intensidade do estímulo $I \ge 0$. Como ensaio completo, considere o modelo de resposta por partes (baseado na curva hiperbólica de Naka–Rushton com limiar):
+        $$r(I) = \begin{cases} 0, & \text{se } 0 \le I \le I_{\text{lim}}, \\[4pt] r_{\text{max}} \cdot \dfrac{I - I_{\text{lim}}}{K + (I - I_{\text{lim}})}, & \text{se } I > I_{\text{lim}}, \end{cases}$$
+        com $I_{\text{lim}} = 2$ (unidades de intensidade), constante de meia saturação acima do limiar $K = 4$ e taxa máxima $r_{\text{max}} = 100\text{ Hz}$.
+        <list marker="a">
+          <item>Explique o papel biológico e gráfico de cada um dos três parâmetros ($I_{\text{lim}}$, $K$ e $r_{\text{max}}$) e diga por que essa fórmula satisfaz as três exigências fisiológicas: silêncio abaixo do limiar, crescimento acima do limiar e saturação.</item>
+          <item>Calcule exatamente $r(I)$ nos sete pontos $I \in \{0, 2, 6, 10, 14, 18, 38\}$ para esboçar o gráfico analítico.</item>
+          <item>Verifique qual transformação levou a fração $\dfrac{I}{4 + I}$ até $\dfrac{I - 2}{4 + (I - 2)}$ e indique a assíntota horizontal da curva.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (b), para $I > 2$, calcule primeiro $u = I - 2$ e depois avalie $100 \cdot \frac{u}{4 + u}$ — você verá que todas as frações simplificam de forma limpa!</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>
+              <list marker="dash">
+                <item>$I_{\text{lim}} = 2$: é o <strong>limiar de estimulação</strong>; para $0 \le I \le 2$, o neurônio permanece em silêncio ($r = 0\text{ Hz}$).</item>
+                <item>$r_{\text{max}} = 100\text{ Hz}$: é a <strong>taxa de saturação máxima</strong>; como $\frac{u}{4 + u} < 1$ para todo $u > 0$, $r(I)$ cresce estritamente quando $I > 2$, mas nunca ultrapassa $100\text{ Hz}$.</item>
+                <item>$K = 4$: é o incremento de intensidade <em>acima do limiar</em> necessário para atingir metade da taxa máxima. De fato, quando $I - I_{\text{lim}} = K = 4$ (ou seja, $I = 6$), a fração vale $\frac{4}{4 + 4} = \frac{1}{2}$ e $r(6) = 50\text{ Hz}$.</item>
+              </list>
+            </item>
+            <item>Calculando ponto a ponto:
+              <list marker="dash">
+                <item>$I = 0$: como $0 \le 2$, $r(0) = 0\text{ Hz}$.</item>
+                <item>$I = 2$: no limiar, $r(2) = 0\text{ Hz}$.</item>
+                <item>$I = 6$ ($u = 4$): $r(6) = 100 \cdot \dfrac{4}{4 + 4} = 100 \cdot \dfrac{4}{8} = 50\text{ Hz}$.</item>
+                <item>$I = 10$ ($u = 8$): $r(10) = 100 \cdot \dfrac{8}{4 + 8} = 100 \cdot \dfrac{2}{3} \approx 66{,}7\text{ Hz}$.</item>
+                <item>$I = 14$ ($u = 12$): $r(14) = 100 \cdot \dfrac{12}{4 + 12} = 100 \cdot \dfrac{3}{4} = 75\text{ Hz}$.</item>
+                <item>$I = 18$ ($u = 16$): $r(18) = 100 \cdot \dfrac{16}{4 + 16} = 100 \cdot \dfrac{4}{5} = 80\text{ Hz}$.</item>
+                <item>$I = 38$ ($u = 36$): $r(38) = 100 \cdot \dfrac{36}{4 + 36} = 100 \cdot \dfrac{9}{10} = 90\text{ Hz}$.</item>
+              </list>
+              Para esboçar o gráfico: trace um segmento horizontal em $r = 0$ de $I = 0$ até $I = 2$; a partir de $(2;\, 0)$, a curva sobe rapidamente passando por $(6;\, 50)$, $(10;\, 66{,}7)$, $(14;\, 75)$, $(18;\, 80)$ e $(38;\, 90)$, achatando-se rumo ao teto $r = 100\text{ Hz}$.
+            </item>
+            <item>Substituir $I$ por $I - 2$ corresponde a um <strong>deslocamento horizontal de $2$ unidades para a direita</strong> (movendo o início da subida de $I = 0$ para $I = 2$). A assíntota horizontal é a reta $r = 100\text{ Hz}$.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:1-3-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Função ($f: A \to B$):</strong> associa a cada entrada $x$ no domínio $A$ <em>exatamente uma</em> saída $f(x)$ no contradomínio $B$; seu gráfico passa no teste da reta vertical. Na modelagem, combine o domínio natural (sem divisão por zero, raiz par de negativo ou $\ln$ de $\le 0$) com o domínio biológico ($[L] \ge 0$, $r \ge 0$).</item>
+        <item><strong>Famílias-chave e linear com limiar (ReLU):</strong> afim ($ax + b$), quadrática ($ax^2 + bx + c$), exponencial ($C \cdot e^x$), logarítmica ($\ln x$) e por partes, incluindo $r(I) = \max\bigl(0,\, k(I - I_{\text{lim}})\bigr)$.</item>
+        <item><strong>Três modelos de resposta biológica:</strong> curva de sintonia gaussiana $f(\theta) = r_{\text{max}}\exp\!\left(-\dfrac{(\theta - \theta_{\text{pref}})^2}{2\sigma^2}\right)$, sigmoide logística $r(I) = \dfrac{r_{\text{max}}}{1 + \exp(-(I - I_{50})/s)}$ e equação de Hill $E([L]) = \dfrac{E_{\text{max}}[L]^n}{\text{EC}_{50}^n + [L]^n}$.</item>
+        <item><strong>Composição de funções:</strong> $(g \circ f)(x) = g(f(x))$, com domínio $D_{g \circ f} = \{x \in D_f : f(x) \in D_g\}$. A ordem importa ($g \circ f \ne f \circ g$ em geral) e decompor funções em camadas prepara a regra da cadeia (Módulo 2) e redes neurais (Módulo 9).</item>
+        <item><strong>Injetividade e função inversa:</strong> $f^{-1}$ satisfaz $f^{-1}(f(x)) = x$ e existe (sobre a imagem) se, e somente se, $f$ for injetora (funções estritamente crescentes ou decrescentes são sempre injetoras; outras exigem restrição de domínio). Nunca confunda $f^{-1}(x)$ com $1/f(x)$.</item>
+        <item><strong>Inversas para decodificação:</strong> $\exp$ e $\ln$ são inversas mútuas; a sigmoide inverte-se em $I = I_{50} + s\ln\!\left(\dfrac{r}{r_{\text{max}} - r}\right)$ ($0 < r < r_{\text{max}}$), Hill em $[L] = \text{EC}_{50}\left(\dfrac{E}{E_{\text{max}} - E}\right)^{1/n}$, e a gaussiana exige restringir a um flanco, dando $\theta = \theta_{\text{pref}} \pm \sigma\sqrt{2\ln(r_{\text{max}}/r)}$.</item>
+        <item><strong>Leitura de gráficos:</strong> observe interceptos, intervalos de crescimento, máximos e assíntotas horizontais como indicação de saturação biológica ($r_{\text{max}}$, $E_{\text{max}}$).</item>
+        <item><strong>Transformações ($c, a, b > 0$):</strong> $f(x) + c$ sobe; $f(x - c)$ vai para a <em>direita</em>; $a \cdot f(x)$ escala verticalmente (ganho); $f(b \cdot x)$ comprime horizontalmente por $1/b$ se $b > 1$; $-f(x)$ e $f(-x)$ refletem nos eixos $x$ e $y$; e o gráfico de $f^{-1}$ é o reflexo do de $f$ na reta $y = x$.</item>
+      </list>
+    </section>
+
+    <section id="sec:1-3-alem">
+      <title>Para ir além</title>
+      Com o domínio de funções, composições, inversas e gráficos, você tem em mãos a linguagem central do Módulo 1 antes de seguir para <strong>Trigonometria</strong> (Tema 1.4, essencial para sinais oscilatórios e ondas cerebrais) e para o Módulo 2 (<strong>Cálculo Real</strong>). Para fixar e praticar:
+      <list marker="dash">
+        <item><strong>Material essencial:</strong> <link to="https://pt.khanacademy.org/math/precalculus">Khan Academy — Pré-Cálculo</link>, especialmente os módulos de funções, composição, inversas e transformações gráficas.</item>
+        <item><strong>Aprofundamento em vídeo:</strong> <link to="https://www.youtube.com/playlist?list=PL83s8LGM84J62ahewE-sVGbnJdOqGp8lJ">Playlist YouTube — Base Matemática</link>, para revisar propriedades de logaritmos, exponenciais e leitura de gráficos.</item>
+        <item><strong>Prática dirigida (<em>drill</em> do módulo):</strong> após cada aula (subseção), peça a uma IA para criar 3 questões do tema aplicadas à neurociência para você resolver.</item>
+        <item><strong>Projeto final do módulo:</strong> criar e desenhar o gráfico analítico de uma função que modela a taxa de disparo de um neurônio em função da intensidade do estímulo (como ensaiado no último exercício da seção de gráficos).</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 1 · Pré-Cálculo — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

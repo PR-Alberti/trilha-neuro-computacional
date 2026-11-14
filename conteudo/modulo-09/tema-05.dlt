@@ -1,0 +1,763 @@
+<document>
+  <title>Módulo 9 · Deep Learning</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-9-5">Voltar ao guia (Tema 9.5)</link></meta-item>
+    <meta-item key="Módulo">Módulo 9 · Deep Learning — O Estado da Arte da Neurociência Computacional</meta-item>
+    <meta-item key="Nível">Avançado</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-9-5">
+    <title>Transformers (Attention)</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      A arquitetura dos LLMs, do AlphaFold e da decodificação neural.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Sistemas biológicos dependem de relações entre elementos distantes. Em uma frase ouvida pelo córtex auditivo, o verbo no fim depende do sujeito dito antes; em uma proteína, aminoácidos distantes na cadeia dobram-se até se tocar no espaço 3D. Redes recorrentes (Tema 9.3) comprimem a história passo a passo em um estado $\mathbf{h}_t$, criando um gargalo sequencial. Os <strong>Transformers</strong> trocam essa fila pela <strong>autoatenção</strong> (<em>self-attention</em>): cada elemento compara-se diretamente com todos os outros em paralelo.
+
+    Essa ideia sustenta LLMs, o AlphaFold 2 na predição proteica e decodificadores que reconstroem histórias a partir de ressonância magnética funcional (fMRI). Treinar modelos gigantes exige GPUs, mas a matemática central cabe em álgebra linear simples — e os códigos Python desta aula rodam na CPU em segundos.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>calcular à mão a atenção escalonada ($\mathbf{Q}$, $\mathbf{K}$, $\mathbf{V}$), justificando $\sqrt{d_k}$;</item>
+      <item>construir autoatenção multi-cabeças e máscara causal, contando parâmetros e custo $O(n^2)$; </item>
+      <item>explicar a equivariância a permutações e aplicar codificação posicional no bloco Transformer;</item>
+      <item>relacionar Transformers a LLMs, AlphaFold 2 e decodificação em fMRI, avaliando interpretabilidade e privacidade;</item>
+      <item>implementar e verificar blocos de atenção em NumPy e PyTorch na CPU.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Tema 9.1 (softmax, MLP e retropropagação); Tema 9.3 (RNNs); Tema 9.4 (<em>embeddings</em> e produto interno); Módulo 5 (matrizes e transposta); Módulo 1 (seno e cosseno).
+
+    <section id="sec:9-5-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Atenção: consultas, chaves e valores</title>
+      <intro>
+        Em vez de comprimir todo o passado em um único vetor, a atenção permite que cada posição consulte ponderadamente todas as outras.
+      </intro>
+
+      Imagine uma biblioteca científica. Você chega com uma pergunta (uma <strong>consulta</strong>, ou <em>query</em>). Cada livro na estante possui uma ficha na lombada descrevendo seu assunto (uma <strong>chave</strong>, ou <em>key</em>) e um conteúdo interno (um <strong>valor</strong>, ou <em>value</em>). Você compara sua consulta com todas as chaves, atribui pesos entre $0$ e $1$ que somam $1$, e combina os conteúdos proporcionalmente a esses pesos.
+
+      Embora se compare esse mecanismo à atenção seletiva visual do sistema nervoso, trata-se apenas de uma metáfora didática: matematicamente, a atenção de um Transformer é uma média ponderada diferenciável calculada por produtos internos entre vetores de <em>embeddings</em> (Tema 9.4).
+
+      <definition id="def:9-5-atencao-escalonada">
+        <title>Atenção por produto escalar escalonado (Vaswani et al., 2017)</title>
+        Sejam $\mathbf{Q} \in \mathbb{R}^{n \times d_k}$ a matriz de <strong>consultas</strong> (<em>queries</em>), $\mathbf{K} \in \mathbb{R}^{n \times d_k}$ a matriz de <strong>chaves</strong> (<em>keys</em>) e $\mathbf{V} \in \mathbb{R}^{n \times d_v}$ a matriz de <strong>valores</strong> (<em>values</em>), em que $n$ é o número de <em>tokens</em>, $d_k$ é a dimensão das consultas/chaves e $d_v$ a dos valores. A <strong>atenção por produto escalar escalonado</strong> (<em>scaled dot-product attention</em>) é:
+        <equation id="eq:9-5-attention">
+          \mathrm{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \mathrm{softmax}\!\left(\frac{\mathbf{Q}\mathbf{K}^\top}{\sqrt{d_k}}\right)\mathbf{V} \in \mathbb{R}^{n \times d_v}
+        </equation>
+        em que $\mathrm{softmax}$ é aplicada <strong>linha a linha</strong> sobre as pontuações $\mathbf{S} = \frac{\mathbf{Q}\mathbf{K}^\top}{\sqrt{d_k}} \in \mathbb{R}^{n \times n}$. Para cada consulta $i \in \{1, \dots, n\}$, os pesos $\alpha_{ij}$ formam uma distribuição sobre as chaves $j$:
+        $$\alpha_{ij} = \frac{\exp(S_{ij})}{\sum_{r=1}^{n} \exp(S_{ir})}, \qquad \alpha_{ij} \ge 0, \qquad \sum_{j=1}^{n} \alpha_{ij} = 1.$$
+        <intuition>
+          O produto $\mathbf{Q}\mathbf{K}^\top$ calcula todos os produtos internos entre consultas $\mathbf{q}_i$ e chaves $\mathbf{k}_j$: quanto maior $S_{ij}$, maior o peso $\alpha_{ij}$ de $\mathbf{v}_j$ na saída $\mathbf{y}_i = \sum_{j=1}^n \alpha_{ij}\mathbf{v}_j$. (Se consultas e chaves vierem de sequências de tamanhos $n$ e $m$, $\mathbf{K} \in \mathbb{R}^{m \times d_k}$ e $\mathbf{V} \in \mathbb{R}^{m \times d_v}$ geram matriz $n \times m$ e saída $n \times d_v$.)
+        </intuition>
+      </definition>
+
+      Acompanhando as dimensões (Módulo 5):
+      $$\underbrace{\mathbf{Q}}_{n \times d_k} \cdot \underbrace{\mathbf{K}^\top}_{d_k \times n} = \underbrace{\mathbf{Q}\mathbf{K}^\top}_{n \times n} \xrightarrow{\text{escala e softmax por linha}} \underbrace{\mathbf{A}}_{n \times n} \cdot \underbrace{\mathbf{V}}_{n \times d_v} = \underbrace{\mathbf{A}\mathbf{V}}_{n \times d_v}.$$
+      Como cada linha de $\mathbf{A}$ soma $1$, cada linha da saída é uma combinação convexa das linhas de $\mathbf{V}$. Mas por que dividir $\mathbf{Q}\mathbf{K}^\top$ por $\sqrt{d_k}$?
+
+      <proposition id="prop:9-5-escala-dk">
+        <title>Crescimento da variância do produto interno e papel de $\sqrt{d_k}$</title>
+        Suponha que $\mathbf{q}, \mathbf{k} \in \mathbb{R}^{d_k}$ tenham componentes $q_r, k_r$ independentes, com média $0$ e variância $1$. Então $\mathbf{q}\cdot\mathbf{k} = \sum_{r=1}^{d_k} q_r k_r$ tem média $0$ e variância $d_k$. Logo, a versão escalonada $\frac{\mathbf{q}\cdot\mathbf{k}}{\sqrt{d_k}}$ recupera variância unitária igual a $1$.
+      </proposition>
+      <proof of="prop:9-5-escala-dk" collapsible="true" collapsed="true">
+        Pela independência e média zero de $q_r$ e $k_r$, temos $\mathbb{E}[q_r k_r] = \mathbb{E}[q_r]\,\mathbb{E}[k_r] = 0$ e:
+        $$\mathrm{Var}(q_r k_r) = \mathbb{E}[q_r^2]\,\mathbb{E}[k_r^2] - 0 = \mathrm{Var}(q_r)\,\mathrm{Var}(k_r) = 1 \cdot 1 = 1.$$
+        Como as parcelas $q_r k_r$ são independentes, a variância da soma é a soma das variâncias:
+        $$\mathrm{Var}\!\left(\sum_{r=1}^{d_k} q_r k_r\right) = \sum_{r=1}^{d_k} \mathrm{Var}(q_r k_r) = d_k.$$
+        Usando $\mathrm{Var}(c Z) = c^2 \mathrm{Var}(Z)$ ao dividir por $\sqrt{d_k}$, obtemos:
+        $$\mathrm{Var}\!\left(\frac{\mathbf{q}\cdot\mathbf{k}}{\sqrt{d_k}}\right) = \left(\frac{1}{\sqrt{d_k}}\right)^2 d_k = \frac{d_k}{d_k} = 1.$$
+      </proof>
+
+      Quando $d_k$ é grande (por exemplo, $d_k = 64$ ou $512$), o desvio padrão de $\mathbf{q}\cdot\mathbf{k}$ cresce como $\sqrt{d_k}$: pontuações grandes em módulo empurram a exponencial do softmax para uma região saturada em que um peso fica próximo de $1$ e todos os outros ficam próximos de $0$. Nessa região, as derivadas do softmax ficam minúsculas e a retropropagação quase trava — exatamente o mesmo problema de saturação visto na sigmoide (Tema 9.1).
+
+      Vamos fixar toda a conta com um exemplo numérico completo feito à mão.
+
+      <example id="exm:9-5-mao-atencao">
+        <title>Cálculo à mão da atenção escalonada ($n = 3$, $d_k = 2$, $d_v = 2$)</title>
+        Dadas as matrizes
+        $$\mathbf{Q} = \begin{pmatrix} 1 & 0 \\ 0 & 2 \\ 1 & 1 \end{pmatrix}, \qquad \mathbf{K} = \begin{pmatrix} 1 & 1 \\ 0 & 1 \\ 2 & 0 \end{pmatrix}, \qquad \mathbf{V} = \begin{pmatrix} 1 & 0 \\ 0 & 2 \\ 3 & 1 \end{pmatrix},$$
+        calcule $\mathrm{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V})$.
+
+        <strong>Solução.</strong>
+        <list marker="number">
+          <item><strong>Produtos escalares $\mathbf{Q}\mathbf{K}^\top$:</strong>
+            $$\mathbf{Q}\mathbf{K}^\top = \begin{pmatrix} 1 & 0 \\ 0 & 2 \\ 1 & 1 \end{pmatrix} \begin{pmatrix} 1 & 0 & 2 \\ 1 & 1 & 0 \end{pmatrix} = \begin{pmatrix} 1 & 0 & 2 \\ 2 & 2 & 0 \\ 2 & 1 & 2 \end{pmatrix}.$$
+          </item>
+          <item><strong>Escalonamento por $\sqrt{2} \approx 1{,}4142$ ($1/\sqrt{2} \approx 0{,}7071$):</strong>
+            $$\mathbf{S} = \frac{\mathbf{Q}\mathbf{K}^\top}{\sqrt{2}} \approx \begin{pmatrix} 0{,}7071 & 0{,}0000 & 1{,}4142 \\ 1{,}4142 & 1{,}4142 & 0{,}0000 \\ 1{,}4142 & 0{,}7071 & 1{,}4142 \end{pmatrix}.$$
+          </item>
+          <item><strong>Softmax linha a linha ($e^0 = 1{,}000$, $e^{0{,}7071} \approx 2{,}0281$, $e^{1{,}4142} \approx 4{,}1133$):</strong>
+            <list marker="dash">
+              <item><strong>Linha 1:</strong> exponenciais $[2{,}0281;\; 1{,}0000;\; 4{,}1133]$, soma $Z_1 = 7{,}1414 \implies \alpha_{1,\cdot} \approx [0{,}284;\; 0{,}140;\; 0{,}576]$.</item>
+              <item><strong>Linha 2:</strong> exponenciais $[4{,}1133;\; 4{,}1133;\; 1{,}0000]$, soma $Z_2 = 9{,}2265 \implies \alpha_{2,\cdot} \approx [0{,}446;\; 0{,}446;\; 0{,}108]$.</item>
+              <item><strong>Linha 3:</strong> exponenciais $[4{,}1133;\; 2{,}0281;\; 4{,}1133]$, soma $Z_3 = 10{,}2546 \implies \alpha_{3,\cdot} \approx [0{,}401;\; 0{,}198;\; 0{,}401]$.</item>
+            </list>
+            Note que todas as linhas somam $1{,}000$.
+          </item>
+          <item><strong>Multiplicação por $\mathbf{V}$:</strong>
+            $$\mathbf{A}\mathbf{V} \approx \begin{pmatrix} 0{,}284 & 0{,}140 & 0{,}576 \\ 0{,}446 & 0{,}446 & 0{,}108 \\ 0{,}401 & 0{,}198 & 0{,}401 \end{pmatrix} \begin{pmatrix} 1 & 0 \\ 0 & 2 \\ 3 & 1 \end{pmatrix} \approx \begin{pmatrix} 2{,}012 & 0{,}856 \\ 0{,}771 & 1{,}000 \\ 1{,}604 & 0{,}797 \end{pmatrix}.$$
+            (Na entrada $(2, 1)$, manter precisão total antes do arredondamento final dá $0{,}771$, contra $0{,}770$ com pesos arredondados.)
+          </item>
+        </list>
+      </example>
+
+      Abaixo conferimos essa conta em NumPy e comparamos com <c>scaled_dot_product_attention</c> do PyTorch.
+
+      <code lang="python" id="cod:9-5-atencao-numpy">
+import numpy as np
+import torch
+import torch.nn.functional as F
+
+
+def atencao(Q, K, V):
+    d_k = Q.shape[-1]
+    scores = (Q @ K.T) / np.sqrt(d_k)
+    # Subtrai o máximo de cada linha para evitar overflow em exp()
+    scores_est = scores - np.max(scores, axis=-1, keepdims=True)
+    exp_scores = np.exp(scores_est)
+    pesos = exp_scores / np.sum(exp_scores, axis=-1, keepdims=True)
+    return pesos @ V, pesos
+
+
+Q = np.array([[1.0, 0.0], [0.0, 2.0], [1.0, 1.0]])
+K = np.array([[1.0, 1.0], [0.0, 1.0], [2.0, 0.0]])
+V = np.array([[1.0, 0.0], [0.0, 2.0], [3.0, 1.0]])
+
+saida_np, pesos_np = atencao(Q, K, V)
+
+Q_t = torch.tensor(Q, dtype=torch.float32).unsqueeze(0)
+K_t = torch.tensor(K, dtype=torch.float32).unsqueeze(0)
+V_t = torch.tensor(V, dtype=torch.float32).unsqueeze(0)
+saida_torch = F.scaled_dot_product_attention(Q_t, K_t, V_t).squeeze(0).numpy()
+
+diff_max = np.max(np.abs(saida_np - saida_torch))
+print("Pesos de atenção (NumPy):\n", np.round(pesos_np, 3))
+# [[0.284 0.14  0.576]
+#  [0.446 0.446 0.108]
+#  [0.401 0.198 0.401]]
+print("Saída (NumPy):\n", np.round(saida_np, 3))
+# [[2.012 0.856]
+#  [0.771 1.   ]
+#  [1.604 0.797]]
+print("Bate com PyTorch (atol=1e-6)?", bool(np.allclose(saida_np, saida_torch, atol=1e-6)))
+# True
+print(f"Diferença máxima: {diff_max:.2e}")
+# Diferença máxima: ≈ 5e-08 (precisão float64 vs float32)
+      </code>
+
+      Em neurociência, esse acesso direto ao passado transforma a modelagem de séries cerebrais, como em memória de trabalho registrada por fMRI ($\text{TR} = 2\text{ s}$).
+
+      <example id="exm:9-5-fmri-atencao">
+        <title>Decodificação em fMRI consultando instantes anteriores</title>
+        Suponha que um decodificador em $t = 4\text{ s}$ (TR 3) usa a consulta $\mathbf{q}_3 = (2, 0)$ contra as chaves de $t = 0\text{ s}, 2\text{ s}, 4\text{ s}$:
+        $$\mathbf{k}_1 = (0, 1), \qquad \mathbf{k}_2 = (2, 0), \qquad \mathbf{k}_3 = (0, 0),$$
+        com valores de evidência $v_1 = 2$, $v_2 = 10$ e $v_3 = 0$ ($d_k = 2$). Qual instante domina a recuperação e qual é o valor $y_3$?
+
+        <strong>Solução.</strong> As pontuações escalonadas por $\sqrt{2}$ são:
+        $$S_{31} = \frac{2\cdot 0 + 0\cdot 1}{\sqrt{2}} = 0, \qquad S_{32} = \frac{2\cdot 2 + 0\cdot 0}{\sqrt{2}} = 2\sqrt{2} \approx 2{,}8284, \qquad S_{33} = 0.$$
+        Com $e^0 = 1{,}000$ e $e^{2\sqrt{2}} = (e^{\sqrt{2}})^2 \approx (4{,}1133)^2 \approx 16{,}919$, a soma é $Z = 18{,}919$, dando:
+        $$\alpha_{31} = \frac{1{,}000}{18{,}919} \approx 0{,}053, \qquad \alpha_{32} = \frac{16{,}919}{18{,}919} \approx 0{,}894, \qquad \alpha_{33} = \frac{1{,}000}{18{,}919} \approx 0{,}053.$$
+        O instante $t = 2\text{ s}$ (TR 2) recebe $89{,}4\%$ da atenção, e o valor decodificado é:
+        $$y_3 = 0{,}053 \cdot 2 + 0{,}894 \cdot 10 + 0{,}053 \cdot 0 = 0{,}106 + 8{,}940 = 9{,}046.$$
+        Diferente de uma RNN, a atenção salta diretamente ao TR compatível em um único passo.
+      </example>
+
+      <remark id="rem:9-5-armadilha-softmax">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Aplicar softmax nas colunas:</strong> em $\mathbf{Q}\mathbf{K}^\top$, cada linha $i$ é uma consulta; use sempre a última dimensão (<c>dim=-1</c> ou <c>axis=-1</c>).</item>
+          <item><strong>Omitir $\sqrt{d_k}$:</strong> com $d_k = 64$ ou $128$, pontuações altas saturam o softmax e travam o aprendizado.</item>
+          <item><strong>Confundir atenção algébrica com atenção cognitiva:</strong> a atenção humana envolve circuitos frontoparietais e controle descendente (<em>top-down</em>); a do Transformer é uma operação matricial.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-5-1-1">
+        <title>Básico — Atenção sobre aquisições de fMRI</title>
+        Em uma sessão de fMRI ($\text{TR} = 2\text{ s}$), três instantes ($t = 0\text{ s}, 2\text{ s}, 4\text{ s}$) têm chaves $\mathbf{k}_1 = (1, 0)$, $\mathbf{k}_2 = (1, 1)$ e $\mathbf{k}_3 = (0, 1)$ ($d_k = 2$) e valores $v_1 = 1$, $v_2 = 5$ e $v_3 = 9$. Se a consulta em $t = 6\text{ s}$ é $\mathbf{q}_4 = (0, 2)$, calcule os pesos de atenção e o valor recuperado $y_4$ (use $e^{\sqrt{2}} \approx 4{,}113$).
+        <hint><title>Ver dica</title>Calcule os três produtos $\mathbf{q}_4 \cdot \mathbf{k}_j / \sqrt{2}$ e note que duas pontuações serão iguais a $\sqrt{2}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          As pontuações escalonadas por $\sqrt{2}$ são:
+          $$S_{41} = \frac{0\cdot 1 + 2\cdot 0}{\sqrt{2}} = 0, \qquad S_{42} = \frac{0\cdot 1 + 2\cdot 1}{\sqrt{2}} = \sqrt{2}, \qquad S_{43} = \frac{0\cdot 0 + 2\cdot 1}{\sqrt{2}} = \sqrt{2}.$$
+          As exponenciais são $[1{,}000,\; 4{,}113,\; 4{,}113]$, com soma $Z = 9{,}226$, logo:
+          $$\alpha_{41} = \frac{1{,}000}{9{,}226} \approx 0{,}108, \qquad \alpha_{42} = \alpha_{43} = \frac{4{,}113}{9{,}226} \approx 0{,}446.$$
+          O valor recuperado é:
+          $$y_4 = 0{,}108 \cdot 1 + 0{,}446 \cdot 5 + 0{,}446 \cdot 9 = 0{,}108 + 2{,}230 + 4{,}014 = 6{,}352.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-5-1-2">
+        <title>Intermediário — Variância e saturação sem o fator $\sqrt{d_k}$</title>
+        Para $\mathbf{q}, \mathbf{k} \in \mathbb{R}^{64}$ com componentes independentes de média $0$ e variância $1$:
+        <list marker="a">
+          <item>Qual é a variância e o desvio padrão de $\mathbf{q}\cdot\mathbf{k}$ sem escala?</item>
+          <item>Compare $\mathrm{softmax}([2, 0])$ com $\mathrm{softmax}([16, 0])$ (fator $\sqrt{64} = 8$; $e^2 \approx 7{,}389$, $e^{16} \approx 8{,}886 \times 10^6$). O que ocorre com o gradiente no segundo caso?</item>
+        </list>
+        <hint><title>Ver dica</title>Aplique a <ref to="prop:9-5-escala-dk"/> em (a) e lembre em (b) que a derivada de $\alpha_1$ em relação a $S_1$ é $\alpha_1(1 - \alpha_1)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pela <ref to="prop:9-5-escala-dk"/>, $\mathrm{Var}(\mathbf{q}\cdot\mathbf{k}) = 64$ e o desvio padrão é $\sqrt{64} = 8$.</item>
+            <item>Para $[2, 0]$:
+              $$\mathrm{softmax}([2, 0]) = \left[\frac{e^2}{e^2 + 1},\; \frac{1}{e^2 + 1}\right] \approx \left[\frac{7{,}389}{8{,}389},\; \frac{1}{8{,}389}\right] \approx [0{,}881;\; 0{,}119],$$
+              com gradiente $\alpha_1(1 - \alpha_1) \approx 0{,}881 \cdot 0{,}119 \approx 0{,}105$. Já para $[16, 0]$:
+              $$\alpha_1 = \frac{e^{16}}{e^{16} + 1} \approx \frac{8{,}886 \times 10^6}{8{,}886 \times 10^6 + 1} \approx 0{,}99999989, \qquad \alpha_2 \approx 1{,}125 \times 10^{-7}.$$
+              Logo, $\alpha_1(1 - \alpha_1) \approx 1{,}1 \times 10^{-7}$: o gradiente desaparece e o treino trava.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-5-1-3">
+        <title>Avançado — Conferência em Python com vetores aleatórios</title>
+        Escreva um código em Python que gere $\mathbf{Q}, \mathbf{K}, \mathbf{V}$ ($4 \times 8$) com <c>np.random.default_rng(0)</c>, calcule a atenção em NumPy e verifique que: (i) todos os pesos são não negativos, (ii) todas as linhas somam $1$ e (iii) a saída coincide com <c>torch.nn.functional.scaled_dot_product_attention</c>.
+        <hint><title>Ver dica</title>Use <c>np.all</c> para a não negatividade e <c>np.allclose(pesos.sum(axis=-1), 1.0)</c> para a soma das linhas.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+import torch
+import torch.nn.functional as F
+
+rng = np.random.default_rng(0)
+Q = rng.standard_normal((4, 8))
+K = rng.standard_normal((4, 8))
+V = rng.standard_normal((4, 8))
+
+scores = (Q @ K.T) / np.sqrt(Q.shape[-1])
+scores_est = scores - np.max(scores, axis=-1, keepdims=True)
+exp_scores = np.exp(scores_est)
+pesos = exp_scores / np.sum(exp_scores, axis=-1, keepdims=True)
+saida_np = pesos @ V
+
+saida_pt = F.scaled_dot_product_attention(
+    torch.tensor(Q, dtype=torch.float32).unsqueeze(0),
+    torch.tensor(K, dtype=torch.float32).unsqueeze(0),
+    torch.tensor(V, dtype=torch.float32).unsqueeze(0),
+).squeeze(0).numpy()
+
+print("Pesos >= 0?", bool(np.all(pesos >= 0)))                  # True
+print("Linhas somam 1?", bool(np.allclose(pesos.sum(-1), 1)))   # True
+print("Coincide com PyTorch?", bool(np.allclose(saida_np, saida_pt, atol=1e-6)))  # True
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-5-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Autoatenção, várias cabeças e máscara causal</title>
+      <intro>
+        Na autoatenção, uma única sequência gera consultas, chaves e valores por projeções lineares aprendidas — em várias cabeças paralelas e, quando necessário, bloqueando o futuro.
+      </intro>
+
+      De onde vêm $\mathbf{Q}$, $\mathbf{K}$ e $\mathbf{V}$ dentro de um Transformer? Em uma camada de <strong>autoatenção</strong> (<em>self-attention</em>), todos os três papéis nascem da mesma matriz de entrada $\mathbf{X} \in \mathbb{R}^{n \times d_{\text{model}}}$, cujas $n$ linhas representam os $n$ <em>tokens</em> da sequência. O modelo aprende três projeções lineares que permitem a cada <em>token</em> perguntar ("que informação preciso?"), anunciar ("que informação tenho?") e entregar ("o que passo adiante?").
+
+      <definition id="def:9-5-autoatencao-mha">
+        <title>Autoatenção e atenção com várias cabeças (Multi-Head Attention)</title>
+        Dada uma sequência $\mathbf{X} \in \mathbb{R}^{n \times d_{\text{model}}}$, a autoatenção de uma única cabeça projeta $\mathbf{X}$ por matrizes aprendidas $\mathbf{W}_Q, \mathbf{W}_K \in \mathbb{R}^{d_{\text{model}} \times d_k}$ e $\mathbf{W}_V \in \mathbb{R}^{d_{\text{model}} \times d_v}$:
+        $$\mathbf{Q} = \mathbf{X}\mathbf{W}_Q, \qquad \mathbf{K} = \mathbf{X}\mathbf{W}_K, \qquad \mathbf{V} = \mathbf{X}\mathbf{W}_V$$
+        (podendo incluir termos de viés adicionados às colunas). Na <strong>atenção com várias cabeças</strong> (<em>multi-head attention</em>) com $h$ cabeças e dimensão por cabeça $d_k = d_v = d_{\text{model}} / h$, cada cabeça $r \in \{1, \dots, h\}$ executa atenção de forma independente:
+        $$\mathrm{head}_r = \mathrm{Attention}\!\left(\mathbf{X}\mathbf{W}_Q^{(r)},\; \mathbf{X}\mathbf{W}_K^{(r)},\; \mathbf{X}\mathbf{W}_V^{(r)}\right) \in \mathbb{R}^{n \times d_k}.$$
+        As saídas são concatenadas ao longo dos atributos e misturadas por uma matriz final $\mathbf{W}_O \in \mathbb{R}^{d_{\text{model}} \times d_{\text{model}}}$:
+        <equation id="eq:9-5-mha">
+          \mathrm{MultiHead}(\mathbf{X}) = \mathrm{Concat}(\mathrm{head}_1, \dots, \mathrm{head}_h)\mathbf{W}_O \in \mathbb{R}^{n \times d_{\text{model}}}.
+        </equation>
+        <intuition>
+          Uma única cabeça calcula uma só média ponderada por posição: se um neurônio ou palavra precisa relacionar-se com o vizinho próximo e com um evento distante ao mesmo tempo, uma única distribuição de pesos mistura os dois sinais. Várias cabeças funcionam como filtros especializados em paralelo, cada qual capturando um tipo distinto de relação.
+        </intuition>
+      </definition>
+
+      Note a elegância na contagem de parâmetros: cada matriz $\mathbf{W}_Q^{(r)}$ tem tamanho $d_{\text{model}} \times (d_{\text{model}}/h)$, logo juntar as $h$ cabeças equivale a uma única matriz $d_{\text{model}} \times d_{\text{model}}$ ($d_{\text{model}}^2$ pesos e $d_{\text{model}}$ vieses). O mesmo vale para $\mathbf{W}_K$, $\mathbf{W}_V$ e para a projeção de saída $\mathbf{W}_O$. Portanto, independentemente do número de cabeças $h$ (desde que $h$ divida $d_{\text{model}}$), o total de parâmetros de uma <c>MultiheadAttention</c> com vieses é:
+      <equation id="eq:9-5-params-mha">
+        N_{\text{params}} = 4\,d_{\text{model}}^2 + 4\,d_{\text{model}}.
+      </equation>
+      Sem vieses, restam $4\,d_{\text{model}}^2$ parâmetros. Por exemplo, para $d_{\text{model}} = 64$ e $h = 4$, temos $4 \cdot 64^2 + 4 \cdot 64 = 16\,384 + 256 = 16\,640$ parâmetros.
+
+      Há uma segunda peça essencial para gerar sequências ou decodificar sinais em tempo real: a <strong>máscara causal</strong> (<em>causal mask</em>). Em um modelo autorregressivo que prevê o próximo <em>token</em> (como um LLM) ou decodifica um movimento a partir de registros neurais passados, a posição $i$ só pode consultar posições $j \le i$; enxergar $j > i$ permitiria trapacear copiando a resposta no treino. Para bloquear esse vazamento, somamos às pontuações escalonadas uma matriz $\mathbf{M} \in \mathbb{R}^{n \times n}$ antes do softmax:
+      $$M_{ij} = \begin{cases} 0, & \text{se } j \le i \text{ (passado e presente)} \\ -\infty, & \text{se } j > i \text{ (futuro proibido)} \end{cases}$$
+      Como $e^{-\infty} = 0$, o triângulo superior zera após o softmax e cada linha $i$ continua somando $1$ apenas sobre os instantes permitidos $\{1, \dots, i\}$.
+
+      <example id="exm:9-5-causal-mao">
+        <title>Autoatenção causal à mão ($n = 3$, $d_{\text{model}} = 2$)</title>
+        Seja $\mathbf{X} = \begin{pmatrix} 1 & 0 \\ 0 & 1 \\ 1 & 1 \end{pmatrix}$ com $\mathbf{W}_Q = \mathbf{W}_K = \mathbf{W}_V = \mathbf{I}_2$ ($\mathbf{Q} = \mathbf{K} = \mathbf{V} = \mathbf{X}$). Calcule a autoatenção causal.
+
+        <strong>Solução.</strong>
+        <list marker="number">
+          <item>Calculamos $\mathbf{X}\mathbf{X}^\top$:
+            $$\mathbf{X}\mathbf{X}^\top = \begin{pmatrix} 1 & 0 & 1 \\ 0 & 1 & 1 \\ 1 & 1 & 2 \end{pmatrix}.$$
+          </item>
+          <item>Dividimos por $\sqrt{2}$ e somamos $\mathbf{M}$:
+            $$\frac{\mathbf{X}\mathbf{X}^\top}{\sqrt{2}} + \mathbf{M} = \begin{pmatrix} 1/\sqrt{2} & -\infty & -\infty \\ 0 & 1/\sqrt{2} & -\infty \\ 1/\sqrt{2} & 1/\sqrt{2} & \sqrt{2} \end{pmatrix}.$$
+          </item>
+          <item>Softmax por linha ($e^{1/\sqrt{2}} \approx 2{,}0281$, $e^{\sqrt{2}} \approx 4{,}1133$):
+            <list marker="dash">
+              <item><strong>Linha 1:</strong> $\alpha_{1,\cdot} = [1{,}000;\; 0;\; 0]$.</item>
+              <item><strong>Linha 2:</strong> $[1{,}0000;\; 2{,}0281;\; 0] / 3{,}0281 \approx [0{,}330;\; 0{,}670;\; 0]$.</item>
+              <item><strong>Linha 3:</strong> $[2{,}0281;\; 2{,}0281;\; 4{,}1133] / 8{,}1695 \approx [0{,}2483;\; 0{,}2483;\; 0{,}5035]$.</item>
+            </list>
+          </item>
+          <item>Multiplicamos por $\mathbf{V} = \mathbf{X}$:
+            $$\mathbf{A}_{\text{causal}}\mathbf{X} \approx \begin{pmatrix} 1{,}0000 & 0{,}0000 & 0 \\ 0{,}3302 & 0{,}6698 & 0 \\ 0{,}2483 & 0{,}2483 & 0{,}5035 \end{pmatrix} \begin{pmatrix} 1 & 0 \\ 0 & 1 \\ 1 & 1 \end{pmatrix} \approx \begin{pmatrix} 1{,}000 & 0{,}000 \\ 0{,}330 & 0{,}670 \\ 0{,}752 & 0{,}752 \end{pmatrix}.$$
+          </item>
+        </list>
+      </example>
+
+      Comparando o custo computacional com uma RNN (Tema 9.3): como $\mathbf{Q}\mathbf{K}^\top$ tem tamanho $n \times n$, o uso de memória e tempo da autoatenção cresce como $O(n^2)$ com o comprimento $n$ da sequência — dobrar $n$ quadruplica ($4\times$) a matriz de atenção. Em troca, todas as posições são processadas em paralelo na GPU e comunicam-se em distância $O(1)$, enquanto uma RNN exige $n$ passos sequenciais não paralelizáveis e força sinais a atravessar $O(n)$ etapas.
+
+      <example id="exm:9-5-ecog-causal">
+        <title>Decodificação causal de eletrocorticografia (ECoG) em tempo real</title>
+        Considere um decodificador de fala que recebe janelas de $50\text{ ms}$ de atividade cortical (ECoG) para prever o fonema atual enquanto o paciente fala. Sem máscara causal sobre uma gravação de $2\text{ s}$ ($n = 40$ janelas), a janela de $t = 200\text{ ms}$ consultaria a atividade motora em $t = 350\text{ ms}$, vendo o futuro antes de o som sair. Em testes offline a acurácia pareceria alta por vazamento temporal (<em>data leakage</em>), mas o sistema falharia na clínica em tempo real; a máscara causal garante dependência apenas de $j \le i$.
+      </example>
+
+      O código PyTorch abaixo implementa autoatenção causal com $2$ cabeças e confere a fórmula de parâmetros contra <c>torch.nn.MultiheadAttention</c>.
+
+      <code lang="python" id="cod:9-5-multihead-causal">
+import math
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+torch.manual_seed(0)
+
+n, d_model, h = 4, 6, 2
+d_k = d_model // h  # 3 dimensões por cabeça
+
+X = torch.randn(n, d_model)
+W_Q = torch.randn(d_model, d_model) * 0.5
+W_K = torch.randn(d_model, d_model) * 0.5
+W_V = torch.randn(d_model, d_model) * 0.5
+W_O = torch.randn(d_model, d_model) * 0.5
+
+# Projeta e separa em h cabeças: formato final (h, n, d_k)
+Q = (X @ W_Q).view(n, h, d_k).transpose(0, 1)
+K = (X @ W_K).view(n, h, d_k).transpose(0, 1)
+V = (X @ W_V).view(n, h, d_k).transpose(0, 1)
+
+scores = (Q @ K.transpose(-2, -1)) / math.sqrt(d_k)  # (h, n, n)
+
+# Máscara causal: True estritamente acima da diagonal principal
+mascara = torch.triu(torch.ones(n, n, dtype=torch.bool), diagonal=1)
+scores = scores.masked_fill(mascara, float("-inf"))
+
+pesos = F.softmax(scores, dim=-1)
+cabecas = pesos @ V  # (h, n, d_k)
+saida = cabecas.transpose(0, 1).contiguous().view(n, d_model) @ W_O
+
+print("Pesos de atenção (cabeça 0):\n", torch.round(pesos[0], decimals=3))
+# [[1.0000, 0, 0, 0],
+#  [0.8210, 0.1790, 0, 0],
+#  [0.1880, 0.3740, 0.4380, 0],
+#  [0.5200, 0.3590, 0.1190, 0.0010]]
+print("Máximo no triângulo superior:", float(pesos[:, mascara].max()))
+# 0.0
+print("Todas as linhas somam 1?", bool(torch.allclose(pesos.sum(dim=-1), torch.ones(h, n))))
+# True
+
+mha = nn.MultiheadAttention(embed_dim=64, num_heads=4, batch_first=True)
+total_params = sum(p.numel() for p in mha.parameters())
+formula = 4 * (64 ** 2) + 4 * 64
+print(f"Parâmetros MultiheadAttention: {total_params} | Fórmula: {formula}")
+# Parâmetros MultiheadAttention: 16640 | Fórmula: 16640
+      </code>
+
+      <remark id="rem:9-5-armadilha-causal">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Zerar o triângulo superior após o softmax:</strong> isso quebra a soma $1$ das linhas; a máscara com $-\infty$ deve entrar <em>antes</em> do softmax.</item>
+          <item><strong>Achar que mais cabeças multiplicam os parâmetros:</strong> em <c>MultiheadAttention</c>, $h$ divide $d_{\text{model}}$ ($d_k = d_{\text{model}}/h$), mantendo o total fixo em $4 d_{\text{model}}^2 + 4 d_{\text{model}}$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-5-2-1">
+        <title>Básico — Máscara causal aplicada à mão</title>
+        Dada a matriz já escalonada $\mathbf{S} = \begin{pmatrix} 1 & 2 & 0 \\ 0 & 0 & 3 \\ 1 & 1 & 1 \end{pmatrix}$, aplique a máscara causal $\mathbf{M}$ antes do softmax e calcule os pesos $\mathbf{A}$.
+        <hint><title>Ver dica</title>Substitua $S_{12}, S_{13}, S_{23}$ por $-\infty$ antes de calcular $\exp(\cdot)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Somando a máscara causal:
+          $$\mathbf{S} + \mathbf{M} = \begin{pmatrix} 1 & -\infty & -\infty \\ 0 & 0 & -\infty \\ 1 & 1 & 1 \end{pmatrix}.$$
+          Aplicando o softmax linha a linha ($e^{-\infty} = 0$):
+          <list marker="dash">
+            <item><strong>Linha 1:</strong> $[e^1, 0, 0] / e^1 = [1;\; 0;\; 0]$.</item>
+            <item><strong>Linha 2:</strong> $[e^0, e^0, 0] / (1 + 1) = [0{,}5;\; 0{,}5;\; 0]$.</item>
+            <item><strong>Linha 3:</strong> $[e^1, e^1, e^1] / (3e^1) = [1/3;\; 1/3;\; 1/3] \approx [0{,}333;\; 0{,}333;\; 0{,}333]$.</item>
+          </list>
+          $$\mathbf{A} \approx \begin{pmatrix} 1{,}000 & 0{,}000 & 0{,}000 \\ 0{,}500 & 0{,}500 & 0{,}000 \\ 0{,}333 & 0{,}333 & 0{,}333 \end{pmatrix}.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-5-2-2">
+        <title>Intermediário — O custo $O(n^2)$ em sinais de EEG</title>
+        Um EEG é amostrado a $250\text{ Hz}$ (cada amostra vira um <em>token</em>).
+        <list marker="a">
+          <item>Quantos elementos tem a matriz $n \times n$ de uma cabeça para $2\text{ s}$, e quanta memória ela ocupa em <c>float32</c> ($4\text{ bytes}$ por número)?</item>
+          <item>Repita para $20\text{ s}$. Por que $10\times$ mais duração exige $100\times$ mais memória?</item>
+        </list>
+        <hint><title>Ver dica</title>Calcule $n = \text{duração} \times 250$, depois $n^2$ e multiplique por $4\text{ bytes}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Em $2\text{ s}$, $n = 2 \cdot 250 = 500$ <em>tokens</em>, logo $n^2 = 250\,000$ elementos, ocupando $250\,000 \cdot 4 = 1\,000\,000\text{ bytes} = 1\text{ MB}$.</item>
+            <item>Em $20\text{ s}$, $n = 20 \cdot 250 = 5\,000$ <em>tokens</em>, logo $n^2 = 25\,000\,000$ elementos e $25\,000\,000 \cdot 4 = 100\,000\,000\text{ bytes} = 100\text{ MB}$. Multiplicar $n$ por $10$ multiplica a memória por $10^2 = 100$, efeito do custo $O(n^2)$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-5-2-3">
+        <title>Avançado — Autoatenção com duas cabeças à mão</title>
+        Para $\mathbf{X} = \begin{pmatrix} 1 & 0 & 0 & 1 \\ 0 & 1 & 1 & 0 \end{pmatrix}$ ($n = 2$, $d_{\text{model}} = 4$) e $h = 2$ cabeças ($d_k = 2$): a cabeça 1 usa as duas primeiras colunas ($\mathbf{Q}^{(1)} = \mathbf{K}^{(1)} = \mathbf{V}^{(1)} = \mathbf{X}_{:, 0:2}$) e a cabeça 2 usa as duas últimas ($\mathbf{Q}^{(2)} = \mathbf{K}^{(2)} = \mathbf{V}^{(2)} = \mathbf{X}_{:, 2:4}$), com $\mathbf{W}_O = \mathbf{I}_4$ e sem máscara. Calcule $\mathrm{MultiHead}(\mathbf{X})$ ($e^{1/\sqrt{2}} \approx 2{,}028$).
+        <hint><title>Ver dica</title>Calcule $\mathrm{head}_1$ e $\mathrm{head}_2$ separadamente com $d_k = 2$ e concatene lado a lado.</hint>
+        <solution collapsible="true" collapsed="true">
+          Na cabeça 1, $\mathbf{Q}^{(1)} = \mathbf{K}^{(1)} = \mathbf{V}^{(1)} = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}$, logo $\frac{\mathbf{Q}^{(1)}(\mathbf{K}^{(1)})^\top}{\sqrt{2}} = \begin{pmatrix} 1/\sqrt{2} & 0 \\ 0 & 1/\sqrt{2} \end{pmatrix}$. Com soma por linha $2{,}028 + 1 = 3{,}028$, temos $2{,}028/3{,}028 \approx 0{,}670$ e $1/3{,}028 \approx 0{,}330$:
+          $$\mathbf{A}^{(1)} \approx \begin{pmatrix} 0{,}670 & 0{,}330 \\ 0{,}330 & 0{,}670 \end{pmatrix}, \qquad \mathrm{head}_1 = \mathbf{A}^{(1)}\mathbf{V}^{(1)} \approx \begin{pmatrix} 0{,}670 & 0{,}330 \\ 0{,}330 & 0{,}670 \end{pmatrix}.$$
+          Na cabeça 2, $\mathbf{Q}^{(2)} = \mathbf{K}^{(2)} = \mathbf{V}^{(2)} = \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}$ dá $\mathbf{Q}^{(2)}(\mathbf{K}^{(2)})^\top = \mathbf{I}_2$ ($\mathbf{A}^{(2)} = \mathbf{A}^{(1)}$), e $\mathbf{V}^{(2)}$ troca as colunas:
+          $$\mathrm{head}_2 = \mathbf{A}^{(2)}\mathbf{V}^{(2)} \approx \begin{pmatrix} 0{,}330 & 0{,}670 \\ 0{,}670 & 0{,}330 \end{pmatrix}.$$
+          Concatenando e multiplicando por $\mathbf{W}_O = \mathbf{I}_4$:
+          $$\mathrm{MultiHead}(\mathbf{X}) \approx \begin{pmatrix} 0{,}670 & 0{,}330 & 0{,}330 & 0{,}670 \\ 0{,}330 & 0{,}670 & 0{,}670 & 0{,}330 \end{pmatrix}.$$
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-5-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Posição e o bloco Transformer</title>
+      <intro>
+        Sem informação de ordem, a autoatenção enxerga a sequência como um conjunto sem ordem; somar codificações posicionais, conexões residuais, LayerNorm e MLPs completa o bloco Transformer.
+      </intro>
+
+      Leia duas frases com exatamente as mesmas palavras: <em>"o cão mordeu o homem"</em> e <em>"o homem mordeu o cão"</em>. Uma RNN lê uma palavra por vez, embutindo a ordem no próprio laço temporal. A autoatenção, porém, compara todos os pares de uma só vez: se você embaralhar as linhas da matriz $\mathbf{X}$, nada na fórmula sabe quem veio antes ou depois.
+
+      <proposition id="prop:9-5-equivariancia">
+        <title>Equivariância a permutações da autoatenção</title>
+        Seja $\mathbf{P} \in \mathbb{R}^{n \times n}$ uma matriz de permutação que reordena as $n$ linhas de $\mathbf{X} \in \mathbb{R}^{n \times d_{\text{model}}}$ ($\mathbf{P}^\top\mathbf{P} = \mathbf{I}_n$). Sem máscara causal nem codificação posicional:
+        $$\mathrm{Attention}(\mathbf{P}\mathbf{Q},\; \mathbf{P}\mathbf{K},\; \mathbf{P}\mathbf{V}) = \mathbf{P}\,\mathrm{Attention}(\mathbf{Q},\; \mathbf{K},\; \mathbf{V}).$$
+        Em particular, agregando todas as saídas por média global, <em>"o cão mordeu o homem"</em> e <em>"o homem mordeu o cão"</em> produzem exatamente o mesmo vetor final.
+      </proposition>
+      <proof of="prop:9-5-equivariancia" collapsible="true" collapsed="true">
+        Usando $(\mathbf{P}\mathbf{K})^\top = \mathbf{K}^\top\mathbf{P}^\top$, as pontuações permutadas são:
+        $$\frac{(\mathbf{P}\mathbf{Q})(\mathbf{P}\mathbf{K})^\top}{\sqrt{d_k}} = \mathbf{P}\left(\frac{\mathbf{Q}\mathbf{K}^\top}{\sqrt{d_k}}\right)\mathbf{P}^\top = \mathbf{P}\mathbf{S}\mathbf{P}^\top.$$
+        Multiplicar $\mathbf{S}$ à esquerda por $\mathbf{P}$ permuta as linhas e à direita por $\mathbf{P}^\top$ permuta as colunas. Como o softmax soma ao longo de cada linha (invariante à ordem das colunas), $\mathrm{softmax}(\mathbf{P}\mathbf{S}\mathbf{P}^\top) = \mathbf{P}\,\mathrm{softmax}(\mathbf{S})\,\mathbf{P}^\top$. Multiplicando por $\mathbf{P}\mathbf{V}$ e usando $\mathbf{P}^\top\mathbf{P} = \mathbf{I}_n$:
+        $$\mathbf{P}\,\mathrm{softmax}(\mathbf{S})\,\mathbf{P}^\top \mathbf{P}\mathbf{V} = \mathbf{P}\,\mathrm{softmax}(\mathbf{S})\mathbf{V} = \mathbf{P}\,\mathrm{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}).$$
+      </proof>
+
+      Para injetar ordem na sequência, somamos aos <em>embeddings</em> de entrada um vetor dependente exclusivamente da posição $\mathrm{pos} \in \{0, 1, \dots, n-1\}$. Vaswani et al. (2017) propuseram a <strong>codificação posicional senoidal</strong> fixa, usando senos e cossenos de frequências geométricas (Módulo 1 — Trigonometria):
+      <equations id="eq:9-5-pe">
+        \mathrm{PE}(\mathrm{pos}, 2i) &= \sin\!\left(\frac{\mathrm{pos}}{10000^{2i / d_{\text{model}}}}\right), \\
+        \mathrm{PE}(\mathrm{pos}, 2i+1) &= \cos\!\left(\frac{\mathrm{pos}}{10000^{2i / d_{\text{model}}}}\right),
+      </equations>
+      para $i = 0, \dots, \frac{d_{\text{model}}}{2} - 1$. Pense nos ponteiros de um relógio: as primeiras coordenadas ($i$ pequeno) oscilam rápido a cada posição, como os segundos; as últimas ($i$ grande) variam devagar, como as horas. Como alternativa prática, é possível treinar uma tabela de <strong>embeddings posicionais aprendidos</strong> (<c>nn.Embedding(max_len, d_model)</c>) por retropropagação, embora ela não extrapole sozinha além de <c>max_len</c>.
+
+      <figure src="fig/t05-posicional.svg" alt="Mapa de calor à esquerda mostrando os valores de PE entre menos um e um para cinquenta posições e trinta e duas dimensões, e curvas senoidais de três dimensões à direita" id="fig:9-5-posicional">
+        <caption>Codificação posicional senoidal ($\mathrm{pos} = 0\text{–}49$, $d_{\text{model}} = 32$). Cada posição ganha uma assinatura única; dimensões iniciais oscilam rápido e dimensões finais variam devagar.</caption>
+      </figure>
+
+      <example id="exm:9-5-pe-mao">
+        <title>Codificação posicional senoidal à mão ($\mathrm{pos} = 0, 1$ e $d_{\text{model}} = 4$)</title>
+        Calcule $\mathrm{PE}(0)$ e $\mathrm{PE}(1)$ pela <ref to="eq:9-5-pe"/> com $d_{\text{model}} = 4$ (radianos).
+
+        <strong>Solução.</strong> Para $d_{\text{model}} = 4$, temos $i = 0$ (denominador $10000^{0/4} = 1$) e $i = 1$ (denominador $10000^{2/4} = \sqrt{10000} = 100$):
+        <list marker="number">
+          <item><strong>$\mathrm{pos} = 0$:</strong> $\sin(0) = 0$ e $\cos(0) = 1$, logo $\mathrm{PE}(0) = [0;\; 1;\; 0;\; 1]$.</item>
+          <item><strong>$\mathrm{pos} = 1$:</strong>
+            $$\mathrm{PE}(1, 0) = \sin(1) \approx 0{,}8415, \qquad \mathrm{PE}(1, 1) = \cos(1) \approx 0{,}5403,$$
+            $$\mathrm{PE}(1, 2) = \sin(0{,}01) \approx 0{,}0100, \qquad \mathrm{PE}(1, 3) = \cos(0{,}01) \approx 1{,}0000,$$
+            ou seja, $\mathrm{PE}(1) \approx [0{,}8415;\; 0{,}5403;\; 0{,}0100;\; 1{,}0000]$.
+          </item>
+        </list>
+      </example>
+
+      Agora montamos um <strong>bloco Transformer</strong> completo: a autoatenção mistura informações <em>entre</em> posições e um MLP transforma cada posição <em>individualmente</em>. Na formulação original (<em>post-norm</em>), cada subcamada recebe conexão residual e normalização de camada (<strong>LayerNorm</strong>):
+      <equations id="eq:9-5-bloco">
+        \mathbf{H} &= \mathrm{LayerNorm}\!\left(\mathbf{X} + \mathrm{MultiHead}(\mathbf{X})\right), \\
+        \mathbf{Y} &= \mathrm{LayerNorm}\!\left(\mathbf{H} + \mathrm{FFN}(\mathbf{H})\right),
+      </equations>
+      com $\mathrm{FFN}(\mathbf{h}) = \mathbf{W}_2\,\phi(\mathbf{W}_1\mathbf{h} + \mathbf{b}_1) + \mathbf{b}_2$ e largura interna típica $d_{\text{ff}} = 4\,d_{\text{model}}$. A conexão residual ($\mathbf{x} + \dots$) cria uma rodovia direta para os gradientes em redes profundas, e o <c>LayerNorm</c> normaliza cada <em>token</em> ao longo de suas $d_{\text{model}}$ dimensões. Hoje prefere-se a variante <strong>pre-norm</strong> ($\mathbf{X} + \mathrm{MultiHead}(\mathrm{LayerNorm}(\mathbf{X}))$), que estabiliza o treino de modelos profundos.
+
+      Blocos sem máscara formam um <strong>codificador</strong> (<em>encoder</em>) bidirecional; blocos com máscara causal formam um <strong>decodificador</strong> (<em>decoder</em>) autorregressivo (que pode incluir atenção cruzada para ler um codificador). Embora criados para texto, esses blocos são universais: o <strong>Vision Transformer (ViT)</strong> (Dosovitskiy et al., 2021) fatia imagens em retalhos (<em>patches</em>), projeta-os com posição e aplica exatamente um codificador Transformer padrão.
+
+      <example id="exm:9-5-bloco-spike">
+        <title>Distinguindo rampas crescentes e decrescentes em disparos neuronais</title>
+        Registramos a taxa de disparo de um neurônio em três janelas consecutivas durante um estímulo: no ensaio A a taxa sobe ($[10, 30, 50]\text{ Hz}$); no ensaio B ela cai ($[50, 30, 10]\text{ Hz}$). Pela <ref to="prop:9-5-equivariancia"/>, um codificador sem codificação posicional trataria o ensaio B como simples permutação do ensaio A e produziria exatamente a mesma representação média global para ambos, impedindo distinguir início e fim do estímulo. Somar $\mathrm{PE}(\mathrm{pos})$ quebra a simetria e revela a direção temporal da rampa.
+      </example>
+
+      O código a seguir treina na CPU (em cerca de $1$ segundo) um pequeno <c>torch.nn.TransformerEncoderLayer</c> com <em>embeddings</em> posicionais aprendidos para classificar se $8$ dígitos de $0$ a $9$ estão em ordem não decrescente — tarefa impossível sem posição.
+
+      <code lang="python" id="cod:9-5-transformer-seq">
+import torch
+import torch.nn as nn
+
+torch.manual_seed(0)
+
+
+def gerar_dados(n, comp=8):
+    metade = n // 2
+    ord_x = torch.sort(torch.randint(0, 10, (metade, comp)), dim=1).values
+    des_x = torch.randint(0, 10, (metade, comp))
+    for i in range(metade):
+        while bool((des_x[i, 1:] >= des_x[i, :-1]).all()):
+            des_x[i] = torch.randint(0, 10, (comp,))
+    X = torch.cat([ord_x, des_x], dim=0)
+    y = torch.cat([torch.ones(metade), torch.zeros(metade)])
+    perm = torch.randperm(n)
+    return X[perm], y[perm]
+
+
+class ClassificadorOrdem(nn.Module):
+    def __init__(self, comp=8, d_model=16):
+        super().__init__()
+        self.emb_tok = nn.Embedding(10, d_model)
+        self.emb_pos = nn.Embedding(comp, d_model)
+        self.bloco = nn.TransformerEncoderLayer(
+            d_model=d_model, nhead=2, dim_feedforward=32, dropout=0.0, batch_first=True
+        )
+        self.cabeca = nn.Linear(d_model, 1)
+
+    def forward(self, x):
+        pos = torch.arange(x.size(1), device=x.device)
+        h = self.emb_tok(x) + self.emb_pos(pos)
+        h = self.bloco(h)
+        return self.cabeca(h.mean(dim=1)).squeeze(-1)
+
+
+X_treino, y_treino = gerar_dados(600)
+X_teste, y_teste = gerar_dados(200)
+
+modelo = ClassificadorOrdem()
+otimizador = torch.optim.Adam(modelo.parameters(), lr=0.005)
+criterio = nn.BCEWithLogitsLoss()
+
+for epoca in range(40):
+    perm = torch.randperm(len(X_treino))
+    for inicio in range(0, len(X_treino), 64):
+        idx = perm[inicio:inicio + 64]
+        otimizador.zero_grad()
+        perda = criterio(modelo(X_treino[idx]), y_treino[idx])
+        perda.backward()
+        otimizador.step()
+
+with torch.no_grad():
+    logits = modelo(X_teste)
+    preds = (logits > 0).float()
+    acuracia = float((preds == y_teste).float().mean())
+
+print(f"Acurácia no teste: {acuracia:.3f}")
+# Acurácia no teste: ≈ 0.98 (pode variar um pouco entre versões/máquinas)
+      </code>
+
+      <remark id="rem:9-5-armadilha-posicao">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Omitir posição em séries biológicas:</strong> EEG, trens de disparos ou sequências de DNA têm ordem intrínseca; sem $\mathrm{PE}$, um codificador reduz a série a um saco de vetores.</item>
+          <item><strong>Confundir LayerNorm com BatchNorm:</strong> BatchNorm normaliza entre exemplos do lote; <c>LayerNorm</c> normaliza os $d_{\text{model}}$ atributos de cada <em>token</em> isoladamente, funcionando até com lote $1$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-5-3-1">
+        <title>Básico — Parâmetros da camada MLP do bloco Transformer</title>
+        Com $d_{\text{model}} = 64$ e $d_{\text{ff}} = 4\,d_{\text{model}} = 256$, quantos parâmetros treináveis (pesos e vieses) possui $\mathrm{FFN}(\mathbf{h}) = \mathbf{W}_2\,\phi(\mathbf{W}_1\mathbf{h} + \mathbf{b}_1) + \mathbf{b}_2$? Compare com os $16\,640$ parâmetros da atenção multi-cabeças.
+        <hint><title>Ver dica</title>A primeira camada mapeia $64 \to 256$ e a segunda $256 \to 64$; some pesos e vieses.</hint>
+        <solution collapsible="true" collapsed="true">
+          Primeira camada ($\mathbf{W}_1 \in \mathbb{R}^{256 \times 64}$, $\mathbf{b}_1 \in \mathbb{R}^{256}$): $64 \cdot 256 + 256 = 16\,384 + 256 = 16\,640$.
+          Segunda camada ($\mathbf{W}_2 \in \mathbb{R}^{64 \times 256}$, $\mathbf{b}_2 \in \mathbb{R}^{64}$): $256 \cdot 64 + 64 = 16\,384 + 64 = 16\,448$.
+          Total da FFN: $16\,640 + 16\,448 = 33\,088$ parâmetros — quase o dobro dos $16\,640$ parâmetros da atenção multi-cabeças.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-5-3-2">
+        <title>Intermediário — Equivariância a permutações em disparos neuronais</title>
+        Considere os disparos de dois neurônios ($d_k = 2$) em $n = 2$ janelas temporais: no ensaio $\mathbf{X} = \begin{pmatrix} 1 & 0 \\ 0 & 2 \end{pmatrix}$ o neurônio 1 dispara antes do 2; no ensaio $\mathbf{X}' = \begin{pmatrix} 0 & 2 \\ 1 & 0 \end{pmatrix}$ a ordem temporal é invertida. Sem codificação posicional, calcule $\mathrm{Attention}(\mathbf{X}, \mathbf{X}, \mathbf{X})$ e $\mathrm{Attention}(\mathbf{X}', \mathbf{X}', \mathbf{X}')$ e mostre que a média das linhas coincide ($e^{1/\sqrt{2}} \approx 2{,}0281$, $e^{2\sqrt{2}} \approx 16{,}9188$).
+        <hint><title>Ver dica</title>Os termos fora da diagonal de $\mathbf{X}\mathbf{X}^\top$ são $0$, e os da diagonal são $1$ e $4$. Divida por $\sqrt{2}$ e aplique o softmax.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para $\mathbf{X}$, temos $\frac{\mathbf{X}\mathbf{X}^\top}{\sqrt{2}} = \begin{pmatrix} 1/\sqrt{2} & 0 \\ 0 & 2\sqrt{2} \end{pmatrix}$:
+          <list marker="dash">
+            <item><strong>Linha 1:</strong> pesos $\frac{[2{,}0281;\; 1{,}0000]}{3{,}0281} \approx [0{,}670;\; 0{,}330] \implies$ saída $1 = 0{,}670(1, 0) + 0{,}330(0, 2) = (0{,}670;\; 0{,}660)$.</item>
+            <item><strong>Linha 2:</strong> pesos $\frac{[1{,}0000;\; 16{,}9188]}{17{,}9188} \approx [0{,}056;\; 0{,}944] \implies$ saída $2 = 0{,}056(1, 0) + 0{,}944(0, 2) = (0{,}056;\; 1{,}888)$.</item>
+          </list>
+          Para $\mathbf{X}'$, $\frac{\mathbf{X}'(\mathbf{X}')^\top}{\sqrt{2}} = \begin{pmatrix} 2\sqrt{2} & 0 \\ 0 & 1/\sqrt{2} \end{pmatrix}$ apenas troca as linhas: saída $1 = (0{,}056;\; 1{,}888)$ e saída $2 = (0{,}670;\; 0{,}660)$. Em ambos os ensaios, a média é $(0{,}363;\; 1{,}274)$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-5-3-3">
+        <title>Avançado — Posição relativa como transformação linear</title>
+        Seja $\omega_i = 10000^{-2i/d_{\text{model}}}$. Usando $\sin(\alpha + \beta) = \sin\alpha\cos\beta + \cos\alpha\sin\beta$ e $\cos(\alpha + \beta) = \cos\alpha\cos\beta - \sin\alpha\sin\beta$ (Módulo 1), mostre que $(\mathrm{PE}(\mathrm{pos}+k, 2i),\; \mathrm{PE}(\mathrm{pos}+k, 2i+1))^\top$ resulta de multiplicar $(\mathrm{PE}(\mathrm{pos}, 2i),\; \mathrm{PE}(\mathrm{pos}, 2i+1))^\top$ por uma matriz $2 \times 2$ dependente apenas de $k$.
+        <hint><title>Ver dica</title>Tome $\alpha = \omega_i \mathrm{pos}$ e $\beta = \omega_i k$, expanda seno e cosseno e escreva como matriz $\mathbf{R}_k$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Com $\alpha = \omega_i \mathrm{pos}$ e $\beta = \omega_i k$:
+          $$\mathrm{PE}(\mathrm{pos}+k, 2i) = \cos(\omega_i k)\sin(\omega_i \mathrm{pos}) + \sin(\omega_i k)\cos(\omega_i \mathrm{pos}),$$
+          $$\mathrm{PE}(\mathrm{pos}+k, 2i+1) = -\sin(\omega_i k)\sin(\omega_i \mathrm{pos}) + \cos(\omega_i k)\cos(\omega_i \mathrm{pos}).$$
+          Em forma matricial:
+          $$\begin{pmatrix} \mathrm{PE}(\mathrm{pos}+k, 2i) \\ \mathrm{PE}(\mathrm{pos}+k, 2i+1) \end{pmatrix} = \begin{pmatrix} \cos(\omega_i k) & \sin(\omega_i k) \\ -\sin(\omega_i k) & \cos(\omega_i k) \end{pmatrix} \begin{pmatrix} \mathrm{PE}(\mathrm{pos}, 2i) \\ \mathrm{PE}(\mathrm{pos}, 2i+1) \end{pmatrix}.$$
+          Como a matriz depende só de $k$, deslocamentos relativos viram rotações lineares fixas.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-5-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Transformers na ciência: LLMs, AlphaFold e o cérebro</title>
+      <intro>
+        Os blocos de atenção revolucionaram a biologia estrutural e a decodificação neural — trazendo avanços inéditos e novos desafios sobre explicabilidade e privacidade mental.
+      </intro>
+
+      Empilhando dezenas de blocos decodificadores (com máscara causal) e treinando-os por máxima verossimilhança (Módulo 7) para prever o próximo <em>token</em> em bilhões de textos, obtemos os <strong>Modelos de Linguagem de Grande Porte (LLMs)</strong>. Veremos no Tema 9.8 como essa tarefa gera fluência; a arquitetura base é exatamente a pilha de autoatenção causal, conexões residuais, LayerNorm e MLPs vista acima.
+
+      Na biologia molecular, o <strong>AlphaFold 2</strong> (Jumper et al., 2021, <em>Nature</em>) prevê estruturas 3D de proteínas a partir da sequência de aminoácidos. Seu núcleo, o <strong>Evoformer</strong>, aplica atenção em paralelo sobre um alinhamento múltiplo de sequências evolutivas (MSA, detectando aminoácidos que coevoluem por proximidade 3D) e uma representação de pares de resíduos (com atenção triangular). Em seguida, um módulo estrutural gera as coordenadas atômicas. Na avaliação CASP14 (2020), atingiu precisão comparável à de métodos experimentais (cristalografia de raios X e criomicroscopia eletrônica).
+
+      Na neurociência computacional, Tang, LeBel, Jain &amp; Huth (2023, <em>Nature Neuroscience</em>) construíram um <strong>decodificador semântico</strong> de linguagem contínua usando fMRI não invasivo. Como o sinal BOLD mede variações hemodinâmicas lentas ao longo de segundos e o tempo de repetição típico é $\text{TR} \approx 2\text{ s}$, várias palavras faladas se sobrepõem na mesma imagem cerebral, inviabilizando a classificação direta palavra por palavra. Para contornar esse limite físico, a equipe combinou três peças:
+      <list marker="number">
+        <item><strong>Coleta prolongada por participante:</strong> horas de histórias narradas dentro do scanner.</item>
+        <item><strong>Modelo GPT + modelo de codificação (<em>encoding</em>):</strong> um GPT propõe continuações plausíveis e uma regressão <em>ridge</em> (Módulo 8) prevê qual sinal BOLD cada candidata geraria no cérebro do voluntário.</item>
+        <item><strong>Busca em feixe (<em>beam search</em>):</strong> mantém apenas as $B$ continuações mais prováveis cuja resposta BOLD prevista melhor casa com o fMRI medido.</item>
+      </list>
+
+      Esse estudo traz três lições: (i) o decodificador recupera o <strong>sentido geral</strong> (paráfrases), não palavras literais; (ii) exige <strong>cooperação ativa</strong> do participante — desviar a atenção ou contar mentalmente quebra a decodificação; e (iii) um modelo treinado em um indivíduo <strong>não generaliza para outro</strong>. Isso barra "leituras de mente" involuntárias hoje, mas torna urgente proteger a <strong>privacidade mental</strong> e os dados neurais.
+
+      <example id="exm:9-5-tr-palavras">
+        <title>Quantas palavras cabem em um único TR do fMRI?</title>
+        Em fala natural a $2{,}5\text{ palavras/s}$ e scanner com $\text{TR} = 2{,}0\text{ s}$:
+        <list marker="a">
+          <item>Quantas palavras são faladas por TR?</item>
+          <item>Quantas atravessam uma janela hemodinâmica de $10\text{ s}$?</item>
+          <item>Testando $10$ opções plausíveis por posição para $5$ palavras, quantas sequências existem por TR?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>$2{,}0\text{ s} \times 2{,}5\text{ palavras/s} = 5\text{ palavras por TR}$.</item>
+          <item>Em $10\text{ s}$ ($5$ TRs): $10\text{ s} \times 2{,}5\text{ palavras/s} = 25\text{ palavras}$.</item>
+          <item>Com $10$ opções em $5$ posições: $10^5 = 100\,000\text{ combinações}$. Esse crescimento exponencial exige restringir a busca com um modelo de linguagem e busca em feixe.</item>
+        </list>
+      </example>
+
+      <example id="exm:9-5-beam-search">
+        <title>Busca em feixe (<em>beam search</em>) com largura $B = 2$ passo a passo</title>
+        Considere a pontuação $\text{Pontuação} = \log P_{\text{LM}} - 0{,}5 \cdot \text{Erro}_{\text{fMRI}}$ após <em>"O neurônio"</em>, com largura $B = 2$:
+        <list marker="dash">
+          <item><strong>Passo 1:</strong>
+            <em>A ("dispara")</em>: $\log P = -1{,}0$, $\text{Erro} = 0{,}4$;
+            <em>B ("dorme")</em>: $\log P = -2{,}0$, $\text{Erro} = 0{,}2$;
+            <em>C ("canta")</em>: $\log P = -3{,}0$, $\text{Erro} = 2{,}0$.
+          </item>
+          <item><strong>Passo 2 (expansões):</strong>
+            <em>A1 ("dispara rápido")</em>: $\log P_{\text{inc}} = -0{,}5$, $\text{Erro}_{\text{inc}} = 0{,}2$;
+            <em>A2 ("dispara devagar")</em>: $\log P_{\text{inc}} = -1{,}5$, $\text{Erro}_{\text{inc}} = 1{,}2$;
+            <em>B1 ("dorme profundo")</em>: $\log P_{\text{inc}} = -0{,}8$, $\text{Erro}_{\text{inc}} = 0{,}4$.
+          </item>
+        </list>
+        Qual sequência vence no Passo 2?
+
+        <strong>Solução.</strong>
+        <list marker="number">
+          <item><strong>Passo 1:</strong>
+            $$\text{Pont}(A) = -1{,}0 - 0{,}5(0{,}4) = -1{,}2, \quad \text{Pont}(B) = -2{,}0 - 0{,}5(0{,}2) = -2{,}1, \quad \text{Pont}(C) = -3{,}0 - 0{,}5(2{,}0) = -4{,}0.$$
+            Com $B = 2$, sobrevivem $A$ ($-1{,}2$) e $B$ ($-2{,}1$); $C$ é descartada.
+          </item>
+          <item><strong>Passo 2 (acumulado):</strong>
+            <list marker="dash">
+              <item><em>A1:</em> $\log P = -1{,}5$, $\text{Erro} = 0{,}6 \implies \text{Pont}(A1) = -1{,}5 - 0{,}5(0{,}6) = -1{,}8$.</item>
+              <item><em>A2:</em> $\log P = -2{,}5$, $\text{Erro} = 1{,}6 \implies \text{Pont}(A2) = -2{,}5 - 0{,}5(1{,}6) = -3{,}3$.</item>
+              <item><em>B1:</em> $\log P = -2{,}8$, $\text{Erro} = 0{,}6 \implies \text{Pont}(B1) = -2{,}8 - 0{,}5(0{,}6) = -3{,}1$.</item>
+            </list>
+            Mantendo as $2$ melhores ($A1 = -1{,}8$ e $B1 = -3{,}1$), vence <em>"O neurônio dispara rápido"</em>.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:9-5-armadilha-interpretacao">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Tratar pesos de atenção como explicação causal:</strong> um peso alto $\alpha_{ij}$ não prova que o <em>token</em> $j$ causou a saída; normas de $\mathbf{v}_j$, conexões residuais e MLPs podem cancelar ou amplificar sinais. Causalidade exige intervenções (perturbações).</item>
+          <item><strong>Exagerar a "leitura de mente":</strong> a decodificação por fMRI hoje exige horas de treino individual, cooperação do sujeito e gera paráfrases aproximadas.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-5-4-1">
+        <title>Básico — Escala quadrática na representação de pares do AlphaFold</title>
+        A representação de pares do Evoformer cria uma grade $n \times n$ entre aminoácidos de uma proteína de comprimento $n$.
+        <list marker="a">
+          <item>Quantos pares existem para $n = 200$ aminoácidos?</item>
+          <item>E para $n = 2\,000$? Quantas vezes maior é essa matriz?</item>
+        </list>
+        <hint><title>Ver dica</title>Calcule $n^2$ em cada caso e faça a razão entre os dois resultados.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Para $n = 200$: $200^2 = 40\,000$ pares.</item>
+            <item>Para $n = 2\,000$: $2\,000^2 = 4\,000\,000$ pares — matriz $\frac{4\,000\,000}{40\,000} = 100$ vezes maior. Por isso, proteínas muito longas exigem recortes de sequência ou grande memória de GPU.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-5-4-2">
+        <title>Intermediário — Busca em feixe em dois passos</title>
+        Usando $\text{Pontuação} = \log P_{\text{LM}} - \text{Erro}_{\text{fMRI}}$ e largura $B = 2$:
+        <list marker="dash">
+          <item><strong>Passo 1:</strong> $X$ ($\log P = -0{,}8$, $\text{Erro} = 0{,}6$), $Y$ ($\log P = -1{,}5$, $\text{Erro} = 0{,}2$), $Z$ ($\log P = -1{,}2$, $\text{Erro} = 1{,}0$).</item>
+          <item><strong>Passo 2 (a partir das $2$ melhores):</strong> $X_1$ ($\log P_{\text{inc}} = -0{,}4$, $\text{Erro}_{\text{inc}} = 0{,}3$), $Y_1$ ($\log P_{\text{inc}} = -0{,}2$, $\text{Erro}_{\text{inc}} = 0{,}1$), $Y_2$ ($\log P_{\text{inc}} = -1{,}0$, $\text{Erro}_{\text{inc}} = 0{,}5$).</item>
+        </list>
+        Quais candidatas sobrevivem ao Passo 1 e qual vence ao final do Passo 2?
+        <hint><title>Ver dica</title>Calcule $\log P - \text{Erro}$ no Passo 1, descarte a pior e some os incrementos do Passo 2 às duas sobreviventes.</hint>
+        <solution collapsible="true" collapsed="true">
+          <strong>Passo 1:</strong> $\text{Pont}(X) = -0{,}8 - 0{,}6 = -1{,}4$, $\text{Pont}(Y) = -1{,}5 - 0{,}2 = -1{,}7$, $\text{Pont}(Z) = -1{,}2 - 1{,}0 = -2{,}2$. Sobrevivem $X$ e $Y$; $Z$ é podada.
+          <strong>Passo 2:</strong>
+          <list marker="dash">
+            <item>$X_1$: $-1{,}4 + (-0{,}4 - 0{,}3) = -2{,}1$.</item>
+            <item>$Y_1$: $-1{,}7 + (-0{,}2 - 0{,}1) = -2{,}0$.</item>
+            <item>$Y_2$: $-1{,}7 + (-1{,}0 - 0{,}5) = -3{,}2$.</item>
+          </list>
+          Vence $Y_1$ ($-2{,}0$), seguida por $X_1$ ($-2{,}1$): a busca em feixe ($B = 2$) permitiu que $Y_1$ ultrapassasse $X_1$ no segundo passo.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-5-4-3">
+        <title>Avançado — Contraexemplo numérico: peso alto não garante importância</title>
+        Em uma camada de atenção de $2$ <em>tokens</em> com $\mathbf{v}_1 = (10, 0)$, $\mathbf{v}_2 = (0, 1)$ e pesos $\alpha_1 = 0{,}1$, $\alpha_2 = 0{,}9$:
+        <list marker="a">
+          <item>Calcule $\alpha_1 \mathbf{v}_1$, $\alpha_2 \mathbf{v}_2$, a saída $\mathbf{y} = \alpha_1 \mathbf{v}_1 + \alpha_2 \mathbf{v}_2$ e a norma euclidiana de cada termo.</item>
+          <item>Por que isso desmente que "$\alpha_2 = 0{,}9$ prova que o <em>token</em> 2 causou a saída"?</item>
+        </list>
+        <hint><title>Ver dica</title>Compare as normas $\|\alpha_1 \mathbf{v}_1\|_2$ e $\|\alpha_2 \mathbf{v}_2\|_2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$\alpha_1 \mathbf{v}_1 = 0{,}1(10, 0) = (1{,}0;\; 0)$, $\alpha_2 \mathbf{v}_2 = 0{,}9(0, 1) = (0;\; 0{,}9)$ e $\mathbf{y} = (1{,}0;\; 0{,}9)$, com normas $\|\alpha_1 \mathbf{v}_1\|_2 = 1{,}0$ e $\|\alpha_2 \mathbf{v}_2\|_2 = 0{,}9$.</item>
+            <item>Apesar de $\alpha_2$ ser $9\times$ maior que $\alpha_1$, a contribuição vetorial do <em>token</em> 1 é maior ($1{,}0 > 0{,}9$) porque $\|\mathbf{v}_1\|_2 = 10\,\|\mathbf{v}_2\|_2$. Pesos isolados ignoram normas de $\mathbf{v}_j$, resíduos e MLPs, logo não são explicações causais.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-5-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Atenção por produto escalar escalonado:</strong> $\mathrm{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \mathrm{softmax}\!\left(\frac{\mathbf{Q}\mathbf{K}^\top}{\sqrt{d_k}}\right)\mathbf{V}$, com o softmax aplicado linha a linha para transformar pontuações em pesos que somam $1$.</item>
+        <item><strong>Papel de $\sqrt{d_k}$:</strong> com entradas independentes de média $0$ e variância $1$, $\mathrm{Var}(\mathbf{q}\cdot\mathbf{k}) = d_k$; dividir por $\sqrt{d_k}$ restaura variância unitária e evita a saturação do softmax.</item>
+        <item><strong>Autoatenção e várias cabeças:</strong> $\mathbf{Q} = \mathbf{X}\mathbf{W}_Q$, $\mathbf{K} = \mathbf{X}\mathbf{W}_K$ e $\mathbf{V} = \mathbf{X}\mathbf{W}_V$ nascem da mesma entrada; $h$ cabeças de dimensão $d_k = d_{\text{model}}/h$ somam $4\,d_{\text{model}}^2 + 4\,d_{\text{model}}$ parâmetros com vieses.</item>
+        <item><strong>Máscara causal e custo $O(n^2)$:</strong> somar $-\infty$ acima da diagonal principal antes do softmax bloqueia o futuro; o caminho entre quaisquer posições é $O(1)$, mas memória e tempo crescem como $O(n^2)$.</item>
+        <item><strong>Posição e bloco Transformer:</strong> a atenção sem máscara é equivariante a permutações; somamos codificação posicional senoidal ou aprendida e empilhamos atenção, conexões residuais, <c>LayerNorm</c> e $\mathrm{FFN}$ (<em>post-norm</em> ou <em>pre-norm</em>).</item>
+        <item><strong>Aplicações e limites:</strong> a mesma base sustenta LLMs, o AlphaFold 2 (Evoformer) e decodificadores semânticos de fMRI (GPT + modelo de codificação + busca em feixe); pesos de atenção não dão explicações causais e o fMRI exige cooperação e calibração individual.</item>
+      </list>
+    </section>
+
+    <section id="sec:9-5-alem">
+      <title>Para ir além</title>
+      Para aprofundar os fundamentos matemáticos e a prática de arquiteturas baseadas em atenção, consulte os materiais do Módulo 9 e as referências oficiais do PyTorch:
+      <list marker="dash">
+        <item><em>Deep Learning Book</em> — Ian Goodfellow, Yoshua Bengio e Aaron Courville (fundamentos de redes neurais e modelagem de sequências).</item>
+        <item>Andrej Karpathy — aulas de LLM e <em>backprop</em> no YouTube (construção passo a passo de um Transformer autorregressivo).</item>
+        <item><link to="https://pytorch.org/docs/stable/index.html">Documentação oficial do PyTorch</link> — APIs <c>scaled_dot_product_attention</c>, <c>MultiheadAttention</c> e <c>TransformerEncoderLayer</c>.</item>
+        <item><link to="https://pytorch.org/tutorials/">Tutoriais oficiais do PyTorch</link> — guias práticos de modelagem de sequências em CPU ou GPU.</item>
+      </list>
+
+      No <strong>Tema 9.6 — GNN</strong> (<em>Graph Neural Networks</em>), veremos como a autoatenção equivale a troca de mensagens em um grafo completo e como generalizá-la para conectomas cerebrais e moléculas.
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 9 · Deep Learning — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

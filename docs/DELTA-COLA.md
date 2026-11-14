@@ -7,6 +7,8 @@ em `referencias/delta/*.dlt`, `referencias/delta/README.md` e nos exemplos em
 
 > ## Regras deste projeto (prevalecem sobre o resto da cola)
 >
+> - **ERRO Nº 1 DOS AUTORES**: dentro de `$...$`, `$$...$$`, `<equation>` e `<code>`, escreva `<`, `>` e `&` **puros**. `&lt;` e `&gt;` na matemática quebram o KaTeX. O escape só vale na prosa.
+> - **Saídas de código**: nunca invente a saída esperada. Escreva `# saída: (o gestor confere)`; o gestor roda o código e põe o valor real.
 > - **Título do documento**: `Módulo N · <título do módulo>`. O capítulo é o tema:
 >   `<chapter id="tema-M-T">`.
 > - **Link de volta ao guia**: só no `<meta-item key="Guia">`. Não o repita abaixo

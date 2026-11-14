@@ -1,0 +1,1004 @@
+<document>
+  <title>Módulo 5 · Álgebra Linear</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-5-1">Voltar ao guia (Tema 5.1)</link></meta-item>
+    <meta-item key="Módulo">Módulo 5 · Álgebra Linear — A Linguagem dos Dados na Computação</meta-item>
+    <meta-item key="Nível">Básico</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-5-1">
+    <title>Vetores, matrizes e operações</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      A aritmética dos dados: toda gravação neural é uma matriz.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Quando você mede o potencial de membrana de um único neurônio ao longo do tempo, obtém uma simples lista de números. Porém, a neurociência de sistemas moderna registra dezenas, centenas ou milhares de neurônios simultaneamente — com sondas multicanal ou microscopia de cálcio —, ou ainda mede milhares de <em>voxels</em> no fMRI (ressonância magnética funcional) diante de vários estímulos, ou decompõe canais de EEG (eletroencefalograma) em faixas de frequência. Dados neurais são matrizes: neurônios × tempo, voxels × estímulos, canais × frequências.
+
+    Sem a linguagem da Álgebra Linear, analisar uma gravação com $1\,000$ neurônios e $10\,000$ instantes exigiria escrever milhões de somas individuais. Com vetores e matrizes, o estado inteiro de uma população em um instante vira um único símbolo $\mathbf{r}$, a gravação inteira vira uma matriz $\mathbf{X}$, e a propagação de sinais por uma rede de sinapses se reduz a uma multiplicação $\mathbf{W}\mathbf{r}$. Dominar essas operações básicas agora é o alicerce para métodos clássicos de redução de dimensionalidade, como PCA e SVD (no Tema 5.6), que reduzem populações de milhares de neurônios a poucas dimensões interpretáveis, e para as arquiteturas de redes neurais do Módulo 9 (<em>Deep Learning</em>).
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>representar estados de uma população neuronal como vetores-coluna em $\mathbb{R}^n$ e calcular somas, multiplicações por escalar, combinações lineares, normas e produtos escalares;</item>
+      <item>organizar dados experimentais (neurônios × tempo, voxels × estímulos, canais × frequências) em matrizes e extrair linhas, colunas, transpostas e médias por linha (centralização);</item>
+      <item>calcular e interpretar o produto matriz-vetor $\mathbf{A}\mathbf{x}$ pelas leituras por linhas e por colunas, aplicando-o ao fluxo de sinais por pesos sinápticos $W_{ij}$;</item>
+      <item>multiplicar matrizes compatíveis, compor transformações lineares sucessivas, evitar armadilhas clássicas de dimensões e ordem dos fatores e conferir todas as contas em Python com NumPy.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Tema 3.1 (<em>Funções vetoriais</em>, no Módulo 3), onde você conheceu vetores, norma e produto escalar em $\mathbb{R}^2$ e $\mathbb{R}^3$, além de Geometria (Módulo 1) para a noção de coordenadas e distâncias. Na sequência da trilha, você vem do Módulo 4 (<em>Otimização</em>, Tema 4.3 — <em>Métodos computacionais</em>) e entra agora no Módulo 5 (<em>Álgebra Linear</em>). Você <strong>não</strong> precisa ter estudado o Módulo 6 (Programação em Python) para acompanhar esta aula: os blocos de código foram escritos para você copiar, rodar no Google Colab e apenas conferir suas contas feitas à mão.
+
+    <section id="sec:5-1-1">
+      <eyebrow>Seção 1</eyebrow>
+      <title>Vetores: o estado de uma população</title>
+      <intro>
+        No Tema 3.1 (Funções vetoriais), você trabalhou com setas em $\mathbb{R}^2$ e $\mathbb{R}^3$. Agora damos o salto para $\mathbb{R}^n$: quando registramos $n$ neurônios ao mesmo tempo, o estado da população inteira em um instante é um único ponto — um vetor — num espaço de $n$ dimensões.
+      </intro>
+
+      Imagine que você colocou eletrodos próximos a $4$ neurônios do córtex motor enquanto um animal realiza um movimento. No instante $t$, você mede a taxa de disparo de cada célula (em hertz, $\text{Hz}$, isto é, potenciais de ação por segundo): o neurônio $1$ dispara a $12\text{ Hz}$, o neurônio $2$ a $30\text{ Hz}$, o $3$ a $8\text{ Hz}$ e o $4$ a $10\text{ Hz}$. Em vez de carregar quatro variáveis soltas, empilhamos essas quatro taxas em um único objeto chamado <strong>vetor de população</strong> (<em>population vector</em>):
+      $$\mathbf{r} = \begin{pmatrix} 12 \\ 30 \\ 8 \\ 10 \end{pmatrix}$$
+      Mesmo que não possamos desenhar quatro eixos perpendiculares no papel, a álgebra de $\mathbb{R}^4$ (ou de $\mathbb{R}^{1\,000}$ para mil neurônios!) funciona exatamente como a de $\mathbb{R}^2$ e $\mathbb{R}^3$.
+
+      Por convenção padrão deste módulo, todo vetor é um <strong>vetor-coluna</strong> (<em>column vector</em>), escrito em pé. Para economizar espaço dentro de uma linha de texto, usamos o símbolo de transposta $(\cdot)^\top$, que tomba uma linha em coluna (veremos a transposta em detalhes na próxima seção): assim, $\mathbf{x} = (x_1, x_2, \dots, x_n)^\top$ representa exatamente o vetor-coluna de $n$ entradas.
+
+      <definition id="def:5-1-vetor">
+        <title>Vetores em $\mathbb{R}^n$, operações e combinação linear</title>
+        Um vetor $\mathbf{x} \in \mathbb{R}^n$ é uma coluna ordenada de $n$ números reais:
+        $$\mathbf{x} = \begin{pmatrix} x_1 \\ x_2 \\ \vdots \\ x_n \end{pmatrix} = (x_1, x_2, \dots, x_n)^\top$$
+        Dados dois vetores $\mathbf{u}, \mathbf{v} \in \mathbb{R}^n$ (de mesma dimensão) e escalares $\alpha, \beta \in \mathbb{R}$:
+        <list marker="dash">
+          <item><strong>Soma:</strong> $\mathbf{u} + \mathbf{v} = (u_1 + v_1,\, u_2 + v_2,\, \dots,\, u_n + v_n)^\top$ (entrada a entrada);</item>
+          <item><strong>Multiplicação por escalar:</strong> $\alpha\mathbf{u} = (\alpha u_1,\, \alpha u_2,\, \dots,\, \alpha u_n)^\top$;</item>
+          <item><strong>Combinação linear</strong> (<em>linear combination</em>)<strong>:</strong> é qualquer vetor obtido multiplicando vetores por escalares e somando os resultados, isto é, $\alpha\mathbf{u} + \beta\mathbf{v}$, ou, para $m$ vetores, $\sum_{k=1}^m c_k \mathbf{v}_k$.</item>
+        </list>
+        <intuition>
+          Somar dois vetores de população é somar a taxa de cada neurônio separadamente; multiplicar por um escalar $\alpha$ reescala todas as taxas ao mesmo tempo (por exemplo, dobrar a atividade ou convertê-la em porcentagem). Já a combinação linear mistura padrões neurais com pesos escolhidos — conceito que será o coração dos Temas 5.2 e 5.3.
+        </intuition>
+      </definition>
+
+      Note que a subtração $\mathbf{u} - \mathbf{v} = \mathbf{u} + (-1)\mathbf{v}$ também é uma combinação linear (com $\alpha = 1$ e $\beta = -1$). Na análise de dados neurais, duas combinações aparecem o tempo todo:
+      <list marker="dash">
+        <item><strong>Média de dois padrões:</strong> $\bar{\mathbf{r}} = \frac{1}{2}\mathbf{r}_A + \frac{1}{2}\mathbf{r}_B$ dá a taxa média de cada neurônio entre os estímulos $A$ e $B$;</item>
+        <item><strong>Diferença entre padrões:</strong> $\Delta\mathbf{r} = \mathbf{r}_B - \mathbf{r}_A$ mostra exatamente <em>o que mudou</em> na população ao passar do estímulo $A$ para o $B$ (entradas positivas indicam neurônios que aumentaram a taxa; negativas, os que diminuíram).</item>
+      </list>
+
+      Para medir a intensidade global de um padrão ou comparar o alinhamento entre dois padrões, generalizamos também a norma e o produto escalar vistos no Tema 3.1.
+
+      <definition id="def:5-1-norma-escalar">
+        <title>Norma e produto escalar em $\mathbb{R}^n$</title>
+        Para vetores $\mathbf{u}, \mathbf{v} \in \mathbb{R}^n$:
+        <list marker="dash">
+          <item>A <strong>norma</strong> (euclidiana) de $\mathbf{v}$ mede seu comprimento ou magnitude global:
+            $$\|\mathbf{v}\| = \sqrt{v_1^2 + v_2^2 + \dots + v_n^2}$$
+          </item>
+          <item>O <strong>produto escalar</strong> (<em>dot product</em>) de $\mathbf{u}$ e $\mathbf{v}$ é o número real obtido multiplicando entradas correspondentes e somando:
+            $$\mathbf{u}^\top \mathbf{v} = \mathbf{u} \cdot \mathbf{v} = \sum_{i=1}^n u_i v_i = u_1 v_1 + u_2 v_2 + \dots + u_n v_n$$
+          </item>
+        </list>
+        <intuition>
+          A norma $\|\mathbf{v}\|$ estende o teorema de Pitágoras para $n$ dimensões: em neurociência, $\|\Delta\mathbf{r}\|$ mede o tamanho total da mudança populacional entre duas condições experimentais. Já o produto escalar $\mathbf{u}^\top\mathbf{v}$ é grande e positivo quando $\mathbf{u}$ e $\mathbf{v}$ têm valores grandes nos mesmos neurônios, próximo de zero quando não se alinham e negativo quando apontam em direções opostas.
+        </intuition>
+      </definition>
+
+      Por que escrevemos $\mathbf{u}^\top \mathbf{v}$ ao lado de $\mathbf{u} \cdot \mathbf{v}$? Porque, ao tombar o vetor-coluna $\mathbf{u}$ ($n \times 1$) em um vetor-linha $\mathbf{u}^\top$ ($1 \times n$) e multiplicá-lo pela coluna $\mathbf{v}$ ($n \times 1$), o produto escalar vira um caso particular da multiplicação de matrizes que veremos na Seção 4.
+
+      <proposition id="prop:5-1-prop-vetores">
+        <title>Propriedades algébricas de vetores e produto escalar</title>
+        Para quaisquer $\mathbf{u}, \mathbf{v}, \mathbf{w} \in \mathbb{R}^n$ e $\alpha \in \mathbb{R}$, valem:
+        <list marker="number">
+          <item><strong>Simetria:</strong> $\mathbf{u}^\top \mathbf{v} = \mathbf{v}^\top \mathbf{u}$;</item>
+          <item><strong>Linearidade:</strong> $(\alpha\mathbf{u} + \mathbf{v})^\top \mathbf{w} = \alpha(\mathbf{u}^\top\mathbf{w}) + \mathbf{v}^\top\mathbf{w}$;</item>
+          <item><strong>Relação com a norma:</strong> $\mathbf{v}^\top \mathbf{v} = \|\mathbf{v}\|^2 \ge 0$, sendo $\mathbf{v}^\top \mathbf{v} = 0$ se, e somente se, $\mathbf{v} = \mathbf{0}$.</item>
+        </list>
+      </proposition>
+      <proof of="prop:5-1-prop-vetores" collapsible="true" collapsed="true">
+        Escrevendo por componentes:
+        <list marker="number">
+          <item>$\mathbf{u}^\top \mathbf{v} = \sum_{i=1}^n u_i v_i = \sum_{i=1}^n v_i u_i = \mathbf{v}^\top \mathbf{u}$, pois a multiplicação de números reais é comutativa.</item>
+          <item>$(\alpha\mathbf{u} + \mathbf{v})^\top \mathbf{w} = \sum_{i=1}^n (\alpha u_i + v_i) w_i = \alpha \sum_{i=1}^n u_i w_i + \sum_{i=1}^n v_i w_i = \alpha(\mathbf{u}^\top\mathbf{w}) + \mathbf{v}^\top\mathbf{w}$.</item>
+          <item>$\mathbf{v}^\top \mathbf{v} = \sum_{i=1}^n v_i^2 = \|\mathbf{v}\|^2$. Como cada $v_i^2 \ge 0$, a soma é não negativa e só se anula quando todos os $v_i = 0$, ou seja, $\mathbf{v} = \mathbf{0}$.</item>
+        </list>
+      </proof>
+
+      <example id="exm:5-1-populacao">
+        <title>Média e mudança entre padrões de resposta neuronal</title>
+        Em um registro com $4$ neurônios, os vetores de população (em $\text{Hz}$) para os estímulos $A$ e $B$ são:
+        $$\mathbf{r}_A = \begin{pmatrix} 12 \\ 30 \\ 8 \\ 10 \end{pmatrix} \qquad \text{e} \qquad \mathbf{r}_B = \begin{pmatrix} 16 \\ 26 \\ 10 \\ 10 \end{pmatrix}$$
+        <list marker="a">
+          <item>Calcule o padrão médio de resposta $\bar{\mathbf{r}} = 0{,}5\,\mathbf{r}_A + 0{,}5\,\mathbf{r}_B$.</item>
+          <item>Calcule o vetor diferença $\Delta\mathbf{r} = \mathbf{r}_B - \mathbf{r}_A$, interprete seus sinais e determine a magnitude $\|\Delta\mathbf{r}\|$ da mudança.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Calculamos a combinação linear entrada a entrada:
+            $$\bar{\mathbf{r}} = 0{,}5 \begin{pmatrix} 12 \\ 30 \\ 8 \\ 10 \end{pmatrix} + 0{,}5 \begin{pmatrix} 16 \\ 26 \\ 10 \\ 10 \end{pmatrix} = \begin{pmatrix} 6 \\ 15 \\ 4 \\ 5 \end{pmatrix} + \begin{pmatrix} 8 \\ 13 \\ 5 \\ 5 \end{pmatrix} = \begin{pmatrix} 14 \\ 28 \\ 9 \\ 10 \end{pmatrix}\text{ Hz}.$$
+            Cada entrada é exatamente a média aritmética das taxas do respectivo neurônio nos dois estímulos.
+          </item>
+          <item>Subtraindo $\mathbf{r}_A$ de $\mathbf{r}_B$:
+            $$\Delta\mathbf{r} = \mathbf{r}_B - \mathbf{r}_A = \begin{pmatrix} 16 - 12 \\ 26 - 30 \\ 10 - 8 \\ 10 - 10 \end{pmatrix} = \begin{pmatrix} 4 \\ -4 \\ 2 \\ 0 \end{pmatrix}\text{ Hz}.$$
+            Ao trocar o estímulo $A$ pelo $B$, o neurônio $1$ aumentou $4\text{ Hz}$, o neurônio $2$ reduziu $4\text{ Hz}$, o neurônio $3$ aumentou $2\text{ Hz}$ e o neurônio $4$ permaneceu inalterado. A magnitude total dessa mudança populacional é:
+            $$\|\Delta\mathbf{r}\| = \sqrt{4^2 + (-4)^2 + 2^2 + 0^2} = \sqrt{16 + 16 + 4 + 0} = \sqrt{36} = 6\text{ Hz}.$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:5-1-combinacao-escalar">
+        <title>Combinação linear e produto escalar em $\mathbb{R}^3$</title>
+        Dados $\mathbf{u} = (2, -1, 4)^\top$ e $\mathbf{v} = (1, 3, -2)^\top$, calcule:
+        <list marker="a">
+          <item>a combinação linear $\mathbf{w} = 3\mathbf{u} - 2\mathbf{v}$;</item>
+          <item>o produto escalar $\mathbf{u}^\top \mathbf{v}$ e a norma $\|\mathbf{v}\|$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Multiplicamos cada vetor pelo seu escalar e subtraímos entrada a entrada:
+            $$\mathbf{w} = 3\begin{pmatrix} 2 \\ -1 \\ 4 \end{pmatrix} - 2\begin{pmatrix} 1 \\ 3 \\ -2 \end{pmatrix} = \begin{pmatrix} 6 \\ -3 \\ 12 \end{pmatrix} - \begin{pmatrix} 2 \\ 6 \\ -4 \end{pmatrix} = \begin{pmatrix} 4 \\ -9 \\ 16 \end{pmatrix}.$$
+          </item>
+          <item>Para o produto escalar e a norma:
+            $$\mathbf{u}^\top \mathbf{v} = 2 \cdot 1 + (-1) \cdot 3 + 4 \cdot (-2) = 2 - 3 - 8 = -9,$$
+            $$\|\mathbf{v}\| = \sqrt{1^2 + 3^2 + (-2)^2} = \sqrt{1 + 9 + 4} = \sqrt{14} \approx 3{,}742.$$
+          </item>
+        </list>
+      </example>
+
+      <box type="tip">
+        <title>Sobre os blocos de código Python nesta aula</title>
+        Python e a biblioteca NumPy só são ensinados formalmente no <strong>Módulo 6 (Programação)</strong>. Aqui no Módulo 5, usamos blocos curtos e autocontidos apenas para você conferir rapidamente suas contas à mão — basta colar o código em uma célula do Google Colab e executar. Não se preocupe em decorar a sintaxe agora: leia os comentários linha a linha como um roteiro de conferência.
+      </box>
+
+      <code lang="python" id="cod:5-1-vetores">
+import numpy as np  # importa a biblioteca numérica NumPy com o apelido np
+
+# Vetores de taxas (Hz) para 4 neurônios nos estímulos A e B
+r_A = np.array([12, 30, 8, 10])
+r_B = np.array([16, 26, 10, 10])
+
+# Combinação linear: resposta média (0.5 * r_A + 0.5 * r_B)
+r_media = 0.5 * r_A + 0.5 * r_B
+print("Média:", r_media.tolist())            # saída: Média: [14.0, 28.0, 9.0, 10.0]
+
+# Diferença entre estímulos e norma euclidiana do vetor diferença
+delta_r = r_B - r_A
+norma_delta = np.linalg.norm(delta_r)
+print("Diferença:", delta_r.tolist())        # saída: Diferença: [4, -4, 2, 0]
+print(f"Norma: {norma_delta:.3f}")           # saída: Norma: 6.000
+
+# Produto escalar entre u e v usando o operador @
+u = np.array([2, -1, 4])
+v = np.array([1, 3, -2])
+print("Produto escalar:", int(u @ v))        # saída: Produto escalar: -9
+      </code>
+
+      <remark id="rem:5-1-armadilha-vet">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Somar ou fazer produto escalar com dimensões diferentes:</strong> não existe soma nem produto escalar entre um vetor de $\mathbb{R}^4$ e um vetor de $\mathbb{R}^3$. Confira sempre se ambos têm o mesmo número de entradas.</item>
+          <item><strong>Esquecer a raiz quadrada na norma:</strong> $\|\mathbf{v}\|^2 = \mathbf{v}^\top \mathbf{v}$, mas $\|\mathbf{v}\| = \sqrt{\mathbf{v}^\top \mathbf{v}}$. Em contas à mão, é comum parar na soma dos quadrados ($36$) e esquecer de tirar a raiz ($6$).</item>
+          <item><strong>Arrays 1D no NumPy:</strong> <c>np.array([12, 30, 8, 10])</c> cria uma lista numérica unidimensional sem distinção visual entre linha e coluna, mas <c>u @ v</c> já calcula corretamente o produto escalar $\mathbf{u}^\top \mathbf{v}$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:5-1-1-1">
+        <title>Básico — Combinação linear e norma em $\mathbb{R}^3$</title>
+        Considere os vetores $\mathbf{a} = (3, -1, 0)^\top$ e $\mathbf{b} = (1, 1, -1)^\top$. Calcule:
+        <list marker="a">
+          <item>$2\mathbf{a} + \mathbf{b}$;</item>
+          <item>$\mathbf{a} - 3\mathbf{b}$;</item>
+          <item>$\|\mathbf{a} - \mathbf{b}\|$. </item>
+        </list>
+        <hint><title>Ver dica</title>Faça as operações coordenada por coordenada. No item (c), calcule primeiro o vetor diferença $\mathbf{a} - \mathbf{b}$ e depois tire a raiz quadrada da soma dos quadrados das entradas.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Multiplicamos $\mathbf{a}$ por $2$ e somamos com $\mathbf{b}$:
+              $$2\mathbf{a} + \mathbf{b} = \begin{pmatrix} 6 \\ -2 \\ 0 \end{pmatrix} + \begin{pmatrix} 1 \\ 1 \\ -1 \end{pmatrix} = \begin{pmatrix} 7 \\ -1 \\ -1 \end{pmatrix}.$$
+            </item>
+            <item>Multiplicamos $\mathbf{b}$ por $3$ e subtraímos de $\mathbf{a}$, cuidando do sinal negativo na terceira entrada:
+              $$\mathbf{a} - 3\mathbf{b} = \begin{pmatrix} 3 \\ -1 \\ 0 \end{pmatrix} - \begin{pmatrix} 3 \\ 3 \\ -3 \end{pmatrix} = \begin{pmatrix} 3 - 3 \\ -1 - 3 \\ 0 - (-3) \end{pmatrix} = \begin{pmatrix} 0 \\ -4 \\ 3 \end{pmatrix}.$$
+            </item>
+            <item>Calculamos primeiro $\mathbf{a} - \mathbf{b} = (3 - 1,\; -1 - 1,\; 0 - (-1))^\top = (2, -2, 1)^\top$. Em seguida, tomamos a norma:
+              $$\|\mathbf{a} - \mathbf{b}\| = \sqrt{2^2 + (-2)^2 + 1^2} = \sqrt{4 + 4 + 1} = \sqrt{9} = 3.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-1-1-2">
+        <title>Básico — Comparando estados populacionais no córtex visual</title>
+        Em um experimento de visão, $4$ neurônios do córtex visual respondem a uma barra vertical com $\mathbf{r}_V = (24, 8, 12, 4)^\top\text{ Hz}$ e a uma barra horizontal com $\mathbf{r}_H = (10, 22, 12, 16)^\top\text{ Hz}$.
+        <list marker="a">
+          <item>Calcule o padrão médio de resposta $\bar{\mathbf{r}} = \frac{1}{2}(\mathbf{r}_V + \mathbf{r}_H)$.</item>
+          <item>Calcule a variação $\Delta\mathbf{r} = \mathbf{r}_H - \mathbf{r}_V$ e indique quais neurônios preferem a barra horizontal, quais preferem a vertical e qual não discrimina entre as duas.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (b), uma entrada positiva em $\mathbf{r}_H - \mathbf{r}_V$ significa taxa maior na barra horizontal; entrada negativa significa taxa maior na vertical.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Somamos os dois vetores e dividimos por $2$:
+              $$\bar{\mathbf{r}} = \frac{1}{2}\begin{pmatrix} 24 + 10 \\ 8 + 22 \\ 12 + 12 \\ 4 + 16 \end{pmatrix} = \frac{1}{2}\begin{pmatrix} 34 \\ 30 \\ 24 \\ 20 \end{pmatrix} = \begin{pmatrix} 17 \\ 15 \\ 12 \\ 10 \end{pmatrix}\text{ Hz}.$$
+            </item>
+            <item>Subtraindo $\mathbf{r}_V$ de $\mathbf{r}_H$:
+              $$\Delta\mathbf{r} = \begin{pmatrix} 10 - 24 \\ 22 - 8 \\ 12 - 12 \\ 16 - 4 \end{pmatrix} = \begin{pmatrix} -14 \\ 14 \\ 0 \\ 12 \end{pmatrix}\text{ Hz}.$$
+              Como $\Delta r_1 = -14 < 0$, o neurônio $1$ dispara mais para a barra vertical. Já os neurônios $2$ ($+14\text{ Hz}$) e $4$ ($+12\text{ Hz}$) preferem a barra horizontal. O neurônio $3$ ($\Delta r_3 = 0$) responde com $12\text{ Hz}$ nos dois casos, logo não discrimina as duas orientações.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-1-1-3">
+        <title>Intermediário — Produto escalar e ajuste por combinação linear</title>
+        Sejam $\mathbf{u} = (2, -2, 1, 0)^\top$ e $\mathbf{v} = (5, -2, 4, 1)^\top$ vetores em $\mathbb{R}^4$.
+        <list marker="a">
+          <item>Calcule $\|\mathbf{u}\|$ e o produto escalar $\mathbf{u}^\top \mathbf{v}$.</item>
+          <item>Encontre o escalar $k \in \mathbb{R}$ tal que $\mathbf{u}^\top (\mathbf{v} + k\mathbf{u}) = 0$, e confira substituindo $k$ no vetor $\mathbf{v} + k\mathbf{u}$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (b), use a linearidade do produto escalar (<ref to="prop:5-1-prop-vetores"/>): $\mathbf{u}^\top(\mathbf{v} + k\mathbf{u}) = \mathbf{u}^\top\mathbf{v} + k(\mathbf{u}^\top\mathbf{u})$, e lembre que $\mathbf{u}^\top\mathbf{u} = \|\mathbf{u}\|^2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Calculamos a norma de $\mathbf{u}$ e o produto escalar $\mathbf{u}^\top\mathbf{v}$:
+              $$\|\mathbf{u}\| = \sqrt{2^2 + (-2)^2 + 1^2 + 0^2} = \sqrt{4 + 4 + 1 + 0} = \sqrt{9} = 3,$$
+              $$\mathbf{u}^\top \mathbf{v} = 2(5) + (-2)(-2) + 1(4) + 0(1) = 10 + 4 + 4 + 0 = 18.$$
+            </item>
+            <item>Usando as propriedades do produto escalar e $\mathbf{u}^\top\mathbf{u} = \|\mathbf{u}\|^2 = 9$:
+              $$\mathbf{u}^\top(\mathbf{v} + k\mathbf{u}) = \mathbf{u}^\top\mathbf{v} + k(\mathbf{u}^\top\mathbf{u}) = 18 + 9k.$$
+              Igualando a zero: $18 + 9k = 0 \implies k = -2$.
+              <em>Conferência:</em> para $k = -2$, temos $\mathbf{v} - 2\mathbf{u} = (5 - 4,\; -2 + 4,\; 4 - 2,\; 1 - 0)^\top = (1, 2, 2, 1)^\top$. Calculando o produto escalar com $\mathbf{u}$:
+              $$2(1) + (-2)(2) + 1(2) + 0(1) = 2 - 4 + 2 + 0 = 0.$$
+              (Esse truque de remover a componente paralela a $\mathbf{u}$ é a base da ortogonalização que você verá no Tema 5.4.)
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-1-1-4">
+        <title>Avançado — Mistura de odores como combinação linear</title>
+        Um modelo linear prevê que a resposta de $3$ neurônios olfatórios a uma mistura dos odores $O_1$ e $O_2$ em proporções $\alpha$ e $1 - \alpha$ ($0 \le \alpha \le 1$) é dada pela combinação linear $\mathbf{r}(\alpha) = \alpha\mathbf{r}_1 + (1 - \alpha)\mathbf{r}_2$, onde $\mathbf{r}_1 = (30, 10, 20)^\top\text{ Hz}$ e $\mathbf{r}_2 = (10, 50, 0)^\top\text{ Hz}$.
+        <list marker="a">
+          <item>Calcule o vetor de taxas previsto para $\alpha = 0{,}25$ ($25\%$ de $O_1$ e $75\%$ de $O_2$).</item>
+          <item>Determine o valor de $\alpha \in [0, 1]$ para o qual os neurônios $1$ e $2$ disparam exatamente à mesma taxa, e diga qual é essa taxa comum.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (b), escreva a primeira componente $r_1(\alpha)$ e a segunda componente $r_2(\alpha)$ em função de $\alpha$ e resolva a equação $r_1(\alpha) = r_2(\alpha)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Substituindo $\alpha = 0{,}25$ e $1 - \alpha = 0{,}75$:
+              $$\mathbf{r}(0{,}25) = 0{,}25 \begin{pmatrix} 30 \\ 10 \\ 20 \end{pmatrix} + 0{,}75 \begin{pmatrix} 10 \\ 50 \\ 0 \end{pmatrix} = \begin{pmatrix} 7{,}5 \\ 2{,}5 \\ 5{,}0 \end{pmatrix} + \begin{pmatrix} 7{,}5 \\ 37{,}5 \\ 0 \end{pmatrix} = \begin{pmatrix} 15 \\ 40 \\ 5 \end{pmatrix}\text{ Hz}.$$
+            </item>
+            <item>As taxas dos dois primeiros neurônios em função de $\alpha$ são:
+              $$r_1(\alpha) = 30\alpha + 10(1 - \alpha) = 10 + 20\alpha,$$
+              $$r_2(\alpha) = 10\alpha + 50(1 - \alpha) = 50 - 40\alpha.$$
+              Igualando as duas expressões:
+              $$10 + 20\alpha = 50 - 40\alpha \implies 60\alpha = 40 \implies \alpha = \frac{40}{60} = \frac{2}{3} \approx 0{,}667.$$
+              Como $\frac{2}{3} \in [0, 1]$, a proporção é válida. A taxa comum aos neurônios $1$ e $2$ vale:
+              $$r_1\!\left(\frac{2}{3}\right) = 10 + 20 \cdot \frac{2}{3} = 10 + \frac{40}{3} = \frac{70}{3} \approx 23{,}33\text{ Hz},$$
+              e de fato $r_2\!\left(\frac{2}{3}\right) = 50 - \frac{80}{3} = \frac{70}{3}\text{ Hz}$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:5-1-2">
+      <eyebrow>Seção 2</eyebrow>
+      <title>Matrizes: a gravação inteira numa tabela</title>
+      <intro>
+        Um vetor fotografa a população em um único instante; uma matriz junta todas essas fotografias lado a lado em uma tabela retangular organizada por linhas e colunas.
+      </intro>
+
+      Voltemos ao experimento com eletrodos. Se em vez de um instante $t$ você registra $N$ neurônios durante $T$ instantes consecutivos, pode empilhar os vetores de população $\mathbf{x}_1, \mathbf{x}_2, \dots, \mathbf{x}_T \in \mathbb{R}^N$ lado a lado como colunas. O resultado é uma matriz de dados $\mathbf{X} \in \mathbb{R}^{N \times T}$, com $N$ linhas (uma por neurônio) e $T$ colunas (uma por instante).
+
+      Esse formato tabular vai muito além de disparos elétricos:
+      <list marker="dash">
+        <item><strong>Eletrofisiologia / imagem de cálcio:</strong> matriz <strong>neurônios × tempo</strong> ($\mathbf{X} \in \mathbb{R}^{N \times T}$), em que cada linha é a série temporal de um neurônio e cada coluna é o vetor de população em um instante;</item>
+        <item><strong>fMRI:</strong> matriz <strong>voxels × estímulos</strong>, onde a entrada $(i, j)$ guarda a resposta BOLD do voxel $i$ ao estímulo $j$;</item>
+        <item><strong>EEG:</strong> matriz <strong>canais × frequências</strong>, onde a entrada $(i, j)$ mede a potência espectral no eletrodo $i$ dentro da banda de frequência $j$ (delta, teta, alfa, beta, gama).</item>
+      </list>
+
+      A <ref to="fig:5-1-matriz-dados"/> ilustra exatamente essa dupla leitura de $\mathbf{X}$ em uma gravação sintética de $8$ neurônios ao longo de $50$ instantes: ler na horizontal revela o histórico temporal de um neurônio; cortar na vertical revela o estado instantâneo da população inteira.
+
+      <figure src="fig/matriz-dados.svg" alt="Painel esquerdo mostrando mapa de calor de uma matriz de 8 neurônios por 50 instantes com destaque nas linhas 2 e 6 e na coluna 20; painel direito mostrando as séries temporais dos neurônios 2 e 6 e uma linha vertical destacando o instante t = 20" id="fig:5-1-matriz-dados">
+        <caption>Anatomia da matriz de dados neurais $\mathbf{X} \in \mathbb{R}^{8 \times 50}$: cada <strong>linha</strong> corresponde à série temporal de um neurônio (como as linhas $2$ e $6$ destacadas à direita), enquanto cada <strong>coluna</strong> é o vetor de população em um instante $t$ (destacado em $t = 20$).</caption>
+      </figure>
+
+      <definition id="def:5-1-matriz">
+        <title>Matriz, indexação, soma e multiplicação por escalar</title>
+        Uma <strong>matriz</strong> real $\mathbf{A} \in \mathbb{R}^{m \times n}$ é uma tabela retangular com $m$ linhas e $n$ colunas (dizemos que sua dimensão é $m \times n$). O número localizado na linha $i$ e na coluna $j$ é denotado por $a_{ij}$ (ou $A_{ij}$):
+        $$\mathbf{A} = \begin{pmatrix} a_{11} & a_{12} & \cdots & a_{1n} \\ a_{21} & a_{22} & \cdots & a_{2n} \\ \vdots & \vdots & \ddots & \vdots \\ a_{m1} & a_{m2} & \cdots & a_{mn} \end{pmatrix}$$
+        Para matrizes $\mathbf{A}, \mathbf{B} \in \mathbb{R}^{m \times n}$ de <strong>mesmas dimensões</strong> e escalar $c \in \mathbb{R}$:
+        <list marker="dash">
+          <item><strong>Soma:</strong> $(\mathbf{A} + \mathbf{B})_{ij} = a_{ij} + b_{ij}$ (entrada a entrada);</item>
+          <item><strong>Multiplicação por escalar:</strong> $(c\mathbf{A})_{ij} = c\,a_{ij}$.</item>
+        </list>
+        <intuition>
+          Pense na ordem dos índices $(i, j)$ como "primeiro o andar (linha $i$), depois a sala (coluna $j$)". Note também que um vetor-coluna em $\mathbb{R}^n$ nada mais é do que uma matriz de dimensão $n \times 1$.
+        </intuition>
+      </definition>
+
+      Muitas vezes precisamos inverter o papel de linhas e colunas — por exemplo, quando um algoritmo ou planilha espera amostras nas linhas e variáveis nas colunas. A operação que faz essa troca chama-se <strong>transposição</strong> (<em>transpose</em>).
+
+      <definition id="def:5-1-transposta">
+        <title>Matriz transposta</title>
+        Dada $\mathbf{A} \in \mathbb{R}^{m \times n}$, sua <strong>transposta</strong> é a matriz $\mathbf{A}^\top \in \mathbb{R}^{n \times m}$ cujas entradas satisfazem:
+        $$(\mathbf{A}^\top)_{ij} = a_{ji} \qquad (1 \le i \le n,\; 1 \le j \le m).$$
+        Ou seja, a $i$-ésima linha de $\mathbf{A}^\top$ é a $i$-ésima coluna de $\mathbf{A}$ (e vice-versa).
+        <intuition>
+          Transpor é espelhar a matriz ao longo de sua diagonal principal: o canto superior direito vira o canto inferior esquerdo. Uma tabela de $8$ neurônios × $50$ instantes vira, após transposição, uma tabela de $50$ instantes × $8$ neurônios.
+        </intuition>
+      </definition>
+
+      Como $\mathbf{A}^\top$ é $n \times m$, seu índice de linha $i$ vai de $1$ a $n$ e o de coluna $j$ vai de $1$ a $m$.
+
+      <proposition id="prop:5-1-prop-transposta">
+        <title>Propriedades da transposição</title>
+        Para quaisquer matrizes $\mathbf{A}, \mathbf{B} \in \mathbb{R}^{m \times n}$ e escalar $c \in \mathbb{R}$, valem:
+        <list marker="number">
+          <item>$(\mathbf{A}^\top)^\top = \mathbf{A}$;</item>
+          <item>$(\mathbf{A} + \mathbf{B})^\top = \mathbf{A}^\top + \mathbf{B}^\top$;</item>
+          <item>$(c\mathbf{A})^\top = c\mathbf{A}^\top$.</item>
+        </list>
+      </proposition>
+      <proof of="prop:5-1-prop-transposta" collapsible="true" collapsed="true">
+        Basta comparar a entrada $(i, j)$ de ambos os lados:
+        <list marker="number">
+          <item>$((\mathbf{A}^\top)^\top)_{ij} = (\mathbf{A}^\top)_{ji} = a_{ij}$, logo $(\mathbf{A}^\top)^\top = \mathbf{A}$.</item>
+          <item>$((\mathbf{A} + \mathbf{B})^\top)_{ij} = (\mathbf{A} + \mathbf{B})_{ji} = a_{ji} + b_{ji} = (\mathbf{A}^\top)_{ij} + (\mathbf{B}^\top)_{ij}$.</item>
+          <item>$((c\mathbf{A})^\top)_{ij} = (c\mathbf{A})_{ji} = c\,a_{ji} = c(\mathbf{A}^\top)_{ij}$.</item>
+        </list>
+      </proof>
+
+      Um pré-processamento essencial em gravações neurais é comparar cada neurônio em relação à sua própria taxa basal, e não ao zero absoluto: neurônios diferentes têm taxas médias muito distintas (um interneurônio pode disparar em média a $40\text{ Hz}$ enquanto uma célula piramidal vizinha dispara a $3\text{ Hz}$). Por isso, calculamos a <strong>média temporal</strong> de cada neurônio (média ao longo das $T$ colunas da linha $i$):
+      $$\mu_i = \frac{1}{T}\sum_{t=1}^T X_{it}$$
+      e construímos a matriz <strong>centralizada</strong> (<em>mean-centered</em>) $\tilde{\mathbf{X}}$, subtraindo de cada entrada a média da sua própria linha:
+      $$\tilde{X}_{it} = X_{it} - \mu_i.$$
+      Se juntarmos as médias no vetor $\boldsymbol{\mu} = (\mu_1, \dots, \mu_N)^\top \in \mathbb{R}^N$, cada coluna de $\tilde{\mathbf{X}}$ é simplesmente $\tilde{\mathbf{x}}_t = \mathbf{x}_t - \boldsymbol{\mu}$. Guarde essa operação simples: centralizar as linhas de $\mathbf{X}$ é o primeiro passo obrigatório antes de rodar o PCA (Análise de Componentes Principais) no Tema 5.6.
+
+      <example id="exm:5-1-gravacao-centralizacao">
+        <title>Extraindo informações e centralizando uma gravação neural</title>
+        Considere uma gravação de $N = 3$ neurônios durante $T = 4$ instantes ($\text{Hz}$):
+        $$\mathbf{X} = \begin{pmatrix} 10 & 14 & 12 & 16 \\ 20 & 18 & 22 & 20 \\ 5 & 9 & 7 & 11 \end{pmatrix}$$
+        <list marker="a">
+          <item>Identifique a dimensão de $\mathbf{X}$, a série temporal do neurônio $2$ e o vetor de população no instante $t = 3$.</item>
+          <item>Calcule a média temporal $\mu_i$ de cada neurônio e obtenha a matriz centralizada $\tilde{\mathbf{X}}$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>A matriz tem $3$ linhas e $4$ colunas, logo $\mathbf{X} \in \mathbb{R}^{3 \times 4}$. A série temporal do neurônio $2$ é a segunda linha: $(20, 18, 22, 20)$. O vetor de população no instante $t = 3$ é a terceira coluna: $(12, 22, 7)^\top$.</item>
+          <item>Calculamos a média de cada linha:
+            $$\mu_1 = \frac{10 + 14 + 12 + 16}{4} = \frac{52}{4} = 13\text{ Hz},$$
+            $$\mu_2 = \frac{20 + 18 + 22 + 20}{4} = \frac{80}{4} = 20\text{ Hz},$$
+            $$\mu_3 = \frac{5 + 9 + 7 + 11}{4} = \frac{32}{4} = 8\text{ Hz}.$$
+            Subtraindo $\mu_1 = 13$ da linha $1$, $\mu_2 = 20$ da linha $2$ e $\mu_3 = 8$ da linha $3$, obtemos:
+            $$\tilde{\mathbf{X}} = \begin{pmatrix} -3 & 1 & -1 & 3 \\ 0 & -2 & 2 & 0 \\ -3 & 1 & -1 & 3 \end{pmatrix}\text{ Hz}.$$
+            <em>Conferência:</em> em todas as linhas de $\tilde{\mathbf{X}}$, a soma das entradas vale zero ($-3+1-1+3 = 0$ e $0-2+2+0 = 0$). Note também algo interessante: embora o neurônio $1$ e o neurônio $3$ tenham médias diferentes ($13$ vs. $8\text{ Hz}$), após a centralização suas flutuações em torno da média são idênticas!
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:5-1-transposta-ops">
+        <title>Operações lineares e transposição de matrizes</title>
+        Dadas as matrizes $2 \times 3$:
+        $$\mathbf{A} = \begin{pmatrix} 1 & -2 & 4 \\ 0 & 3 & 5 \end{pmatrix} \qquad \text{e} \qquad \mathbf{B} = \begin{pmatrix} 2 & 4 & -1 \\ 3 & -1 & 1 \end{pmatrix},$$
+        calcule $2\mathbf{A} - \mathbf{B}$ e verifique diretamente que $(\mathbf{A} + \mathbf{B})^\top = \mathbf{A}^\top + \mathbf{B}^\top$.
+
+        <strong>Solução.</strong> Primeiro calculamos $2\mathbf{A} - \mathbf{B}$ entrada a entrada:
+        $$2\mathbf{A} - \mathbf{B} = \begin{pmatrix} 2 & -4 & 8 \\ 0 & 6 & 10 \end{pmatrix} - \begin{pmatrix} 2 & 4 & -1 \\ 3 & -1 & 1 \end{pmatrix} = \begin{pmatrix} 0 & -8 & 9 \\ -3 & 7 & 9 \end{pmatrix}.$$
+        Para verificar a propriedade da transposta, somamos primeiro e transpomos depois:
+        $$\mathbf{A} + \mathbf{B} = \begin{pmatrix} 3 & 2 & 3 \\ 3 & 2 & 6 \end{pmatrix} \implies (\mathbf{A} + \mathbf{B})^\top = \begin{pmatrix} 3 & 3 \\ 2 & 2 \\ 3 & 6 \end{pmatrix}.$$
+        Agora transpomos primeiro e somamos depois:
+        $$\mathbf{A}^\top + \mathbf{B}^\top = \begin{pmatrix} 1 & 0 \\ -2 & 3 \\ 4 & 5 \end{pmatrix} + \begin{pmatrix} 2 & 3 \\ 4 & -1 \\ -1 & 1 \end{pmatrix} = \begin{pmatrix} 3 & 3 \\ 2 & 2 \\ 3 & 6 \end{pmatrix}.$$
+        Os dois resultados são a mesma matriz $3 \times 2$.
+      </example>
+
+      <code lang="python" id="cod:5-1-matrizes">
+import numpy as np
+
+# Matriz de gravação: 3 neurônios (linhas) x 4 instantes (colunas)
+X = np.array([
+    [10, 14, 12, 16],
+    [20, 18, 22, 20],
+    [5,  9,  7,  11],
+])
+
+print("Dimensão (shape):", X.shape)               # saída: Dimensão (shape): (3, 4)
+print("Neurônio 2 (linha 1):", X[1, :].tolist())  # saída: Neurônio 2 (linha 1): [20, 18, 22, 20]
+print("Instante 3 (col 2):", X[:, 2].tolist())    # saída: Instante 3 (col 2): [12, 22, 7]
+print("Dimensão da transposta:", X.T.shape)       # saída: Dimensão da transposta: (4, 3)
+
+# Média ao longo das colunas (axis=1) = média temporal de cada neurônio
+# keepdims=True mantém o formato (3, 1) para subtrair de cada linha de X
+medias = X.mean(axis=1, keepdims=True)
+print("Médias por neurônio:", medias.ravel().tolist())  # saída: Médias por neurônio: [13.0, 20.0, 8.0]
+
+# Centralização dos dados
+X_cent = X - medias
+print("Linha 1 centralizada:", X_cent[0, :].tolist())   # saída: Linha 1 centralizada: [-3.0, 1.0, -1.0, 3.0]
+      </code>
+
+      <remark id="rem:5-1-armadilha-axis">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Trocar <c>axis=0</c> por <c>axis=1</c> no NumPy:</strong> em <c>X.mean(axis=...)</c>, o argumento <c>axis</c> indica qual eixo será <em>colapsado</em> pela média. Em uma matriz neurônios × tempo (<c>eixo 0 = linhas</c>, <c>eixo 1 = colunas</c>), <c>X.mean(axis=1)</c> percorre as colunas e calcula a média temporal de cada neurônio ($N$ valores). Já <c>X.mean(axis=0)</c> percorre as linhas e calcula a média da população em cada instante ($T$ valores). Errar esse parâmetro troca tempo por neurônio silenciosamente.</item>
+          <item><strong>Indexação em Python começa em <c>0</c>:</strong> na matemática, a primeira linha é $i = 1$; no NumPy, a primeira linha é <c>X[0, :]</c> e a terceira coluna é <c>X[:, 2]</c>.</item>
+          <item><strong>Somar matrizes de dimensões distintas:</strong> uma matriz $2 \times 3$ e uma $3 \times 2$ têm $6$ números cada uma, mas <strong>não</strong> podem ser somadas diretamente sem transpor uma delas primeiro.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:5-1-2-1">
+        <title>Básico — Entradas, dimensões e transposta</title>
+        Dada a matriz
+        $$\mathbf{M} = \begin{pmatrix} 3 & -1 & 0 & 4 \\ 2 & 5 & -3 & 1 \end{pmatrix}$$
+        <list marker="a">
+          <item>Informe a dimensão de $\mathbf{M}$ e identifique as entradas $m_{13}$, $m_{21}$ e $m_{24}$.</item>
+          <item>Escreva a transposta $\mathbf{M}^\top$ e informe sua dimensão.</item>
+        </list>
+        <hint><title>Ver dica</title>Em $m_{ij}$, o primeiro índice $i$ é a linha (de cima para baixo) e $j$ é a coluna (da esquerda para a direita). Para montar $\mathbf{M}^\top$, transforme cada linha de $\mathbf{M}$ em uma coluna.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$\mathbf{M}$ possui $2$ linhas e $4$ colunas, portanto tem dimensão $2 \times 4$. Lendo linha e coluna: $m_{13} = 0$ (linha 1, coluna 3), $m_{21} = 2$ (linha 2, coluna 1) e $m_{24} = 1$ (linha 2, coluna 4).</item>
+            <item>Trocando linhas por colunas, $\mathbf{M}^\top$ tem dimensão $4 \times 2$:
+              $$\mathbf{M}^\top = \begin{pmatrix} 3 & 2 \\ -1 & 5 \\ 0 & -3 \\ 4 & 1 \end{pmatrix}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-1-2-2">
+        <title>Básico — Leitura de uma matriz de fMRI (voxels × estímulos)</title>
+        Em um pequeno experimento de fMRI, a matriz $\mathbf{F} \in \mathbb{R}^{3 \times 3}$ abaixo registra a variação percentual do sinal BOLD em $3$ voxels (linhas $1, 2, 3$) diante de $3$ categorias de imagens (colunas: $1 =$ rostos, $2 =$ casas, $3 =$ ferramentas):
+        $$\mathbf{F} = \begin{pmatrix} 1{,}8 & 0{,}4 & 0{,}2 \\ 0{,}3 & 2{,}1 & 0{,}6 \\ 0{,}5 & 0{,}5 & 1{,}4 \end{pmatrix}$$
+        <list marker="a">
+          <item>Qual categoria de estímulo provoca a maior resposta no voxel $2$?</item>
+          <item>Escreva o vetor de resposta da população de voxels ao estímulo $3$ (ferramentas) e calcule a resposta média do voxel $1$ ao longo dos três estímulos.</item>
+        </list>
+        <hint><title>Ver dica</title>O perfil de um voxel através dos estímulos está em uma linha; a resposta de todos os voxels a um estímulo está em uma coluna.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>A linha $2$ (voxel $2$) vale $(0{,}3;\; 2{,}1;\; 0{,}6)$. O maior valor é $2{,}1$, na coluna $2$, que corresponde ao estímulo <strong>casas</strong>.</item>
+            <item>O vetor de resposta dos $3$ voxels às ferramentas é a coluna $3$: $(0{,}2;\; 0{,}6;\; 1{,}4)^\top$. Já a resposta média do voxel $1$ é a média da primeira linha:
+              $$\mu_1 = \frac{1{,}8 + 0{,}4 + 0{,}2}{3} = \frac{2{,}4}{3} = 0{,}8.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-1-2-3">
+        <title>Intermediário — Centralizando uma gravação de dois neurônios</title>
+        Considere a matriz de taxas de disparo ($\text{Hz}$) de $2$ neurônios em $5$ instantes de tempo:
+        $$\mathbf{X} = \begin{pmatrix} 8 & 12 & 10 & 14 & 6 \\ 15 & 15 & 21 & 18 & 21 \end{pmatrix}$$
+        <list marker="a">
+          <item>Calcule a média temporal de cada neurônio.</item>
+          <item>Obtenha a matriz centralizada $\tilde{\mathbf{X}}$ e confira que a soma de cada linha de $\tilde{\mathbf{X}}$ é zero.</item>
+        </list>
+        <hint><title>Ver dica</title>Some os $5$ valores de cada linha, divida por $5$ e subtraia o resultado de cada entrada daquela mesma linha.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>As médias temporais são:
+              $$\mu_1 = \frac{8 + 12 + 10 + 14 + 6}{5} = \frac{50}{5} = 10\text{ Hz},$$
+              $$\mu_2 = \frac{15 + 15 + 21 + 18 + 21}{5} = \frac{90}{5} = 18\text{ Hz}.$$
+            </item>
+            <item>Subtraindo $10$ da primeira linha e $18$ da segunda:
+              $$\tilde{\mathbf{X}} = \begin{pmatrix} 8 - 10 & 12 - 10 & 10 - 10 & 14 - 10 & 6 - 10 \\ 15 - 18 & 15 - 18 & 21 - 18 & 18 - 18 & 21 - 18 \end{pmatrix} = \begin{pmatrix} -2 & 2 & 0 & 4 & -4 \\ -3 & -3 & 3 & 0 & 3 \end{pmatrix}\text{ Hz}.$$
+              <em>Conferência:</em> linha 1: $-2 + 2 + 0 + 4 - 4 = 0$; linha 2: $-3 - 3 + 3 + 0 + 3 = 0$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-1-2-4">
+        <title>Avançado — Parte simétrica de uma matriz quadrada</title>
+        Uma matriz quadrada $\mathbf{S} \in \mathbb{R}^{n \times n}$ chama-se <em>simétrica</em> quando $\mathbf{S}^\top = \mathbf{S}$. Considere $\mathbf{A} = \begin{pmatrix} 2 & 5 \\ -1 & 4 \end{pmatrix}$.
+        <list marker="a">
+          <item>Calcule $\mathbf{S} = \frac{1}{2}(\mathbf{A} + \mathbf{A}^\top)$ e verifique que $\mathbf{S}$ é simétrica.</item>
+          <item>Usando as propriedades da <ref to="prop:5-1-prop-transposta"/>, demonstre que $\mathbf{S} = \frac{1}{2}(\mathbf{A} + \mathbf{A}^\top)$ é simétrica para <em>qualquer</em> matriz quadrada $\mathbf{A} \in \mathbb{R}^{n \times n}$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (b), aplique a transposta em $\mathbf{S} = \frac{1}{2}(\mathbf{A} + \mathbf{A}^\top)$ usando $(c\mathbf{M})^\top = c\mathbf{M}^\top$, $(\mathbf{M} + \mathbf{N})^\top = \mathbf{M}^\top + \mathbf{N}^\top$ e $(\mathbf{A}^\top)^\top = \mathbf{A}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como $\mathbf{A}^\top = \begin{pmatrix} 2 & -1 \\ 5 & 4 \end{pmatrix}$, temos:
+              $$\mathbf{S} = \frac{1}{2}\left[\begin{pmatrix} 2 & 5 \\ -1 & 4 \end{pmatrix} + \begin{pmatrix} 2 & -1 \\ 5 & 4 \end{pmatrix}\right] = \frac{1}{2}\begin{pmatrix} 4 & 4 \\ 4 & 8 \end{pmatrix} = \begin{pmatrix} 2 & 2 \\ 2 & 4 \end{pmatrix}.$$
+              Transpondo $\mathbf{S}$, vemos que $\mathbf{S}^\top = \begin{pmatrix} 2 & 2 \\ 2 & 4 \end{pmatrix} = \mathbf{S}$; logo, é simétrica.
+            </item>
+            <item>Para uma matriz quadrada qualquer $\mathbf{A} \in \mathbb{R}^{n \times n}$, calculamos $\mathbf{S}^\top$:
+              $$\mathbf{S}^\top = \left(\frac{1}{2}(\mathbf{A} + \mathbf{A}^\top)\right)^\top = \frac{1}{2}\bigl(\mathbf{A} + \mathbf{A}^\top\bigr)^\top = \frac{1}{2}\bigl(\mathbf{A}^\top + (\mathbf{A}^\top)^\top\bigr) = \frac{1}{2}(\mathbf{A}^\top + \mathbf{A}) = \mathbf{S}.$$
+              Como $\mathbf{S}^\top = \mathbf{S}$, a matriz $\frac{1}{2}(\mathbf{A} + \mathbf{A}^\top)$ é sempre simétrica.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:5-1-3">
+      <eyebrow>Seção 3</eyebrow>
+      <title>Produto matriz-vetor: pesos sinápticos em ação</title>
+      <intro>
+        Chegamos à operação mais importante desta aula: multiplicar uma matriz por um vetor transforma um padrão de atividade em outro — exatamente o que uma camada de sinapses faz ao passar sinais de uma população para a seguinte.
+      </intro>
+
+      Suponha que $3$ neurônios pré-sinápticos (com taxas $\mathbf{r}_{\text{pré}} \in \mathbb{R}^3$) projetam sinapses para $2$ neurônios pós-sinápticos (com taxas $\mathbf{r}_{\text{pós}} \in \mathbb{R}^2$). Cada neurônio pós-sináptico $i$ soma os disparos dos neurônios pré-sinápticos ponderados pelas respectivas forças sinápticas $W_{ij}$ (positivas para sinapses excitatórias, negativas para inibitórias, e $0$ quando não há conexão):
+      $$r_{\text{pós}, 1} = W_{11} r_{\text{pré}, 1} + W_{12} r_{\text{pré}, 2} + W_{13} r_{\text{pré}, 3}$$
+      $$r_{\text{pós}, 2} = W_{21} r_{\text{pré}, 1} + W_{22} r_{\text{pré}, 2} + W_{23} r_{\text{pré}, 3}$$
+      Em notação matricial, essas duas equações viram uma única linha elegante:
+      $$\mathbf{r}_{\text{pós}} = \mathbf{W}\mathbf{r}_{\text{pré}},$$
+      onde $\mathbf{W} \in \mathbb{R}^{2 \times 3}$ tem o número de linhas igual ao de neurônios pós-sinápticos ($2$) e o número de colunas igual ao de pré-sinápticos ($3$). Repare na convenção adotada em todo o módulo: $W_{ij}$ é o peso da sinapse <strong>do</strong> neurônio pré-sináptico $j$ <strong>para</strong> o neurônio pós-sináptico $i$.
+
+      <definition id="def:5-1-matriz-vetor">
+        <title>Produto matriz-vetor</title>
+        Sejam $\mathbf{A} \in \mathbb{R}^{m \times n}$ e $\mathbf{x} \in \mathbb{R}^n$. O produto $\mathbf{y} = \mathbf{A}\mathbf{x}$ é o vetor em $\mathbb{R}^m$ cuja $i$-ésima entrada ($1 \le i \le m$) vale:
+        <equation id="eq:5-1-matriz-vetor">
+          (\mathbf{A}\mathbf{x})_i = \sum_{j=1}^n a_{ij} x_j = a_{i1} x_1 + a_{i2} x_2 + \dots + a_{in} x_n.
+        </equation>
+        O produto só é definido quando o número de <strong>colunas</strong> de $\mathbf{A}$ ($n$) é igual ao número de <strong>entradas</strong> de $\mathbf{x}$ ($n$):
+        $$(m \times \underbrace{n)\,(n}_{\text{iguais}} \times 1) \longrightarrow (m \times 1).$$
+        <intuition>
+          Existem <strong>duas leituras complementares</strong> para $\mathbf{A}\mathbf{x}$, e dominar as duas transforma contas mecânicas em compreensão geométrica e biológica:
+          <list marker="number">
+            <item><strong>Leitura por linhas (produto escalar):</strong> a entrada $i$ de $\mathbf{A}\mathbf{x}$ é o produto escalar da $i$-ésima linha de $\mathbf{A}$ com $\mathbf{x}$. Na rede neural, a linha $i$ de $\mathbf{W}$ representa <em>"o que o neurônio pós-sináptico $i$ escuta"</em> — seu filtro sináptico sobre toda a camada anterior.</item>
+            <item><strong>Leitura por colunas (combinação linear):</strong> $\mathbf{A}\mathbf{x}$ é a combinação linear das colunas de $\mathbf{A}$ usando as entradas de $\mathbf{x}$ como pesos:
+              $$\mathbf{A}\mathbf{x} = x_1 \mathbf{a}_{:,1} + x_2 \mathbf{a}_{:,2} + \dots + x_n \mathbf{a}_{:,n}.$$
+              Na rede neural, a coluna $j$ de $\mathbf{W}$ representa <em>"para onde o neurônio pré-sináptico $j$ fala"</em> — o efeito unitário na camada pós-sináptica quando apenas o neurônio $j$ dispara a $1\text{ Hz}$.</item>
+          </list>
+        </intuition>
+      </definition>
+
+      Observe o que a leitura por colunas garante imediatamente: qualquer vetor $\mathbf{A}\mathbf{x}$ pertence ao conjunto das combinações lineares das colunas de $\mathbf{A}$. Esse fato será a chave para resolver sistemas lineares no Tema 5.2 e entender espaços vetoriais no Tema 5.3.
+
+      Além disso, multiplicar pela matriz $\mathbf{A}$ preserva somas e reescalonamentos — isto é, define uma transformação <strong>linear</strong>.
+
+      <proposition id="prop:5-1-linearidade">
+        <title>Linearidade do produto matriz-vetor</title>
+        Para toda matriz $\mathbf{A} \in \mathbb{R}^{m \times n}$, quaisquer vetores $\mathbf{x}, \mathbf{y} \in \mathbb{R}^n$ e quaisquer escalares $\alpha, \beta \in \mathbb{R}$, vale:
+        $$\mathbf{A}(\alpha\mathbf{x} + \beta\mathbf{y}) = \alpha(\mathbf{A}\mathbf{x}) + \beta(\mathbf{A}\mathbf{y}).$$
+      </proposition>
+      <proof of="prop:5-1-linearidade" collapsible="true" collapsed="true">
+        Para cada entrada $i \in \{1, \dots, m\}$, aplicamos a <ref to="eq:5-1-matriz-vetor"/>:
+        $$\bigl(\mathbf{A}(\alpha\mathbf{x} + \beta\mathbf{y})\bigr)_i = \sum_{j=1}^n a_{ij}(\alpha x_j + \beta y_j) = \alpha \sum_{j=1}^n a_{ij} x_j + \beta \sum_{j=1}^n a_{ij} y_j = \alpha(\mathbf{A}\mathbf{x})_i + \beta(\mathbf{A}\mathbf{y})_i.$$
+        Como vale para todas as entradas $i$, os dois vetores em $\mathbb{R}^m$ são iguais.
+      </proof>
+
+      <box type="warning">
+        <title>Atenção ao realismo biológico</title>
+        Neurônios biológicos reais <strong>não</strong> são lineares: possuem um limiar abaixo do qual não disparam (taxas de disparo nunca ficam negativas), apresentam saturação em frequências altas devido ao período refratário e exibem adaptações dinâmicas. O modelo $\mathbf{r}_{\text{pós}} = \mathbf{W}\mathbf{r}_{\text{pré}}$ é uma <em>primeira aproximação</em> — útil para descrever pequenas variações em torno de um estado basal ou etapas lineares de processamento. As funções de ativação não lineares que corrigem esse limite aparecerão no Módulo 9 (<em>Deep Learning</em>).
+      </box>
+
+      <example id="exm:5-1-rede-linear">
+        <title>Rede feedforward linear com 3 pré-sinápticos e 2 pós-sinápticos</title>
+        Considere uma rede <em>feedforward</em> (alimentada adiante, sem recorrência) na qual $3$ neurônios pré-sinápticos enviam projeções para $2$ neurônios pós-sinápticos segundo a matriz de pesos $\mathbf{W}$ e o vetor de disparo $\mathbf{r}_{\text{pré}}$ (em $\text{Hz}$):
+        $$\mathbf{W} = \begin{pmatrix} 2 & -1 & 1 \\ 0 & 3 & -2 \end{pmatrix}, \qquad \mathbf{r}_{\text{pré}} = \begin{pmatrix} 10 \\ 4 \\ 5 \end{pmatrix}\text{ Hz}.$$
+        Calcule $\mathbf{r}_{\text{pós}} = \mathbf{W}\mathbf{r}_{\text{pré}}$ pelas duas leituras e interprete biologicamente as linhas e colunas de $\mathbf{W}$.
+
+        <strong>Solução.</strong>
+        <list marker="number">
+          <item><strong>Pela leitura por linhas (o que cada pós-sináptico escuta):</strong>
+            $$r_{\text{pós}, 1} = 2(10) + (-1)(4) + 1(5) = 20 - 4 + 5 = 21\text{ Hz},$$
+            $$r_{\text{pós}, 2} = 0(10) + 3(4) + (-2)(5) = 0 + 12 - 10 = 2\text{ Hz}.$$
+            Logo, $\mathbf{r}_{\text{pós}} = (21, 2)^\top\text{ Hz}$.
+          </item>
+          <item><strong>Pela leitura por colunas (para onde cada pré-sináptico fala):</strong>
+            $$\mathbf{W}\mathbf{r}_{\text{pré}} = 10 \begin{pmatrix} 2 \\ 0 \end{pmatrix} + 4 \begin{pmatrix} -1 \\ 3 \end{pmatrix} + 5 \begin{pmatrix} 1 \\ -2 \end{pmatrix} = \begin{pmatrix} 20 \\ 0 \end{pmatrix} + \begin{pmatrix} -4 \\ 12 \end{pmatrix} + \begin{pmatrix} 5 \\ -10 \end{pmatrix} = \begin{pmatrix} 21 \\ 2 \end{pmatrix}\text{ Hz}.$$
+          </item>
+        </list>
+        <em>Interpretação:</em> a linha $1$ mostra que o neurônio pós-sináptico $1$ recebe excitação de $1$ ($+2$) e de $3$ ($+1$) e inibição de $2$ ($-1$). Já a coluna $2$ mostra que o neurônio pré-sináptico $2$ fala simultaneamente com sinal oposto para os dois alvos: ele inibe o pós-sináptico $1$ ($-1$) e excita fortemente o pós-sináptico $2$ ($+3$). (Nota biológica: pelo princípio de Dale, um neurônio real libera o mesmo neurotransmissor principal em todos os seus terminais, então em circuitos reais uma coluna de $\mathbf{W}$ costuma ter um sinal só; pesos de sinais mistos numa coluna representam um modelo abstrato ou o efeito líquido via interneurônios.)
+      </example>
+
+      <example id="exm:5-1-linearidade-comb">
+        <title>Conferindo a linearidade em $\mathbf{A}\mathbf{x}$</title>
+        Sejam $\mathbf{A} = \begin{pmatrix} 1 & 2 \\ 3 & -1 \\ 0 & 4 \end{pmatrix}$, $\mathbf{x} = \begin{pmatrix} 2 \\ 1 \end{pmatrix}$ e $\mathbf{y} = \begin{pmatrix} -1 \\ 3 \end{pmatrix}$. Calcule $\mathbf{A}\mathbf{x}$, $\mathbf{A}\mathbf{y}$ e confira que $\mathbf{A}(2\mathbf{x} - \mathbf{y}) = 2\mathbf{A}\mathbf{x} - \mathbf{A}\mathbf{y}$.
+
+        <strong>Solução.</strong> Note que $\mathbf{A}$ é $3 \times 2$ e os vetores têm $2$ entradas, portanto o resultado terá $3$ entradas:
+        $$\mathbf{A}\mathbf{x} = \begin{pmatrix} 1(2) + 2(1) \\ 3(2) + (-1)(1) \\ 0(2) + 4(1) \end{pmatrix} = \begin{pmatrix} 4 \\ 5 \\ 4 \end{pmatrix}, \qquad \mathbf{A}\mathbf{y} = \begin{pmatrix} 1(-1) + 2(3) \\ 3(-1) + (-1)(3) \\ 0(-1) + 4(3) \end{pmatrix} = \begin{pmatrix} 5 \\ -6 \\ 12 \end{pmatrix}.$$
+        Calculamos primeiro $\mathbf{z} = 2\mathbf{x} - \mathbf{y} = \begin{pmatrix} 4 - (-1) \\ 2 - 3 \end{pmatrix} = \begin{pmatrix} 5 \\ -1 \end{pmatrix}$ e multiplicamos por $\mathbf{A}$:
+        $$\mathbf{A}\mathbf{z} = \begin{pmatrix} 1(5) + 2(-1) \\ 3(5) + (-1)(-1) \\ 0(5) + 4(-1) \end{pmatrix} = \begin{pmatrix} 3 \\ 16 \\ -4 \end{pmatrix}.$$
+        Agora calculamos $2\mathbf{A}\mathbf{x} - \mathbf{A}\mathbf{y}$:
+        $$2\begin{pmatrix} 4 \\ 5 \\ 4 \end{pmatrix} - \begin{pmatrix} 5 \\ -6 \\ 12 \end{pmatrix} = \begin{pmatrix} 8 - 5 \\ 10 - (-6) \\ 8 - 12 \end{pmatrix} = \begin{pmatrix} 3 \\ 16 \\ -4 \end{pmatrix}.$$
+        Os resultados coincidem exatamente, ilustrando a <ref to="prop:5-1-linearidade"/>.
+      </example>
+
+      <code lang="python" id="cod:5-1-matriz-vetor">
+import numpy as np
+
+# Pesos sinápticos W (2 pós-sinápticos x 3 pré-sinápticos)
+W = np.array([
+    [2, -1,  1],
+    [0,  3, -2],
+])
+r_pre = np.array([10, 4, 5])  # vetor de taxas pré-sinápticas (Hz)
+
+# Produto matriz-vetor W @ r_pre
+r_pos = W @ r_pre
+print("Taxas pós-sinápticas:", r_pos.tolist())  # saída: Taxas pós-sinápticas: [21, 2]
+
+# Conferindo a leitura por colunas (combinação linear das colunas de W)
+r_col = r_pre[0] * W[:, 0] + r_pre[1] * W[:, 1] + r_pre[2] * W[:, 2]
+print("Pelas colunas:", r_col.tolist())          # saída: Pelas colunas: [21, 2]
+      </code>
+
+      <remark id="rem:5-1-armadilha-wij">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Inverter o sentido dos índices de $W_{ij}$:</strong> lembre-se da regra "para $\leftarrow$ de": em $W_{ij}$, $i$ é o neurônio pós-sináptico (linha) e $j$ é o pré-sináptico (coluna). Se você montar $W_{ij}$ como "de $i$ para $j$", construirá a matriz transposta $\mathbf{W}^\top$ e atribuirá as sinapses aos pares errados (ou até causará erro de dimensão quando o número de pré e pós-sinápticos for diferente).</item>
+          <item><strong>Dimensões incompatíveis:</strong> com $\mathbf{W}$ de dimensão $2 \times 3$, você pode calcular $\mathbf{W}\mathbf{x}$ para $\mathbf{x} \in \mathbb{R}^3$, mas <strong>nunca</strong> para $\mathbf{y} \in \mathbb{R}^2$. O número de colunas da matriz precisa bater com o tamanho do vetor.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:5-1-3-1">
+        <title>Básico — Produto matriz-vetor pelas duas leituras</title>
+        Calcule $\mathbf{A}\mathbf{x}$ para $\mathbf{A} = \begin{pmatrix} 3 & -2 & 1 \\ 0 & 4 & -1 \end{pmatrix}$ e $\mathbf{x} = \begin{pmatrix} 2 \\ 5 \\ -3 \end{pmatrix}$:
+        <list marker="a">
+          <item>usando a leitura por linhas (produto escalar de cada linha por $\mathbf{x}$);</item>
+          <item>usando a leitura por colunas (combinação linear das colunas de $\mathbf{A}$).</item>
+        </list>
+        <hint><title>Ver dica</title>Os dois caminhos devem produzir exatamente o mesmo vetor de $\mathbb{R}^2$; isso serve como excelente conferência dupla.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pela leitura por linhas:
+              $$(\mathbf{A}\mathbf{x})_1 = 3(2) + (-2)(5) + 1(-3) = 6 - 10 - 3 = -7,$$
+              $$(\mathbf{A}\mathbf{x})_2 = 0(2) + 4(5) + (-1)(-3) = 0 + 20 + 3 = 23.$$
+              Portanto, $\mathbf{A}\mathbf{x} = (-7, 23)^\top$.
+            </item>
+            <item>Pela leitura por colunas:
+              $$\mathbf{A}\mathbf{x} = 2\begin{pmatrix} 3 \\ 0 \end{pmatrix} + 5\begin{pmatrix} -2 \\ 4 \end{pmatrix} + (-3)\begin{pmatrix} 1 \\ -1 \end{pmatrix} = \begin{pmatrix} 6 \\ 0 \end{pmatrix} + \begin{pmatrix} -10 \\ 20 \end{pmatrix} + \begin{pmatrix} -3 \\ 3 \end{pmatrix} = \begin{pmatrix} -7 \\ 23 \end{pmatrix}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-1-3-2">
+        <title>Básico — Construindo $\mathbf{W}$ a partir da anatomia do circuito</title>
+        Um microcircuito possui $3$ neurônios pré-sinápticos ($1, 2, 3$) conectados a $2$ neurônios pós-sinápticos ($A, B$) da seguinte forma:
+        <list marker="dash">
+          <item>o neurônio $1$ excita $A$ com peso $+2$ e inibe $B$ com peso $-1$;</item>
+          <item>o neurônio $2$ não se conecta a $A$ (peso $0$) e excita $B$ com peso $+4$;</item>
+          <item>o neurônio $3$ inibe $A$ com peso $-3$ e excita $B$ com peso $+1$.</item>
+        </list>
+        <list marker="a">
+          <item>Monte a matriz de pesos sinápticos $\mathbf{W} \in \mathbb{R}^{2 \times 3}$ na convenção $W_{ij}$ = peso de $j$ para $i$.</item>
+          <item>Calcule $\mathbf{r}_{\text{pós}}$ quando $\mathbf{r}_{\text{pré}} = (10, 5, 4)^\top\text{ Hz}$.</item>
+        </list>
+        <hint><title>Ver dica</title>Cada neurônio pré-sináptico ($1, 2, 3$) define uma <em>coluna</em> de $\mathbf{W}$, e cada pós-sináptico ($A, B$) define uma <em>linha</em>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>A linha $1$ reúne todas as conexões que chegam em $A$ ($+2$, $0$, $-3$), e a linha $2$ reúne as que chegam em $B$ ($-1$, $+4$, $+1$):
+              $$\mathbf{W} = \begin{pmatrix} 2 & 0 & -3 \\ -1 & 4 & 1 \end{pmatrix}.$$
+            </item>
+            <item>Multiplicando $\mathbf{W}$ por $\mathbf{r}_{\text{pré}} = (10, 5, 4)^\top$:
+              $$\mathbf{r}_{\text{pós}} = \begin{pmatrix} 2(10) + 0(5) + (-3)(4) \\ -1(10) + 4(5) + 1(4) \end{pmatrix} = \begin{pmatrix} 20 + 0 - 12 \\ -10 + 20 + 4 \end{pmatrix} = \begin{pmatrix} 8 \\ 14 \end{pmatrix}\text{ Hz}.$$
+              Logo, o neurônio $A$ dispara a $8\text{ Hz}$ e o neurônio $B$ dispara a $14\text{ Hz}$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-1-3-3">
+        <title>Intermediário — Vetores da base canônica como seletores de colunas</title>
+        Em $\mathbb{R}^3$, os vetores da base canônica são $\mathbf{e}_1 = (1, 0, 0)^\top$, $\mathbf{e}_2 = (0, 1, 0)^\top$ e $\mathbf{e}_3 = (0, 0, 1)^\top$.
+        <list marker="a">
+          <item>Para $\mathbf{A} = \begin{pmatrix} 4 & -2 & 7 \\ 1 & 5 & -3 \end{pmatrix}$, calcule $\mathbf{A}\mathbf{e}_1$, $\mathbf{A}\mathbf{e}_2$ e $\mathbf{A}\mathbf{e}_3$. O que você observa?</item>
+          <item>Sabe-se que uma matriz $\mathbf{B} \in \mathbb{R}^{2 \times 3}$ satisfaz $\mathbf{B}\mathbf{e}_1 = (3, 1)^\top$, $\mathbf{B}\mathbf{e}_2 = (-1, 4)^\top$ e $\mathbf{B}\mathbf{e}_3 = (0, 2)^\top$. Calcule $\mathbf{B}(2, -1, 5)^\top$ usando apenas a linearidade (<ref to="prop:5-1-linearidade"/>), e depois confira escrevendo $\mathbf{B}$ por extenso.</item>
+        </list>
+        <hint><title>Ver dica</title>Note que $(2, -1, 5)^\top = 2\mathbf{e}_1 - 1\mathbf{e}_2 + 5\mathbf{e}_3$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Calculando os três produtos pela leitura por colunas:
+              $$\mathbf{A}\mathbf{e}_1 = 1\begin{pmatrix} 4 \\ 1 \end{pmatrix} + 0\begin{pmatrix} -2 \\ 5 \end{pmatrix} + 0\begin{pmatrix} 7 \\ -3 \end{pmatrix} = \begin{pmatrix} 4 \\ 1 \end{pmatrix}, \quad \mathbf{A}\mathbf{e}_2 = \begin{pmatrix} -2 \\ 5 \end{pmatrix}, \quad \mathbf{A}\mathbf{e}_3 = \begin{pmatrix} 7 \\ -3 \end{pmatrix}.$$
+              Multiplicar $\mathbf{A}$ por $\mathbf{e}_j$ extrai exatamente a $j$-ésima coluna de $\mathbf{A}$! (Biologicamente: se apenas o neurônio pré-sináptico $j$ dispara a $1\text{ Hz}$, a resposta pós-sináptica revela a coluna $j$ de $\mathbf{W}$.)
+            </item>
+            <item>Escrevendo $\mathbf{x} = 2\mathbf{e}_1 - \mathbf{e}_2 + 5\mathbf{e}_3$ e aplicando a linearidade:
+              $$\mathbf{B}\mathbf{x} = 2\mathbf{B}\mathbf{e}_1 - \mathbf{B}\mathbf{e}_2 + 5\mathbf{B}\mathbf{e}_3 = 2\begin{pmatrix} 3 \\ 1 \end{pmatrix} - \begin{pmatrix} -1 \\ 4 \end{pmatrix} + 5\begin{pmatrix} 0 \\ 2 \end{pmatrix} = \begin{pmatrix} 6 + 1 + 0 \\ 2 - 4 + 10 \end{pmatrix} = \begin{pmatrix} 7 \\ 8 \end{pmatrix}.$$
+              <em>Conferência:</em> como $\mathbf{B}\mathbf{e}_1, \mathbf{B}\mathbf{e}_2, \mathbf{B}\mathbf{e}_3$ são as colunas de $\mathbf{B}$, temos $\mathbf{B} = \begin{pmatrix} 3 & -1 & 0 \\ 1 & 4 & 2 \end{pmatrix}$, e de fato:
+              $$\begin{pmatrix} 3 & -1 & 0 \\ 1 & 4 & 2 \end{pmatrix}\begin{pmatrix} 2 \\ -1 \\ 5 \end{pmatrix} = \begin{pmatrix} 6 + 1 + 0 \\ 2 - 4 + 10 \end{pmatrix} = \begin{pmatrix} 7 \\ 8 \end{pmatrix}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-1-3-4">
+        <title>Avançado — Balanço excitação-inibição e limite do modelo linear</title>
+        Na rede $\mathbf{W} = \begin{pmatrix} 2 & -1 & -1 \\ -1 & 3 & -2 \end{pmatrix}$, os neurônios pré-sinápticos $1$ e $2$ disparam a $r_1 = 15\text{ Hz}$ e $r_2 = 10\text{ Hz}$.
+        <list marker="a">
+          <item>Com o neurônio $3$ silencioso ($r_3 = 0\text{ Hz}$), qual é $\mathbf{r}_{\text{pós}}$?</item>
+          <item>Se ativarmos o neurônio pré-sináptico $3$ (que é puramente inibitório aqui), que taxa $r_3 \ge 0$ zera exatamente a resposta do neurônio pós-sináptico $1$? Qual valor o modelo linear prevê então para o neurônio pós-sináptico $2$, e o que ocorreria em um neurônio biológico real?</item>
+        </list>
+        <hint><title>Ver dica</title>Em (b), escreva a expressão de $r_{\text{pós}, 1}$ em função de $r_3$, iguale a zero para achar $r_3$ e depois substitua esse $r_3$ na equação de $r_{\text{pós}, 2}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Com $\mathbf{r}_{\text{pré}} = (15, 10, 0)^\top$:
+              $$\mathbf{r}_{\text{pós}} = \begin{pmatrix} 2(15) - 1(10) - 1(0) \\ -1(15) + 3(10) - 2(0) \end{pmatrix} = \begin{pmatrix} 20 \\ 15 \end{pmatrix}\text{ Hz}.$$
+            </item>
+            <item>Mantendo $r_1 = 15$ e $r_2 = 10$, a primeira saída vale $r_{\text{pós}, 1} = 20 - r_3$. Igualando a zero:
+              $$20 - r_3 = 0 \implies r_3 = 20\text{ Hz}.$$
+              Substituindo $r_3 = 20\text{ Hz}$ na equação da segunda saída:
+              $$r_{\text{pós}, 2} = -15 + 30 - 2(20) = 15 - 40 = -25\text{ Hz}.$$
+              No modelo puramente linear aparece uma taxa negativa ($-25\text{ Hz}$), que é fisicamente impossível. Em um neurônio real, essa inibição forte levaria o potencial de membrana abaixo do limiar de disparo, silenciando o neurônio pós-sináptico $2$ em $0\text{ Hz}$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:5-1-4">
+      <eyebrow>Seção 4</eyebrow>
+      <title>Produto de matrizes</title>
+      <intro>
+        Quando uma camada de neurônios alimenta uma segunda camada, ou quando aplicamos uma matriz de pesos a todos os instantes de uma gravação de uma só vez, precisamos multiplicar duas matrizes. Veremos como essa operação representa a composição de transformações — e por que ela não é comutativa.
+      </intro>
+
+      Suponha que um sinal passe por duas camadas sinápticas lineares em série: primeiro $\mathbf{r}_1 = \mathbf{W}_1 \mathbf{r}_0$ e depois $\mathbf{r}_2 = \mathbf{W}_2 \mathbf{r}_1$. Substituindo $\mathbf{r}_1$ na segunda equação, obtemos $\mathbf{r}_2 = \mathbf{W}_2(\mathbf{W}_1 \mathbf{r}_0)$. Como definir o produto $\mathbf{W}_{\text{eq}} = \mathbf{W}_2 \mathbf{W}_1$ para que $\mathbf{r}_2 = \mathbf{W}_{\text{eq}}\mathbf{r}_0$ valha para todo vetor $\mathbf{r}_0$? A resposta é exatamente a multiplicação de matrizes: cada coluna de $\mathbf{A}\mathbf{B}$ aplica $\mathbf{A}$ à respectiva coluna de $\mathbf{B}$.
+
+      <definition id="def:5-1-prod-matrizes">
+        <title>Produto de matrizes e compatibilidade</title>
+        Sejam $\mathbf{A} \in \mathbb{R}^{m \times n}$ e $\mathbf{B} \in \mathbb{R}^{n \times p}$ (o número de <strong>colunas</strong> de $\mathbf{A}$ deve ser igual ao número de <strong>linhas</strong> de $\mathbf{B}$). O produto $\mathbf{C} = \mathbf{A}\mathbf{B}$ é a matriz de dimensão $m \times p$ cuja entrada $(i, j)$ é o produto escalar da linha $i$ de $\mathbf{A}$ com a coluna $j$ de $\mathbf{B}$:
+        <equation id="eq:5-1-prod-matrizes">
+          (\mathbf{A}\mathbf{B})_{ij} = \sum_{k=1}^n a_{ik} b_{kj} \qquad (1 \le i \le m,\; 1 \le j \le p).
+        </equation>
+        Regra prática das dimensões:
+        $$(m \times \underbrace{n)\,(n}_{\text{devem bater}} \times p) \longrightarrow (m \times p).$$
+        <intuition>
+          De modo equivalente, a $j$-ésima coluna de $\mathbf{A}\mathbf{B}$ é o produto matriz-vetor $\mathbf{A}\mathbf{b}_{:,j}$. Isso explica imediatamente duas aplicações centrais:
+          <list marker="dash">
+            <item><strong>Composição:</strong> aplicar $\mathbf{W}_1$ e depois $\mathbf{W}_2$ equivale a aplicar a única matriz $\mathbf{W}_2 \mathbf{W}_1$;</item>
+            <item><strong>Processar uma gravação inteira:</strong> se $\mathbf{X} \in \mathbb{R}^{N_{\text{pré}} \times T}$ guarda $T$ vetores de população nas colunas, então $\mathbf{Y} = \mathbf{W}\mathbf{X} \in \mathbb{R}^{N_{\text{pós}} \times T}$ calcula $\mathbf{W}\mathbf{x}_t$ para todos os $T$ instantes em uma única operação.</item>
+          </list>
+        </intuition>
+      </definition>
+
+      Observe uma consequência profunda dessa composição: se você empilhar duas, dez ou cem camadas puramente lineares ($\mathbf{r}_k = \mathbf{W}_k \cdots \mathbf{W}_2 \mathbf{W}_1 \mathbf{r}_0$), o resultado continua equivalente a multiplicar por uma <em>única</em> matriz $\mathbf{W}_{\text{eq}} = \mathbf{W}_k \cdots \mathbf{W}_2 \mathbf{W}_1$. Ou seja, empilhar camadas lineares sem nada entre elas não aumenta em nada o poder expressivo do modelo! É exatamente por isso que redes neurais profundas intercalam transformações matriciais com funções não lineares a cada camada (assunto do Módulo 9, <em>Deep Learning</em>).
+
+      Entre as matrizes quadradas ($n \times n$), existe um elemento neutro para a multiplicação — o equivalente matricial do número $1$.
+
+      <definition id="def:5-1-identidade">
+        <title>Matriz identidade</title>
+        A <strong>matriz identidade</strong> de ordem $n$, denotada por $\mathbf{I}_n$ (ou simplesmente $\mathbf{I}$ quando o tamanho está claro pelo contexto), é a matriz quadrada $n \times n$ com $1$ na diagonal principal e $0$ fora dela:
+        $$\mathbf{I}_2 = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}, \qquad \mathbf{I}_3 = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 1 \end{pmatrix}.$$
+        <intuition>
+          As colunas da identidade $\mathbf{I}_n$ são os vetores da base canônica $\mathbf{e}_1, \dots, \mathbf{e}_n$. Multiplicar qualquer vetor ou matriz compatível por $\mathbf{I}$ deixa tudo exatamente como estava.
+        </intuition>
+      </definition>
+
+      No Tema 5.2 (<em>Sistemas lineares e transformações</em>), veremos quando uma matriz quadrada $\mathbf{A}$ possui uma matriz <strong>inversa</strong> $\mathbf{A}^{-1}$ tal que $\mathbf{A}^{-1}\mathbf{A} = \mathbf{I}$, permitindo desfazer uma transformação linear. Antes disso, vejamos as propriedades fundamentais do produto matricial — com atenção especial ao que <em>não</em> vale.
+
+      <proposition id="prop:5-1-prop-prod">
+        <title>Propriedades do produto de matrizes</title>
+        Sempre que as dimensões forem compatíveis para as operações indicadas, valem:
+        <list marker="number">
+          <item><strong>Associatividade:</strong> $(\mathbf{A}\mathbf{B})\mathbf{C} = \mathbf{A}(\mathbf{B}\mathbf{C})$; portanto, podemos escrever $\mathbf{A}\mathbf{B}\mathbf{C}$ sem parênteses;</item>
+          <item><strong>Distributividade:</strong> $\mathbf{A}(\mathbf{B} + \mathbf{C}) = \mathbf{A}\mathbf{B} + \mathbf{A}\mathbf{C}$ e $(\mathbf{A} + \mathbf{B})\mathbf{C} = \mathbf{A}\mathbf{C} + \mathbf{B}\mathbf{C}$;</item>
+          <item><strong>Elemento neutro:</strong> para $\mathbf{A} \in \mathbb{R}^{m \times n}$, $\mathbf{I}_m \mathbf{A} = \mathbf{A} = \mathbf{A}\mathbf{I}_n$;</item>
+          <item><strong>Transposta do produto (inverte a ordem!):</strong> $(\mathbf{A}\mathbf{B})^\top = \mathbf{B}^\top \mathbf{A}^\top$.</item>
+        </list>
+        Por outro lado, o produto de matrizes <strong>não é comutativo</strong>: em geral, $\mathbf{A}\mathbf{B} \ne \mathbf{B}\mathbf{A}$ (mesmo quando ambos os produtos têm a mesma dimensão).
+      </proposition>
+      <proof of="prop:5-1-prop-prod" collapsible="true" collapsed="true">
+        Provemos o item 4, que costuma gerar mais dúvidas, calculando a entrada $(i, j)$ dos dois lados para $\mathbf{A} \in \mathbb{R}^{m \times n}$ e $\mathbf{B} \in \mathbb{R}^{n \times p}$:
+        $$\bigl((\mathbf{A}\mathbf{B})^\top\bigr)_{ij} = (\mathbf{A}\mathbf{B})_{ji} = \sum_{k=1}^n a_{jk} b_{ki} = \sum_{k=1}^n b_{ki} a_{jk} = \sum_{k=1}^n (\mathbf{B}^\top)_{ik} (\mathbf{A}^\top)_{kj} = (\mathbf{B}^\top \mathbf{A}^\top)_{ij}.$$
+        A inversão da ordem aparece naturalmente porque, ao transpor $\mathbf{A}\mathbf{B}$, o índice de linha $j$ vai para $\mathbf{A}$ e o de coluna $i$ vai para $\mathbf{B}$, que passam a ser, respectivamente, coluna de $\mathbf{A}^\top$ e linha de $\mathbf{B}^\top$. (A associatividade e a distributividade seguem de forma análoga expandindo os somatórios.)
+      </proof>
+
+      <example id="exm:5-1-duas-camadas">
+        <title>Duas camadas sinápticas aplicadas a uma gravação inteira</title>
+        Em uma rede linear de duas camadas, a primeira camada projeta de $2$ neurônios para $3$ com pesos $\mathbf{W}_1$, e a segunda projeta de $3$ para $2$ com pesos $\mathbf{W}_2$:
+        $$\mathbf{W}_1 = \begin{pmatrix} 1 & 0 \\ 2 & -1 \\ 0 & 3 \end{pmatrix}, \qquad \mathbf{W}_2 = \begin{pmatrix} 1 & 1 & -1 \\ 0 & 2 & 1 \end{pmatrix}.$$
+        Considere a gravação de entrada com $2$ neurônios em $2$ instantes: $\mathbf{X}_0 = \begin{pmatrix} 10 & 5 \\ 2 & 4 \end{pmatrix}$.
+        <list marker="a">
+          <item>Calcule a matriz equivalente de uma única camada $\mathbf{W}_{\text{eq}} = \mathbf{W}_2 \mathbf{W}_1$.</item>
+          <item>Verifique que passar pela camada intermediária ($\mathbf{X}_1 = \mathbf{W}_1 \mathbf{X}_0$, depois $\mathbf{X}_2 = \mathbf{W}_2 \mathbf{X}_1$) dá exatamente o mesmo resultado que $\mathbf{W}_{\text{eq}} \mathbf{X}_0$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Como $\mathbf{W}_2$ é $2 \times 3$ e $\mathbf{W}_1$ é $3 \times 2$, o produto $\mathbf{W}_2 \mathbf{W}_1$ é $2 \times 2$:
+            $$\mathbf{W}_{\text{eq}} = \begin{pmatrix} 1 & 1 & -1 \\ 0 & 2 & 1 \end{pmatrix}\begin{pmatrix} 1 & 0 \\ 2 & -1 \\ 0 & 3 \end{pmatrix} = \begin{pmatrix} 1(1) + 1(2) + (-1)(0) & 1(0) + 1(-1) + (-1)(3) \\ 0(1) + 2(2) + 1(0) & 0(0) + 2(-1) + 1(3) \end{pmatrix} = \begin{pmatrix} 3 & -4 \\ 4 & 1 \end{pmatrix}.$$
+          </item>
+          <item>Calculando passo a passo pela camada intermediária:
+            $$\mathbf{X}_1 = \mathbf{W}_1 \mathbf{X}_0 = \begin{pmatrix} 1 & 0 \\ 2 & -1 \\ 0 & 3 \end{pmatrix}\begin{pmatrix} 10 & 5 \\ 2 & 4 \end{pmatrix} = \begin{pmatrix} 10 & 5 \\ 18 & 6 \\ 6 & 12 \end{pmatrix},$$
+            $$\mathbf{X}_2 = \mathbf{W}_2 \mathbf{X}_1 = \begin{pmatrix} 1 & 1 & -1 \\ 0 & 2 & 1 \end{pmatrix}\begin{pmatrix} 10 & 5 \\ 18 & 6 \\ 6 & 12 \end{pmatrix} = \begin{pmatrix} 10 + 18 - 6 & 5 + 6 - 12 \\ 0 + 36 + 6 & 0 + 12 + 12 \end{pmatrix} = \begin{pmatrix} 22 & -1 \\ 42 & 24 \end{pmatrix}.$$
+            Agora aplicando diretamente $\mathbf{W}_{\text{eq}}$ a $\mathbf{X}_0$:
+            $$\mathbf{W}_{\text{eq}} \mathbf{X}_0 = \begin{pmatrix} 3 & -4 \\ 4 & 1 \end{pmatrix}\begin{pmatrix} 10 & 5 \\ 2 & 4 \end{pmatrix} = \begin{pmatrix} 30 - 8 & 15 - 16 \\ 40 + 2 & 20 + 4 \end{pmatrix} = \begin{pmatrix} 22 & -1 \\ 42 & 24 \end{pmatrix}.$$
+            Os dois caminhos coincidem em todos os instantes, confirmando a associatividade $\mathbf{W}_2(\mathbf{W}_1 \mathbf{X}_0) = (\mathbf{W}_2 \mathbf{W}_1)\mathbf{X}_0$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:5-1-nao-comutativo">
+        <title>Contraexemplo de comutatividade e regra da transposta</title>
+        Sejam $\mathbf{A} = \begin{pmatrix} 1 & 2 \\ 0 & 1 \end{pmatrix}$ e $\mathbf{B} = \begin{pmatrix} 3 & 0 \\ 1 & 2 \end{pmatrix}$.
+        <list marker="a">
+          <item>Calcule $\mathbf{A}\mathbf{B}$ e $\mathbf{B}\mathbf{A}$, mostrando que são diferentes.</item>
+          <item>Verifique que $(\mathbf{A}\mathbf{B})^\top = \mathbf{B}^\top \mathbf{A}^\top$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Calculamos os dois produtos:
+            $$\mathbf{A}\mathbf{B} = \begin{pmatrix} 1(3) + 2(1) & 1(0) + 2(2) \\ 0(3) + 1(1) & 0(0) + 1(2) \end{pmatrix} = \begin{pmatrix} 5 & 4 \\ 1 & 2 \end{pmatrix},$$
+            $$\mathbf{B}\mathbf{A} = \begin{pmatrix} 3(1) + 0(0) & 3(2) + 0(1) \\ 1(1) + 2(0) & 1(2) + 2(1) \end{pmatrix} = \begin{pmatrix} 3 & 6 \\ 1 & 4 \end{pmatrix}.$$
+            Portanto, $\mathbf{A}\mathbf{B} \ne \mathbf{B}\mathbf{A}$.
+          </item>
+          <item>Transpondo $\mathbf{A}\mathbf{B}$, obtemos $(\mathbf{A}\mathbf{B})^\top = \begin{pmatrix} 5 & 1 \\ 4 & 2 \end{pmatrix}$. Por outro lado, multiplicando $\mathbf{B}^\top$ por $\mathbf{A}^\top$ nessa ordem:
+            $$\mathbf{B}^\top \mathbf{A}^\top = \begin{pmatrix} 3 & 1 \\ 0 & 2 \end{pmatrix}\begin{pmatrix} 1 & 0 \\ 2 & 1 \end{pmatrix} = \begin{pmatrix} 3(1) + 1(2) & 3(0) + 1(1) \\ 0(1) + 2(2) & 0(0) + 2(1) \end{pmatrix} = \begin{pmatrix} 5 & 1 \\ 4 & 2 \end{pmatrix}.$$
+            De fato, $(\mathbf{A}\mathbf{B})^\top = \mathbf{B}^\top \mathbf{A}^\top$. (Se não tivéssemos invertido a ordem, $\mathbf{A}^\top \mathbf{B}^\top$ daria $\begin{pmatrix} 3 & 1 \\ 6 & 4 \end{pmatrix}$, diferente!)
+          </item>
+        </list>
+      </example>
+
+      <code lang="python" id="cod:5-1-prod-matrizes">
+import numpy as np
+
+# Composição de duas camadas lineares sobre uma gravação X0
+W1 = np.array([[1, 0], [2, -1], [0, 3]])
+W2 = np.array([[1, 1, -1], [0, 2, 1]])
+X0 = np.array([[10, 5], [2, 4]])
+
+W_eq = W2 @ W1
+print("W_eq:", W_eq.tolist())                          # saída: W_eq: [[3, -4], [4, 1]]
+print("W_eq @ X0:", (W_eq @ X0).tolist())              # saída: W_eq @ X0: [[22, -1], [42, 24]]
+print("W2 @ (W1 @ X0):", (W2 @ (W1 @ X0)).tolist())    # saída: W2 @ (W1 @ X0): [[22, -1], [42, 24]]
+
+# Armadilha: produto matricial (@) versus produto elemento a elemento (*)
+A = np.array([[1, 2], [0, 1]])
+B = np.array([[3, 0], [1, 2]])
+print("A @ B (matricial):", (A @ B).tolist())          # saída: A @ B (matricial): [[5, 4], [1, 2]]
+print("B @ A (ordem trocada):", (B @ A).tolist())      # saída: B @ A (ordem trocada): [[3, 6], [1, 4]]
+print("A * B (elemento a elem):", (A * B).tolist())    # saída: A * B (elemento a elem): [[3, 0], [0, 2]]
+      </code>
+
+      <remark id="rem:5-1-armadilha-prod">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Usar <c>*</c> em vez de <c>@</c> no NumPy:</strong> esse é o erro número um em código científico. Em matrizes de mesma dimensão, <c>A * B</c> <strong>não</strong> calcula o produto matricial — ele multiplica cada entrada na mesma posição (produto elemento a elemento, ou <em>element-wise</em>), sem avisar nenhum erro! Para produto matricial, use sempre <c>@</c>.</item>
+          <item><strong>Trocar a ordem dos fatores:</strong> nunca assuma que $\mathbf{A}\mathbf{B} = \mathbf{B}\mathbf{A}$. Até a existência do produto depende da ordem: se $\mathbf{A}$ é $2 \times 3$ e $\mathbf{B}$ é $3 \times 4$, existe $\mathbf{A}\mathbf{B}$ ($2 \times 4$), mas $\mathbf{B}\mathbf{A}$ nem sequer está definido.</item>
+          <item><strong>Esquecer de inverter na transposta do produto:</strong> vale $(\mathbf{A}\mathbf{B})^\top = \mathbf{B}^\top \mathbf{A}^\top$, e não $\mathbf{A}^\top \mathbf{B}^\top$ (como na regra de vestir a meia antes do sapato, mas tirar o sapato antes da meia).</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:5-1-4-1">
+        <title>Básico — Compatibilidade de dimensões e produtos</title>
+        Sejam $\mathbf{A}$ de dimensão $2 \times 3$, $\mathbf{B}$ de dimensão $3 \times 2$ e $\mathbf{C}$ de dimensão $2 \times 2$.
+        <list marker="a">
+          <item>Quais dos produtos $\mathbf{A}\mathbf{B}$, $\mathbf{B}\mathbf{A}$, $\mathbf{A}\mathbf{C}$ e $\mathbf{C}\mathbf{A}$ são definidos? Informe as dimensões dos que existem.</item>
+          <item>Para $\mathbf{A} = \begin{pmatrix} 1 & 0 & -2 \\ 3 & 1 & 4 \end{pmatrix}$ e $\mathbf{B} = \begin{pmatrix} 2 & -1 \\ 5 & 0 \\ 1 & 3 \end{pmatrix}$, calcule $\mathbf{A}\mathbf{B}$ e $\mathbf{B}\mathbf{A}$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em $(m \times n)(p \times q)$, o produto só existe se $n = p$, e o resultado terá dimensão $m \times q$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Verificando as dimensões internas:
+              <list marker="dash">
+                <item>$\mathbf{A}\mathbf{B}$: $(2 \times 3)(3 \times 2)$ — definido, dimensão $2 \times 2$;</item>
+                <item>$\mathbf{B}\mathbf{A}$: $(3 \times 2)(2 \times 3)$ — definido, dimensão $3 \times 3$;</item>
+                <item>$\mathbf{A}\mathbf{C}$: $(2 \times 3)(2 \times 2)$ — <strong>não</strong> definido, pois $3 \ne 2$;</item>
+                <item>$\mathbf{C}\mathbf{A}$: $(2 \times 2)(2 \times 3)$ — definido, dimensão $2 \times 3$.</item>
+              </list>
+            </item>
+            <item>Calculamos $\mathbf{A}\mathbf{B}$ ($2 \times 2$) e $\mathbf{B}\mathbf{A}$ ($3 \times 3$):
+              $$\mathbf{A}\mathbf{B} = \begin{pmatrix} 1(2) + 0(5) + (-2)(1) & 1(-1) + 0(0) + (-2)(3) \\ 3(2) + 1(5) + 4(1) & 3(-1) + 1(0) + 4(3) \end{pmatrix} = \begin{pmatrix} 0 & -7 \\ 15 & 9 \end{pmatrix},$$
+              $$\mathbf{B}\mathbf{A} = \begin{pmatrix} 2(1) + (-1)(3) & 2(0) + (-1)(1) & 2(-2) + (-1)(4) \\ 5(1) + 0(3) & 5(0) + 0(1) & 5(-2) + 0(4) \\ 1(1) + 3(3) & 1(0) + 3(1) & 1(-2) + 3(4) \end{pmatrix} = \begin{pmatrix} -1 & -1 & -8 \\ 5 & 0 & -10 \\ 10 & 3 & 10 \end{pmatrix}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-1-4-2">
+        <title>Básico — Produto matricial vs. elemento a elemento e identidade</title>
+        Dadas $\mathbf{P} = \begin{pmatrix} 2 & 1 \\ -1 & 3 \end{pmatrix}$ e $\mathbf{Q} = \begin{pmatrix} 1 & 4 \\ 2 & 0 \end{pmatrix}$:
+        <list marker="a">
+          <item>Calcule o produto matricial $\mathbf{P}\mathbf{Q}$ (equivalente a <c>P @ Q</c>) e compare com o produto elemento a elemento (equivalente a <c>P * Q</c>).</item>
+          <item>Calcule $\mathbf{P}\mathbf{I}_2$ e $\mathbf{I}_2\mathbf{P}$, onde $\mathbf{I}_2 = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em <c>P * Q</c>, multiplique simplesmente $p_{ij} \cdot q_{ij}$ posição por posição; em $\mathbf{P}\mathbf{Q}$, faça linha de $\mathbf{P}$ com coluna de $\mathbf{Q}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>O produto matricial é:
+              $$\mathbf{P}\mathbf{Q} = \begin{pmatrix} 2(1) + 1(2) & 2(4) + 1(0) \\ -1(1) + 3(2) & -1(4) + 3(0) \end{pmatrix} = \begin{pmatrix} 4 & 8 \\ 5 & -4 \end{pmatrix}.$$
+              Já o produto elemento a elemento (<c>P * Q</c>) dá uma matriz totalmente distinta:
+              $$\begin{pmatrix} 2 \cdot 1 & 1 \cdot 4 \\ -1 \cdot 2 & 3 \cdot 0 \end{pmatrix} = \begin{pmatrix} 2 & 4 \\ -2 & 0 \end{pmatrix}.$$
+            </item>
+            <item>Multiplicando pela identidade à direita e à esquerda:
+              $$\mathbf{P}\mathbf{I}_2 = \begin{pmatrix} 2(1)+1(0) & 2(0)+1(1) \\ -1(1)+3(0) & -1(0)+3(1) \end{pmatrix} = \begin{pmatrix} 2 & 1 \\ -1 & 3 \end{pmatrix} = \mathbf{P},$$
+              $$\mathbf{I}_2\mathbf{P} = \begin{pmatrix} 1(2)+0(-1) & 1(1)+0(3) \\ 0(2)+1(-1) & 0(1)+1(3) \end{pmatrix} = \begin{pmatrix} 2 & 1 \\ -1 & 3 \end{pmatrix} = \mathbf{P}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-1-4-3">
+        <title>Intermediário — Propagando uma gravação neural inteira</title>
+        A matriz de pesos sinápticos $\mathbf{W} = \begin{pmatrix} 1 & -1 & 2 \\ 0 & 2 & 1 \end{pmatrix}$ conecta $3$ neurônios pré-sinápticos a $2$ pós-sinápticos. A atividade pré-sináptica registrada ao longo de $T = 4$ instantes ($\text{Hz}$) é:
+        $$\mathbf{X} = \begin{pmatrix} 10 & 12 & 8 & 14 \\ 4 & 6 & 4 & 2 \\ 3 & 1 & 5 & 0 \end{pmatrix}.$$
+        <list marker="a">
+          <item>Calcule a matriz de saída $\mathbf{Y} = \mathbf{W}\mathbf{X}$ (dimensão $2 \times 4$).</item>
+          <item>Determine em qual instante $t \in \{1, 2, 3, 4\}$ o neurônio pós-sináptico $1$ atinge sua maior taxa de disparo.</item>
+        </list>
+        <hint><title>Ver dica</title>Cada coluna $t$ de $\mathbf{Y}$ é o vetor pós-sináptico $\mathbf{W}\mathbf{x}_t$ no instante $t$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Multiplicamos $\mathbf{W}$ ($2 \times 3$) por $\mathbf{X}$ ($3 \times 4$), coluna a coluna:
+              <list marker="dash">
+                <item><strong>Linha 1 (neurônio pós-sináptico 1):</strong>
+                  $t = 1$: $10 - 4 + 2(3) = 12$;
+                  $t = 2$: $12 - 6 + 2(1) = 8$;
+                  $t = 3$: $8 - 4 + 2(5) = 14$;
+                  $t = 4$: $14 - 2 + 2(0) = 12$.
+                </item>
+                <item><strong>Linha 2 (neurônio pós-sináptico 2):</strong>
+                  $t = 1$: $2(4) + 3 = 11$;
+                  $t = 2$: $2(6) + 1 = 13$;
+                  $t = 3$: $2(4) + 5 = 13$;
+                  $t = 4$: $2(2) + 0 = 4$.
+                </item>
+              </list>
+              Logo:
+              $$\mathbf{Y} = \begin{pmatrix} 12 & 8 & 14 & 12 \\ 11 & 13 & 13 & 4 \end{pmatrix}\text{ Hz}.$$
+            </item>
+            <item>Olhando para a primeira linha de $\mathbf{Y}$, o neurônio pós-sináptico $1$ atinge sua maior taxa de disparo no instante $t = 3$ ($14\text{ Hz}$).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:5-1-4-4">
+        <title>Avançado — Colapso de camadas lineares e transposta do produto</title>
+        Em uma rede linear de duas camadas, $\mathbf{W}_1 = \begin{pmatrix} 2 & -1 \\ 1 & 1 \end{pmatrix}$ aplica-se primeiro e $\mathbf{W}_2 = \begin{pmatrix} 1 & 3 \\ -2 & 0 \end{pmatrix}$ aplica-se em seguida.
+        <list marker="a">
+          <item>Calcule a matriz única $\mathbf{W}_{\text{eq}} = \mathbf{W}_2 \mathbf{W}_1$ equivalente às duas camadas.</item>
+          <item>Verifique explicitamente que $(\mathbf{W}_2 \mathbf{W}_1)^\top = \mathbf{W}_1^\top \mathbf{W}_2^\top$, e mostre que $\mathbf{W}_2^\top \mathbf{W}_1^\top$ resulta em uma matriz diferente.</item>
+          <item>Explique brevemente por que uma rede neural profunda precisa de não-linearidades entre as camadas.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), preste atenção à ordem: a camada aplicada primeiro fica à <em>direita</em>, próxima do vetor de entrada $\mathbf{r}_0$ ($\mathbf{W}_2(\mathbf{W}_1\mathbf{r}_0) = (\mathbf{W}_2\mathbf{W}_1)\mathbf{r}_0$).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Calculando $\mathbf{W}_{\text{eq}} = \mathbf{W}_2 \mathbf{W}_1$:
+              $$\mathbf{W}_{\text{eq}} = \begin{pmatrix} 1 & 3 \\ -2 & 0 \end{pmatrix}\begin{pmatrix} 2 & -1 \\ 1 & 1 \end{pmatrix} = \begin{pmatrix} 1(2)+3(1) & 1(-1)+3(1) \\ -2(2)+0(1) & -2(-1)+0(1) \end{pmatrix} = \begin{pmatrix} 5 & 2 \\ -4 & 2 \end{pmatrix}.$$
+            </item>
+            <item>Transpondo o resultado de (a):
+              $$(\mathbf{W}_2 \mathbf{W}_1)^\top = \begin{pmatrix} 5 & -4 \\ 2 & 2 \end{pmatrix}.$$
+              Calculando $\mathbf{W}_1^\top \mathbf{W}_2^\top$:
+              $$\mathbf{W}_1^\top \mathbf{W}_2^\top = \begin{pmatrix} 2 & 1 \\ -1 & 1 \end{pmatrix}\begin{pmatrix} 1 & -2 \\ 3 & 0 \end{pmatrix} = \begin{pmatrix} 2+3 & -4+0 \\ -1+3 & 2+0 \end{pmatrix} = \begin{pmatrix} 5 & -4 \\ 2 & 2 \end{pmatrix},$$
+              que coincide exatamente. Já na ordem não invertida:
+              $$\mathbf{W}_2^\top \mathbf{W}_1^\top = \begin{pmatrix} 1 & -2 \\ 3 & 0 \end{pmatrix}\begin{pmatrix} 2 & 1 \\ -1 & 1 \end{pmatrix} = \begin{pmatrix} 2+2 & 1-2 \\ 6+0 & 3+0 \end{pmatrix} = \begin{pmatrix} 4 & -1 \\ 6 & 3 \end{pmatrix} \ne (\mathbf{W}_2 \mathbf{W}_1)^\top.$$
+            </item>
+            <item>Porque qualquer sequência de camadas puramente lineares pode ser colapsada em uma única multiplicação matricial $\mathbf{W}_{\text{eq}}$; sem funções de ativação não lineares entre as camadas (como veremos no Módulo 9), uma rede com $10$ camadas não consegue representar nada além do que uma única camada linear já representa.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:5-1-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Vetores em $\mathbb{R}^n$:</strong> por convenção, vetores são colunas $\mathbf{x} = (x_1, \dots, x_n)^\top$; na neurociência de sistemas, representam o estado de uma população de $n$ neurônios em um instante.</item>
+        <item><strong>Combinação linear, norma e produto escalar:</strong> $\alpha\mathbf{u} + \beta\mathbf{v}$ mistura padrões (como média e diferença entre estímulos); $\|\mathbf{v}\| = \sqrt{\sum_{i=1}^n v_i^2}$ mede magnitude e $\mathbf{u}^\top \mathbf{v} = \mathbf{u} \cdot \mathbf{v} = \sum_{i=1}^n u_i v_i$ mede alinhamento.</item>
+        <item><strong>Matriz de dados neurais $\mathbf{X} \in \mathbb{R}^{N \times T}$:</strong> linhas são neurônios (séries temporais), colunas são instantes (vetores de população); o mesmo formato vale para voxels × estímulos e canais × frequências.</item>
+        <item><strong>Transposta e centralização:</strong> $(\mathbf{A}^\top)_{ij} = a_{ji}$, com $(\mathbf{A}^\top)^\top = \mathbf{A}$ e $(\mathbf{A} + \mathbf{B})^\top = \mathbf{A}^\top + \mathbf{B}^\top$; centralizar $\mathbf{X}$ subtrai a média temporal $\mu_i$ de cada linha (passo inicial do PCA, Tema 5.6).</item>
+        <item><strong>Produto matriz-vetor $\mathbf{A}\mathbf{x}$:</strong> definido quando $\mathbf{A}$ é $m \times n$ e $\mathbf{x} \in \mathbb{R}^n$, com $(\mathbf{A}\mathbf{x})_i = \sum_{j=1}^n a_{ij} x_j$; pode ser lido por linhas (produto escalar — o que o neurônio $i$ escuta) ou por colunas (combinação linear — para onde o neurônio $j$ fala).</item>
+        <item><strong>Pesos sinápticos $\mathbf{r}_{\text{pós}} = \mathbf{W}\mathbf{r}_{\text{pré}}$:</strong> $W_{ij}$ é o peso da sinapse do neurônio pré-sináptico $j$ para o pós-sináptico $i$; trata-se de um modelo linear simplificado (não-linearidades reais entram no Módulo 9).</item>
+        <item><strong>Produto de matrizes $\mathbf{A}\mathbf{B}$:</strong> exige $(m \times n)(n \times p) \to m \times p$ com $(\mathbf{A}\mathbf{B})_{ij} = \sum_{k=1}^n a_{ik} b_{kj}$; representa composição de camadas ($\mathbf{W}_2\mathbf{W}_1$) ou transformação de uma gravação inteira ($\mathbf{W}\mathbf{X}$).</item>
+        <item><strong>Cuidados algébricos e em código:</strong> $\mathbf{A}\mathbf{B} \ne \mathbf{B}\mathbf{A}$ em geral; $(\mathbf{A}\mathbf{B})^\top = \mathbf{B}^\top \mathbf{A}^\top$; no NumPy, use <c>@</c> para produto matricial (nunca <c>*</c>, que multiplica elemento a elemento) e atenção a <c>axis=1</c> (média por linha) versus <c>axis=0</c> (média por coluna).</item>
+      </list>
+    </section>
+
+    <section id="sec:5-1-alem">
+      <title>Para ir além</title>
+      <box type="warning">
+        <title>Aviso didático importante</title>
+        Vários conceitos de Álgebra Linear são abstratos demais quando vistos apenas como tabelas de números. Sem visualização geométrica, fica muito difícil enxergar o que combinações lineares, matrizes e transformações realmente fazem no espaço — <strong>assista aos vídeos de visualização primeiro</strong> antes de avançar para os próximos temas.
+      </box>
+
+      Para consolidar sua intuição visual e conhecer os recursos do NumPy antes de seguir para o próximo tema — <strong>Tema 5.2: Sistemas lineares e transformações</strong> —, consulte os materiais autorizados do módulo:
+      <list marker="dash">
+        <item><strong>Visualização essencial (vídeo):</strong> <link to="https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab">3Blue1Brown — Essência da Álgebra Linear</link> (assista especialmente aos capítulos iniciais sobre vetores, combinações lineares e matrizes como transformações).</item>
+        <item><strong>Referência computacional:</strong> <link to="https://numpy.org/doc/stable/reference/routines.linalg.html">Documentação oficial do NumPy — Álgebra Linear (numpy.linalg)</link>, para consultar funções matriciais que usaremos ao longo de todo o Módulo 5.</item>
+        <item><strong>Estudo por livro-texto:</strong> <em>Linear Algebra and Its Applications</em>, de Gilbert Strang (especialmente os capítulos iniciais sobre vetores, produto escalar e multiplicação de matrizes sob a leitura por colunas).</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 5 · Álgebra Linear — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

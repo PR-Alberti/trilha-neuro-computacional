@@ -1,0 +1,999 @@
+<document>
+  <title>Módulo 1 · Pré-Cálculo</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-1-4">Voltar ao guia (Tema 1.4)</link></meta-item>
+    <meta-item key="Módulo">Módulo 1 · Pré-Cálculo — O Alicerce Matemático</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-1-4">
+    <title>Trigonometria</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Senos e cossenos são a base de Fourier — e de tudo que envolve oscilações neurais.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> O sistema nervoso e o organismo inteiro pulsam em ciclos. Quando você coloca eletrodos sobre o couro cabeludo para registrar um eletroencefalograma (EEG), vê ondas elétricas que se repetem dezenas de vezes por segundo — das ondas lentas do sono profundo até os ritmos rápidos da atenção. Quando acompanha a temperatura corporal ou a secreção de melatonina ao longo de $24\text{ horas}$, enxerga ciclos circadianos suaves. Quando mede o tamanho aparente de um estímulo na retina, decompõe a orientação de uma barra no córtex visual ou registra um neurônio do córtex motor que dispara mais para movimentos em determinada direção, ângulos e projeções estão no centro da conta.
+
+    Sem fluência em funções trigonométricas e gráficos periódicos, os modelos de ondas cerebrais e de codificação direcional parecem mágica. Senos e cossenos fornecem o vocabulário exato para medir amplitude, frequência e fase — e formam a base da análise de Fourier e da análise espectral, que veremos mais adiante na trilha para decompor sinais neurais complexos em suas frequências componentes.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>calcular e interpretar seno, cosseno e tangente no triângulo retângulo, inclusive para decompor segmentos inclinados e calcular ângulos visuais;</item>
+      <item>converter ângulos entre graus e radianos, determinar coordenadas e sinais no círculo unitário e ler gráficos de seno e cosseno como funções reais;</item>
+      <item>modelar oscilações biológicas — como bandas de EEG e ritmos circadianos — identificando amplitude, frequência, período, frequência angular e fase;</item>
+      <item>usar as funções trigonométricas inversas ($\operatorname{arcsen}$, $\arccos$ e $\arctan$) com seus domínios restritos para recuperar ângulos a partir de medições;</item>
+      <item>aplicar identidades trigonométricas fundamentais (relação pitagórica, soma de arcos, arco duplo e combinação de senoides de mesma frequência) em modelos da neurociência.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> O conteúdo de <strong>Álgebra</strong> (Tema 1.1: isolamento de variáveis e notação de intervalos), <strong>Geometria</strong> (Tema 1.2: ângulos em graus, triângulos, teorema de Pitágoras e orientação de barras em V1) e <strong>Funções</strong> (Tema 1.3: domínio, imagem, injetividade, função inversa e transformações gráficas $f(x - c)$, $a \cdot f(x)$ e $f(b \cdot x)$).
+
+    <section id="sec:1-4-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Introdução de seno, cosseno e tangente</title>
+      <intro>
+        As razões trigonométricas transformam um ângulo em proporções entre os lados de um triângulo retângulo — permitindo projetar estímulos orientados nos eixos e calcular o tamanho aparente de objetos na retina.
+      </intro>
+
+      Imagine que você está montando um experimento no córtex visual primário (V1), retomando as barras luminosas que vimos em <strong>Geometria</strong> (Tema 1.2). Você projeta na tela uma barra inclinada em um ângulo $\theta = 30^\circ$ em relação à horizontal. Se dobrar o comprimento $L$ da barra mantendo a inclinação de $30^\circ$, a largura horizontal e a altura vertical dessa barra também dobram, porque o triângulo retângulo menor e o maior são semelhantes: a razão entre dois lados quaisquer depende <em>apenas</em> do ângulo $\theta$, e nunca do tamanho absoluto da figura. É exatamente essa invariância de escala que define seno, cosseno e tangente.
+
+      <definition id="def:1-4-razoes-triangulo">
+        <title>Razões trigonométricas no triângulo retângulo</title>
+        Em um triângulo retângulo com um ângulo agudo $\theta$ ($0^\circ < \theta < 90^\circ$), chamamos de <strong>hipotenusa</strong> ($h$) o lado oposto ao ângulo reto, de <strong>cateto oposto</strong> ($c_{\text{op}}$) o lado em frente a $\theta$ e de <strong>cateto adjacente</strong> ($c_{\text{adj}}$) o outro cateto, que encosta em $\theta$. Definimos:
+        <equation id="eq:1-4-sohcahtoa">\operatorname{sen}\theta = \frac{c_{\text{op}}}{h}, \qquad \cos\theta = \frac{c_{\text{adj}}}{h}, \qquad \tan\theta = \frac{c_{\text{op}}}{c_{\text{adj}}} = \frac{\operatorname{sen}\theta}{\cos\theta}.</equation>
+        <intuition>
+          Pense em $\cos\theta$ e $\operatorname{sen}\theta$ como as frações da hipotenusa que "caem" sobre a horizontal e sobre a vertical, respectivamente. Como nenhum cateto supera a hipotenusa, essas duas razões ficam sempre entre $0$ e $1$ para ângulos agudos. Já $\tan\theta$ mede a inclinação (subida vertical dividida pelo avanço horizontal).
+        </intuition>
+      </definition>
+
+      <observation id="obs:1-4-notacao-sin">
+        Em português escrevemos <strong>sen</strong> ($\operatorname{sen}\theta$). Em inglês, em calculadoras científicas e em Python (que aprenderemos no Módulo 6), a notação padrão é <strong>sin</strong> ($\sin\theta$, do latim <em>sinus</em>). A tangente também aparece como $\tan\theta$ (padrão internacional e neste material) ou $\operatorname{tg}\theta$ em alguns livros em português.
+      </observation>
+
+      Em qualquer triângulo retângulo, os dois ângulos agudos somam $90^\circ$: se um deles é $\theta$, o outro é $90^\circ - \theta$. Como o cateto oposto a $\theta$ é justamente o cateto adjacente a $90^\circ - \theta$ (e vice-versa), vale imediatamente a relação de ângulos complementares:
+      $$\operatorname{sen}(90^\circ - \theta) = \cos\theta \qquad \text{e} \qquad \cos(90^\circ - \theta) = \operatorname{sen}\theta.$$
+
+      Três ângulos aparecem com tanta frequência em física, biologia e exames analíticos que seus valores exatos merecem ficar na ponta da língua: $30^\circ$, $45^\circ$ e $60^\circ$. Eles não vêm de mágica, mas diretamente do teorema de Pitágoras aplicado a um quadrado e a um triângulo equilátero.
+
+      <proposition id="prop:1-4-angulos-notaveis">
+        <title>Valores trigonométricos de $30^\circ$, $45^\circ$ e $60^\circ$</title>
+        Os valores exatos das razões trigonométricas para os ângulos notáveis são:
+        <table id="tbl:1-4-notaveis">
+          <title>Ângulos notáveis no triângulo retângulo</title>
+          <header>
+            <column>Ângulo $\theta$</column>
+            <column align="right">$30^\circ$</column>
+            <column align="right">$45^\circ$</column>
+            <column align="right">$60^\circ$</column>
+          </header>
+          <row><column>$\operatorname{sen}\theta$</column><column align="right">$\dfrac{1}{2}$</column><column align="right">$\dfrac{\sqrt{2}}{2}$</column><column align="right">$\dfrac{\sqrt{3}}{2}$</column></row>
+          <row><column>$\cos\theta$</column><column align="right">$\dfrac{\sqrt{3}}{2}$</column><column align="right">$\dfrac{\sqrt{2}}{2}$</column><column align="right">$\dfrac{1}{2}$</column></row>
+          <row><column>$\tan\theta$</column><column align="right">$\dfrac{\sqrt{3}}{3}$</column><column align="right">$1$</column><column align="right">$\sqrt{3}$</column></row>
+        </table>
+      </proposition>
+      <proof of="prop:1-4-angulos-notaveis" collapsible="true" collapsed="true">
+        <strong>Para $45^\circ$:</strong> trace a diagonal de um quadrado de lado $1$. Ela divide o quadrado em dois triângulos retângulos isósceles com ângulos agudos de $45^\circ$ e catetos $c_{\text{op}} = c_{\text{adj}} = 1$. Pelo teorema de Pitágoras, a hipotenusa mede $h = \sqrt{1^2 + 1^2} = \sqrt{2}$. Portanto:
+        $$\operatorname{sen} 45^\circ = \frac{1}{\sqrt{2}} = \frac{\sqrt{2}}{2}, \qquad \cos 45^\circ = \frac{1}{\sqrt{2}} = \frac{\sqrt{2}}{2}, \qquad \tan 45^\circ = \frac{1}{1} = 1.$$
+
+        <strong>Para $30^\circ$ e $60^\circ$:</strong> tome um triângulo equilátero de lado $2$ (todos os ângulos internos medem $60^\circ$) e trace a altura a partir de um vértice até a base oposta. A altura divide a base ao meio (em dois segmentos de comprimento $1$) e o ângulo do topo ao meio (em dois de $30^\circ$), formando um triângulo retângulo de hipotenusa $h = 2$ e cateto menor $1$. Pelo teorema de Pitágoras, a altura $a$ satisfaz $a^2 + 1^2 = 2^2 \implies a^2 = 3 \implies a = \sqrt{3}$. Lendo as razões nesse triângulo:
+        $$\operatorname{sen} 30^\circ = \frac{1}{2}, \qquad \cos 30^\circ = \frac{\sqrt{3}}{2}, \qquad \tan 30^\circ = \frac{1}{\sqrt{3}} = \frac{\sqrt{3}}{3},$$
+        $$\operatorname{sen} 60^\circ = \frac{\sqrt{3}}{2}, \qquad \cos 60^\circ = \frac{1}{2}, \qquad \tan 60^\circ = \frac{\sqrt{3}}{1} = \sqrt{3}.$$
+      </proof>
+
+      Uma das aplicações mais diretas da <ref to="def:1-4-razoes-triangulo"/> é <strong>decompor um segmento inclinado</strong>. Se um segmento de comprimento $L$ parte da origem fazendo um ângulo $\theta$ com o eixo horizontal, ele forma a hipotenusa de um triângulo retângulo cujos catetos são justamente sua projeção horizontal $\Delta x$ e sua projeção vertical $\Delta y$:
+      <equation id="eq:1-4-decomposicao">\Delta x = L \cdot \cos\theta, \qquad \Delta y = L \cdot \operatorname{sen}\theta.</equation>
+      Essa decomposição é a semente da representação de vetores em componentes, que usaremos na Geometria Analítica (Tema 1.5) e na Álgebra Linear (Módulo 3).
+
+      <example id="exm:1-4-barra-v1">
+        <title>Componentes de uma barra orientada no córtex visual</title>
+        Em um experimento de neurofisiologia visual para mapear um campo receptivo em V1, uma barra luminosa de comprimento $L = 6{,}0\text{ cm}$ é apresentada em uma tela fazendo um ângulo $\theta = 30^\circ$ acima da horizontal.
+        <list marker="a">
+          <item>Calcule as extensões horizontal ($\Delta x$) e vertical ($\Delta y$) ocupadas pela barra na tela.</item>
+          <item>Confira os resultados usando o teorema de Pitágoras.</item>
+          <item>Se o experimentador girar a barra para $\theta = 60^\circ$, o que acontece com $\Delta x$ e $\Delta y$?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Usando a <ref to="eq:1-4-decomposicao">decomposição em componentes</ref> e os valores da <ref to="prop:1-4-angulos-notaveis"/> ($\cos 30^\circ = \frac{\sqrt{3}}{2}$ e $\operatorname{sen} 30^\circ = \frac{1}{2}$):
+            $$\Delta x = 6{,}0 \cdot \cos 30^\circ = 6{,}0 \cdot \frac{\sqrt{3}}{2} = 3\sqrt{3} \approx 5{,}20\text{ cm},$$
+            $$\Delta y = 6{,}0 \cdot \operatorname{sen} 30^\circ = 6{,}0 \cdot \frac{1}{2} = 3{,}00\text{ cm}.$$
+          </item>
+          <item><em>Conferência:</em> somando os quadrados das componentes exatas,
+            $$(\Delta x)^2 + (\Delta y)^2 = (3\sqrt{3})^2 + 3^2 = 27 + 9 = 36 = 6{,}0^2.$$
+            A hipotenusa recuperada é $\sqrt{36} = 6{,}0\text{ cm}$, exatamente o comprimento original da barra.
+          </item>
+          <item>Para $\theta = 60^\circ$ (ângulo complementar de $30^\circ$), temos $\cos 60^\circ = \frac{1}{2}$ e $\operatorname{sen} 60^\circ = \frac{\sqrt{3}}{2}$, logo os valores se invertem:
+            $$\Delta x = 6{,}0 \cdot \frac{1}{2} = 3{,}00\text{ cm}, \qquad \Delta y = 6{,}0 \cdot \frac{\sqrt{3}}{2} = 3\sqrt{3} \approx 5{,}20\text{ cm}.$$
+          </item>
+        </list>
+      </example>
+
+      Na neurociência da visão, medir o tamanho de um objeto na tela em centímetros não basta: uma barra de $2\text{ cm}$ vista de perto projeta uma imagem muito maior na retina do que a mesma barra vista a $2\text{ metros}$. Por isso, os pesquisadores medem estímulos em <strong>ângulo visual</strong> (<em>visual angle</em>) — o ângulo $\theta$ formado no olho pelos raios que partem das duas extremidades do estímulo.
+
+      <example id="exm:1-4-angulo-visual">
+        <title>Ângulo visual de um estímulo e a regra do polegar</title>
+        Considere um estímulo de largura $s$ posicionado perpendicularmente à linha de visão, a uma distância $d$ do olho. O triângulo formado pelo olho e pelas duas bordas do estímulo é isósceles; dividindo-o ao meio pela linha de visão até o centro do estímulo, formamos dois triângulos retângulos com cateto adjacente $d$, cateto oposto $s/2$ e ângulo $\theta/2$, de modo que:
+        $$\tan\!\left(\frac{\theta}{2}\right) = \frac{s/2}{d} = \frac{s}{2d}.$$
+        <list marker="a">
+          <item>Em um experimento didático, um estímulo circular está a $d = 30\text{ cm}$ do olho e ocupa um ângulo visual total de $\theta = 60^\circ$. Qual é o diâmetro $s$ do estímulo?</item>
+          <item>Se você esticar o braço ($d \approx 60\text{ cm}$) e olhar para a largura do seu polegar ($s \approx 2{,}1\text{ cm}$), qual é o valor de $\tan(\theta/2)$? Compare com $\tan 1^\circ \approx 0{,}0175$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Se $\theta = 60^\circ$, então metade do ângulo visual vale $\frac{\theta}{2} = 30^\circ$. Substituindo $d = 30\text{ cm}$ na fórmula:
+            $$\tan 30^\circ = \frac{s}{2 \cdot 30} \implies \frac{\sqrt{3}}{3} = \frac{s}{60}.$$
+            Multiplicando os dois lados por $60$:
+            $$s = \frac{60\sqrt{3}}{3} = 20\sqrt{3} \approx 34{,}6\text{ cm}.$$
+          </item>
+          <item>Substituindo $s = 2{,}1\text{ cm}$ e $d = 60\text{ cm}$:
+            $$\tan\!\left(\frac{\theta}{2}\right) = \frac{2{,}1}{2 \cdot 60} = \frac{2{,}1}{120} = 0{,}0175.$$
+            Como $\tan 1^\circ \approx 0{,}0175$, concluímos que $\frac{\theta}{2} \approx 1^\circ$, ou seja, $\theta \approx 2^\circ$. É por isso que neurocientistas da visão usam o polegar com o braço estendido como régua rápida de campo: ele cobre cerca de $2^\circ$ de ângulo visual!
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:1-4-microeletrodo">
+        <title>Inserção inclinada de um microeletrodo cortical</title>
+        Para desviar de um vaso sanguíneo superficial durante um registro extracelular, um pesquisador insere um microeletrodo no córtex fazendo um ângulo de $\theta = 45^\circ$ com a superfície cortical (horizontal). O alvo neuronal está a uma profundidade vertical de $\Delta y = 1{,}2\text{ mm}$. Qual distância $L$ o microeletrodo precisa percorrer ao longo de sua trajetória inclinada, e qual é o deslocamento horizontal $\Delta x$ até o alvo?
+
+        <strong>Solução.</strong> No triângulo retângulo formado pela superfície, pela profundidade vertical e pela trajetória do eletrodo, a profundidade $\Delta y = 1{,}2\text{ mm}$ é o cateto oposto a $\theta = 45^\circ$, e a distância percorrida $L$ é a hipotenusa. Pela <ref to="def:1-4-razoes-triangulo"/>:
+        $$\operatorname{sen} 45^\circ = \frac{\Delta y}{L} \implies L = \frac{\Delta y}{\operatorname{sen} 45^\circ} = \frac{1{,}2}{\sqrt{2}/2} = \frac{2{,}4}{\sqrt{2}} = 1{,}2\sqrt{2} \approx 1{,}70\text{ mm}.$$
+        Para o deslocamento horizontal $\Delta x$ (cateto adjacente), usamos a tangente:
+        $$\tan 45^\circ = \frac{\Delta y}{\Delta x} \implies 1 = \frac{1{,}2}{\Delta x} \implies \Delta x = 1{,}2\text{ mm}.$$
+        <em>Conferência:</em> $(\Delta x)^2 + (\Delta y)^2 = 1{,}2^2 + 1{,}2^2 = 2 \cdot 1{,}44 = 2{,}88 = (1{,}2\sqrt{2})^2$.
+      </example>
+
+      <remark id="rem:1-4-armadilha-triangulo">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Trocar cateto oposto por cateto adjacente:</strong> "oposto" e "adjacente" não significam "vertical" e "horizontal"; eles dependem de <em>qual</em> ângulo agudo você escolheu como referência. Sempre trace o ângulo $\theta$ na figura e aponte o lado que está em frente a ele antes de montar a razão.</item>
+          <item><strong>Esquecer o fator $2$ no ângulo visual:</strong> a relação exata é $\tan(\theta/2) = \frac{s}{2d}$, e não $\tan\theta = \frac{s}{d}$. Para ângulos muito pequenos as duas dão quase o mesmo número, mas para ângulos grandes (como $60^\circ$ ou $90^\circ$) esquecer de dividir $\theta$ e $s$ por $2$ produz um erro grosseiro.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:1-4-1-1">
+        <title>Básico — Razões no triângulo retângulo</title>
+        Um triângulo retângulo possui catetos de comprimentos $6\text{ cm}$ e $8\text{ cm}$. Seja $\theta$ o menor ângulo agudo desse triângulo (oposto ao cateto de $6\text{ cm}$). Calcule a hipotenusa e determine os valores exatos de $\operatorname{sen}\theta$, $\cos\theta$ e $\tan\theta$ em forma decimal.
+        <hint><title>Ver dica</title>Aplique primeiro o teorema de Pitágoras para encontrar a hipotenusa $h$, e só depois monte as razões da <ref to="def:1-4-razoes-triangulo"/>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Pelo teorema de Pitágoras:
+          $$h = \sqrt{6^2 + 8^2} = \sqrt{36 + 64} = \sqrt{100} = 10\text{ cm}.$$
+          Para o menor ângulo agudo $\theta$, temos $c_{\text{op}} = 6\text{ cm}$ e $c_{\text{adj}} = 8\text{ cm}$. Logo:
+          $$\operatorname{sen}\theta = \frac{6}{10} = 0{,}6, \qquad \cos\theta = \frac{8}{10} = 0{,}8, \qquad \tan\theta = \frac{6}{8} = 0{,}75.$$
+          (Confira que $\frac{\operatorname{sen}\theta}{\cos\theta} = \frac{0{,}6}{0{,}8} = 0{,}75 = \tan\theta$.)
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-4-1-2">
+        <title>Básico — Decomposição de barra luminosa em V1</title>
+        Uma barra visual de comprimento $L = 8{,}0\text{ cm}$ é apresentada em uma tela a uma inclinação de $\theta = 60^\circ$ acima da horizontal. Calcule os valores exatos (com raiz) e aproximados (com duas casas decimais) das componentes $\Delta x$ e $\Delta y$, e confira o resultado por Pitágoras.
+        <hint><title>Ver dica</title>Use $\Delta x = L\cos\theta$ e $\Delta y = L\operatorname{sen}\theta$ com os valores da <ref to="prop:1-4-angulos-notaveis"/> ($\sqrt{3} \approx 1{,}732$).</hint>
+        <solution collapsible="true" collapsed="true">
+          Substituindo $L = 8{,}0\text{ cm}$ e $\theta = 60^\circ$:
+          $$\Delta x = 8{,}0 \cdot \cos 60^\circ = 8{,}0 \cdot \frac{1}{2} = 4{,}00\text{ cm},$$
+          $$\Delta y = 8{,}0 \cdot \operatorname{sen} 60^\circ = 8{,}0 \cdot \frac{\sqrt{3}}{2} = 4\sqrt{3} \approx 4 \cdot 1{,}732 = 6{,}93\text{ cm}.$$
+          <em>Conferência:</em> $(\Delta x)^2 + (\Delta y)^2 = 4^2 + (4\sqrt{3})^2 = 16 + 16 \cdot 3 = 16 + 48 = 64 = 8{,}0^2$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-4-1-3">
+        <title>Intermediário — Alcance de um microeletrodo</title>
+        Em um registro no córtex de roedor, um microeletrodo é inserido em um ângulo de $\theta = 30^\circ$ em relação à superfície horizontal e avança $L = 2{,}0\text{ mm}$ em linha reta.
+        <list marker="a">
+          <item>Qual profundidade vertical $\Delta y$ a ponta do eletrodo atinge?</item>
+          <item>Qual é o deslocamento horizontal $\Delta x$ em relação ao ponto de entrada na superfície?</item>
+        </list>
+        <hint><title>Ver dica</title>A trajetória $L = 2{,}0\text{ mm}$ é a hipotenusa, a profundidade $\Delta y$ é o cateto oposto a $30^\circ$ e $\Delta x$ é o cateto adjacente.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Usando $\operatorname{sen} 30^\circ = \frac{\Delta y}{L}$:
+              $$\Delta y = 2{,}0 \cdot \operatorname{sen} 30^\circ = 2{,}0 \cdot \frac{1}{2} = 1{,}0\text{ mm}.$$
+            </item>
+            <item>Usando $\cos 30^\circ = \frac{\Delta x}{L}$:
+              $$\Delta x = 2{,}0 \cdot \cos 30^\circ = 2{,}0 \cdot \frac{\sqrt{3}}{2} = \sqrt{3} \approx 1{,}73\text{ mm}.$$
+            </item>
+          </list>
+          <em>Conferência:</em> $1{,}0^2 + (\sqrt{3})^2 = 1 + 3 = 4 = 2{,}0^2$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-4-1-4">
+        <title>Avançado — Largura da tela para grandes ângulos visuais</title>
+        Um monitor plano é colocado a $d = 40\text{ cm}$ dos olhos de um participante.
+        <list marker="a">
+          <item>Qual largura horizontal $s_1$ do monitor preenche um ângulo visual de $\theta_1 = 60^\circ$?</item>
+          <item>Qual largura $s_2$ seria necessária para preencher $\theta_2 = 90^\circ$?</item>
+          <item>Note que $90^\circ = 1{,}5 \cdot 60^\circ$. A largura $s_2$ é igual a $1{,}5 \cdot s_1$? Explique geometricamente por que isso acontece.</item>
+        </list>
+        <hint><title>Ver dica</title>Use $s = 2d\tan(\theta/2)$ com $\theta_1/2 = 30^\circ$ e $\theta_2/2 = 45^\circ$. Compare os valores numéricos de $s_2$ e $1{,}5 \cdot s_1$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Para $\theta_1 = 60^\circ$, temos $\theta_1/2 = 30^\circ$:
+              $$s_1 = 2 \cdot 40 \cdot \tan 30^\circ = 80 \cdot \frac{\sqrt{3}}{3} \approx 46{,}2\text{ cm}.$$
+            </item>
+            <item>Para $\theta_2 = 90^\circ$, temos $\theta_2/2 = 45^\circ$:
+              $$s_2 = 2 \cdot 40 \cdot \tan 45^\circ = 80 \cdot 1 = 80{,}0\text{ cm}.$$
+            </item>
+            <item>Não! Se multiplicássemos $s_1$ por $1{,}5$, obteríamos $1{,}5 \cdot 46{,}2 = 69{,}3\text{ cm}$, bem menor que $80{,}0\text{ cm}$. Isso acontece porque a tela é <em>plana</em> (não acompanha um arco circular ao redor do olho): quanto maior o ângulo em relação ao centro, mais longe do olho ficam as bordas da tela, exigindo cada vez mais centímetros na tela para ganhar mais $1^\circ$ de ângulo visual — matematicamente, $\tan(\theta/2)$ cresce mais rápido do que uma função linear.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:1-4-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Círculo trigonométrico</title>
+      <intro>
+        Ao sair do triângulo retângulo para uma circunferência de raio $1$, seno e cosseno passam a valer para qualquer ângulo e tornam-se funções periódicas de variável real — o idioma natural das bandas do EEG e dos ritmos circadianos.
+      </intro>
+
+      No triângulo retângulo, $\theta$ fica preso entre $0^\circ$ e $90^\circ$. Mas um braço pode se mover em qualquer direção de $0^\circ$ a $360^\circ$, e uma oscilação cerebral se repete ciclo após ciclo ao longo do tempo, sem parar em $90^\circ$. Para estender seno e cosseno a todos os números reais, trocamos o triângulo isolado por uma circunferência centrada na origem do plano cartesiano e medimos ângulos em uma unidade natural ligada ao próprio círculo: o <strong>radiano</strong>.
+
+      <definition id="def:1-4-radiano">
+        <title>Medida em radianos</title>
+        Em uma circunferência de raio $R > 0$, um ângulo central $\theta$ que subtende um arco de comprimento $s$ mede, em <strong>radianos</strong> ($\text{rad}$):
+        <equation id="eq:1-4-radiano">\theta_{\text{rad}} = \frac{s}{R}.</equation>
+        Como uma volta completa tem comprimento $s = 2\pi R$, uma volta completa mede $2\pi\text{ rad}$. Igualando a $360^\circ$, obtemos a equivalência fundamental $\pi\text{ rad} = 180^\circ$ e as fórmulas de conversão:
+        $$\theta_{\text{rad}} = \theta_{\text{graus}} \cdot \frac{\pi}{180^\circ}, \qquad \theta_{\text{graus}} = \theta_{\text{rad}} \cdot \frac{180^\circ}{\pi}.$$
+        <intuition>
+          Um radiano é simplesmente o ângulo cujo arco na circunferência tem o mesmo comprimento do raio ($s = R$). Como o perímetro inteiro cabe pouco mais de seis raios ($2\pi \approx 6{,}283$), $1\text{ rad}$ equivale a $\frac{180^\circ}{\pi} \approx 57{,}3^\circ$.
+        </intuition>
+      </definition>
+
+      Por ser uma razão entre dois comprimentos ($s/R$), o radiano é adimensional — e é justamente por isso que ele é a unidade padrão no Cálculo Real (Módulo 2) e em quase todas as fórmulas de física e neurociência computacional. Os ângulos mais comuns em graus e radianos são:
+      <table id="tbl:1-4-radianos">
+        <title>Equivalência entre graus e radianos</title>
+        <header>
+          <column>Graus</column>
+          <column align="right">$0^\circ$</column>
+          <column align="right">$30^\circ$</column>
+          <column align="right">$45^\circ$</column>
+          <column align="right">$60^\circ$</column>
+          <column align="right">$90^\circ$</column>
+          <column align="right">$180^\circ$</column>
+          <column align="right">$270^\circ$</column>
+          <column align="right">$360^\circ$</column>
+        </header>
+        <row><column>Radianos</column><column align="right">$0$</column><column align="right">$\dfrac{\pi}{6}$</column><column align="right">$\dfrac{\pi}{4}$</column><column align="right">$\dfrac{\pi}{3}$</column><column align="right">$\dfrac{\pi}{2}$</column><column align="right">$\pi$</column><column align="right">$\dfrac{3\pi}{2}$</column><column align="right">$2\pi$</column></row>
+      </table>
+
+      Agora coloque no plano $(x, y)$ uma circunferência de raio $R = 1$ centrada na origem $(0, 0)$ — o <strong>círculo unitário</strong> (<em>unit circle</em>), de equação $x^2 + y^2 = 1$. Parta do ponto $(1, 0)$ sobre o eixo horizontal positivo e caminhe ao longo da circunferência por um arco de comprimento $\theta$: no sentido anti-horário se $\theta > 0$, e no sentido horário se $\theta < 0$.
+
+      <definition id="def:1-4-circulo-unitario">
+        <title>Seno, cosseno e tangente no círculo unitário</title>
+        Para qualquer número real $\theta \in \mathbb{R}$ (medido em radianos), seja $P(\theta) = (x, y)$ o ponto obtido sobre o círculo unitário $x^2 + y^2 = 1$ após uma rotação de $\theta$ a partir de $(1, 0)$. Definimos:
+        <equation id="eq:1-4-coord-unitario">\cos\theta = x, \qquad \operatorname{sen}\theta = y, \qquad \tan\theta = \frac{\operatorname{sen}\theta}{\cos\theta} \;\;(\cos\theta \ne 0).</equation>
+        <intuition>
+          No 1º quadrante ($0 < \theta < \pi/2$), baixar a perpendicular de $P(\theta)$ até o eixo $x$ cria um triângulo retângulo de hipotenusa $R = 1$, cateto adjacente $x$ e cateto oposto $y$. Logo $x/1 = \cos\theta$ e $y/1 = \operatorname{sen}\theta$, coincidindo exatamente com a <ref to="def:1-4-razoes-triangulo"/> — mas agora a definição funciona para qualquer quadrante e até para ângulos negativos ou maiores que $2\pi$.
+        </intuition>
+      </definition>
+
+      Olhando para o sinal das coordenadas $(x, y)$ em cada um dos quatro quadrantes, você descobre na hora o sinal de $\cos\theta$, $\operatorname{sen}\theta$ e $\tan\theta$:
+      <list marker="dash">
+        <item><strong>1º quadrante</strong> ($0 < \theta < \pi/2$): $x > 0, y > 0 \implies \cos\theta > 0,\; \operatorname{sen}\theta > 0,\; \tan\theta > 0$.</item>
+        <item><strong>2º quadrante</strong> ($\pi/2 < \theta < \pi$): $x < 0, y > 0 \implies \cos\theta < 0,\; \operatorname{sen}\theta > 0,\; \tan\theta < 0$.</item>
+        <item><strong>3º quadrante</strong> ($\pi < \theta < 3\pi/2$): $x < 0, y < 0 \implies \cos\theta < 0,\; \operatorname{sen}\theta < 0,\; \tan\theta > 0$.</item>
+        <item><strong>4º quadrante</strong> ($3\pi/2 < \theta < 2\pi$): $x > 0, y < 0 \implies \cos\theta > 0,\; \operatorname{sen}\theta < 0,\; \tan\theta < 0$.</item>
+      </list>
+      Nos pontos sobre os eixos, lemos as coordenadas diretamente: em $\theta = 0$, $P = (1, 0)$, logo $\cos 0 = 1$ e $\operatorname{sen} 0 = 0$; em $\theta = \pi/2$, $P = (0, 1)$, logo $\cos(\pi/2) = 0$ e $\operatorname{sen}(\pi/2) = 1$ ($\tan(\pi/2)$ não existe!); em $\theta = \pi$, $P = (-1, 0)$, logo $\cos\pi = -1$ e $\operatorname{sen}\pi = 0$; e em $\theta = 3\pi/2$, $P = (0, -1)$, logo $\cos(3\pi/2) = 0$ e $\operatorname{sen}(3\pi/2) = -1$.
+
+      Encarando agora $\operatorname{sen} x$ e $\cos x$ como funções reais no sentido do Tema 1.3 (<strong>Funções</strong>), suas propriedades estruturais ficam transparentes.
+
+      <proposition id="prop:1-4-propriedades-sen-cos">
+        <title>Domínio, imagem, periodicidade e paridade de seno e cosseno</title>
+        Para as funções $f(x) = \operatorname{sen} x$ e $g(x) = \cos x$ com $x \in \mathbb{R}$:
+        <list marker="number">
+          <item><strong>Domínio e imagem:</strong> ambas têm domínio $\mathbb{R}$ e imagem $[-1, 1]$ (ou seja, $-1 \le \operatorname{sen} x \le 1$ e $-1 \le \cos x \le 1$ para todo $x \in \mathbb{R}$). Já $\tan x$ tem domínio $\{x \in \mathbb{R} : x \ne \frac{\pi}{2} + k\pi,\; k \in \mathbb{Z}\}$ e imagem $\mathbb{R}$.</item>
+          <item><strong>Periodicidade:</strong> tanto $\operatorname{sen} x$ quanto $\cos x$ são periódicas de período $2\pi$:
+            $$\operatorname{sen}(x + 2\pi) = \operatorname{sen} x \qquad \text{e} \qquad \cos(x + 2\pi) = \cos x \qquad (\forall x \in \mathbb{R}).$$
+            Já a tangente tem período $\pi$: $\tan(x + \pi) = \tan x$.
+          </item>
+          <item><strong>Paridade:</strong> o cosseno é uma <strong>função par</strong> e o seno é uma <strong>função ímpar</strong>:
+            $$\cos(-x) = \cos x \qquad \text{e} \qquad \operatorname{sen}(-x) = -\operatorname{sen} x \qquad (\forall x \in \mathbb{R}).$$
+          </item>
+        </list>
+      </proposition>
+      <proof of="prop:1-4-propriedades-sen-cos" collapsible="true" collapsed="true">
+        <list marker="number">
+          <item>Todo ponto $(x, y)$ do círculo unitário satisfaz $x^2 + y^2 = 1$, logo $x^2 \le 1$ e $y^2 \le 1$, o que obriga $-1 \le x \le 1$ e $-1 \le y \le 1$, e cada valor em $[-1, 1]$ é atingido ao percorrer a circunferência. Para a tangente, os pontos em que o denominador $\cos x$ se anula são precisamente $x = \frac{\pi}{2} + k\pi$ ($k \in \mathbb{Z}$).</item>
+          <item>Somar $2\pi$ a qualquer ângulo corresponde a dar uma volta completa no círculo unitário, retornando exatamente ao mesmo ponto $P(x + 2\pi) = P(x)$. Para a tangente, somar $\pi$ gira meia volta até o ponto oposto $(-x, -y)$, cujo quociente é $\frac{-y}{-x} = \frac{y}{x} = \tan x$.</item>
+          <item>Girar um ângulo $-x$ no sentido horário leva ao ponto simétrico em relação ao eixo horizontal: se $P(x) = (a, b)$, então $P(-x) = (a, -b)$. Lendo as coordenadas, obtemos $\cos(-x) = a = \cos x$ (gráfico simétrico em relação ao eixo $y$) e $\operatorname{sen}(-x) = -b = -\operatorname{sen} x$ (gráfico simétrico em relação à origem).</item>
+        </list>
+      </proof>
+
+      Se você desenhar o gráfico de $y = \operatorname{sen} x$ no plano cartesiano, verá uma onda suave que parte de $(0, 0)$, sobe até o pico $(\pi/2, 1)$, cruza o zero em $(\pi, 0)$, desce ao vale $(3\pi/2, -1)$ e fecha um ciclo em $(2\pi, 0)$, repetindo-se para a direita e para a esquerda. O gráfico de $y = \cos x$ tem exatamente a mesma forma ondulada, porém parte do pico $(0, 1)$, cruza o zero em $(\pi/2, 0)$, desce ao vale $(\pi, -1)$, volta a zero em $(3\pi/2, 0)$ e retorna ao pico em $(2\pi, 1)$.
+
+      Na biologia e na neurociência, quase nenhuma onda tem amplitude $1$ e período $2\pi$ segundos! Para ajustar uma senoide a dados reais de tempo $t$ (em segundos ou horas), aplicamos exatamente as transformações gráficas que estudamos em <strong>Funções</strong> (Tema 1.3): esticamento vertical $A \cdot f(t)$, compressão horizontal $f(b \cdot t)$ e deslocamento horizontal $f(t - c)$.
+
+      <definition id="def:1-4-sinusoide">
+        <title>Função sinusoidal geral</title>
+        Uma <strong>onda senoidal</strong> (<em>sine wave</em>) ou <strong>função sinusoidal</strong> de amplitude $A > 0$, frequência $f > 0$ e fase inicial $\varphi \in \mathbb{R}$ escreve-se, em função do tempo $t$ (em segundos):
+        <equation id="eq:1-4-sinusoide">x(t) = A \cdot \operatorname{sen}(2\pi f t + \varphi) = A \cdot \operatorname{sen}(\omega t + \varphi),</equation>
+        onde cada parâmetro tem interpretação física e gráfica precisa:
+        <list marker="dash">
+          <item><strong>Amplitude ($A$):</strong> esticamento vertical; a onda oscila entre $-A$ e $+A$ (altura do centro até o pico).</item>
+          <item><strong>Frequência ($f$):</strong> número de ciclos completos por segundo, medida em hertz ($1\text{ Hz} = 1\text{ ciclo/s}$).</item>
+          <item><strong>Período ($T$):</strong> duração de um ciclo completo, dado por $T = \dfrac{1}{f}$ (em segundos). Note que $2\pi f(t + T) = 2\pi f t + 2\pi$.</item>
+          <item><strong>Frequência angular ($\omega$):</strong> velocidade de rotação no círculo trigonométrico, medida em $\text{rad/s}$:
+            $$\omega = 2\pi f = \frac{2\pi}{T}.$$
+          </item>
+          <item><strong>Fase inicial ($\varphi$):</strong> ângulo (em radianos) no instante $t = 0$. Reescrevendo $2\pi f t + \varphi = 2\pi f\!\left(t - \left(-\dfrac{\varphi}{2\pi f}\right)\right)$, vemos pelas transformações do Tema 1.3 que uma fase $\varphi > 0$ desloca o gráfico de $\dfrac{\varphi}{2\pi f}$ para a <strong>esquerda</strong> (adianta a onda), enquanto $\varphi < 0$ desloca para a <strong>direita</strong> (atrasa a onda).</item>
+        </list>
+      </definition>
+
+      <example id="exm:1-4-circulo-valores">
+        <title>Calculando valores no círculo trigonométrico por simetria</title>
+        Sem usar calculadora, determine os valores exatos de seno, cosseno e tangente para $\theta_1 = \dfrac{5\pi}{6}$ e $\theta_2 = -\dfrac{\pi}{4}$.
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>O ângulo $\theta_1 = \frac{5\pi}{6} = \pi - \frac{\pi}{6}$ equivale a $150^\circ$, ficando no <strong>2º quadrante</strong> (a $\frac{\pi}{6} = 30^\circ$ acima do semieixo negativo de $x$). Nesse quadrante, $x = \cos\theta_1 < 0$ e $y = \operatorname{sen}\theta_1 > 0$, com os mesmos módulos de $\frac{\pi}{6}$:
+            $$\cos\!\left(\frac{5\pi}{6}\right) = -\cos\!\left(\frac{\pi}{6}\right) = -\frac{\sqrt{3}}{2}, \qquad \operatorname{sen}\!\left(\frac{5\pi}{6}\right) = \operatorname{sen}\!\left(\frac{\pi}{6}\right) = \frac{1}{2},$$
+            $$\tan\!\left(\frac{5\pi}{6}\right) = \frac{1/2}{-\sqrt{3}/2} = -\frac{1}{\sqrt{3}} = -\frac{\sqrt{3}}{3}.$$
+          </item>
+          <item>Para $\theta_2 = -\frac{\pi}{4}$ ($-45^\circ$, no <strong>4º quadrante</strong>), aplicamos diretamente a paridade (<ref to="prop:1-4-propriedades-sen-cos"/>): cosseno é par e seno é ímpar:
+            $$\cos\!\left(-\frac{\pi}{4}\right) = \cos\!\left(\frac{\pi}{4}\right) = \frac{\sqrt{2}}{2}, \qquad \operatorname{sen}\!\left(-\frac{\pi}{4}\right) = -\operatorname{sen}\!\left(\frac{\pi}{4}\right) = -\frac{\sqrt{2}}{2},$$
+            $$\tan\!\left(-\frac{\pi}{4}\right) = \frac{-\sqrt{2}/2}{\sqrt{2}/2} = -1.$$
+          </item>
+        </list>
+      </example>
+
+      Na neurociência clínica e cognitiva, as oscilações registradas no EEG costumam ser organizadas em cinco <strong>bandas de frequência</strong> clássicas (note que os limites exatos variam um pouco entre livros e protocolos clínicos):
+      <list marker="dash">
+        <item><strong>Delta ($\delta$, $0{,}5\text{–}4\text{ Hz}$):</strong> ondas lentas de grande amplitude, dominantes no sono profundo (sono de ondas lentas).</item>
+        <item><strong>Teta ($\theta$, $4\text{–}8\text{ Hz}$):</strong> associada a sonolência, meditação e, em roedores e humanos, a processos de memória e navegação espacial no hipocampo.</item>
+        <item><strong>Alfa ($\alpha$, $8\text{–}13\text{ Hz}$):</strong> ritmo proeminente sobre o córtex occipital em repouso desperto com os olhos fechados — foi a primeira oscilação cerebral humana registrada, descrita por Hans Berger em 1929.</item>
+        <item><strong>Beta ($\beta$, $13\text{–}30\text{ Hz}$):</strong> ligada a vigília alerta, foco motor e manutenção do estado motor atual.</item>
+        <item><strong>Gama ($\gamma$, acima de $30\text{ Hz}$):</strong> oscilações rápidas associadas a processamento sensorial ativo e coordenação local de circuitos corticais.</item>
+      </list>
+
+      A <ref to="fig:1-4-senoides-eeg"/> compara senoides representativas de quatro dessas bandas ao longo de exatamente $1\text{ s}$: teta a $6\text{ Hz}$, alfa a $10\text{ Hz}$, beta a $20\text{ Hz}$ e gama a $40\text{ Hz}$.
+
+      <figure src="fig/senoides-eeg.svg" alt="Quatro gráficos empilhados ao longo de 1 segundo mostrando senoides de amplitude unitária nas bandas do EEG: teta a 6 Hz com 6 ciclos, alfa a 10 Hz com 10 ciclos, beta a 20 Hz com 20 ciclos e gama a 40 Hz com 40 ciclos" id="fig:1-4-senoides-eeg">
+        <caption>Senoides puras em quatro bandas do EEG ao longo de $1\text{ s}$: teta ($6\text{ Hz}$, período $T \approx 166{,}7\text{ ms}$), alfa ($10\text{ Hz}$, $T = 100\text{ ms}$), beta ($20\text{ Hz}$, $T = 50\text{ ms}$) e gama ($40\text{ Hz}$, $T = 25\text{ ms}$). A frequência $f$ é exatamente o número de ciclos completos exibidos na janela de $1\text{ s}$.</caption>
+      </figure>
+
+      <example id="exm:1-4-eeg-alfa">
+        <title>Ritmo alfa no EEG: período, ciclos e fase instantânea</title>
+        Considere um trecho idealizado de ritmo alfa occipital (como os descritos por Hans Berger, 1929) modelado por:
+        $$v(t) = 20 \cdot \operatorname{sen}(20\pi t)\;\mu\text{V},$$
+        onde $t$ é medido em segundos.
+        <list marker="a">
+          <item>Identifique a amplitude $A$, a frequência angular $\omega$, a frequência $f$ em hertz e o período $T$ em segundos e milissegundos.</item>
+          <item>Quantos ciclos completos ocorrem durante uma janela de aquisição de $2{,}0\text{ s}$ (a duração típica de um volume de fMRI, $\text{TR} = 2\text{ s}$) e em uma janela curta de $250\text{ ms}$?</item>
+          <item>Calcule a fase instantânea (em radianos e em graus) e o potencial $v(t)$ nos instantes $t_1 = 25\text{ ms} = 0{,}025\text{ s}$ e $t_2 = 75\text{ ms} = 0{,}075\text{ s}$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Comparando $v(t) = 20 \cdot \operatorname{sen}(20\pi t)$ com a <ref to="eq:1-4-sinusoide"/> ($A\operatorname{sen}(2\pi f t + \varphi)$):
+            <list marker="dash">
+              <item>Amplitude: $A = 20\;\mu\text{V}$ (e fase inicial $\varphi = 0\text{ rad}$).</item>
+              <item>Frequência angular: $\omega = 20\pi \approx 62{,}83\text{ rad/s}$.</item>
+              <item>Frequência: como $2\pi f = 20\pi$, dividindo por $2\pi$ obtemos $f = 10\text{ Hz}$ (bem no centro da banda alfa).</item>
+              <item>Período: $T = \dfrac{1}{f} = \dfrac{1}{10\text{ Hz}} = 0{,}1\text{ s} = 100\text{ ms}$.</item>
+            </list>
+          </item>
+          <item>O número de ciclos em uma janela de duração $\Delta t$ é $f \cdot \Delta t = \Delta t / T$:
+            <list marker="dash">
+              <item>Em $\Delta t = 2{,}0\text{ s}$: $10\text{ ciclos/s} \cdot 2{,}0\text{ s} = 20\text{ ciclos}$.</item>
+              <item>Em $\Delta t = 250\text{ ms} = 0{,}25\text{ s}$: $10 \cdot 0{,}25 = 2{,}5\text{ ciclos}$ (dois ciclos e meio).</item>
+            </list>
+          </item>
+          <item>Calculamos o argumento $20\pi t$ em cada instante:
+            <list marker="dash">
+              <item>Para $t_1 = 0{,}025\text{ s}$ (um quarto do período de $100\text{ ms}$): a fase é $20\pi \cdot 0{,}025 = 0{,}5\pi = \frac{\pi}{2}\text{ rad} = 90^\circ$. Logo:
+                $$v(0{,}025) = 20 \cdot \operatorname{sen}\!\left(\frac{\pi}{2}\right) = 20 \cdot 1 = +20\;\mu\text{V} \quad (\text{pico positivo}).$$
+              </item>
+              <item>Para $t_2 = 0{,}075\text{ s}$ (três quartos do período): a fase é $20\pi \cdot 0{,}075 = 1{,}5\pi = \frac{3\pi}{2}\text{ rad} = 270^\circ$. Logo:
+                $$v(0{,}075) = 20 \cdot \operatorname{sen}\!\left(\frac{3\pi}{2}\right) = 20 \cdot (-1) = -20\;\mu\text{V} \quad (\text{vale negativo}).$$
+              </item>
+            </list>
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:1-4-circadiano">
+        <title>Ritmo circadiano da temperatura corporal</title>
+        Ritmos biológicos com período próximo de $24\text{ h}$ (como a temperatura corporal central e a secreção de cortisol) são frequentemente modelados por uma função cossenoidal deslocada:
+        $$y(t) = M + A \cdot \cos\!\left(\frac{2\pi(t - t_{\text{pico}})}{24}\right),$$
+        onde $t$ é o horário do dia em horas ($0 \le t < 24$), $M$ é o nível médio ao longo do dia (chamado <strong>mesor</strong> em cronobiologia), $A > 0$ é a amplitude e $t_{\text{pico}}$ é a hora do máximo. Considere um adulto típico com mesor $M = 36{,}8\,^\circ\text{C}$, amplitude $A = 0{,}4\,^\circ\text{C}$ e pico no fim da tarde em $t_{\text{pico}} = 17\text{ h}$.
+        <list marker="a">
+          <item>Quais são as temperaturas máxima e mínima previstas pelo modelo, e em que horário ocorre a temperatura mínima?</item>
+          <item>Calcule a temperatura corporal prevista às $9\text{ h}$ da manhã e às $21\text{ h}$ da noite.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Como o cosseno varia entre $-1$ e $+1$:
+            <list marker="dash">
+              <item>O <strong>máximo</strong> ocorre quando $\cos(\dots) = +1$, isto é, quando $t - 17 = 0 \implies t = 17\text{ h}$, atingindo $y_{\text{max}} = 36{,}8 + 0{,}4 = 37{,}2\,^\circ\text{C}$.</item>
+              <item>O <strong>mínimo</strong> ocorre quando $\cos(\dots) = -1$, isto é, meio período ($12\text{ h}$) antes ou depois do pico: $\frac{2\pi(t - 17)}{24} = -\pi \implies t - 17 = -12 \implies t = 5\text{ h}$ (cinco horas da madrugada!), atingindo $y_{\text{min}} = 36{,}8 - 0{,}4 = 36{,}4\,^\circ\text{C}$.</item>
+            </list>
+          </item>
+          <item>Substituindo os horários na equação:
+            <list marker="dash">
+              <item>Às $t = 9\text{ h}$:
+                $$y(9) = 36{,}8 + 0{,}4 \cdot \cos\!\left(\frac{2\pi(9 - 17)}{24}\right) = 36{,}8 + 0{,}4 \cdot \cos\!\left(-\frac{2\pi}{3}\right).$$
+                Como o cosseno é par, $\cos(-2\pi/3) = \cos(2\pi/3) = -\frac{1}{2}$ (2º quadrante, equivalente a $120^\circ$). Portanto:
+                $$y(9) = 36{,}8 + 0{,}4 \cdot (-0{,}5) = 36{,}8 - 0{,}2 = 36{,}6\,^\circ\text{C}.$$
+              </item>
+              <item>Às $t = 21\text{ h}$:
+                $$y(21) = 36{,}8 + 0{,}4 \cdot \cos\!\left(\frac{2\pi(21 - 17)}{24}\right) = 36{,}8 + 0{,}4 \cdot \cos\!\left(\frac{\pi}{3}\right).$$
+                Como $\cos(\pi/3) = \frac{1}{2}$ ($60^\circ$), obtemos:
+                $$y(21) = 36{,}8 + 0{,}4 \cdot 0{,}5 = 36{,}8 + 0{,}2 = 37{,}0\,^\circ\text{C}.$$
+              </item>
+            </list>
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:1-4-armadilha-circulo">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Calculadora em graus (<c>DEG</c>) versus radianos (<c>RAD</c>):</strong> se o argumento for uma fórmula em função do tempo como $2\pi f t$, ele está em <em>radianos</em>. Digitar $\operatorname{sen}(\pi/2)$ com a calculadora no modo <c>DEG</c> calcula o seno de $1{,}5708^\circ$, retornando $0{,}0274$ em vez de $1$! Sempre confira o indicador <c>DEG</c>/<c>RAD</c> antes de apertar a tecla.</item>
+          <item><strong>Confundir frequência $f$ ($\text{Hz}$) com frequência angular $\omega$ ($\text{rad/s}$):</strong> na expressão $x(t) = A\operatorname{sen}(20\pi t)$, o coeficiente que multiplica $t$ é $\omega = 20\pi\text{ rad/s}$, e <em>não</em> $f$. A frequência em hertz é obtida dividindo por $2\pi$: $f = \frac{\omega}{2\pi} = 10\text{ Hz}$. Se uma onda escreve $\operatorname{sen}(10t)$, sua frequência é $f = \frac{10}{2\pi} \approx 1{,}59\text{ Hz}$, e não $10\text{ Hz}$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:1-4-2-1">
+        <title>Básico — Conversões e valores no círculo trigonométrico</title>
+        Converta os ângulos $\alpha = 135^\circ$ e $\beta = 300^\circ$ para radianos (em múltiplos exatos de $\pi$) e calcule os valores exatos de $\cos$ e $\operatorname{sen}$ para cada um.
+        <hint><title>Ver dica</title>Multiplique por $\frac{\pi}{180^\circ}$ e simplifique a fração. Depois identifique o quadrante de cada ângulo para decidir os sinais de $x = \cos$ e $y = \operatorname{sen}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Para $\alpha = 135^\circ$:
+              $$\alpha = 135^\circ \cdot \frac{\pi}{180^\circ} = \frac{3\pi}{4}\text{ rad}.$$
+              Esse ângulo está no 2º quadrante ($\pi - \frac{\pi}{4}$), onde $x < 0$ e $y > 0$. Logo:
+              $$\cos\!\left(\frac{3\pi}{4}\right) = -\frac{\sqrt{2}}{2}, \qquad \operatorname{sen}\!\left(\frac{3\pi}{4}\right) = \frac{\sqrt{2}}{2}.$$
+            </item>
+            <item>Para $\beta = 300^\circ$:
+              $$\beta = 300^\circ \cdot \frac{\pi}{180^\circ} = \frac{5\pi}{3}\text{ rad}.$$
+              Esse ângulo está no 4º quadrante ($2\pi - \frac{\pi}{3}$), onde $x > 0$ e $y < 0$. Logo:
+              $$\cos\!\left(\frac{5\pi}{3}\right) = \frac{1}{2}, \qquad \operatorname{sen}\!\left(\frac{5\pi}{3}\right) = -\frac{\sqrt{3}}{2}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-4-2-2">
+        <title>Básico — Oscilações teta e gama no EEG</title>
+        Observe duas oscilações mostradas na <ref to="fig:1-4-senoides-eeg"/>:
+        <list marker="a">
+          <item>Um ritmo teta hipocampal tem frequência $f = 6\text{ Hz}$. Calcule seu período $T$ (em segundos e em milissegundos, arredondando para uma casa decimal) e quantos ciclos completos cabem em $1{,}5\text{ s}$.</item>
+          <item>Uma oscilação gama cortical tem frequência $f = 40\text{ Hz}$. Calcule seu período $T$ em milissegundos e sua frequência angular $\omega$ em $\text{rad/s}$.</item>
+        </list>
+        <hint><title>Ver dica</title>Use $T = \frac{1}{f}$, $\text{número de ciclos} = f \cdot \Delta t$ e $\omega = 2\pi f$. Lembre que $1\text{ s} = 1\,000\text{ ms}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Para $f = 6\text{ Hz}$:
+              $$T = \frac{1}{6}\text{ s} \approx 0{,}1667\text{ s} \approx 166{,}7\text{ ms}.$$
+              Em $\Delta t = 1{,}5\text{ s}$, o número de ciclos completos é $f \cdot \Delta t = 6 \cdot 1{,}5 = 9\text{ ciclos}$.
+            </item>
+            <item>Para $f = 40\text{ Hz}$:
+              $$T = \frac{1}{40}\text{ s} = 0{,}025\text{ s} = 25\text{ ms}.$$
+              A frequência angular vale:
+              $$\omega = 2\pi \cdot 40 = 80\pi \approx 251{,}3\text{ rad/s}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-4-2-3">
+        <title>Intermediário — Parâmetros e deslocamento de uma onda beta</title>
+        Um sinal de EEG na banda beta é modelado pela função ($t$ em segundos):
+        $$v(t) = 12 \cdot \operatorname{sen}\!\left(40\pi t - \frac{\pi}{2}\right)\;\mu\text{V}.$$
+        <list marker="a">
+          <item>Determine a amplitude $A$, a frequência angular $\omega$, a frequência $f$ (em $\text{Hz}$) e o período $T$ (em $\text{ms}$).</item>
+          <item>Colocando $40\pi$ em evidência no argumento, determine de quantos milissegundos — e para qual lado (esquerda ou direita) — o gráfico está deslocado em relação à onda sem defasagem $12\operatorname{sen}(40\pi t)$.</item>
+          <item>Calcule os valores de $v(0)$ e $v(0{,}025)$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (b), escreva $40\pi t - \frac{\pi}{2} = 40\pi(t - c)$ e use a regra de deslocamento horizontal do Tema 1.3 ($g(t - c)$ desloca $c$ para a direita).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Comparando com $A\operatorname{sen}(\omega t + \varphi)$:
+              <list marker="dash">
+                <item>$A = 12\;\mu\text{V}$;</item>
+                <item>$\omega = 40\pi\text{ rad/s}$;</item>
+                <item>$f = \dfrac{\omega}{2\pi} = \dfrac{40\pi}{2\pi} = 20\text{ Hz}$ (na banda beta);</item>
+                <item>$T = \dfrac{1}{20}\text{ s} = 0{,}05\text{ s} = 50\text{ ms}$.</item>
+              </list>
+            </item>
+            <item>Fatorando $40\pi$:
+              $$40\pi t - \frac{\pi}{2} = 40\pi\!\left(t - \frac{\pi/2}{40\pi}\right) = 40\pi\!\left(t - \frac{1}{80}\right) = 40\pi(t - 0{,}0125).$$
+              Portanto, o gráfico está deslocado $0{,}0125\text{ s} = 12{,}5\text{ ms}$ <strong>para a direita</strong> (atrasado de um quarto de período em relação a $12\operatorname{sen}(40\pi t)$).
+            </item>
+            <item>Substituindo os instantes:
+              $$v(0) = 12 \cdot \operatorname{sen}\!\left(-\frac{\pi}{2}\right) = 12 \cdot (-1) = -12\;\mu\text{V},$$
+              $$v(0{,}025) = 12 \cdot \operatorname{sen}\!\left(40\pi \cdot 0{,}025 - \frac{\pi}{2}\right) = 12 \cdot \operatorname{sen}\!\left(\pi - \frac{\pi}{2}\right) = 12 \cdot \operatorname{sen}\!\left(\frac{\pi}{2}\right) = +12\;\mu\text{V}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-4-2-4">
+        <title>Avançado — Deslocamento de fase circadiano (jet lag)</title>
+        Retome o modelo de temperatura corporal do <ref to="exm:1-4-circadiano"/>: $y(t) = 36{,}8 + 0{,}4\cos\!\left(\frac{2\pi(t - 17)}{24}\right)$. Após um voo longo para o oeste, o relógio biológico de uma viajante sofre temporariamente um atraso de $6\text{ horas}$, levando o horário de pico para $t_{\text{pico}} = 23\text{ h}$.
+        <list marker="a">
+          <item>Escreva a nova função $y_{\text{nova}}(t)$ e determine a que horas ocorre a temperatura mínima.</item>
+          <item>Compare a temperatura prevista às $5\text{ h}$ da madrugada antes e depois do deslocamento de fuso.</item>
+        </list>
+        <hint><title>Ver dica</title>O mínimo continua ocorrendo $12\text{ h}$ distante do pico. Para $t = 5$, calcule o valor exato do cosseno de $-\frac{3\pi}{2}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Substituindo $t_{\text{pico}} = 23$:
+              $$y_{\text{nova}}(t) = 36{,}8 + 0{,}4 \cdot \cos\!\left(\frac{2\pi(t - 23)}{24}\right).$$
+              O mínimo ocorre $12\text{ h}$ antes de $23\text{ h}$, isto é, às $t = 23 - 12 = 11\text{ h}$ da manhã (atingindo $36{,}4\,^\circ\text{C}$).
+            </item>
+            <item>Antes da viagem, $t = 5\text{ h}$ era exatamente o mínimo circadiano: $y(5) = 36{,}4\,^\circ\text{C}$. Depois do atraso de $6\text{ h}$:
+              $$y_{\text{nova}}(5) = 36{,}8 + 0{,}4 \cdot \cos\!\left(\frac{2\pi(5 - 23)}{24}\right) = 36{,}8 + 0{,}4 \cdot \cos\!\left(\frac{-36\pi}{24}\right) = 36{,}8 + 0{,}4 \cdot \cos\!\left(-\frac{3\pi}{2}\right).$$
+              Como $\cos(-3\pi/2) = \cos(3\pi/2) = 0$, obtemos $y_{\text{nova}}(5) = 36{,}8\,^\circ\text{C}$ — a temperatura às $5\text{ h}$ subiu $0{,}4\,^\circ\text{C}$ em relação ao ritmo adaptado, passando a ficar exatamente no mesor.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:1-4-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Funções trigonométricas inversas</title>
+      <intro>
+        As funções trigonométricas inversas percorrem o caminho de volta: a partir de razões medidas ou coordenadas espaciais, recuperam o ângulo de orientação de um estímulo ou o ângulo visual sobre a retina.
+      </intro>
+
+      Em <strong>Funções</strong> (Tema 1.3), vimos que uma função só admite inversa se for <strong>injetora</strong> — isto é, se passar no teste da reta horizontal, nunca produzindo a mesma saída para duas entradas distintas. Ora, $\operatorname{sen} x$, $\cos x$ e $\tan x$ falham espetacularmente nesse teste quando olhamos para toda a reta real: $\operatorname{sen} 0 = \operatorname{sen}\pi = \operatorname{sen} 2\pi = 0$. Se você perguntar "qual ângulo tem seno igual a $1/2$?", existem infinitas respostas ($\pi/6$, $5\pi/6$, $13\pi/6$, \dots).
+
+      Como resolvemos esse mesmo problema para $f(x) = x^2$ no Tema 1.3? <strong>Restringindo o domínio</strong> a um intervalo onde a função seja estritamente crescente ou decrescente (portanto injetora) e cubra toda a sua imagem. Fazemos exatamente isso para definir $\operatorname{arcsen}$, $\arccos$ e $\arctan$.
+
+      <definition id="def:1-4-inversas-trig">
+        <title>Arco-seno, arco-cosseno e arco-tangente</title>
+        Restringindo o domínio de cada função trigonométrica a um intervalo padrão onde ela é injetora e atinge toda a sua imagem, definimos suas inversas:
+        <list marker="number">
+          <item><strong>Arco-seno ($\operatorname{arcsen}$ ou $\operatorname{sen}^{-1}$):</strong> restringindo $\operatorname{sen} x$ ao intervalo fechado $\left[-\dfrac{\pi}{2}, \dfrac{\pi}{2}\right]$ (onde ela cresce estritamente de $-1$ a $1$):
+            $$\operatorname{arcsen} : [-1, 1] \to \left[-\frac{\pi}{2}, \frac{\pi}{2}\right], \qquad y = \operatorname{arcsen} x \iff \operatorname{sen} y = x \;\text{ e }\; y \in \left[-\frac{\pi}{2}, \frac{\pi}{2}\right].$$
+          </item>
+          <item><strong>Arco-cosseno ($\arccos$ ou $\cos^{-1}$):</strong> restringindo $\cos x$ ao intervalo fechado $[0, \pi]$ (onde ela decresce estritamente de $1$ a $-1$):
+            $$\arccos : [-1, 1] \to [0, \pi], \qquad y = \arccos x \iff \cos y = x \;\text{ e }\; y \in [0, \pi].$$
+          </item>
+          <item><strong>Arco-tangente ($\arctan$ ou $\tan^{-1}$):</strong> restringindo $\tan x$ ao intervalo aberto $\left(-\dfrac{\pi}{2}, \dfrac{\pi}{2}\right)$ (onde ela cresce estritamente de $-\infty$ a $+\infty$):
+            $$\arctan : \mathbb{R} \to \left(-\frac{\pi}{2}, \frac{\pi}{2}\right), \qquad y = \arctan x \iff \tan y = x \;\text{ e }\; y \in \left(-\frac{\pi}{2}, \frac{\pi}{2}\right).$$
+          </item>
+        </list>
+        <intuition>
+          Por que $\arccos$ não usa $\left[-\frac{\pi}{2}, \frac{\pi}{2}\right]$ como $\operatorname{arcsen}$ e $\arctan$? Porque nesse intervalo o cosseno é sempre positivo ou nulo e repete valores ($\cos(-\pi/3) = \cos(\pi/3) = 1/2$), deixando de ser injetor e nunca atingindo números negativos! Já em $[0, \pi]$ (metade superior do círculo unitário), $\cos y$ percorre todos os valores de $+1$ até $-1$ uma única vez.
+        </intuition>
+      </definition>
+
+      Assim como vimos para $f^{-1}(f(x))$ no Tema 1.3, o cancelamento com a função original exige atenção redobrada ao domínio restrito.
+
+      <proposition id="prop:1-4-cancelamento">
+        <title>Identidades de cancelamento das inversas</title>
+        Valem sempre no sentido de fora para dentro no domínio da inversa:
+        $$\operatorname{sen}(\operatorname{arcsen} x) = x \;\;(\forall x \in [-1, 1]), \qquad \cos(\arccos x) = x \;\;(\forall x \in [-1, 1]), \qquad \tan(\arctan x) = x \;\;(\forall x \in \mathbb{R}).$$
+        No sentido inverso, porém, o cancelamento só vale dentro do <strong>intervalo restrito</strong>:
+        <list marker="dash">
+          <item>$\operatorname{arcsen}(\operatorname{sen} x) = x$ apenas se $x \in \left[-\dfrac{\pi}{2}, \dfrac{\pi}{2}\right]$;</item>
+          <item>$\arccos(\cos x) = x$ apenas se $x \in [0, \pi]$;</item>
+          <item>$\arctan(\tan x) = x$ apenas se $x \in \left(-\dfrac{\pi}{2}, \dfrac{\pi}{2}\right)$.</item>
+        </list>
+      </proposition>
+
+      <example id="exm:1-4-cancelamento-exato">
+        <title>Calculando inversas e testando o cancelamento</title>
+        Calcule os valores exatos (em radianos) de:
+        <list marker="a">
+          <item>$\operatorname{arcsen}\!\left(-\dfrac{\sqrt{3}}{2}\right)$ e $\arccos\!\left(-\dfrac{1}{2}\right)$</item>
+          <item>$\operatorname{arcsen}\!\left(\operatorname{sen}\!\left(\dfrac{5\pi}{6}\right)\right)$ e $\arccos\!\left(\cos\!\left(\dfrac{3\pi}{2}\right)\right)$</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Buscamos o ângulo dentro da imagem padrão de cada inversa:
+            <list marker="dash">
+              <item>Para $\operatorname{arcsen}(-\sqrt{3}/2)$: queremos $y \in [-\pi/2, \pi/2]$ com $\operatorname{sen} y = -\sqrt{3}/2$. Como $\operatorname{sen}(\pi/3) = \sqrt{3}/2$ e seno é ímpar, $y = -\dfrac{\pi}{3}$ ($-60^\circ$).</item>
+              <item>Para $\arccos(-1/2)$: queremos $y \in [0, \pi]$ com $\cos y = -1/2$. No 2º quadrante, $\cos(\pi - \pi/3) = \cos(2\pi/3) = -1/2$, logo $y = \dfrac{2\pi}{3}$ ($120^\circ$).</item>
+            </list>
+          </item>
+          <item>Aqui ambos os ângulos de entrada estão <em>fora</em> do intervalo restrito, portanto não podemos cancelar mecanicamente:
+            <list marker="dash">
+              <item>Como $\operatorname{sen}(5\pi/6) = 1/2$, temos $\operatorname{arcsen}(\operatorname{sen}(5\pi/6)) = \operatorname{arcsen}(1/2) = \dfrac{\pi}{6}$ (e não $5\pi/6$).</item>
+              <item>Como $\cos(3\pi/2) = 0$, temos $\arccos(\cos(3\pi/2)) = \arccos(0) = \dfrac{\pi}{2}$ (e não $3\pi/2$).</item>
+            </list>
+          </item>
+        </list>
+      </example>
+
+      Na prática experimental, o arco-tangente aparece o tempo todo quando medimos deslocamentos $(\Delta x, \Delta y)$ e queremos recuperar o ângulo $\theta$. Mas há uma diferença crucial entre <strong>orientação</strong> (de uma barra sem ponta, que varia em um intervalo de $180^\circ$, como $[0^\circ, 180^\circ)$) e <strong>direção</strong> (de um movimento com sentido definido, que varia em $360^\circ$).
+
+      <example id="exm:1-4-orientacao-barra">
+        <title>Recuperando orientação e direção a partir de $(\Delta x, \Delta y)$</title>
+        A partir das projeções $(\Delta x, \Delta y)$ com $\Delta x \ne 0$, temos $\tan\theta = \frac{\Delta y}{\Delta x}$, logo a fórmula $\theta = \arctan(\Delta y / \Delta x)$ devolve sempre um ângulo entre $-90^\circ$ e $90^\circ$. Analise os três casos abaixo:
+        <list marker="a">
+          <item>Uma barra visual tem componentes $(\Delta x, \Delta y) = (2\sqrt{3},\, 2)\text{ cm}$. Qual é sua orientação em $[0^\circ, 180^\circ)$?</item>
+          <item>Uma barra tem componentes $(\Delta x, \Delta y) = (4,\, -4)\text{ cm}$. Calcule $\arctan(\Delta y / \Delta x)$ e expresse a orientação da barra no intervalo padrão $[0^\circ, 180^\circ)$.</item>
+          <item>Um animal desloca-se segundo o vetor $(\Delta x, \Delta y) = (-4,\, -4)\text{ cm}$. Por que $\arctan(\Delta y / \Delta x)$ não dá a direção correta de movimento em $[0^\circ, 360^\circ)$, e qual é essa direção?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Calculamos o quociente:
+            $$\frac{\Delta y}{\Delta x} = \frac{2}{2\sqrt{3}} = \frac{1}{\sqrt{3}} = \frac{\sqrt{3}}{3} \implies \theta = \arctan\!\left(\frac{\sqrt{3}}{3}\right) = 30^\circ = \frac{\pi}{6}\text{ rad}.$$
+            Como $30^\circ \in [0^\circ, 180^\circ)$, essa já é a orientação procurada.
+          </item>
+          <item>Calculamos $\frac{\Delta y}{\Delta x} = \frac{-4}{4} = -1$, de onde $\arctan(-1) = -45^\circ$. Como uma barra não tem ponta nem seta (inclinar $-45^\circ$ traça a mesma reta que inclinar $135^\circ$), quando o resultado de $\arctan$ for negativo e quisermos a orientação em $[0^\circ, 180^\circ)$, basta somar $180^\circ$:
+            $$\theta_{\text{orient}} = -45^\circ + 180^\circ = 135^\circ.$$
+          </item>
+          <item>Para $(-4, -4)$, o quociente vale $\frac{-4}{-4} = +1$, então $\arctan(1) = +45^\circ$ (1º quadrante). Porém, tanto $\Delta x = -4 < 0$ quanto $\Delta y = -4 < 0$: o deslocamento aponta para o <strong>3º quadrante</strong>, exatamente no sentido oposto! A direção real em $[0^\circ, 360^\circ)$ é $45^\circ + 180^\circ = 225^\circ$. Em Python e linguagens científicas, evita-se essa ambiguidade usando a função de dois argumentos $\operatorname{atan2}(\Delta y, \Delta x)$, que olha para os sinais de $\Delta y$ e $\Delta x$ separadamente antes de devolver o ângulo no quadrante certo.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:1-4-monitor-angulo-visual">
+        <title>Ângulo visual de um monitor e a regra dos $57\text{ cm}$</title>
+        Invertendo a relação $\tan(\theta/2) = \frac{s}{2d}$ do <ref to="exm:1-4-angulo-visual"/> (o que é válido porque $\theta/2 \in (0^\circ, 90^\circ)$), obtemos o ângulo visual de um estímulo de largura $s$ à distância $d$:
+        <equation id="eq:1-4-angulo-visual">\theta = 2 \cdot \arctan\!\left(\frac{s}{2d}\right).</equation>
+        Um monitor plano de $s = 30\text{ cm}$ de largura é posicionado a $d = 57\text{ cm}$ dos olhos de um participante.
+        <list marker="a">
+          <item>Qual ângulo visual corresponde a uma faixa de $1\text{ cm}$ no centro da tela?</item>
+          <item>Qual é o ângulo visual total ocupado pelos $30\text{ cm}$ do monitor inteiro?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Para $s = 1\text{ cm}$ e $d = 57\text{ cm}$:
+            $$\theta = 2 \cdot \arctan\!\left(\frac{1}{2 \cdot 57}\right) = 2 \cdot \arctan\!\left(\frac{1}{114}\right) \approx 2 \cdot 0{,}503^\circ \approx 1{,}01^\circ \approx 1^\circ.$$
+            Por isso os laboratórios de psicofísica visual costumam sentar o voluntário a cerca de $57\text{ cm}$ da tela: como $1\text{ rad} = \frac{180^\circ}{\pi} \approx 57{,}3^\circ$, a essa distância $1\text{ cm}$ próximo ao centro corresponde praticamente a $1^\circ$ de ângulo visual!
+          </item>
+          <item>Para a largura total $s = 30\text{ cm}$ a $d = 57\text{ cm}$:
+            $$\frac{s}{2d} = \frac{30}{114} = \frac{5}{19} \approx 0{,}2632.$$
+            Calculando o arco-tangente (em radianos e convertendo para graus):
+            $$\arctan\!\left(\frac{5}{19}\right) \approx 0{,}2573\text{ rad} \approx 14{,}74^\circ \implies \theta = 2 \cdot 14{,}74^\circ \approx 29{,}5^\circ.$$
+            Note que o ângulo total ($29{,}5^\circ$) é muito próximo de $30^\circ$, mas ligeiramente menor, porque o monitor é plano e suas bordas ficam um pouco mais afastadas do olho do que os $57\text{ cm}$ do centro.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:1-4-armadilha-inversas">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>$\operatorname{sen}^{-1}(x)$ significa $\operatorname{arcsen}(x)$, e <em>não</em> $\dfrac{1}{\operatorname{sen} x}$:</strong> assim como vimos em <strong>Funções</strong> (Tema 1.3), o sobrescrito $-1$ no nome da função indica a <em>função inversa</em>, e nunca o inverso multiplicativo (que é a cossecante, escrita como $(\operatorname{sen} x)^{-1} = \frac{1}{\operatorname{sen} x}$).</item>
+          <item><strong>$\arctan(\Delta y / \Delta x)$ perde o quadrante:</strong> como $(-4)/(-4) = (+4)/(+4) = +1$, o quociente apaga os sinais individuais de $\Delta x$ e $\Delta y$, confundindo o 3º quadrante com o 1º (e o 2º com o 4º). Sempre verifique o sinal de $\Delta x$ e $\Delta y$ separadamente (ou use $\operatorname{atan2}$ em programação).</item>
+          <item><strong>Cancelar $\operatorname{arcsen}(\operatorname{sen} x) = x$ sem checar o intervalo:</strong> $\operatorname{arcsen}(\operatorname{sen} \pi) = \operatorname{arcsen}(0) = 0 \ne \pi$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:1-4-3-1">
+        <title>Básico — Valores exatos de funções trigonométricas inversas</title>
+        Calcule os valores exatos, em radianos e em graus, de:
+        <list marker="a">
+          <item>$\operatorname{arcsen}\!\left(-\dfrac{1}{2}\right)$</item>
+          <item>$\arccos\!\left(-\dfrac{\sqrt{2}}{2}\right)$</item>
+          <item>$\arctan(\sqrt{3})$</item>
+        </list>
+        <hint><title>Ver dica</title>Confira em qual intervalo cada função inversa devolve sua resposta: $[-\pi/2, \pi/2]$ para $\operatorname{arcsen}$, $[0, \pi]$ para $\arccos$ e $(-\pi/2, \pi/2)$ para $\arctan$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Queremos $y \in [-\pi/2, \pi/2]$ com $\operatorname{sen} y = -1/2$. Como $\operatorname{sen}(\pi/6) = 1/2$, pela paridade ímpar temos $y = -\dfrac{\pi}{6}\text{ rad} = -30^\circ$.</item>
+            <item>Queremos $y \in [0, \pi]$ com $\cos y = -\sqrt{2}/2$. No 2º quadrante, $\cos(\pi - \pi/4) = \cos(3\pi/4) = -\sqrt{2}/2$, logo $y = \dfrac{3\pi}{4}\text{ rad} = 135^\circ$.</item>
+            <item>Queremos $y \in (-\pi/2, \pi/2)$ com $\tan y = \sqrt{3}$. Pela <ref to="prop:1-4-angulos-notaveis"/>, $y = \dfrac{\pi}{3}\text{ rad} = 60^\circ$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-4-3-2">
+        <title>Básico — Testando limites do cancelamento</title>
+        Calcule $\operatorname{arcsen}\!\left(\operatorname{sen}\!\left(\dfrac{2\pi}{3}\right)\right)$ e $\arccos\!\left(\cos\!\left(-\dfrac{\pi}{4}\right)\right)$, explicando por que o resultado não coincide com o ângulo inicial.
+        <hint><title>Ver dica</title>Calcule primeiro a função de dentro ($\operatorname{sen}$ ou $\cos$) e só depois aplique a inversa no resultado.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Primeiro avaliamos $\operatorname{sen}(2\pi/3) = \frac{\sqrt{3}}{2}$ (2º quadrante). Depois aplicamos $\operatorname{arcsen}(\sqrt{3}/2) = \dfrac{\pi}{3}$ (no intervalo $[-\pi/2, \pi/2]$). O resultado não é $\frac{2\pi}{3}$ porque $\frac{2\pi}{3} > \frac{\pi}{2}$, fora do domínio restrito de $\operatorname{arcsen}$.</item>
+            <item>Primeiro avaliamos $\cos(-\pi/4) = \cos(\pi/4) = \frac{\sqrt{2}}{2}$. Depois aplicamos $\arccos(\sqrt{2}/2) = \dfrac{\pi}{4}$. Não dá $-\frac{\pi}{4}$ porque a imagem de $\arccos$ é $[0, \pi]$ e não inclui ângulos negativos.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-4-3-3">
+        <title>Intermediário — Orientação de borda e quadrante de movimento</title>
+        Um algoritmo de detecção de contornos extraiu dois vetores com a mesma razão $\Delta y / \Delta x$: o vetor $\mathbf{u} = (-3,\, 3\sqrt{3})$ e o vetor $\mathbf{v} = (3,\, -3\sqrt{3})$.
+        <list marker="a">
+          <item>Calcule $\arctan(\Delta y / \Delta x)$ para ambos os vetores.</item>
+          <item>Se $\mathbf{u}$ representar a orientação de uma barra estática (sem sentido definido) no intervalo $[0^\circ, 180^\circ)$, qual é essa orientação?</item>
+          <item>Se $\mathbf{u}$ e $\mathbf{v}$ representarem direções reais de movimento no plano, determine em que quadrante cada um está e sua direção em $[0^\circ, 360^\circ)$.</item>
+        </list>
+        <hint><title>Ver dica</title>Note que $\Delta y / \Delta x = -\sqrt{3}$ nos dois casos. Para $\mathbf{u}$, $\Delta x < 0$ e $\Delta y > 0$; para $\mathbf{v}$, $\Delta x > 0$ e $\Delta y < 0$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Em ambos os vetores, $\frac{\Delta y}{\Delta x} = -\sqrt{3}$, logo $\arctan(-\sqrt{3}) = -60^\circ = -\frac{\pi}{3}\text{ rad}$.</item>
+            <item>Como o valor de $\arctan$ é negativo, somamos $180^\circ$ para trazer a orientação da barra ao intervalo $[0^\circ, 180^\circ)$: $-60^\circ + 180^\circ = 120^\circ$.</item>
+            <item>Inspecionando os sinais:
+              <list marker="dash">
+                <item>$\mathbf{u} = (-3,\, 3\sqrt{3})$ tem $\Delta x < 0$ e $\Delta y > 0$, logo está no <strong>2º quadrante</strong>: sua direção em $[0^\circ, 360^\circ)$ é $180^\circ - 60^\circ = 120^\circ$.</item>
+                <item>$\mathbf{v} = (3,\, -3\sqrt{3})$ tem $\Delta x > 0$ e $\Delta y < 0$, logo está no <strong>4º quadrante</strong>: sua direção em $[0^\circ, 360^\circ)$ é $360^\circ - 60^\circ = 300^\circ$ (oposta à de $\mathbf{u}$).</item>
+              </list>
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-4-3-4">
+        <title>Avançado — Decodificando horários a partir da temperatura circadiana</title>
+        Retome o modelo de ritmo circadiano do <ref to="exm:1-4-circadiano"/>:
+        $$y(t) = 36{,}8 + 0{,}4 \cdot \cos\!\left(\frac{2\pi(t - 17)}{24}\right), \qquad t \in [0, 24).$$
+        Em certo dia, um sensor registra temperatura corporal $y(t) = 37{,}0\,^\circ\text{C}$.
+        <list marker="a">
+          <item>Isole o termo cossenoidal na equação.</item>
+          <item>Usando $\arccos$ e a simetria $\cos(-\theta) = \cos\theta$, encontre os <strong>dois</strong> horários do dia em que a temperatura atinge $37{,}0\,^\circ\text{C}$.</item>
+          <item>Explique por que aplicar $\arccos$ mecanicamente sem considerar o sinal $\pm$ revelaria apenas um desses horários.</item>
+        </list>
+        <hint><title>Ver dica</title>Subtraia $36{,}8$ e divida por $0{,}4$ para obter $\cos\alpha = 0{,}5$. Em $[-\pi, \pi]$, existem dois ângulos com cosseno $0{,}5$: $+\frac{\pi}{3}$ e $-\frac{\pi}{3}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Igualando $y(t) = 37{,}0$:
+              $$36{,}8 + 0{,}4 \cdot \cos\!\left(\frac{2\pi(t - 17)}{24}\right) = 37{,}0 \implies 0{,}4 \cdot \cos\!\left(\frac{2\pi(t - 17)}{24}\right) = 0{,}2 \implies \cos\!\left(\frac{2\pi(t - 17)}{24}\right) = \frac{1}{2}.$$
+            </item>
+            <item>Como $\arccos(1/2) = \frac{\pi}{3}$ e $\cos(-\pi/3) = \cos(\pi/3) = 1/2$, dentro de um ciclo de $24\text{ h}$ centrado em $t = 17\text{ h}$ (onde $\frac{2\pi(t - 17)}{24} \in (-\pi, \pi]$) temos duas soluções:
+              $$\frac{2\pi(t - 17)}{24} = +\frac{\pi}{3} \implies \frac{t - 17}{12} = \frac{1}{3} \implies t - 17 = 4 \implies t = 21\text{ h},$$
+              $$\frac{2\pi(t - 17)}{24} = -\frac{\pi}{3} \implies \frac{t - 17}{12} = -\frac{1}{3} \implies t - 17 = -4 \implies t = 13\text{ h}.$$
+              Portanto, a temperatura atinge $37{,}0\,^\circ\text{C}$ tanto às $13\text{ h}$ (subindo rumo ao pico das $17\text{ h}$) quanto às $21\text{ h}$ (descendo após o pico).
+            </item>
+            <item>Porque $\arccos$ tem imagem restrita a $[0, \pi]$, o que só captura ângulos não negativos — isto é, apenas a metade descendente da curva após o pico ($t \in [17, 24)$ e madrugada seguinte), perdendo o ramo ascendente antes do pico.</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:1-4-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Relações e identidades fundamentais</title>
+      <intro>
+        Identidades trigonométricas mostram que seno e cosseno são a mesma onda deslocada no tempo e que somar oscilações de mesma frequência preserva a frequência — preparando o terreno para a análise de Fourier.
+      </intro>
+
+      Na prática, quase nunca basta avaliar $\operatorname{sen}\theta$ em um único número: precisamos transformar expressões trigonométricas, passar de seno para cosseno, ou somar duas oscilações sinápticas que chegam ao mesmo neurônio com fases diferentes. Felizmente, um pequeno conjunto de identidades — todas nascidas do círculo unitário e de Pitágoras — resolve a imensa maioria desses problemas.
+
+      <theorem id="thm:1-4-pitagoras-trig">
+        <title>Relação fundamental da trigonometria</title>
+        Para todo número real $\theta \in \mathbb{R}$, vale a identidade:
+        <equation id="eq:1-4-fundamental">\operatorname{sen}^2\theta + \cos^2\theta = 1,</equation>
+        onde $\operatorname{sen}^2\theta$ abrevia $(\operatorname{sen}\theta)^2$ e $\cos^2\theta$ abrevia $(\cos\theta)^2$. Além disso, sempre que $\cos\theta \ne 0$:
+        $$\tan\theta = \frac{\operatorname{sen}\theta}{\cos\theta} \qquad \text{e} \qquad 1 + \tan^2\theta = \frac{1}{\cos^2\theta} = \sec^2\theta.$$
+      </theorem>
+      <proof of="thm:1-4-pitagoras-trig" collapsible="true" collapsed="true">
+        Pela <ref to="def:1-4-circulo-unitario"/>, para qualquer $\theta \in \mathbb{R}$, o ponto $(x, y) = (\cos\theta, \operatorname{sen}\theta)$ pertence ao círculo unitário $x^2 + y^2 = 1$. Substituindo $x$ e $y$, obtemos imediatamente $\cos^2\theta + \operatorname{sen}^2\theta = 1$.
+
+        Dividindo todos os termos dessa igualdade por $\cos^2\theta \ne 0$:
+        $$\frac{\operatorname{sen}^2\theta}{\cos^2\theta} + \frac{\cos^2\theta}{\cos^2\theta} = \frac{1}{\cos^2\theta} \implies \tan^2\theta + 1 = \sec^2\theta.$$
+      </proof>
+
+      Um erro tentador é achar que o seno distribui na soma, como se $\operatorname{sen}(\alpha + \beta)$ fosse igual a $\operatorname{sen}\alpha + \operatorname{sen}\beta$. Isso é falso! A lei correta mistura senos e cossenos dos dois ângulos.
+
+      <theorem id="thm:1-4-soma-arcos">
+        <title>Seno e cosseno da soma, da diferença e arco duplo</title>
+        Para quaisquer $\alpha, \beta \in \mathbb{R}$:
+        <equations id="eq:1-4-soma-arcos">
+          \operatorname{sen}(\alpha + \beta) &= \operatorname{sen}\alpha \cos\beta + \cos\alpha \operatorname{sen}\beta, \\
+          \operatorname{sen}(\alpha - \beta) &= \operatorname{sen}\alpha \cos\beta - \cos\alpha \operatorname{sen}\beta, \\
+          \cos(\alpha + \beta) &= \cos\alpha \cos\beta - \operatorname{sen}\alpha \operatorname{sen}\beta, \\
+          \cos(\alpha - \beta) &= \cos\alpha \cos\beta + \operatorname{sen}\alpha \operatorname{sen}\beta.
+        </equations>
+        Fazendo $\alpha = \beta = \theta$, obtemos as identidades de <strong>arco duplo</strong>:
+        <equation id="eq:1-4-arco-duplo">\operatorname{sen}(2\theta) = 2\operatorname{sen}\theta\cos\theta, \qquad \cos(2\theta) = \cos^2\theta - \operatorname{sen}^2\theta = 2\cos^2\theta - 1 = 1 - 2\operatorname{sen}^2\theta.</equation>
+      </theorem>
+      <proof of="thm:1-4-soma-arcos" collapsible="true" collapsed="true">
+        Considere primeiro o caso $0 < \alpha, \beta$ com $\alpha + \beta < \pi/2$. Construa um triângulo retângulo $OAB$ com vértice $O$ na origem, ângulo reto em $A$, hipotenusa $OB = 1$ e ângulo $\angle AOB = \beta$; assim $OA = \cos\beta$ e $AB = \operatorname{sen}\beta$. Posicione o cateto $OA$ inclinado de um ângulo $\alpha$ acima do eixo $x$, de modo que a hipotenusa $OB$ faça um ângulo total $\alpha + \beta$ com o eixo $x$, e portanto $B = (\cos(\alpha + \beta),\, \operatorname{sen}(\alpha + \beta))$.
+
+        Vamos somar os deslocamentos horizontais e verticais de $O$ até $A$ e de $A$ até $B$:
+        <list marker="dash">
+          <item>Do vértice $O$ até $A$, o segmento de comprimento $\cos\beta$ está inclinado de $\alpha$, logo avança $\cos\beta \cos\alpha$ para a direita e sobe $\cos\beta \operatorname{sen}\alpha$.</item>
+          <item>Como $AB$ é perpendicular a $OA$, o segmento $AB$ (de comprimento $\operatorname{sen}\beta$) faz ângulo $\alpha$ com a vertical, apontando para cima e para a esquerda: ele recua $\operatorname{sen}\beta \operatorname{sen}\alpha$ na horizontal e sobe $\operatorname{sen}\beta \cos\alpha$ na vertical.</item>
+        </list>
+        Somando as duas etapas, as coordenadas de $B$ ficam:
+        $$\cos(\alpha + \beta) = \cos\alpha\cos\beta - \operatorname{sen}\alpha\operatorname{sen}\beta, \qquad \operatorname{sen}(\alpha + \beta) = \operatorname{sen}\alpha\cos\beta + \cos\alpha\operatorname{sen}\beta.$$
+        (As mesmas identidades permanecem válidas para quaisquer ângulos reais.) Trocando $\beta$ por $-\beta$ e usando a paridade ($\cos(-\beta) = \cos\beta$ e $\operatorname{sen}(-\beta) = -\operatorname{sen}\beta$), obtemos as fórmulas da diferença. Por fim, tomando $\alpha = \beta = \theta$, segue $\operatorname{sen}(2\theta) = 2\operatorname{sen}\theta\cos\theta$ e $\cos(2\theta) = \cos^2\theta - \operatorname{sen}^2\theta$; substituindo $\operatorname{sen}^2\theta = 1 - \cos^2\theta$ ou $\cos^2\theta = 1 - \operatorname{sen}^2\theta$ pela <ref to="eq:1-4-fundamental"/> chega-se às formas $2\cos^2\theta - 1$ e $1 - 2\operatorname{sen}^2\theta$.
+      </proof>
+
+      Observe uma consequência imediata e belíssima da identidade $\cos(\alpha - \beta)$ quando escolhemos $\alpha = \theta$ e $\beta = \frac{\pi}{2}$:
+      $$\cos\!\left(\theta - \frac{\pi}{2}\right) = \cos\theta \cos\!\left(\frac{\pi}{2}\right) + \operatorname{sen}\theta \operatorname{sen}\!\left(\frac{\pi}{2}\right) = \cos\theta \cdot 0 + \operatorname{sen}\theta \cdot 1 = \operatorname{sen}\theta.$$
+      Ou seja: pelo critério de transformações gráficas do Tema 1.3 ($f(x - c)$ desloca $c$ unidades para a direita), a função $\operatorname{sen}\theta$ nada mais é do que a função $\cos\theta$ atrasada de $\frac{\pi}{2}$ — exatamente <strong>um quarto de ciclo</strong>! Seno e cosseno não são curvas diferentes; são a mesma oscilação defasada de $90^\circ$.
+
+      Essa conexão entre seno e cosseno explica também o que acontece quando duas oscilações de <em>mesma frequência</em> $\omega$ se somam em um circuito elétrico ou em uma sinapse.
+
+      <proposition id="prop:1-4-soma-sinusoides">
+        <title>Combinação de seno e cosseno de mesma frequência</title>
+        Sejam $a, b \in \mathbb{R}$ não simultaneamente nulos. Para toda frequência angular $\omega > 0$:
+        <equation id="eq:1-4-soma-mesma-freq">a\operatorname{sen}(\omega t) + b\cos(\omega t) = R \cdot \operatorname{sen}(\omega t + \varphi), \qquad R = \sqrt{a^2 + b^2},</equation>
+        onde o ângulo de fase $\varphi$ satisfaz $\cos\varphi = \dfrac{a}{R}$ e $\operatorname{sen}\varphi = \dfrac{b}{R}$. Em particular, quando $a > 0$, temos:
+        $$\tan\varphi = \frac{b}{a} \implies \varphi = \arctan\!\left(\frac{b}{a}\right) \in \left(-\frac{\pi}{2}, \frac{\pi}{2}\right).$$
+        <intuition>
+          A soma de uma onda seno com uma onda cosseno de mesma frequência $\omega$ nunca cria uma frequência nova nem distorce o formato senoidal: ela produz outra onda senoidal pura de mesma frequência $\omega$, com amplitude resultante $R = \sqrt{a^2 + b^2}$ e fase ajustada $\varphi$.
+        </intuition>
+      </proposition>
+      <proof of="prop:1-4-soma-sinusoides" collapsible="true" collapsed="true">
+        Como $R = \sqrt{a^2 + b^2} > 0$, podemos colocar $R$ em evidência:
+        $$a\operatorname{sen}(\omega t) + b\cos(\omega t) = R\!\left(\frac{a}{R}\operatorname{sen}(\omega t) + \frac{b}{R}\cos(\omega t)\right).$$
+        Note que a soma dos quadrados dos coeficientes vale $\left(\frac{a}{R}\right)^2 + \left(\frac{b}{R}\right)^2 = \frac{a^2 + b^2}{a^2 + b^2} = 1$, o que significa que o ponto $\left(\frac{a}{R}, \frac{b}{R}\right)$ está sobre o círculo unitário! Existe portanto um ângulo $\varphi$ tal que $\cos\varphi = \frac{a}{R}$ e $\operatorname{sen}\varphi = \frac{b}{R}$ (e, se $a > 0$, $\tan\varphi = \frac{b/R}{a/R} = \frac{b}{a}$ com $\varphi \in (-\pi/2, \pi/2)$). Substituindo e aplicando a identidade do seno da soma (<ref to="thm:1-4-soma-arcos"/>):
+        $$R\bigl(\operatorname{sen}(\omega t)\cos\varphi + \cos(\omega t)\operatorname{sen}\varphi\bigr) = R\operatorname{sen}(\omega t + \varphi).$$
+      </proof>
+
+      <observation id="obs:1-4-ponte-fourier">
+        Guarde a <ref to="prop:1-4-soma-sinusoides"/> como a ponte direta para a <strong>análise de Fourier</strong>, que estudaremos mais adiante na trilha: um sinal periódico complexo (como um trecho de EEG) pode ser escrito como soma de pares $a_k\operatorname{sen}(\omega_k t) + b_k\cos(\omega_k t)$ em diferentes frequências $\omega_k$. Em cada frequência, os coeficientes $(a_k, b_k)$ guardam justamente a amplitude $R_k = \sqrt{a_k^2 + b_k^2}$ (quanto daquela frequência existe no sinal) e a fase $\varphi_k$ (quando os picos acontecem).
+      </observation>
+
+      <example id="exm:1-4-identidades">
+        <title>Aplicando a relação fundamental e o arco duplo</title>
+        Sabe-se que $\operatorname{sen}\theta = \dfrac{3}{5}$ e que $\theta$ pertence ao 2º quadrante ($\frac{\pi}{2} < \theta < \pi$). Calcule os valores exatos de $\cos\theta$, $\tan\theta$, $\operatorname{sen}(2\theta)$ e $\cos(2\theta)$.
+
+        <strong>Solução.</strong> Pela relação fundamental $\operatorname{sen}^2\theta + \cos^2\theta = 1$:
+        $$\left(\frac{3}{5}\right)^2 + \cos^2\theta = 1 \implies \cos^2\theta = 1 - \frac{9}{25} = \frac{16}{25} \implies \cos\theta = \pm\frac{4}{5}.$$
+        Como $\theta$ está no 2º quadrante, $\cos\theta < 0$, portanto $\cos\theta = -\dfrac{4}{5}$. Daí:
+        $$\tan\theta = \frac{\operatorname{sen}\theta}{\cos\theta} = \frac{3/5}{-4/5} = -\frac{3}{4}.$$
+        Aplicando as identidades de arco duplo (<ref to="eq:1-4-arco-duplo"/>):
+        $$\operatorname{sen}(2\theta) = 2\operatorname{sen}\theta\cos\theta = 2 \cdot \frac{3}{5} \cdot \left(-\frac{4}{5}\right) = -\frac{24}{25},$$
+        $$\cos(2\theta) = \cos^2\theta - \operatorname{sen}^2\theta = \frac{16}{25} - \frac{9}{25} = \frac{7}{25}.$$
+        <em>Conferência:</em> $\operatorname{sen}^2(2\theta) + \cos^2(2\theta) = \left(-\frac{24}{25}\right)^2 + \left(\frac{7}{25}\right)^2 = \frac{576 + 49}{625} = \frac{625}{625} = 1$.
+      </example>
+
+      <example id="exm:1-4-georgopoulos">
+        <title>Sintonia de cosseno no córtex motor (Georgopoulos, 1982)</title>
+        Em um estudo clássico no córtex motor primário (M1) de primatas, Georgopoulos e colaboradores (1982) mostraram que muitos neurônios codificam a direção $s$ (em graus) do movimento do braço por uma <strong>curva de sintonia de cosseno</strong> (<em>cosine tuning curve</em>):
+        <equation id="eq:1-4-georgopoulos">f(s) = r_0 + (r_{\text{max}} - r_0) \cdot \cos(s - s_{\text{pref}}),</equation>
+        onde $s_{\text{pref}}$ é a direção preferida do neurônio, $r_{\text{max}}$ é a taxa de disparo máxima (em $s = s_{\text{pref}}$) e $r_0$ é a taxa de linha de base (aqui com $r_0 \ge r_{\text{max}}/2$ para que $f(s) \ge 0$ em todas as direções). Considere um neurônio com $s_{\text{pref}} = 45^\circ$, $r_{\text{max}} = 50\text{ Hz}$ e $r_0 = 30\text{ Hz}$. Calcule a taxa de disparo para os movimentos em $s = 45^\circ$, $s = 105^\circ$, $s = 135^\circ$ e $s = 225^\circ$.
+
+        <strong>Solução.</strong> Aqui $r_{\text{max}} - r_0 = 50 - 30 = 20\text{ Hz}$, logo o modelo é $f(s) = 30 + 20\cos(s - 45^\circ)$:
+        <list marker="dash">
+          <item><strong>$s = 45^\circ$ (direção preferida):</strong> $f(45^\circ) = 30 + 20\cos(0^\circ) = 30 + 20 \cdot 1 = 50\text{ Hz}$ (taxa máxima).</item>
+          <item><strong>$s = 105^\circ$ (desvio de $60^\circ$):</strong> $f(105^\circ) = 30 + 20\cos(60^\circ) = 30 + 20 \cdot 0{,}5 = 40\text{ Hz}$.</item>
+          <item><strong>$s = 135^\circ$ (desvio de $90^\circ$, direção perpendicular):</strong> $f(135^\circ) = 30 + 20\cos(90^\circ) = 30 + 20 \cdot 0 = 30\text{ Hz} = r_0$. Observe que, a exatamente $90^\circ$ da direção preferida, a taxa de disparo cai exatamente para $r_0$!</item>
+          <item><strong>$s = 225^\circ$ (desvio de $180^\circ$, direção oposta):</strong> $f(225^\circ) = 30 + 20\cos(180^\circ) = 30 + 20 \cdot (-1) = 10\text{ Hz}$ (inibição abaixo da linha de base).</item>
+        </list>
+      </example>
+
+      <example id="exm:1-4-soma-sinais">
+        <title>Soma de duas correntes oscilatórias na mesma frequência</title>
+        Um neurônio recebe duas correntes sinápticas oscilatórias na frequência alfa de $10\text{ Hz}$ ($\omega = 20\pi\text{ rad/s}$):
+        $$I_1(t) = 3 \cdot \operatorname{sen}(20\pi t)\text{ nA} \qquad \text{e} \qquad I_2(t) = 4 \cdot \cos(20\pi t)\text{ nA}.$$
+        <list marker="a">
+          <item>Escreva a corrente total $I_{\text{total}}(t) = I_1(t) + I_2(t)$ na forma $R\operatorname{sen}(20\pi t + \varphi)$.</item>
+          <item>Explique por que a fase relativa entre duas entradas importa tanto na soma de sinais neurais.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Aplicando a <ref to="prop:1-4-soma-sinusoides"/> com $a = 3 > 0$ e $b = 4$:
+            $$R = \sqrt{3^2 + 4^2} = \sqrt{9 + 16} = \sqrt{25} = 5\text{ nA}.$$
+            Como $a = 3 > 0$, a fase $\varphi$ satisfaz:
+            $$\tan\varphi = \frac{4}{3} \implies \varphi = \arctan\!\left(\frac{4}{3}\right) \approx 0{,}927\text{ rad} \approx 53{,}1^\circ.$$
+            Portanto:
+            $$I_{\text{total}}(t) = 5 \cdot \operatorname{sen}(20\pi t + 0{,}927)\text{ nA}.$$
+            <em>Conferência em $t = 0$:</em> pela fórmula original, $I_1(0) + I_2(0) = 3\operatorname{sen}(0) + 4\cos(0) = 4\text{ nA}$; pela fórmula combinada, $R\operatorname{sen}\varphi = 5 \cdot \frac{b}{R} = 5 \cdot \frac{4}{5} = 4\text{ nA}$!
+          </item>
+          <item>A amplitude resultante $R = 5\text{ nA}$ é menor que a soma aritmética das amplitudes ($3 + 4 = 7\text{ nA}$) porque $I_1$ e $I_2$ estão defasadas de um quarto de ciclo ($\pi/2$). Se duas entradas de $3\text{ nA}$ chegassem perfeitamente <em>em fase</em>, somariam $6\text{ nA}$ (interferência construtiva); se chegassem <em>em oposição de fase</em> ($\Delta\varphi = \pi$), cancelar-se-iam em $0\text{ nA}$ (interferência destrutiva). Por isso, medir apenas a amplitude de cada oscilação sem saber sua fase não permite prever o sinal resultante.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:1-4-armadilha-identidades">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>$\operatorname{sen}(a + b) \ne \operatorname{sen} a + \operatorname{sen} b$:</strong> o seno não é distributivo! Um contraexemplo imediato: $\operatorname{sen}(30^\circ + 60^\circ) = \operatorname{sen} 90^\circ = 1$, mas $\operatorname{sen} 30^\circ + \operatorname{sen} 60^\circ = \frac{1 + \sqrt{3}}{2} \approx 1{,}37 > 1$ (e nenhuma função seno real pode ultrapassar $1$).</item>
+          <item><strong>$\operatorname{sen}(2x) \ne 2\operatorname{sen} x$:</strong> testar $x = 30^\circ$ mostra na hora o erro, pois $\operatorname{sen}(60^\circ) = \frac{\sqrt{3}}{2} \approx 0{,}866$, enquanto $2\operatorname{sen}(30^\circ) = 1$. O fator $\cos x$ em $\operatorname{sen}(2x) = 2\operatorname{sen} x \cos x$ não pode ser esquecido.</item>
+          <item><strong>Esquecer o sinal ao isolar $\cos\theta = \pm\sqrt{1 - \operatorname{sen}^2\theta}$:</strong> a relação fundamental dá o quadrado; o sinal ($+$ ou $-$) sempre depende do quadrante em que $\theta$ está.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:1-4-4-1">
+        <title>Básico — Relação fundamental e arco duplo no 3º quadrante</title>
+        Sabendo que $\cos\theta = -\dfrac{5}{13}$ e que $\pi < \theta < \dfrac{3\pi}{2}$ (3º quadrante), calcule os valores exatos de $\operatorname{sen}\theta$, $\tan\theta$ e $\operatorname{sen}(2\theta)$.
+        <hint><title>Ver dica</title>Use $\operatorname{sen}^2\theta + \cos^2\theta = 1$, lembre que no 3º quadrante o seno é negativo, e depois aplique $\operatorname{sen}(2\theta) = 2\operatorname{sen}\theta\cos\theta$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Pela relação fundamental:
+          $$\operatorname{sen}^2\theta = 1 - \left(-\frac{5}{13}\right)^2 = 1 - \frac{25}{169} = \frac{144}{169} \implies \operatorname{sen}\theta = \pm\frac{12}{13}.$$
+          No 3º quadrante ($\pi < \theta < 3\pi/2$), a coordenada vertical é negativa, logo $\operatorname{sen}\theta = -\dfrac{12}{13}$. Calculando a tangente e o arco duplo:
+          $$\tan\theta = \frac{-12/13}{-5/13} = \frac{12}{5} = 2{,}4,$$
+          $$\operatorname{sen}(2\theta) = 2 \cdot \left(-\frac{12}{13}\right) \cdot \left(-\frac{5}{13}\right) = \frac{120}{169}.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-4-4-2">
+        <title>Básico — Avaliando a curva de sintonia de um neurônio motor</title>
+        Um neurônio de M1 tem curva de sintonia de cosseno dada por:
+        $$f(s) = 25 + 15 \cdot \cos(s - 120^\circ)\;\text{Hz}.$$
+        <list marker="a">
+          <item>Identifique a direção preferida $s_{\text{pref}}$, a taxa máxima $r_{\text{max}}$ e a taxa na direção ortogonal ($90^\circ$ de desvio).</item>
+          <item>Calcule a taxa de disparo para movimentos em $s = 180^\circ$, $s = 210^\circ$ e $s = 300^\circ$.</item>
+        </list>
+        <hint><title>Ver dica</title>Compare com $f(s) = r_0 + (r_{\text{max}} - r_0)\cos(s - s_{\text{pref}})$. A taxa máxima ocorre quando o argumento do cosseno é $0^\circ$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>A direção preferida é $s_{\text{pref}} = 120^\circ$. Quando $s = 120^\circ$, $\cos 0^\circ = 1$, logo $r_{\text{max}} = 25 + 15 = 40\text{ Hz}$. A $90^\circ$ da preferida ($\cos(\pm 90^\circ) = 0$), a taxa vale $r_0 = 25\text{ Hz}$.</item>
+            <item>Substituindo cada direção:
+              <list marker="dash">
+                <item>$s = 180^\circ$: $f(180^\circ) = 25 + 15\cos(60^\circ) = 25 + 15 \cdot 0{,}5 = 32{,}5\text{ Hz}$.</item>
+                <item>$s = 210^\circ$: $f(210^\circ) = 25 + 15\cos(90^\circ) = 25 + 0 = 25\text{ Hz}$.</item>
+                <item>$s = 300^\circ$: $f(300^\circ) = 25 + 15\cos(180^\circ) = 25 + 15 \cdot (-1) = 10\text{ Hz}$.</item>
+              </list>
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-4-4-3">
+        <title>Intermediário — Soma de oscilações teta com ângulo exato</title>
+        Considere o sinal composto ($t$ em segundos):
+        $$y(t) = \sqrt{3}\operatorname{sen}(12\pi t) + \cos(12\pi t).$$
+        Escreva $y(t)$ na forma $R\operatorname{sen}(12\pi t + \varphi)$, determinando $R$, a fase $\varphi$ (em radianos e em graus), a frequência em $\text{Hz}$ (e a banda correspondente do EEG) e o período em $\text{ms}$.
+        <hint><title>Ver dica</title>Aplique a <ref to="prop:1-4-soma-sinusoides"/> com $a = \sqrt{3} > 0$ e $b = 1$, e reconheça $\tan\varphi = \frac{1}{\sqrt{3}}$ na <ref to="prop:1-4-angulos-notaveis"/>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Com $a = \sqrt{3} > 0$ e $b = 1$:
+          $$R = \sqrt{(\sqrt{3})^2 + 1^2} = \sqrt{3 + 1} = \sqrt{4} = 2.$$
+          Para a fase $\varphi \in (-\pi/2, \pi/2)$:
+          $$\tan\varphi = \frac{1}{\sqrt{3}} = \frac{\sqrt{3}}{3} \implies \varphi = \frac{\pi}{6}\text{ rad} = 30^\circ.$$
+          Logo:
+          $$y(t) = 2 \cdot \operatorname{sen}\!\left(12\pi t + \frac{\pi}{6}\right).$$
+          Como $\omega = 12\pi\text{ rad/s}$, a frequência é $f = \frac{12\pi}{2\pi} = 6\text{ Hz}$ (banda teta do EEG) e o período é $T = \frac{1}{6}\text{ s} \approx 166{,}7\text{ ms}$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-4-4-4">
+        <title>Avançado — Decompondo a sintonia de cosseno pela identidade da diferença</title>
+        Mostre que a curva de sintonia de Georgopoulos (<ref to="eq:1-4-georgopoulos"/>),
+        $$f(s) = r_0 + (r_{\text{max}} - r_0)\cos(s - s_{\text{pref}}),$$
+        pode ser reescrita como $f(s) = r_0 + c_x \cos s + c_y \operatorname{sen} s$, determinando as constantes $c_x$ e $c_y$ em função de $r_{\text{max}}$, $r_0$ e $s_{\text{pref}}$. Em seguida, calcule $c_x$ e $c_y$ para $r_0 = 30\text{ Hz}$, $r_{\text{max}} = 50\text{ Hz}$ e $s_{\text{pref}} = 60^\circ$, e confira $f(60^\circ)$ pela expressão expandida.
+        <hint><title>Ver dica</title>Expanda $\cos(s - s_{\text{pref}})$ com a identidade do cosseno da diferença (<ref to="thm:1-4-soma-arcos"/>) e agrupe os termos que multiplicam $\cos s$ e $\operatorname{sen} s$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Aplicando $\cos(\alpha - \beta) = \cos\alpha\cos\beta + \operatorname{sen}\alpha\operatorname{sen}\beta$ com $\alpha = s$ e $\beta = s_{\text{pref}}$:
+          $$f(s) = r_0 + (r_{\text{max}} - r_0)\bigl(\cos s \cos s_{\text{pref}} + \operatorname{sen} s \operatorname{sen} s_{\text{pref}}\bigr)$$
+          $$f(s) = r_0 + \underbrace{\bigl[(r_{\text{max}} - r_0)\cos s_{\text{pref}}\bigr]}_{c_x}\cos s + \underbrace{\bigl[(r_{\text{max}} - r_0)\operatorname{sen} s_{\text{pref}}\bigr]}_{c_y}\operatorname{sen} s.$$
+          (Note que $c_x$ e $c_y$ são justamente as componentes horizontal e vertical de um segmento de comprimento $r_{\text{max}} - r_0$ orientado em $s_{\text{pref}}$!)
+
+          Para $r_0 = 30\text{ Hz}$, $r_{\text{max}} = 50\text{ Hz}$ ($r_{\text{max}} - r_0 = 20\text{ Hz}$) e $s_{\text{pref}} = 60^\circ$:
+          $$c_x = 20\cos 60^\circ = 20 \cdot \frac{1}{2} = 10\text{ Hz}, \qquad c_y = 20\operatorname{sen} 60^\circ = 20 \cdot \frac{\sqrt{3}}{2} = 10\sqrt{3} \approx 17{,}32\text{ Hz}.$$
+          <em>Conferência em $s = 60^\circ$:</em>
+          $$f(60^\circ) = 30 + 10\cos 60^\circ + 10\sqrt{3}\operatorname{sen} 60^\circ = 30 + 10 \cdot \frac{1}{2} + 10\sqrt{3} \cdot \frac{\sqrt{3}}{2} = 30 + 5 + 15 = 50\text{ Hz} = r_{\text{max}}.$$
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:1-4-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Razões no triângulo retângulo:</strong> $\operatorname{sen}\theta = \dfrac{c_{\text{op}}}{h}$, $\cos\theta = \dfrac{c_{\text{adj}}}{h}$ e $\tan\theta = \dfrac{c_{\text{op}}}{c_{\text{adj}}}$; um segmento de comprimento $L$ e inclinação $\theta$ decompõe-se em $(\Delta x, \Delta y) = (L\cos\theta,\, L\operatorname{sen}\theta)$, e o ângulo visual de um estímulo de largura $s$ à distância $d$ satisfaz $\tan(\theta/2) = \dfrac{s}{2d}$.</item>
+        <item><strong>Ângulos notáveis:</strong> $(30^\circ, 45^\circ, 60^\circ)$ correspondem a $(\pi/6, \pi/4, \pi/3)\text{ rad}$, com $\operatorname{sen}$ igual a $\left(\frac{1}{2}, \frac{\sqrt{2}}{2}, \frac{\sqrt{3}}{2}\right)$ e $\cos$ em ordem inversa $\left(\frac{\sqrt{3}}{2}, \frac{\sqrt{2}}{2}, \frac{1}{2}\right)$.</item>
+        <item><strong>Radianos e círculo unitário:</strong> $\theta_{\text{rad}} = \dfrac{s}{R}$ e $2\pi\text{ rad} = 360^\circ$. No círculo $x^2 + y^2 = 1$, $P(\theta) = (\cos\theta,\, \operatorname{sen}\theta)$: seno e cosseno têm domínio $\mathbb{R}$, imagem $[-1, 1]$ e período $2\pi$; $\cos(-x) = \cos x$ (par) e $\operatorname{sen}(-x) = -\operatorname{sen} x$ (ímpar).</item>
+        <item><strong>Funções sinusoidais:</strong> $x(t) = A\operatorname{sen}(2\pi f t + \varphi) = A\operatorname{sen}(\omega t + \varphi)$ tem amplitude $A$, frequência $f$ ($\text{Hz}$), período $T = 1/f$, frequência angular $\omega = 2\pi f$ ($\text{rad/s}$) e fase inicial $\varphi$ (deslocamento horizontal de $-\varphi/\omega$). Modela bandas do EEG ($\delta, \theta, \alpha, \beta, \gamma$) e ritmos circadianos $y(t) = M + A\cos\!\left(\frac{2\pi(t - t_{\text{pico}})}{24}\right)$.</item>
+        <item><strong>Inversas restritas:</strong> $\operatorname{arcsen}: [-1, 1] \to [-\pi/2, \pi/2]$, $\arccos: [-1, 1] \to [0, \pi]$ e $\arctan: \mathbb{R} \to (-\pi/2, \pi/2)$. Lembre que $\operatorname{sen}^{-1} x = \operatorname{arcsen} x \ne \frac{1}{\operatorname{sen} x}$, que o cancelamento $\operatorname{arcsen}(\operatorname{sen} x) = x$ só vale no intervalo restrito e que $\arctan(\Delta y/\Delta x)$ exige conferir os sinais de $\Delta x$ e $\Delta y$ para não errar o quadrante.</item>
+        <item><strong>Identidades fundamentais:</strong> $\operatorname{sen}^2\theta + \cos^2\theta = 1$, $\tan\theta = \dfrac{\operatorname{sen}\theta}{\cos\theta}$ e $1 + \tan^2\theta = \sec^2\theta$.</item>
+        <item><strong>Soma de arcos, arco duplo e defasagem:</strong> $\operatorname{sen}(\alpha \pm \beta) = \operatorname{sen}\alpha\cos\beta \pm \cos\alpha\operatorname{sen}\beta$, $\cos(\alpha \pm \beta) = \cos\alpha\cos\beta \mp \operatorname{sen}\alpha\operatorname{sen}\beta$, $\operatorname{sen}(2\theta) = 2\operatorname{sen}\theta\cos\theta$ e $\cos(\theta - \pi/2) = \operatorname{sen}\theta$ (seno é cosseno atrasado de um quarto de ciclo).</item>
+        <item><strong>Soma de mesma frequência e sintonia direcional:</strong> $a\operatorname{sen}(\omega t) + b\cos(\omega t) = R\operatorname{sen}(\omega t + \varphi)$ com $R = \sqrt{a^2 + b^2}$ e $\tan\varphi = b/a$ ($a > 0$) — base da análise de Fourier —, e a curva de sintonia de cosseno em M1 é $f(s) = r_0 + (r_{\text{max}} - r_0)\cos(s - s_{\text{pref}})$.</item>
+        <item><strong>Armadilhas a vigiar:</strong> modo <c>DEG</c> versus <c>RAD</c> na calculadora, não confundir $f$ com $\omega$, e nunca distribuir $\operatorname{sen}$ ou $\cos$ na soma nem tirar o $2$ de dentro de $\operatorname{sen}(2x)$.</item>
+      </list>
+    </section>
+
+    <section id="sec:1-4-alem">
+      <title>Para ir além</title>
+      Com a trigonometria dominada, você está pronto para unir álgebra, geometria e coordenadas em <strong>Geometria Analítica</strong> (Tema 1.5, encerrando o Módulo 1), avançar para <strong>Cálculo Real</strong> (Módulo 2) e, mais adiante na trilha, entender como a análise de Fourier decompõe sinais neurais em ondas senoidais. Para consolidar e praticar:
+      <list marker="dash">
+        <item><strong>Material essencial:</strong> <link to="https://pt.khanacademy.org/math/precalculus">Khan Academy — Pré-Cálculo</link>, com exercícios interativos de círculo trigonométrico, gráficos de senoides, inversas e identidades.</item>
+        <item><strong>Aprofundamento em vídeo:</strong> <link to="https://www.youtube.com/playlist?list=PL83s8LGM84J62ahewE-sVGbnJdOqGp8lJ">Playlist YouTube — Base Matemática</link>, útil para revisar razões trigonométricas, conversões em radianos e identidades passo a passo.</item>
+        <item><strong>Prática dirigida (<em>drill</em> do módulo):</strong> após cada aula (subseção), peça a uma IA para criar 3 questões do tema aplicadas à neurociência para você resolver.</item>
+        <item><strong>Projeto final do módulo:</strong> criar e desenhar o gráfico analítico de uma função que modela a taxa de disparo de um neurônio em função da intensidade do estímulo.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 1 · Pré-Cálculo — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

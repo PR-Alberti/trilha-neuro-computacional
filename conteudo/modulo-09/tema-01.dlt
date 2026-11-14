@@ -1,0 +1,719 @@
+<document>
+  <title>Módulo 9 · Deep Learning</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-9-1">Voltar ao guia (Tema 9.1)</link></meta-item>
+    <meta-item key="Módulo">Módulo 9 · Deep Learning — O Estado da Arte da Neurociência Computacional</meta-item>
+    <meta-item key="Nível">Básico</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-9-1">
+    <title>Fundamentos</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Neurônios artificiais, camadas e backpropagation.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> O aprendizado profundo (<em>deep learning</em>) nasceu inspirado no sistema nervoso e hoje atua como ferramenta central da neurociência computacional. Redes Neurais Convolucionais (CNNs) são os principais modelos computacionais do sistema visual (de V1 ao córtex inferotemporal IT); <em>Transformers</em> decodificam linguagem contínua a partir de sinais de ressonância magnética funcional (fMRI); e redes recorrentes (RNNs) modelam a dinâmica cortical. Dominar <em>Deep Learning</em> é dominar a fronteira entre codificação (<em>encoding</em>) e decodificação (<em>decoding</em>) neural.
+
+    Em projetos reais com neuroimagem ou eletrofisiologia, recomenda-se usar instâncias em nuvem ou o Google Colab com GPU, pois seu computador comum aquecerá muito sem placa de vídeo compatível. Aqui, porém, todos os códigos Python foram dimensionados para rodar em CPU em segundos, permitindo entender cada conta antes de escalar.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>comparar um neurônio biológico ao modelo de taxa de disparo do neurônio artificial e suas funções de ativação;</item>
+      <item>explicar por que um perceptron único falha no XOR e como redes multicamadas (MLPs) resolvem esse limite;</item>
+      <item>calcular a passagem direta (<em>forward pass</em>) e as perdas quadrática e de entropia cruzada com <em>softmax</em>;</item>
+      <item>aplicar a retropropagação (<em>backpropagation</em>) pela regra da cadeia e conferir gradientes por diferenças finitas e <em>autograd</em>;</item>
+      <item>treinar um MLP em PyTorch com mini-lotes, momento, Adam e regularização, evitando erros comuns.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Retomaremos a regra da cadeia do Módulo 3 (<strong>Diferencial em várias variáveis</strong>), o gradiente descendente do Módulo 4 (<strong>Métodos computacionais</strong>), matrizes e vetores do Módulo 5 (<strong>Vetores, matrizes e operações</strong>), máxima verossimilhança do Módulo 7 (<strong>Inferência não-Bayesiana (Frequentista)</strong>), além de classificação e regularização ridge do Módulo 8 (<strong>Classificação</strong>, <strong>Regularização</strong> e <strong>Métodos adicionais</strong>).
+
+    <section id="sec:9-1-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Do neurônio biológico ao artificial</title>
+      <intro>
+        O neurônio artificial não simula os canais iônicos de um potencial de ação: ele resume em álgebra a soma sináptica ponderada e sua conversão em taxa média de disparo.
+      </intro>
+
+      Em um neurônio cortical, sinais químicos de milhares de células chegam pelos <strong>dendritos</strong> e alteram o potencial no corpo celular (<strong>soma</strong>). Sinapses <strong>excitatórias</strong> elevam o potencial; sinapses <strong>inibitórias</strong> reduzem-no. Partindo do repouso em torno de $-70\text{ mV}$, se a soma integrada atingir o limiar próximo de $-55\text{ mV}$, a célula dispara um potencial de ação "tudo-ou-nada" que percorre o <strong>axônio</strong>. Ao longo de janelas de centenas de milissegundos, a informação neural aparece na <strong>taxa de disparo</strong>, tipicamente entre $0$ e $200\text{ Hz}$.
+
+      Em 1943, Warren McCulloch e Walter Pitts propuseram uma unidade binária inspirada nesse limiar. Depois, Frank Rosenblatt (1958) criou o <strong>perceptron</strong>, introduzindo pesos ajustáveis pelos erros nos dados.
+
+      <definition id="def:9-1-neuronio-artificial">
+        <title>Neurônio artificial (modelo de taxa de disparo)</title>
+        Dado um vetor de entradas $\mathbf{x} = (x_1, \dots, x_n)^\top \in \mathbb{R}^n$, pesos $\mathbf{w} \in \mathbb{R}^n$ e viés (<em>bias</em>) $b \in \mathbb{R}$, o neurônio artificial calcula a <strong>pré-ativação</strong> $z$ e aplica uma <strong>função de ativação</strong> $\phi: \mathbb{R} \to \mathbb{R}$:
+        <equation id="eq:9-1-neuronio">
+          z = \mathbf{w}^\top \mathbf{x} + b = \sum_{i=1}^{n} w_i x_i + b, \qquad a = \phi(z)
+        </equation>
+        <intuition>
+          Pesos positivos ($w_i > 0$) correspondem a sinapses excitatórias e negativos ($w_i < 0$) a inibitórias. O viés $b$ desloca o limiar de disparo, e $a = \phi(z)$ representa a taxa de disparo resultante.
+        </intuition>
+      </definition>
+
+      No perceptron de Rosenblatt, $\phi$ é a <strong>função degrau</strong>: $H(z) = 1$ se $z \ge 0$ e $H(z) = 0$ se $z < 0$. A fronteira de decisão $\mathbf{w}^\top \mathbf{x} + b = 0$ é um <strong>hiperplano</strong> (uma reta em $\mathbb{R}^2$) que separa as duas classes. Dada uma amostra $(\mathbf{x}, y)$ com $y \in \{0, 1\}$ e previsão $\hat{y} = H(\mathbf{w}^\top \mathbf{x} + b)$, a <strong>regra de aprendizagem do perceptron</strong> com taxa $\eta > 0$ atualiza:
+      <equation id="eq:9-1-perceptron-regra">
+        \mathbf{w} \leftarrow \mathbf{w} + \eta (y - \hat{y})\mathbf{x}, \qquad b \leftarrow b + \eta (y - \hat{y})
+      </equation>
+      Se o modelo acerta ($y = \hat{y}$), nada muda; se erra, empurra $z$ na direção do rótulo correto.
+
+      <example id="exm:9-1-portas-and-or">
+        <title>Portas lógicas AND e OR à mão</title>
+        Para entradas $\mathbf{x} = (x_1, x_2)^\top \in \{0, 1\}^2$ e ativação degrau $H(z)$, obtenha parâmetros para as portas AND e OR.
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item><strong>AND:</strong> escolha $w_1 = 1$, $w_2 = 1$ e $b = -1{,}5$ ($z = x_1 + x_2 - 1{,}5$):
+            <list marker="dash">
+              <item>$(0, 0)$: $z = -1{,}5 < 0 \implies \hat{y} = 0$;</item>
+              <item>$(1, 0)$ e $(0, 1)$: $z = -0{,}5 < 0 \implies \hat{y} = 0$;</item>
+              <item>$(1, 1)$: $z = +0{,}5 \ge 0 \implies \hat{y} = 1$.</item>
+            </list>
+          </item>
+          <item><strong>OR:</strong> escolha $w_1 = 1$, $w_2 = 1$ e $b = -0{,}5$ ($z = x_1 + x_2 - 0{,}5$):
+            <list marker="dash">
+              <item>$(0, 0)$: $z = -0{,}5 < 0 \implies \hat{y} = 0$;</item>
+              <item>$(1, 0)$ e $(0, 1)$: $z = +0{,}5 \ge 0 \implies \hat{y} = 1$;</item>
+              <item>$(1, 1)$: $z = +1{,}5 \ge 0 \implies \hat{y} = 1$.</item>
+            </list>
+          </item>
+        </list>
+      </example>
+
+      Contudo, em 1969, Marvin Minsky e Seymour Papert mostraram que um único perceptron falha na função <strong>XOR</strong> ($1$ se $x_1 \ne x_2$, $0$ se $x_1 = x_2$).
+
+      <proposition id="prop:9-1-xor-impossivel">
+        <title>Impossibilidade do XOR com um único perceptron</title>
+        Não existem $w_1, w_2, b \in \mathbb{R}$ tais que $H(w_1 x_1 + w_2 x_2 + b)$ devolva $0$ em $(0,0), (1,1)$ e $1$ em $(1,0), (0,1)$.
+        <intuition>
+          No plano, $(1,0)$ e $(0,1)$ ficam em uma diagonal do quadrado, enquanto $(0,0)$ e $(1,1)$ ficam na diagonal cruzada. Nenhuma reta separa diagonais opostas.
+        </intuition>
+      </proposition>
+      <proof of="prop:9-1-xor-impossivel" collapsible="true" collapsed="true">
+        Suponha por absurdo que existam tais $w_1, w_2, b$. Pela tabela do XOR: (1) $b < 0$ para $(0,0)$; (2) $w_1 + b \ge 0$ para $(1,0)$; (3) $w_2 + b \ge 0$ para $(0,1)$; (4) $w_1 + w_2 + b < 0$ para $(1,1)$. Somando (2) e (3), temos $w_1 + w_2 + 2b \ge 0$. Somando (1) e (4), temos $w_1 + w_2 + 2b < 0$, o que é contraditório.
+      </proof>
+
+      Além disso, a função degrau tem derivada $H'(z) = 0$ para $z \ne 0$ (e indefinida em $0$), inviabilizando o gradiente descendente (Módulo 4). Por isso usamos <strong>funções de ativação</strong> diferenciáveis (ou quase sempre diferenciáveis):
+      <list marker="number">
+        <item><strong>Sigmoide logística:</strong> $\sigma(z) = \dfrac{1}{1 + e^{-z}} \in (0, 1)$, com derivada $\sigma'(z) = \sigma(z)\bigl(1 - \sigma(z)\bigr)$.</item>
+        <item><strong>Tangente hiperbólica:</strong> $\tanh(z) = \dfrac{e^z - e^{-z}}{e^z + e^{-z}} \in (-1, 1)$, com derivada $\tanh'(z) = 1 - \tanh^2(z)$.</item>
+        <item><strong>ReLU (<em>Rectified Linear Unit</em>):</strong> $\mathrm{ReLU}(z) = \max(0, z) \in [0, +\infty)$, com $\mathrm{ReLU}'(z) = 1$ se $z > 0$ e $0$ se $z < 0$ (indefinida em $z = 0$; adota-se a convenção $\mathrm{ReLU}'(0) = 0$).</item>
+      </list>
+
+      <figure src="fig/t01-ativacoes.svg" alt="Quatro gráficos comparando degrau, sigmoide, tanh e ReLU com suas derivadas entre -5 e 5" id="fig:9-1-ativacoes">
+        <caption>Funções de ativação clássicas (linha sólida) e suas derivadas (linha tracejada). Note que $\sigma'(z) \le 0{,}25$ e que a $\mathrm{ReLU}$ mantém derivada $1$ para $z > 0$.</caption>
+      </figure>
+
+      <example id="exm:9-1-curva-fi">
+        <title>Curva f-I saturante de um neurônio cortical</title>
+        Em eletrofisiologia, a <strong>curva $f\text{-}I$</strong> relaciona corrente injetada $I$ ($\text{nA}$) e frequência de disparo $f(I)$ ($\text{Hz}$). Devido ao período refratário, a taxa satura perto de $f_{\max} = 200\text{ Hz}$:
+        $$f(I) = f_{\max}\,\sigma\!\bigl(k(I - I_0)\bigr) = \frac{200}{1 + e^{-5(I - 0{,}4)}}$$
+        com $k = 5\text{ nA}^{-1}$ e $I_0 = 0{,}4\text{ nA}$. Calcule $f(0)$, $f(0{,}4)$, $f(0{,}8)$ e $\frac{df}{dI}(0{,}4)$.
+
+        <strong>Solução.</strong> Calculamos $z = 5(I - 0{,}4)$:
+        <list marker="dash">
+          <item>$I = 0$: $z = -2$. Com $e^2 \approx 7{,}3891$, $\sigma(-2) \approx \frac{1}{8{,}3891} \approx 0{,}1192 \implies f(0) \approx 200 \cdot 0{,}1192 \approx 23{,}8\text{ Hz}$.</item>
+          <item>$I = 0{,}4$: $z = 0 \implies \sigma(0) = 0{,}5 \implies f(0{,}4) = 100\text{ Hz}$.</item>
+          <item>$I = 0{,}8$: $z = 2 \implies \sigma(2) = 1 - \sigma(-2) \approx 0{,}8808 \implies f(0{,}8) \approx 176{,}2\text{ Hz}$.</item>
+        </list>
+        Pela regra da cadeia, usando $\sigma'(0) = 0{,}5(1 - 0{,}5) = 0{,}25$:
+        $$\frac{df}{dI}(0{,}4) = 200 \cdot 5 \cdot 0{,}25 = 250\text{ Hz/nA}.$$
+      </example>
+
+      <remark id="rem:9-1-armadilha-pa">
+        <title>Armadilha comum</title>
+        Não confunda o neurônio artificial com um modelo de <strong>potencial de ação</strong>. O potencial de ação real é um pulso rápido de $\sim 1\text{–}2\text{ ms}$ regido por canais iônicos (Hodgkin &amp; Huxley, 1952); já $a = \phi(\mathbf{w}^\top \mathbf{x} + b)$ modela uma <em>taxa de disparo</em> média suavizada.
+      </remark>
+
+      <exercise id="exr:9-1-1-1">
+        <title>Básico — Avaliando ativações e derivadas à mão</title>
+        Calcule sem calculadora: (a) $\mathrm{ReLU}(-3)$, $\mathrm{ReLU}(4)$, $\mathrm{ReLU}'(-3)$ e $\mathrm{ReLU}'(4)$; (b) $\sigma(0)$, $\sigma'(0)$, $\tanh(0)$ e $\tanh'(0)$; (c) sabendo que $\sigma(z_1) = 0{,}8$ e $\tanh(z_2) = 0{,}6$, ache $\sigma'(z_1)$ e $\tanh'(z_2)$.
+        <hint><title>Ver dica</title>Em (c), substitua diretamente nas fórmulas $\sigma'(z) = \sigma(z)(1 - \sigma(z))$ e $\tanh'(z) = 1 - \tanh^2(z)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$\mathrm{ReLU}(-3) = 0$, $\mathrm{ReLU}'(-3) = 0$; $\mathrm{ReLU}(4) = 4$, $\mathrm{ReLU}'(4) = 1$.</item>
+            <item>$\sigma(0) = \frac{1}{1+1} = 0{,}5$, $\sigma'(0) = 0{,}5(0{,}5) = 0{,}25$; $\tanh(0) = 0$, $\tanh'(0) = 1 - 0^2 = 1$.</item>
+            <item>$\sigma'(z_1) = 0{,}8(1 - 0{,}8) = 0{,}16$ e $\tanh'(z_2) = 1 - (0{,}6)^2 = 0{,}64$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-1-1-2">
+        <title>Básico — Balanço excitatório e inibitório</title>
+        Um interneurônio com ativação $\mathrm{ReLU}$ recebe entrada excitatória $x_1 = 40\text{ Hz}$ ($w_1 = 0{,}05$), entrada inibitória $x_2$ ($w_2 = -0{,}10$) e viés $b = 0{,}5$. Calcule $z$ e $a$ para $x_2 = 30\text{ Hz}$ e para $x_2 = 10\text{ Hz}$.
+        <hint><title>Ver dica</title>Calcule $z = w_1 x_1 + w_2 x_2 + b$ e aplique $\max(0, z)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para $x_2 = 30\text{ Hz}$: $z = 0{,}05(40) - 0{,}10(30) + 0{,}5 = 2{,}0 - 3{,}0 + 0{,}5 = -0{,}5$, logo $a = \max(0, -0{,}5) = 0$. Para $x_2 = 10\text{ Hz}$: $z = 2{,}0 - 1{,}0 + 0{,}5 = 1{,}5$, logo $a = 1{,}5$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-1-1-3">
+        <title>Intermediário — Atualização do perceptron à mão</title>
+        Um perceptron com $H(z)$ tem $\mathbf{w} = (0{,}4;\; -0{,}2)^\top$, $b = -0{,}2$ e $\eta = 0{,}5$. Para $\mathbf{x} = (1, 2)^\top$ e $y = 1$, calcule $\hat{y}$, atualize $\mathbf{w}$ e $b$ pela <ref to="eq:9-1-perceptron-regra"/> e confira a nova previsão em $\mathbf{x}$.
+        <hint><title>Ver dica</title>Avalie $z$ primeiro para achar $\hat{y} \in \{0,1\}$ e depois some $\eta(y - \hat{y})\mathbf{x}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Inicialmente, $z = 0{,}4(1) - 0{,}2(2) - 0{,}2 = -0{,}2 < 0 \implies \hat{y} = 0$. Com $y - \hat{y} = 1$:
+          $$\mathbf{w}_{\text{novo}} = \begin{pmatrix} 0{,}4 \\ -0{,}2 \end{pmatrix} + 0{,}5(1)\begin{pmatrix} 1 \\ 2 \end{pmatrix} = \begin{pmatrix} 0{,}9 \\ 0{,}8 \end{pmatrix}, \qquad b_{\text{novo}} = -0{,}2 + 0{,}5 = 0{,}3.$$
+          Recalculando: $z_{\text{novo}} = 0{,}9(1) + 0{,}8(2) + 0{,}3 = 2{,}8 \ge 0 \implies \hat{y}_{\text{novo}} = 1$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-1-1-4">
+        <title>Avançado — Derivada da sigmoide e cota máxima</title>
+        Prove que $\sigma'(z) = \sigma(z)\bigl(1 - \sigma(z)\bigr)$ e mostre que $\sigma'(z) \le \frac{1}{4}$ para todo $z \in \mathbb{R}$, com máximo em $z = 0$.
+        <hint><title>Ver dica</title>Derive $(1 + e^{-z})^{-1}$ e complete o quadrado em $p(1 - p)$ para $p = \sigma(z)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Derivando $\sigma(z) = (1 + e^{-z})^{-1}$ pela regra da cadeia:
+          $$\sigma'(z) = \frac{e^{-z}}{(1 + e^{-z})^2} = \frac{1}{1 + e^{-z}} \cdot \frac{(1 + e^{-z}) - 1}{1 + e^{-z}} = \sigma(z)\bigl(1 - \sigma(z)\bigr).$$
+          Chamando $p = \sigma(z) \in (0, 1)$, completamos o quadrado: $p(1 - p) = \frac{1}{4} - (p - \frac{1}{2})^2 \le \frac{1}{4}$, com igualdade apenas quando $p = \frac{1}{2}$, isto é, $z = 0$.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-1-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Redes multicamadas e funções de perda</title>
+      <intro>
+        Empilhar camadas não lineares deforma o espaço de entrada até tornar separáveis problemas como o XOR e permite associar saídas a probabilidades e perdas bem definidas.
+      </intro>
+
+      No sistema visual de mamíferos, sinais passam por uma hierarquia (retina $\to$ V1 $\to$ V2 $\to$ V4 $\to$ IT), combinando características simples em representações cada vez mais abstratas. Em <em>Deep Learning</em>, fazemos isso com o <strong>perceptron multicamadas</strong> (<em>Multilayer Perceptron</em>, MLP): camada de entrada ($l = 0$), camadas ocultas ($l = 1, \dots, L-1$) e saída ($l = L$).
+
+      <definition id="def:9-1-mlp-forward">
+        <title>Passagem direta (forward pass) em um MLP</title>
+        Com $\mathbf{a}^{(0)} = \mathbf{x} \in \mathbb{R}^{n_0}$, cada camada $l = 1, \dots, L$ de largura $n_l$ possui matriz de pesos $\mathbf{W}^{(l)} \in \mathbb{R}^{n_l \times n_{l-1}}$, viés $\mathbf{b}^{(l)} \in \mathbb{R}^{n_l}$ e ativação $\phi^{(l)}$ elemento a elemento:
+        <equation id="eq:9-1-forward">
+          \mathbf{z}^{(l)} = \mathbf{W}^{(l)}\mathbf{a}^{(l-1)} + \mathbf{b}^{(l)} \in \mathbb{R}^{n_l}, \qquad \mathbf{a}^{(l)} = \phi^{(l)}\!\bigl(\mathbf{z}^{(l)}\bigr) \in \mathbb{R}^{n_l}
+        </equation>
+        A saída final é $\hat{\mathbf{y}} = \mathbf{a}^{(L)}$, e a camada $l$ possui $n_l n_{l-1} + n_l = n_l(n_{l-1} + 1)$ parâmetros.
+        <intuition>
+          A matriz $\mathbf{W}^{(l)}$ tem forma $n_l \times n_{l-1}$: cada linha guarda os $n_{l-1}$ pesos sinápticos que chegam a um neurônio da camada $l$.
+        </intuition>
+      </definition>
+
+      Sem uma função de ativação não linear nas camadas ocultas, adicionar profundidade não cria nenhum poder novo:
+
+      <proposition id="prop:9-1-colapso-linear">
+        <title>Colapso de camadas lineares</title>
+        Se $\phi^{(l)}(\mathbf{z}) = \mathbf{z}$ em todas as camadas, o MLP reduz-se a uma única transformação linear $\hat{\mathbf{y}} = \tilde{\mathbf{W}}\mathbf{x} + \tilde{\mathbf{b}}$.
+      </proposition>
+      <proof of="prop:9-1-colapso-linear" collapsible="true" collapsed="true">
+        Para duas camadas, $\mathbf{W}^{(2)}(\mathbf{W}^{(1)}\mathbf{x} + \mathbf{b}^{(1)}) + \mathbf{b}^{(2)} = (\mathbf{W}^{(2)}\mathbf{W}^{(1)})\mathbf{x} + (\mathbf{W}^{(2)}\mathbf{b}^{(1)} + \mathbf{b}^{(2)}) = \tilde{\mathbf{W}}\mathbf{x} + \tilde{\mathbf{b}}$. Por indução, o mesmo vale para $L$ camadas.
+      </proof>
+
+      Com apenas dois neurônios ocultos $\mathrm{ReLU}$, já resolvemos o XOR exatamente.
+
+      <example id="exm:9-1-xor-mlp">
+        <title>Resolvendo o XOR com uma camada oculta ReLU</title>
+        No MLP $2 \to 2 \to 1$ com $\mathrm{ReLU}$ oculta e saída linear ($\hat{y} = z^{(2)}$):
+        $$\mathbf{W}^{(1)} = \begin{pmatrix} 1 & 1 \\ 1 & 1 \end{pmatrix}, \quad \mathbf{b}^{(1)} = \begin{pmatrix} 0 \\ -1 \end{pmatrix}, \quad \mathbf{W}^{(2)} = \begin{pmatrix} 1 & -2 \end{pmatrix}, \quad b^{(2)} = 0.$$
+        Verifique as $4$ entradas do XOR e conte os parâmetros.
+
+        <strong>Solução.</strong> Calculamos $\mathbf{a}^{(1)} = \mathrm{ReLU}(\mathbf{W}^{(1)}\mathbf{x} + \mathbf{b}^{(1)})$ e $\hat{y} = a^{(1)}_1 - 2a^{(1)}_2$:
+        <list marker="dash">
+          <item>$(0, 0)^\top$: $\mathbf{z}^{(1)} = (0, -1)^\top \implies \mathbf{a}^{(1)} = (0, 0)^\top \implies \hat{y} = 0 - 2(0) = 0$;</item>
+          <item>$(1, 0)^\top$: $\mathbf{z}^{(1)} = (1, 0)^\top \implies \mathbf{a}^{(1)} = (1, 0)^\top \implies \hat{y} = 1 - 2(0) = 1$;</item>
+          <item>$(0, 1)^\top$: $\mathbf{z}^{(1)} = (1, 0)^\top \implies \mathbf{a}^{(1)} = (1, 0)^\top \implies \hat{y} = 1 - 2(0) = 1$;</item>
+          <item>$(1, 1)^\top$: $\mathbf{z}^{(1)} = (2, 1)^\top \implies \mathbf{a}^{(1)} = (2, 1)^\top \implies \hat{y} = 2 - 2(1) = 0$.</item>
+        </list>
+        A saída é exatamente $(0, 1, 1, 0)$, usando $2(2+1) + 1(2+1) = 9$ parâmetros.
+      </example>
+
+      De modo geral, o <strong>Teorema da Aproximação Universal</strong> (Cybenko, 1989) afirma informalmente que uma rede com apenas uma camada oculta suficientemente larga pode aproximar qualquer função contínua em um domínio compacto com precisão arbitrária. Porém, o teorema não diz quantos neurônios seriam precisos (podem ser exponencialmente muitos) nem garante que o gradiente descendente encontrará os pesos corretos.
+
+      Para otimizar os parâmetros, medimos o erro por uma <strong>função de perda</strong> $\mathcal{L}$ (Módulo 8):
+      <list marker="number">
+        <item><strong>Erro Quadrático Médio (MSE)</strong> para regressão: $\mathcal{L}_{\text{MSE}} = \frac{1}{N}\sum_{i=1}^{N}(\hat{y}_i - y_i)^2$ (ou $\frac{1}{2}(\hat{y} - y)^2$ para $1$ exemplo).</item>
+        <item><strong>Softmax + Entropia Cruzada</strong> para classificação em $K$ classes com vetor alvo <em>one-hot</em> $\mathbf{y}$ ($y_c = 1$ na classe verdadeira $c$, $0$ nas demais) e pontuações brutas (<em>logits</em>) $\mathbf{z} = \mathbf{z}^{(L)}$:
+          <equation id="eq:9-1-softmax-ce">
+            \hat{y}_k = \mathrm{softmax}(\mathbf{z})_k = \frac{e^{z_k}}{\sum_{j=1}^{K} e^{z_j}}, \qquad \mathcal{L}_{\text{CE}} = -\sum_{k=1}^{K} y_k \log \hat{y}_k = -\log \hat{y}_c
+          </equation>
+        </item>
+      </list>
+      Como no Módulo 7 (<strong>Inferência não-Bayesiana (Frequentista)</strong>), minimizar $-\sum_{i=1}^N \log \hat{y}_{i, c_i}$ equivale exatamente a maximizar a log-verossimilhança $\sum_{i=1}^N \log P(Y = c_i \mid \mathbf{x}_i; \boldsymbol{\theta})$ das classes corretas (<strong>máxima verossimilhança</strong>).
+
+      <example id="exm:9-1-decod-estimulo">
+        <title>Decodificando três estímulos visuais em V1</title>
+        A partir das taxas normalizadas de $4$ neurônios de V1, $\mathbf{x} = (0{,}8;\; 0{,}2;\; 0{,}0;\; 0{,}5)^\top$, um decodificador linear $\mathbf{z} = \mathbf{W}\mathbf{x} + \mathbf{b}$ prevê $3$ orientações ($1$: $0^\circ$, $2$: $45^\circ$, $3$: $90^\circ$):
+        $$\mathbf{W} = \begin{pmatrix} 2 & 1 & 0 & 0{,}4 \\ 1 & 1 & 2 & 0 \\ 0 & 0 & 1 & 1 \end{pmatrix}, \qquad \mathbf{b} = \begin{pmatrix} 0 \\ 0 \\ -0{,}5 \end{pmatrix}.$$
+        Se o estímulo real foi $0^\circ$ ($\mathbf{y} = (1, 0, 0)^\top$), calcule $\mathbf{z}$, $\hat{\mathbf{y}}$ e $\mathcal{L}_{\text{CE}}$.
+
+        <strong>Solução.</strong> Multiplicando $\mathbf{W}\mathbf{x} + \mathbf{b}$:
+        <list marker="dash">
+          <item>$z_1 = 2(0{,}8) + 1(0{,}2) + 0(0{,}0) + 0{,}4(0{,}5) + 0 = 2{,}0$;</item>
+          <item>$z_2 = 1(0{,}8) + 1(0{,}2) + 2(0{,}0) + 0(0{,}5) + 0 = 1{,}0$;</item>
+          <item>$z_3 = 0(0{,}8) + 0(0{,}2) + 1(0{,}0) + 1(0{,}5) - 0{,}5 = 0{,}0$.</item>
+        </list>
+        Com $e^2 \approx 7{,}3891$, $e^1 \approx 2{,}7183$ e $e^0 = 1$, a soma é $S \approx 11{,}1073$. Logo:
+        $$\hat{y}_1 \approx \frac{7{,}3891}{11{,}1073} \approx 0{,}6652, \qquad \hat{y}_2 \approx \frac{2{,}7183}{11{,}1073} \approx 0{,}2447, \qquad \hat{y}_3 \approx \frac{1}{11{,}1073} \approx 0{,}0900.$$
+        Para a classe verdadeira $1$, $\mathcal{L}_{\text{CE}} = -\ln(0{,}66524) \approx 0{,}4076$.
+      </example>
+
+      <remark id="rem:9-1-armadilha-softmax">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Esquecer a não-linearidade:</strong> camadas lineares em sequência colapsam em uma única matriz.</item>
+          <item><strong>Aplicar <em>softmax</em> duas vezes no PyTorch:</strong> <c>nn.CrossEntropyLoss</c> recebe <em>logits</em> brutos $\mathbf{z}^{(L)}$ e já aplica <c>log_softmax</c> internamente. Colocar <c>nn.Softmax</c> na saída antes dela aplica <em>softmax</em> duas vezes e prejudica o treino.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-1-2-1">
+        <title>Básico — Dimensões e parâmetros de um MLP cortical</title>
+        Um MLP $128 \to 64 \to 16 \to 4$ decodifica $4$ comportamentos a partir de $128$ neurônios motores. Indique as dimensões de $\mathbf{W}^{(1)}, \mathbf{W}^{(2)}, \mathbf{W}^{(3)}$ e o total de parâmetros.
+        <hint><title>Ver dica</title>Cada $\mathbf{W}^{(l)}$ tem forma $n_l \times n_{l-1}$ e soma $n_l(n_{l-1} + 1)$ parâmetros com os vieses.</hint>
+        <solution collapsible="true" collapsed="true">
+          As dimensões são $\mathbf{W}^{(1)} \in \mathbb{R}^{64 \times 128}$, $\mathbf{W}^{(2)} \in \mathbb{R}^{16 \times 64}$ e $\mathbf{W}^{(3)} \in \mathbb{R}^{4 \times 16}$. Parâmetros: $64(129) + 16(65) + 4(17) = 8\,256 + 1\,040 + 68 = 9\,364$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-1-2-2">
+        <title>Básico — Softmax e entropia cruzada à mão</title>
+        Para $K = 3$ classes e classe verdadeira $c = 2$, calcule $\hat{\mathbf{y}}$ e $\mathcal{L}_{\text{CE}}$ (use $e \approx 2{,}7183$, $\ln 3 \approx 1{,}0986$, $\ln(0{,}4223) \approx -0{,}8620$) para: (a) $\mathbf{z} = (0, 0, 0)^\top$ e (b) $\mathbf{z} = (1, 1, 0)^\top$.
+        <hint><title>Ver dica</title>Calcule $e^{z_j}$, some tudo para achar o denominador $S$ e use $\mathcal{L}_{\text{CE}} = -\ln \hat{y}_2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$S = 1 + 1 + 1 = 3 \implies \hat{\mathbf{y}} = (\frac{1}{3}, \frac{1}{3}, \frac{1}{3})^\top$, e $\mathcal{L}_{\text{CE}} = -\ln(1/3) = \ln 3 \approx 1{,}0986$.</item>
+            <item>$S = 2{,}7183 + 2{,}7183 + 1 = 6{,}4366 \implies \hat{y}_1 = \hat{y}_2 \approx 0{,}4223$, $\hat{y}_3 \approx 0{,}1554$, e $\mathcal{L}_{\text{CE}} = -\ln(0{,}4223) \approx 0{,}8620$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-1-2-3">
+        <title>Intermediário — Classificando tipos neuronais</title>
+        Com largura de disparo (<em>spike</em>) $x_1 = 0{,}4\text{ ms}$ e taxa basal $x_2 = 25\text{ Hz}$ (rótulo $y = 1$), avalie $\hat{y}$ e $\mathcal{L} = \frac{1}{2}(\hat{y} - y)^2$ no MLP $2 \to 2 \to 1$ com $\mathrm{ReLU}$ oculta e saída linear:
+        $$\mathbf{W}^{(1)} = \begin{pmatrix} -2 & 0{,}1 \\ 1 & -0{,}05 \end{pmatrix}, \quad \mathbf{b}^{(1)} = \begin{pmatrix} -0{,}5 \\ 0{,}2 \end{pmatrix}, \quad \mathbf{W}^{(2)} = \begin{pmatrix} 0{,}5 & -0{,}4 \end{pmatrix}, \quad b^{(2)} = 0{,}3.$$
+        <hint><title>Ver dica</title>Ache $\mathbf{z}^{(1)}$, zere entradas negativas na $\mathrm{ReLU}$ e calcule $0{,}5 a^{(1)}_1 - 0{,}4 a^{(1)}_2 + 0{,}3$.</hint>
+        <solution collapsible="true" collapsed="true">
+          $z^{(1)}_1 = -2(0{,}4) + 0{,}1(25) - 0{,}5 = 1{,}2$ e $z^{(1)}_2 = 0{,}4 - 1{,}25 + 0{,}2 = -0{,}65$. Pela $\mathrm{ReLU}$, $\mathbf{a}^{(1)} = (1{,}2;\; 0)^\top$. Na saída, $\hat{y} = 0{,}5(1{,}2) - 0{,}4(0) + 0{,}3 = 0{,}9$, e $\mathcal{L} = \frac{1}{2}(0{,}9 - 1)^2 = 0{,}005$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-1-2-4">
+        <title>Avançado — Estabilidade numérica do softmax</title>
+        Prove que $\mathrm{softmax}(\mathbf{z} - c\mathbf{1})_k = \mathrm{softmax}(\mathbf{z})_k$ para qualquer $c \in \mathbb{R}$ e explique por que se escolhe $c = \max_j z_j$ em código.
+        <hint><title>Ver dica</title>Fatore $e^{-c}$ no numerador e no denominador.</hint>
+        <solution collapsible="true" collapsed="true">
+          Temos $\frac{e^{z_k - c}}{\sum_j e^{z_j - c}} = \frac{e^{-c} e^{z_k}}{e^{-c}\sum_j e^{z_j}} = \frac{e^{z_k}}{\sum_j e^{z_j}}$. Escolher $c = \max_j z_j$ garante que $z_j - c \le 0$ para todo $j$, evitando estouro numérico (<em>overflow</em> de $e^{z_j}$ para valores grandes) e mantendo o denominador em $[1, K]$.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-1-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Backpropagation pela regra da cadeia</title>
+      <intro>
+        Retropropagação é a regra da cadeia do Módulo 3 aplicada sobre o grafo computacional de trás para frente, reaproveitando ativações da passagem direta para obter todos os gradientes de uma vez.
+      </intro>
+
+      Em um <strong>grafo computacional</strong>, cada operação elementar liga entradas à perda $\mathcal{L}$. Na passagem direta, guardamos os valores intermediários até $\mathcal{L}$; na passagem reversa, propagamos a derivada $\frac{\partial \mathcal{L}}{\partial \mathbf{z}^{(l)}}$ da saída até a entrada.
+
+      <example id="exm:9-1-backprop-numerico">
+        <title>Backpropagation numérico completo (1 → 1 → 1)</title>
+        Considere $x = 1{,}0$, $y = 1{,}0$, $z^{(1)} = w^{(1)} x + b^{(1)}$, $a^{(1)} = \sigma(z^{(1)})$, $\hat{y} = z^{(2)} = w^{(2)} a^{(1)} + b^{(2)}$ e $\mathcal{L} = \frac{1}{2}(\hat{y} - y)^2$. Com $w^{(1)} = 0{,}5$, $b^{(1)} = 0{,}0$, $w^{(2)} = 1{,}0$, $b^{(2)} = 0{,}0$ e $\eta = 0{,}5$, calcule o <em>forward</em>, os gradientes e uma atualização (4 casas decimais).
+
+        <strong>Solução.</strong>
+        <list marker="number">
+          <item><strong>Forward:</strong> $z^{(1)} = 0{,}5 \cdot 1{,}0 + 0 = 0{,}5000$; $a^{(1)} = \sigma(0{,}5) \approx 0{,}6225$ ($0{,}622459$); $\hat{y} = 1{,}0 \cdot 0{,}622459 + 0 \approx 0{,}6225$; $\mathcal{L} = \frac{1}{2}(0{,}622459 - 1{,}0)^2 \approx 0{,}0713$ <em>(retendo o valor em ponto flutuante completo nas etapas subsequentes para evitar acúmulo de erro numérico)</em>.</item>
+          <item><strong>Camada 2:</strong> $\delta^{(2)} = \frac{\partial \mathcal{L}}{\partial z^{(2)}} = \hat{y} - y \approx -0{,}3775$ ($-0{,}377541$). Logo:
+            $$\frac{\partial \mathcal{L}}{\partial w^{(2)}} = \delta^{(2)} a^{(1)} \approx (-0{,}377541)(0{,}622459) \approx -0{,}2350, \qquad \frac{\partial \mathcal{L}}{\partial b^{(2)}} = \delta^{(2)} \approx -0{,}3775.$$
+          </item>
+          <item><strong>Camada 1:</strong> usando $\sigma'(0{,}5) = a^{(1)}(1 - a^{(1)}) \approx 0{,}235004$:
+            $$\delta^{(1)} = \delta^{(2)} \cdot w^{(2)} \cdot \sigma'(z^{(1)}) \approx (-0{,}377541)(1{,}0)(0{,}235004) \approx -0{,}0887,$$
+            $$\frac{\partial \mathcal{L}}{\partial w^{(1)}} = \delta^{(1)} x \approx -0{,}0887, \qquad \frac{\partial \mathcal{L}}{\partial b^{(1)}} = \delta^{(1)} \approx -0{,}0887.$$
+          </item>
+          <item><strong>Atualização ($\theta \leftarrow \theta - 0{,}5\frac{\partial\mathcal{L}}{\partial\theta}$):</strong>
+            $$w^{(2)}_{\text{novo}} \approx 1{,}1175, \quad b^{(2)}_{\text{novo}} \approx 0{,}1888, \quad w^{(1)}_{\text{novo}} \approx 0{,}5444, \quad b^{(1)}_{\text{novo}} \approx 0{,}0444.$$
+          </item>
+        </list>
+      </example>
+
+      Definindo $\boldsymbol{\delta}^{(l)} = \frac{\partial \mathcal{L}}{\partial \mathbf{z}^{(l)}} \in \mathbb{R}^{n_l}$, a regra da cadeia em matrizes gera as equações gerais da retropropagação:
+
+      <proposition id="prop:9-1-backprop-equacoes">
+        <title>Equações vetoriais da retropropagação</title>
+        Em um MLP, valem para $l = L - 1, \dots, 1$:
+        <equations id="eq:9-1-backprop-sistema">
+          \boldsymbol{\delta}^{(L)} &= \frac{\partial \mathcal{L}}{\partial \mathbf{z}^{(L)}}, \\
+          \boldsymbol{\delta}^{(l)} &= \left(\mathbf{W}^{(l+1)}\right)^{\!\top} \boldsymbol{\delta}^{(l+1)} \odot {\phi^{(l)}}'\!\left(\mathbf{z}^{(l)}\right), \\
+          \frac{\partial \mathcal{L}}{\partial \mathbf{W}^{(l)}} &= \boldsymbol{\delta}^{(l)} \left(\mathbf{a}^{(l-1)}\right)^{\!\top}, \qquad \frac{\partial \mathcal{L}}{\partial \mathbf{b}^{(l)}} = \boldsymbol{\delta}^{(l)}.
+        </equations>
+        Para saída <em>softmax</em> + entropia cruzada com alvo <em>one-hot</em> $\mathbf{y}$:
+        <equation id="eq:9-1-delta-softmax">
+          \boldsymbol{\delta}^{(L)} = \hat{\mathbf{y}} - \mathbf{y}
+        </equation>
+        <intuition>
+          O produto $\odot$ multiplica elemento a elemento; $(\mathbf{W}^{(l+1)})^\top$ transporta o erro de volta pelas conexões da rede e ${\phi^{(l)}}'(\mathbf{z}^{(l)})$ modula o erro pela inclinação local da ativação.
+        </intuition>
+      </proposition>
+      <proof of="prop:9-1-backprop-equacoes" collapsible="true" collapsed="true">
+        Para <em>softmax</em> + entropia cruzada, como $\sum_{j=1}^K y_j = 1$, temos $\mathcal{L}_{\text{CE}} = -\sum_j y_j z_j + \log\sum_m e^{z_m}$. Derivando em relação a $z_k$: $\frac{\partial \mathcal{L}_{\text{CE}}}{\partial z_k} = -y_k + \frac{e^{z_k}}{\sum_m e^{z_m}} = \hat{y}_k - y_k$. As demais equações seguem diretamente da regra da cadeia em $\mathbf{z}^{(l+1)} = \mathbf{W}^{(l+1)}\phi^{(l)}(\mathbf{z}^{(l)}) + \mathbf{b}^{(l+1)}$.
+      </proof>
+
+      Como $\sigma'(z) \le \frac{1}{4}$ sempre (<ref to="exr:9-1-1-4"/>), multiplicar $\boldsymbol{\delta}$ por $\sigma'$ em muitas camadas faz o gradiente encolher exponencialmente — o <strong>desaparecimento do gradiente</strong> (<em>vanishing gradient</em>). A $\mathrm{ReLU}$ evita esse encolhimento na região $z > 0$, pois $\mathrm{ReLU}'(z) = 1$.
+
+      <example id="exm:9-1-backprop-bio">
+        <title>Retropropagação em um decodificador olfativo</title>
+        Dois interneurônios $\mathrm{ReLU}$ têm $\mathbf{z}^{(1)} = \mathbf{a}^{(1)} = (1{,}0;\; 0{,}5)^\top$ (com $\mathrm{ReLU}'(\mathbf{z}^{(1)}) = (1, 1)^\top$). A saída <em>softmax</em> + entropia cruzada usa $\mathbf{W}^{(2)} = \begin{pmatrix} 1 & 0 \\ 0 & 2 \end{pmatrix}$ e $\mathbf{b}^{(2)} = \mathbf{0}$. Para o odor A ($\mathbf{y} = (1, 0)^\top$), ache $\boldsymbol{\delta}^{(2)}$, $\frac{\partial \mathcal{L}}{\partial \mathbf{W}^{(2)}}$ e $\boldsymbol{\delta}^{(1)}$.
+
+        <strong>Solução.</strong> Temos $\mathbf{z}^{(2)} = (1{,}0;\; 1{,}0)^\top \implies \hat{\mathbf{y}} = (0{,}5;\; 0{,}5)^\top$. Pela <ref to="eq:9-1-delta-softmax"/>:
+        $$\boldsymbol{\delta}^{(2)} = \begin{pmatrix} 0{,}5 \\ 0{,}5 \end{pmatrix} - \begin{pmatrix} 1 \\ 0 \end{pmatrix} = \begin{pmatrix} -0{,}5 \\ 0{,}5 \end{pmatrix}, \qquad \frac{\partial \mathcal{L}}{\partial \mathbf{W}^{(2)}} = \begin{pmatrix} -0{,}5 \\ 0{,}5 \end{pmatrix}\begin{pmatrix} 1{,}0 & 0{,}5 \end{pmatrix} = \begin{pmatrix} -0{,}50 & -0{,}25 \\ 0{,}50 & 0{,}25 \end{pmatrix}.$$
+        Retropropagando para a camada oculta:
+        $$\boldsymbol{\delta}^{(1)} = \begin{pmatrix} 1 & 0 \\ 0 & 2 \end{pmatrix}^{\!\top}\begin{pmatrix} -0{,}5 \\ 0{,}5 \end{pmatrix} \odot \begin{pmatrix} 1 \\ 1 \end{pmatrix} = \begin{pmatrix} -0{,}5 \\ 1{,}0 \end{pmatrix}.$$
+      </example>
+
+      Para conferir gradientes à mão ou em código, usamos <strong>diferenças finitas centradas</strong>:
+      $$\frac{\partial \mathcal{L}}{\partial \theta_i} \approx \frac{\mathcal{L}(\theta_i + \varepsilon) - \mathcal{L}(\theta_i - \varepsilon)}{2\varepsilon}.$$
+      O código abaixo usa o <em>autograd</em> do PyTorch (<c>loss.backward()</c>) para reproduzir exatamente o <ref to="exm:9-1-backprop-numerico"/> e checar $w^{(1)}$ por diferenças finitas.
+
+      <code lang="python" id="cod:9-1-backprop">
+import torch
+
+# Usamos float64 para alta precisão nas diferenças finitas
+x = torch.tensor(1.0, dtype=torch.float64)
+y = torch.tensor(1.0, dtype=torch.float64)
+
+w1 = torch.tensor(0.5, dtype=torch.float64, requires_grad=True)
+b1 = torch.tensor(0.0, dtype=torch.float64, requires_grad=True)
+w2 = torch.tensor(1.0, dtype=torch.float64, requires_grad=True)
+b2 = torch.tensor(0.0, dtype=torch.float64, requires_grad=True)
+
+
+def passo_direto(w1_v, b1_v, w2_v, b2_v):
+    z1 = w1_v * x + b1_v
+    a1 = torch.sigmoid(z1)
+    y_hat = w2_v * a1 + b2_v
+    perda = 0.5 * (y_hat - y) ** 2
+    return z1, a1, y_hat, perda
+
+
+z1, a1, y_hat, perda = passo_direto(w1, b1, w2, b2)
+perda.backward()
+
+print(f"z1={z1.item():.4f}, a1={a1.item():.4f}, y_hat={y_hat.item():.4f}, loss={perda.item():.4f}")
+# z1=0.5000, a1=0.6225, y_hat=0.6225, loss=0.0713
+print(f"Autograd -> dL/dw2={w2.grad.item():.4f}, dL/db2={b2.grad.item():.4f}")
+# Autograd -> dL/dw2=-0.2350, dL/db2=-0.3775
+print(f"Autograd -> dL/dw1={w1.grad.item():.4f}, dL/db1={b1.grad.item():.4f}")
+# Autograd -> dL/dw1=-0.0887, dL/db1=-0.0887
+
+eps = 1e-5
+with torch.no_grad():
+    _, _, _, p_mais = passo_direto(w1 + eps, b1, w2, b2)
+    _, _, _, p_menos = passo_direto(w1 - eps, b1, w2, b2)
+    grad_num = (p_mais - p_menos) / (2 * eps)
+print(f"Diferenças finitas dL/dw1={grad_num.item():.4f}")
+# Diferenças finitas dL/dw1=-0.0887
+
+eta = 0.5
+with torch.no_grad():
+    w1 -= eta * w1.grad
+    b1 -= eta * b1.grad
+    w2 -= eta * w2.grad
+    b2 -= eta * b2.grad
+print(f"Atualizados -> w1={w1.item():.4f}, b1={b1.item():.4f}, w2={w2.item():.4f}, b2={b2.item():.4f}")
+# Atualizados -> w1=0.5444, b1=0.0444, w2=1.1175, b2=0.1888
+      </code>
+
+      <remark id="rem:9-1-plausibilidade">
+        <title>Plausibilidade biológica da retropropagação</title>
+        A retropropagação exata não é considerada biologicamente plausível tal como implementada em silício. Seu principal entrave é o <strong>transporte de pesos</strong> (<em>weight transport</em>): usar $(\mathbf{W}^{(l+1)})^\top$ exigiria que axônios de retorno conhecessem exatamente os pesos simétricos das sinapses diretas, além de propagar sinais de erro assinados separados da atividade direta. Há propostas alternativas na neurociência computacional para contornar essa exigência usando regras locais aproximadas.
+      </remark>
+
+      <remark id="rem:9-1-armadilha-backprop">
+        <title>Armadilha comum</title>
+        Os erros mais comuns aqui são inverter o sinal de $\boldsymbol{\delta}^{(L)} = \hat{\mathbf{y}} - \mathbf{y}$ (fazendo o gradiente subir a perda) e, no PyTorch, atualizar tensores <c>requires_grad=True</c> sem <c>with torch.no_grad():</c>, o que gera erro de execução.
+      </remark>
+
+      <exercise id="exr:9-1-3-1">
+        <title>Básico — Diferenças finitas à mão</title>
+        Para $L(w) = (2w - 1)^2$, calcule a derivada exata $L'(1)$ e a estimativa por diferenças finitas centradas com $\varepsilon = 0{,}01$.
+        <hint><title>Ver dica</title>Avalie $L(1{,}01)$ e $L(0{,}99)$ e divida a diferença por $0{,}02$.</hint>
+        <solution collapsible="true" collapsed="true">
+          $L'(w) = 4(2w - 1) \implies L'(1) = 4$. Pela diferença centrada: $\frac{(1{,}02)^2 - (0{,}98)^2}{0{,}02} = \frac{1{,}0404 - 0{,}9604}{0{,}02} = 4{,}00$, coincidindo exatamente.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-1-3-2">
+        <title>Básico — Gradiente softmax em decodificação neural</title>
+        Um decodificador de $3$ categorias visuais previu $\hat{\mathbf{y}} = (0{,}70;\; 0{,}20;\; 0{,}10)^\top$ quando o estímulo real era a classe $1$ ($\mathbf{y} = (1, 0, 0)^\top$). Calcule $\boldsymbol{\delta}^{(L)}$ e interprete o sinal de suas entradas.
+        <hint><title>Ver dica</title>Use $\boldsymbol{\delta}^{(L)} = \hat{\mathbf{y}} - \mathbf{y}$ e lembre que o passo de descida soma $-\eta\boldsymbol{\delta}^{(L)}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          $\boldsymbol{\delta}^{(L)} = (0{,}70 - 1;\; 0{,}20;\; 0{,}10)^\top = (-0{,}30;\; 0{,}20;\; 0{,}10)^\top$. Como atualizamos na direção $-\boldsymbol{\delta}^{(L)} = (+0{,}30;\; -0{,}20;\; -0{,}10)^\top$, o <em>logit</em> da classe $1$ sobe e os das classes $2$ e $3$ descem.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-1-3-3">
+        <title>Intermediário — Backpropagation à mão com ReLU</title>
+        Para $x = 2$, $y = 5$, $\eta = 0{,}1$, rede $1 \to 1 \to 1$ com $\mathrm{ReLU}$ oculta, saída linear, $\mathcal{L} = \frac{1}{2}(\hat{y} - y)^2$ e $w^{(1)} = 1$, $b^{(1)} = -1$, $w^{(2)} = 3$, $b^{(2)} = 0$, calcule todos os gradientes e os novos parâmetros.
+        <hint><title>Ver dica</title>Verifique $z^{(1)} = 1 > 0 \implies \mathrm{ReLU}'(1) = 1$, e então propague $\delta^{(2)}$ para trás.</hint>
+        <solution collapsible="true" collapsed="true">
+          <em>Forward:</em> $z^{(1)} = 1 \implies a^{(1)} = 1$, $\hat{y} = 3$, $\mathcal{L} = 2$. <em>Backward:</em> $\delta^{(2)} = 3 - 5 = -2$, $\partial\mathcal{L}/\partial w^{(2)} = -2$, $\partial\mathcal{L}/\partial b^{(2)} = -2$, $\delta^{(1)} = (-2)(3)(1) = -6$, $\partial\mathcal{L}/\partial w^{(1)} = -12$, $\partial\mathcal{L}/\partial b^{(1)} = -6$. Atualizando com $\eta = 0{,}1$: $w^{(2)} = 3{,}2$, $b^{(2)} = 0{,}2$, $w^{(1)} = 2{,}2$, $b^{(1)} = -0{,}4$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-1-3-4">
+        <title>Avançado — Desaparecimento do gradiente</title>
+        Em uma rede em cadeia com $6$ camadas ($1$ neurônio por camada, pesos $w^{(l)} = 1$), de $\delta^{(6)}$ até $\delta^{(1)}$ há $5$ fatores $\phi'(z^{(l)})$; compare o fator máximo $|\delta^{(1)} / \delta^{(6)}|$ usando ativação sigmoide $\sigma$ versus $\mathrm{ReLU}$ ativa ($z^{(l)} > 0$).
+        <hint><title>Ver dica</title>Multiplique os $5$ fatores $\phi'(z^{(l)})$ ($l = 1, \dots, 5$) usando $\sigma'(z) \le \frac{1}{4}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          De $\delta^{(6)}$ até $\delta^{(1)}$ há $5$ transições: com sigmoide, $|\delta^{(1)}/\delta^{(6)}| \le (1/4)^5 = 1/1\,024 \approx 0{,}000977$ (atenuação superior a mil vezes em $5$ passos de retropropagação). Com $\mathrm{ReLU}$ ativa ($z^{(l)} > 0$), $1^5 = 1$, preservando a escala do gradiente.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-1-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Treinando de verdade: SGD, Adam e um MLP em PyTorch</title>
+      <intro>
+        Na prática, calculamos gradientes em mini-lotes, aceleramos a descida com momento e Adam, quebramos a simetria inicial e controlamos o sobreajuste no laço de treinamento do PyTorch.
+      </intro>
+
+      Em vez de processar todo o conjunto de dados a cada passo (gradiente descendente em <strong>lote</strong>) ou uma única amostra ruidosa por vez (<strong>estocástico</strong>, SGD), dividimos os dados em <strong>mini-lotes</strong> (<em>mini-batches</em>, por exemplo $32$ ou $64$ exemplos). Uma passagem completa por todo o treino chama-se <strong>época</strong> (<em>epoch</em>).
+
+      Para evitar ziguezagues em vales estreitos da perda, o <strong>momento</strong> (<em>momentum</em>) acumula uma velocidade $\mathbf{v}_t$ dos gradientes $\mathbf{g}_t = \nabla_{\boldsymbol{\theta}}\mathcal{L}(\boldsymbol{\theta}_{t-1})$ com $\beta \approx 0{,}9$ (adotando a convenção sem $(1-\beta)$ em $\mathbf{g}_t$, como no <c>torch.optim.SGD</c>):
+      <equation id="eq:9-1-momentum">
+        \mathbf{v}_t = \beta \mathbf{v}_{t-1} + \mathbf{g}_t, \qquad \boldsymbol{\theta}_t = \boldsymbol{\theta}_{t-1} - \eta \mathbf{v}_t
+      </equation>
+      Enquanto alguns livros usam média móvel com $(1 - \beta)\mathbf{g}_t$, na convenção acima gradientes constantes acumulam velocidade estacionária $\frac{1}{1 - \beta} = 10\times$ maior (para $\beta = 0{,}9$), exigindo passos $\eta$ menores.
+
+      Já o otimizador <strong>Adam</strong> (Kingma &amp; Ba, 2015) combina momento com escala adaptativa por parâmetro, mantendo médias móveis $\mathbf{m}_t$ e $\mathbf{v}_t$ iniciadas em zero (padrão $\beta_1 = 0{,}9$, $\beta_2 = 0{,}999$, $\varepsilon = 10^{-8}$):
+      <equations id="eq:9-1-adam">
+        \mathbf{m}_t &= \beta_1 \mathbf{m}_{t-1} + (1 - \beta_1)\mathbf{g}_t, \qquad \mathbf{v}_t = \beta_2 \mathbf{v}_{t-1} + (1 - \beta_2)(\mathbf{g}_t \odot \mathbf{g}_t), \\
+        \hat{\mathbf{m}}_t &= \frac{\mathbf{m}_t}{1 - \beta_1^t}, \qquad \hat{\mathbf{v}}_t = \frac{\mathbf{v}_t}{1 - \beta_2^t}, \\
+        \boldsymbol{\theta}_t &= \boldsymbol{\theta}_{t-1} - \eta \frac{\hat{\mathbf{m}}_t}{\sqrt{\hat{\mathbf{v}}_t} + \varepsilon}
+      </equations>
+      Dividir por $1 - \beta_1^t$ e $1 - \beta_2^t$ corrige o viés inicial causado por $\mathbf{m}_0 = \mathbf{v}_0 = \mathbf{0}$.
+
+      <example id="exm:9-1-momentum-adam">
+        <title>Dois passos de Momento e Adam à mão</title>
+        Partindo de $\theta_0 = 2{,}0$ com $v_0 = m_0 = 0$ e gradientes $g_1 = g_2 = 1{,}0$, calcule $\theta_1$ e $\theta_2$ para: (a) Momento ($\beta = 0{,}9$, $\eta = 0{,}1$) e (b) Adam ($\beta_1 = 0{,}9$, $\beta_2 = 0{,}999$, $\eta = 0{,}1$, $\varepsilon = 10^{-8}$).
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item><strong>Momento:</strong> $v_1 = 1{,}0 \implies \theta_1 = 2{,}0 - 0{,}1(1{,}0) = 1{,}90$; $v_2 = 0{,}9(1{,}0) + 1{,}0 = 1{,}9 \implies \theta_2 = 1{,}90 - 0{,}1(1{,}9) = 1{,}71$.</item>
+          <item><strong>Adam:</strong> em $t = 1$, $m_1 = 0{,}1$ e $v_1 = 0{,}001$, logo $\hat{m}_1 = 1{,}0$, $\hat{v}_1 = 1{,}0$ e $\theta_1 \approx 1{,}90$. Em $t = 2$, $m_2 = 0{,}19$ e $v_2 = 0{,}001999$; dividindo por $1 - 0{,}9^2 = 0{,}19$ e $1 - 0{,}999^2 = 0{,}001999$, obtemos $\hat{m}_2 = 1{,}0$, $\hat{v}_2 = 1{,}0$ e $\theta_2 \approx 1{,}80$.</item>
+        </list>
+      </example>
+
+      Nunca inicializamos todos os pesos em zero (ou num mesmo valor constante): pela <strong>simetria</strong>, todos os neurônios ocultos receberiam gradientes idênticos e agiriam como clones eternos (e com ReLU e $b = 0$, ficariam travados em zero). Pequenos valores aleatórios quebram essa simetria. Para controlar o <strong>sobreajuste</strong> (Módulo 8), monitoramos um <strong>conjunto de validação</strong> e aplicamos <strong>parada antecipada</strong> (<em>early stopping</em>) quando a perda de validação deixa de melhorar, além de <strong>decaimento de pesos</strong> (<em>weight decay</em>), equivalente à regularização <em>ridge</em> ($L_2$).
+
+      <example id="exm:9-1-hebb-vs-gd">
+        <title>Regra de Hebb vs. gradiente descendente numa sinapse</title>
+        Em 1949, Donald Hebb propôs que "neurônios que disparam juntos conectam-se juntos": $\Delta w_{\text{Hebb}} = \eta\, x\,\hat{y}$. Compare com $\Delta w_{\text{GD}} = -\eta(\hat{y} - y)x$ para $\hat{y} = wx$, $x = 1{,}0$, resposta atual $\hat{y} = 0{,}9$, alvo $y = 0{,}2$ e $\eta = 0{,}1$.
+
+        <strong>Solução.</strong> Pela regra de Hebb, $\Delta w_{\text{Hebb}} = 0{,}1(1{,}0)(0{,}9) = +0{,}09$, reforçando ainda mais uma resposta já exagerada! Pelo gradiente descendente, $\Delta w_{\text{GD}} = -0{,}1(0{,}9 - 0{,}2)(1{,}0) = -0{,}07$, reduzindo o peso em direção ao alvo. A regra de Hebb é estritamente <strong>local</strong> (depende só de atividade pré e pós-sináptica), enquanto o gradiente exige um <strong>sinal de erro global</strong> vindo do objetivo.
+      </example>
+
+      O código a seguir treina um MLP ($64 \to 32 \to 10$) em CPU sobre <c>load_digits</c>. Note as $5$ linhas centrais de cada passo: <c>zero_grad()</c> limpa gradientes antigos; <c>modelo(xb)</c> faz o <em>forward</em>; <c>criterio(...)</c> mede a perda; <c>backward()</c> calcula gradientes; e <c>step()</c> atualiza os pesos.
+
+      <code lang="python" id="cod:9-1-mlp-digits">
+import numpy as np
+import torch
+import torch.nn as nn
+from sklearn.datasets import load_digits
+from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader, TensorDataset
+
+np.random.seed(0)
+torch.manual_seed(0)
+
+# Imagens 8x8 com valores em [0, 16], normalizadas para [0, 1]
+digitos = load_digits()
+X = digitos.data.astype(np.float32) / 16.0
+y = digitos.target.astype(np.int64)
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.2, random_state=0, stratify=y
+)
+
+ds_treino = TensorDataset(torch.from_numpy(X_treino), torch.from_numpy(y_treino))
+loader_treino = DataLoader(ds_treino, batch_size=64, shuffle=True)
+X_teste_t, y_teste_t = torch.from_numpy(X_teste), torch.from_numpy(y_teste)
+
+modelo = nn.Sequential(
+    nn.Linear(64, 32),
+    nn.ReLU(),
+    nn.Linear(32, 10),
+)
+
+criterio = nn.CrossEntropyLoss()  # Recebe logits brutos
+otimizador = torch.optim.Adam(modelo.parameters(), lr=0.01, weight_decay=1e-4)
+
+for epoca in range(1, 41):
+    modelo.train()
+    perda_acum = 0.0
+    for xb, yb in loader_treino:
+        otimizador.zero_grad()          # 1. Zera gradientes acumulados
+        logits = modelo(xb)             # 2. Passagem direta (logits)
+        perda = criterio(logits, yb)    # 3. Entropia cruzada
+        perda.backward()                # 4. Backpropagation
+        otimizador.step()               # 5. Atualiza pesos com Adam
+        perda_acum += perda.item() * len(xb)
+
+    if epoca in (1, 10, 20, 40):
+        perda_media = perda_acum / len(ds_treino)
+        modelo.eval()
+        with torch.no_grad():
+            acc = (modelo(X_teste_t).argmax(dim=1) == y_teste_t).float().mean().item()
+        print(f"Época {epoca:2d} | Perda treino: {perda_media:.3f} | Acurácia teste: {acc:.3f}")
+
+# Saída esperada aproximada (varia um pouco conforme versão/máquina):
+# Época  1 | Perda treino: ≈ 1.754 | Acurácia teste: ≈ 0.831
+# Época 10 | Perda treino: ≈ 0.092 | Acurácia teste: ≈ 0.961
+# Época 20 | Perda treino: ≈ 0.043 | Acurácia teste: ≈ 0.967
+# Época 40 | Perda treino: ≈ 0.017 | Acurácia teste: ≈ 0.967
+      </code>
+
+      <remark id="rem:9-1-armadilha-treino">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Esquecer <c>optimizer.zero_grad()</c>:</strong> o PyTorch acumula gradientes em <c>.grad</c> por padrão; sem zerá-los, você soma gradientes de passos passados e corrompe a otimização.</item>
+          <item><strong>Taxa de aprendizado $\eta$ grande demais:</strong> um $\eta$ excessivo faz os passos saltarem além do vale mínimo, causando oscilações violentas ou divergência até <c>nan</c>.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-1-4-1">
+        <title>Básico — Momento e Adam à mão</title>
+        Com $\theta_0 = 1{,}0$, $v_0 = m_0 = 0$ e gradientes $g_1 = 0{,}5$, $g_2 = -0{,}5$: (a) calcule $\theta_1$ e $\theta_2$ no Momento ($\beta = 0{,}8$, $\eta = 0{,}2$); (b) calcule $\theta_1$ no Adam ($\beta_1 = 0{,}9$, $\beta_2 = 0{,}999$, $\eta = 0{,}1$, $\varepsilon = 10^{-8}$).
+        <hint><title>Ver dica</title>Em (b), no passo $t = 1$ a correção de viés devolve $\hat{m}_1 = g_1$ e $\hat{v}_1 = g_1^2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$v_1 = 0{,}5 \implies \theta_1 = 1{,}0 - 0{,}2(0{,}5) = 0{,}90$. Depois, $v_2 = 0{,}8(0{,}5) - 0{,}5 = -0{,}1 \implies \theta_2 = 0{,}90 - 0{,}2(-0{,}1) = 0{,}92$.</item>
+            <item>$\hat{m}_1 = 0{,}5$, $\hat{v}_1 = 0{,}25 \implies \sqrt{\hat{v}_1} = 0{,}5$, logo $\theta_1 \approx 1{,}0 - 0{,}1\frac{0{,}5}{0{,}5} = 0{,}90$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-1-4-2">
+        <title>Básico — Simetria na inicialização constante</title>
+        Em um MLP $1 \to 2 \to 1$ com $\mathrm{ReLU}$ oculta e saída linear, iniciamos $w^{(1)}_1 = w^{(1)}_2 = 0{,}5$, $b^{(1)}_1 = b^{(1)}_2 = 0$, $w^{(2)}_1 = w^{(2)}_2 = 1$, $b^{(2)} = 0$. Para $(x = 1, y = 2)$, perda $\frac{1}{2}(\hat{y} - y)^2$ e $\eta = 0{,}1$, calcule os novos $w^{(1)}_1$ e $w^{(1)}_2$.
+        <hint><title>Ver dica</title>Calcule $\hat{y} = 1{,}0$, $\delta^{(2)} = -1{,}0$ e $\delta^{(1)}_1, \delta^{(1)}_2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          $z^{(1)}_1 = z^{(1)}_2 = 0{,}5 > 0 \implies a^{(1)}_1 = a^{(1)}_2 = 0{,}5 \implies \hat{y} = 1{,}0$. Logo $\delta^{(2)} = -1{,}0$, $\delta^{(1)}_1 = \delta^{(1)}_2 = -1{,}0$ e $\partial\mathcal{L}/\partial w^{(1)}_1 = \partial\mathcal{L}/\partial w^{(1)}_2 = -1{,}0$. Ambos atualizam para $0{,}5 - 0{,}1(-1{,}0) = 0{,}6$, permanecendo idênticos para sempre.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-1-4-3">
+        <title>Intermediário — Hebb vs. erro supervisionado em circuito motor</title>
+        Na unidade linear $\hat{y} = w_1 x_1 + w_2 x_2$ com $x_1 = 2{,}0$, $x_2 = 0{,}0$, $w_1 = 0{,}5$, $w_2 = 0{,}3$, alvo $y = 0{,}4$ e $\eta = 0{,}05$, compare $\Delta w_1, \Delta w_2$ pela regra de Hebb ($\eta x_i \hat{y}$) e pelo gradiente descendente em $\frac{1}{2}(\hat{y} - y)^2$.
+        <hint><title>Ver dica</title>Calcule $\hat{y} = 1{,}0$ primeiro; note o sinal oposto de $\Delta w_1$ nas duas regras.</hint>
+        <solution collapsible="true" collapsed="true">
+          $\hat{y} = 0{,}5(2{,}0) = 1{,}0$. Por Hebb: $\Delta w_1 = 0{,}05(2{,}0)(1{,}0) = +0{,}10$ (afasta $\hat{y}$ para $1{,}20$) e $\Delta w_2 = 0$. Por gradiente descendente: $\Delta w_1 = -0{,}05(1{,}0 - 0{,}4)(2{,}0) = -0{,}06$ (aproxima $\hat{y}$ para $0{,}88$) e $\Delta w_2 = 0$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-1-4-4">
+        <title>Avançado — Parada antecipada e weight decay em PyTorch</title>
+        Adapte <ref to="cod:9-1-mlp-digits"/> para usar $20\%$ do treino como validação, parada antecipada com paciência de $5$ épocas e comparar a norma $L_2$ dos pesos para <c>weight_decay=0.0</c> e <c>weight_decay=1e-2</c>.
+        <hint><title>Ver dica</title>Acompanhe a menor perda de validação e salve <c>modelo.state_dict()</c> antes de interromper o laço.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+import torch
+import torch.nn as nn
+from sklearn.datasets import load_digits
+from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader, TensorDataset
+
+digitos = load_digits()
+X = digitos.data.astype(np.float32) / 16.0
+y = digitos.target.astype(np.int64)
+
+X_tr_full, X_te, y_tr_full, y_te = train_test_split(X, y, test_size=0.2, random_state=0, stratify=y)
+X_tr, X_val, y_tr, y_val = train_test_split(X_tr_full, y_tr_full, test_size=0.2, random_state=0, stratify=y_tr_full)
+
+ds_tr = TensorDataset(torch.from_numpy(X_tr), torch.from_numpy(y_tr))
+X_val_t, y_val_t = torch.from_numpy(X_val), torch.from_numpy(y_val)
+X_te_t, y_te_t = torch.from_numpy(X_te), torch.from_numpy(y_te)
+
+
+def treinar(wd):
+    torch.manual_seed(0)
+    loader = DataLoader(ds_tr, batch_size=64, shuffle=True)
+    modelo = nn.Sequential(nn.Linear(64, 32), nn.ReLU(), nn.Linear(32, 10))
+    criterio = nn.CrossEntropyLoss()
+    opt = torch.optim.Adam(modelo.parameters(), lr=0.01, weight_decay=wd)
+
+    melhor_val = float("inf")
+    melhor_estado = None
+    sem_melhora = 0
+
+    for epoca in range(1, 101):
+        modelo.train()
+        for xb, yb in loader:
+            opt.zero_grad()
+            perda = criterio(modelo(xb), yb)
+            perda.backward()
+            opt.step()
+
+        modelo.eval()
+        with torch.no_grad():
+            perda_val = criterio(modelo(X_val_t), y_val_t).item()
+        if perda_val < melhor_val - 1e-4:
+            melhor_val = perda_val
+            melhor_estado = {k: v.clone() for k, v in modelo.state_dict().items()}
+            sem_melhora = 0
+        else:
+            sem_melhora += 1
+            if sem_melhora >= 5:
+                break
+
+    modelo.load_state_dict(melhor_estado)
+    modelo.eval()
+    with torch.no_grad():
+        acc_te = (modelo(X_te_t).argmax(dim=1) == y_te_t).float().mean().item()
+        norma_l2 = sum(p.pow(2).sum().item() for p in modelo.parameters()) ** 0.5
+    return epoca, acc_te, norma_l2
+
+
+for wd in (0.0, 1e-2):
+    ep, acc, norma = treinar(wd)
+    print(f"weight_decay={wd:.2f} | parou época {ep:2d} | acc teste={acc:.3f} | norma L2={norma:.2f}")
+
+# Saída esperada aproximada (varia conforme versão/máquina):
+# weight_decay=0.00 | parou época ≈ 23 | acc teste ≈ 0.964 | norma L2 ≈ 17.05
+# weight_decay=0.01 | parou época ≈ 23 | acc teste ≈ 0.956 | norma L2 ≈ 8.50
+# O weight decay reduz a norma dos pesos pela metade com acurácia praticamente igual.
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-1-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Neurônio artificial:</strong> calcula $z = \mathbf{w}^\top \mathbf{x} + b$ e $a = \phi(z)$, modelando uma <em>taxa de disparo</em> média, não um potencial de ação individual.</item>
+        <item><strong>Perceptron:</strong> a regra $\mathbf{w} \leftarrow \mathbf{w} + \eta(y - \hat{y})\mathbf{x}$ separa classes lineares (AND, OR), mas falha no XOR.</item>
+        <item><strong>Ativações:</strong> $\sigma'(z) = \sigma(z)(1-\sigma(z)) \le \frac{1}{4}$; $\tanh'(z) = 1 - \tanh^2(z)$; $\mathrm{ReLU}(z) = \max(0, z)$ tem derivada $1$ para $z > 0$ e $0$ para $z < 0$.</item>
+        <item><strong>MLP:</strong> $\mathbf{z}^{(l)} = \mathbf{W}^{(l)}\mathbf{a}^{(l-1)} + \mathbf{b}^{(l)}$ e $\mathbf{a}^{(l)} = \phi^{(l)}(\mathbf{z}^{(l)})$; sem não-linearidade, a rede colapsa em uma única camada linear.</item>
+        <item><strong>Perdas:</strong> MSE na regressão; $\mathrm{softmax}(\mathbf{z})_k = e^{z_k}/\sum_j e^{z_j}$ com entropia cruzada $\mathcal{L}_{\text{CE}} = -\sum_k y_k \log \hat{y}_k$ (máxima verossimilhança) na classificação.</item>
+        <item><strong>Backpropagation:</strong> $\boldsymbol{\delta}^{(l)} = (\mathbf{W}^{(l+1)})^\top \boldsymbol{\delta}^{(l+1)} \odot {\phi^{(l)}}'(\mathbf{z}^{(l)})$, $\frac{\partial \mathcal{L}}{\partial \mathbf{W}^{(l)}} = \boldsymbol{\delta}^{(l)}(\mathbf{a}^{(l-1)})^\top$ e $\frac{\partial \mathcal{L}}{\partial \mathbf{b}^{(l)}} = \boldsymbol{\delta}^{(l)}$; com <em>softmax</em> + entropia cruzada, $\boldsymbol{\delta}^{(L)} = \hat{\mathbf{y}} - \mathbf{y}$.</item>
+        <item><strong>Cuidados teóricos:</strong> diferenças finitas conferem gradientes; sigmoide sofre desaparecimento do gradiente; o transporte de pesos limita a plausibilidade biológica do algoritmo.</item>
+        <item><strong>Treino em PyTorch:</strong> use mini-lotes, momento/Adam, inicialização aleatória, parada antecipada e <em>weight decay</em>; nunca esqueça <c>optimizer.zero_grad()</c> nem aplique <em>softmax</em> antes de <c>nn.CrossEntropyLoss</c>.</item>
+      </list>
+    </section>
+
+    <section id="sec:9-1-alem">
+      <title>Para ir além</title>
+      Para aprofundar fundamentos de MLPs, retropropagação e otimização, consulte os materiais do Módulo 9:
+      <list marker="dash">
+        <item><strong>Livro de referência:</strong> <em>Deep Learning Book</em> — Ian Goodfellow (base teórica muito sólida, especialmente os capítulos sobre redes profundas e otimização).</item>
+        <item><strong>Aulas em vídeo:</strong> Andrej Karpathy — aulas de LLM e <em>backprop</em> no YouTube (em especial a construção de um motor de <em>autograd</em> do zero).</item>
+        <item><strong>Documentação oficial:</strong> consulte a <link to="https://pytorch.org/docs/stable/index.html">documentação do PyTorch</link> e os <link to="https://pytorch.org/tutorials/">tutoriais oficiais do PyTorch</link> para praticar em Google Colab com GPU ao avançar para modelos maiores.</item>
+      </list>
+      No próximo tema (<strong>9.2 CNN</strong> — Redes Neurais Convolucionais), você verá como substituir conexões densas por filtros locais compartilhados transforma o MLP no principal modelo computacional da via visual V1 $\to$ IT.
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 9 · Deep Learning — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

@@ -1,0 +1,1089 @@
+<document>
+  <title>Módulo 6 · Programação (Python)</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-6-4">Voltar ao guia (Tema 6.4)</link></meta-item>
+    <meta-item key="Módulo">Módulo 6 · Programação (Python) — Saindo da Teoria para a Prática Ferramental</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-6-4">
+    <title>Estruturas de dados básicas</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Listas, dicionários e arrays: escolher o “recipiente” certo para cada dado.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Da análise de disparos neuronais (<em>spikes</em>) ao pré-processamento de eletroencefalografia (EEG, amostrado entre $250$ e $1\,000\text{ Hz}$) e de ressonância magnética funcional (fMRI, com tempo de repetição $\text{TR} \approx 2\text{ s}$), a neurociência computacional vive em Python. Bibliotecas como MNE e nilearn organizam registros inteiros em coleções numéricas multidimensionais e tabelas de metadados; reprodutibilidade e clareza na forma de guardar esses dados são exigências de laboratórios e revistas científicas, e não meros detalhes de estilo.
+
+    Nos temas anteriores, <mark>Comandos iniciais e lógica básica</mark> e <mark>Informática básica</mark>, você aprendeu a manipular valores isolados em variáveis, repetir ações com laços e ler arquivos CSV e JSON do disco. Só que um experimento real não traz uma única voltagem ou um único gene: ele traz milhares de amostras de potencial de membrana por segundo, listas de genes diferencialmente expressos e tabelas com dezenas de animais. Guardar cada dado em um recipiente improvisado torna o código lento, frágil e difícil de ler. Neste tema, você aprende a escolher e operar as principais estruturas de dados do Python e do NumPy — habilidade que sustentará diretamente <mark>Códigos funcionais</mark>, <mark>Bibliotecas</mark> e o projeto final do módulo.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>armazenar, indexar, fatiar e modificar sequências de dados usando listas (<c>list</c>) e listas aninhadas;</item>
+      <item>proteger registros de posição fixa usando tuplas (<c>tuple</c>) e desempacotamento;</item>
+      <item>associar rótulos a valores com dicionários (<c>dict</c>) e comparar coleções únicas com conjuntos (<c>set</c>);</item>
+      <item>executar operações matemáticas vetorizadas e filtragem por máscaras booleanas em arrays NumPy (<c>np.ndarray</c>);</item>
+      <item>escolher a estrutura mais adequada para cada tipo de dado biológico e evitar armadilhas de mutabilidade e apelidos (<em>aliasing</em>).</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Domínio de variáveis, tipos básicos, condicionais (<c>if</c>/<c>elif</c>/<c>else</c>), laços (<c>for</c>, <c>while</c>) e <em>f-strings</em>, vistos em <mark>Comandos iniciais e lógica básica</mark>, além da noção de leitura de dados e formatos CSV/JSON vista em <mark>Informática básica</mark>.
+
+    <section id="sec:6-4-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Listas e tuplas</title>
+      <intro>
+        Quando medidas chegam em ordem — como amostras sucessivas de um eletrodo ou nucleotídeos ao longo de uma fita de DNA —, você precisa de recipientes que preservem a posição de cada elemento.
+      </intro>
+
+      Imagine uma fileira numerada de poços em uma placa de microtitulação. Cada poço ocupa uma posição fixa na sequência, mas você pode pipetar novas amostras nos poços livres, trocar o conteúdo de um poço ou descartar uma leitura contaminada. Em Python, esse recipiente flexível e ordenado se chama <strong>lista</strong> (<em>list</em>). Já se os valores forem as coordenadas estereotáxicas de um implante já cimentado no crânio — três números que não devem ser trocados nem reordenados por acidente —, faz muito mais sentido trancá-los em uma <strong>tupla</strong> (<em>tuple</em>).
+
+      <definition id="def:6-4-lista">
+        <title>Lista</title>
+        Uma <strong>lista</strong> é uma coleção <strong>ordenada</strong> e <strong>mutável</strong> de elementos, escrita entre colchetes <c>[...]</c> e separados por vírgulas. Cada elemento recebe um índice inteiro que começa em <c>0</c> da esquerda para a direita (ou em <c>-1</c> da direita para a esquerda).
+        <intuition>
+          Pense na lista como uma fila de tubos numerados a partir do zero: você pode consultar qualquer tubo pelo número, substituir seu conteúdo, acrescentar novos tubos ao final ou retirar tubos do meio.
+        </intuition>
+      </definition>
+
+      Por que o índice começa em <c>0</c> e não em <c>1</c>? Em Python, o índice mede o <em>deslocamento</em> a partir do início da sequência: o primeiro elemento está a $0$ passos do começo, o segundo está a $1$ passo, e assim por diante. Já os índices negativos contam a partir do fim: <c>-1</c> aponta sempre para o último elemento, <c>-2</c> para o penúltimo, sem que você precise saber o comprimento total da lista antes.
+
+      Além de pegar um elemento por vez, você pode extrair um trecho inteiro usando <strong>fatiamento</strong> (<em>slicing</em>) com a sintaxe <c>lista[inicio:fim:passo]</c>. A regra fundamental é que o índice <c>inicio</c> é incluído, mas o índice <c>fim</c> é <strong>exclusivo</strong> — isto é, a fatia para logo antes de <c>fim</c>. Quando omitidos, <c>inicio</c> assume o começo da sequência, <c>fim</c> assume o final e <c>passo</c> assume <c>1</c>. Um passo negativo percorre a sequência ao contrário, de modo que <c>seq[::-1]</c> devolve a sequência inteiramente invertida.
+
+      <code lang="python" id="cod:6-4-lista-indices">
+potenciais_mv = [-70.0, -68.5, -62.0, -54.0, 30.0, -72.0]
+
+print("Quantidade:", len(potenciais_mv))       # Quantidade: 6
+print("Primeiro:", potenciais_mv[0])           # Primeiro: -70.0
+print("Último:", potenciais_mv[-1])            # Último: -72.0
+print("Três primeiros:", potenciais_mv[0:3])   # Três primeiros: [-70.0, -68.5, -62.0]
+print("Dois últimos:", potenciais_mv[-2:])     # Dois últimos: [30.0, -72.0]
+print("Invertida:", potenciais_mv[::-1])       # Invertida: [-72.0, 30.0, -54.0, -62.0, -68.5, -70.0]
+      </code>
+
+      Repare no comportamento da fatia <c>potenciais_mv[0:3]</c>: ela retorna os índices <c>0</c>, <c>1</c> e <c>2</c>, parando antes do índice <c>3</c>, o que resulta em exatamente $3 - 0 = 3$ elementos. Essa convenção de intervalo semiaberto $[inicio, fim)$ facilita dividir registros em blocos contínuos: <c>lista[0:3]</c> seguido de <c>lista[3:6]</c> cobre os seis primeiros elementos sem repetir nem pular nenhum.
+
+      Como listas são mutáveis, o Python oferece métodos para alterar a lista no próprio lugar (<em>in-place</em>) e funções embutidas para resumi-la.
+
+      <proposition id="prop:6-4-operacoes-lista">
+        <title>Operações e métodos essenciais de listas</title>
+        Dada uma lista <c>xs</c>, valem os seguintes comportamentos:
+        <list marker="dash">
+          <item><strong>Leitura e resumo:</strong> <c>len(xs)</c> retorna o número de elementos; <c>sum(xs)</c>, <c>min(xs)</c> e <c>max(xs)</c> calculam soma, mínimo e máximo; <c>valor in xs</c> testa se <c>valor</c> está na lista.</item>
+          <item><strong>Inserção:</strong> <c>xs.append(v)</c> adiciona <c>v</c> como um único elemento ao final; <c>xs.extend(outra)</c> adiciona cada item de <c>outra</c> ao final; <c>xs.insert(i, v)</c> insere <c>v</c> na posição <c>i</c>.</item>
+          <item><strong>Remoção:</strong> <c>xs.pop()</c> remove e devolve o último elemento (ou o da posição <c>i</c> em <c>xs.pop(i)</c>); <c>xs.remove(v)</c> remove a primeira ocorrência do valor <c>v</c>.</item>
+          <item><strong>Ordenação:</strong> <c>sorted(xs)</c> devolve uma <em>nova</em> lista ordenada mantendo <c>xs</c> intacta; <c>xs.sort()</c> ordena <c>xs</c> no próprio lugar e devolve <c>None</c>.</item>
+        </list>
+      </proposition>
+
+      Veja esses métodos em ação com uma pequena lista de taxas de disparo medidas em hertz (Hz):
+
+      <code lang="python" id="cod:6-4-lista-metodos">
+taxas_hz = [12.0, 18.5, 9.5]
+
+taxas_hz.append(24.0)          # [12.0, 18.5, 9.5, 24.0]
+taxas_hz.extend([15.0, 11.0])  # [12.0, 18.5, 9.5, 24.0, 15.0, 11.0]
+taxas_hz.insert(1, 20.0)       # [12.0, 20.0, 18.5, 9.5, 24.0, 15.0, 11.0]
+taxas_hz.remove(9.5)           # [12.0, 20.0, 18.5, 24.0, 15.0, 11.0]
+removido = taxas_hz.pop()      # remove e devolve o último: 11.0
+
+print("Removido:", removido)                    # Removido: 11.0
+print("Lista atual:", taxas_hz)                 # Lista atual: [12.0, 20.0, 18.5, 24.0, 15.0]
+print("Contém 20.0?", 20.0 in taxas_hz)         # Contém 20.0? True
+print("Ordenada (nova):", sorted(taxas_hz))     # Ordenada (nova): [12.0, 15.0, 18.5, 20.0, 24.0]
+print("Original intacta:", taxas_hz)            # Original intacta: [12.0, 20.0, 18.5, 24.0, 15.0]
+
+taxas_hz.sort()
+print("Após .sort():", taxas_hz)                # Após .sort(): [12.0, 15.0, 18.5, 20.0, 24.0]
+print("Mínimo:", min(taxas_hz), "Máximo:", max(taxas_hz))  # Mínimo: 12.0 Máximo: 24.0
+print("Média (Hz):", sum(taxas_hz) / len(taxas_hz))        # Média (Hz): 17.9
+      </code>
+
+      Note a diferença crucial entre <c>sorted(taxas_hz)</c> e <c>taxas_hz.sort()</c>. A primeira cria uma cópia ordenada e preserva a ordem temporal em que os dados foram coletados; a segunda altera a lista original permanentemente. Como listas podem guardar qualquer tipo de objeto — inclusive outras listas —, também é comum representar múltiplos ensaios experimentais usando <strong>listas aninhadas</strong> (<em>nested lists</em>), nas quais o primeiro par de colchetes escolhe a linha (o ensaio) e o segundo escolhe a coluna (a amostra):
+
+      <code lang="python" id="cod:6-4-listas-aninhadas">
+ensaios = [
+    [-70.0, -68.0, -65.0],
+    [-71.0, -60.0, -52.0],
+]
+
+print("Ensaio 1:", ensaios[1])            # Ensaio 1: [-71.0, -60.0, -52.0]
+print("Amostra [1][2]:", ensaios[1][2])   # Amostra [1][2]: -52.0
+      </code>
+
+      Quando você precisa garantir que um pequeno grupo de valores relacionados não seja alterado por engano depois de criado, entra em cena a <strong>tupla</strong>.
+
+      <definition id="def:6-4-tupla">
+        <title>Tupla e desempacotamento</title>
+        Uma <strong>tupla</strong> é uma sequência <strong>ordenada</strong> e <strong>imutável</strong>, escrita normalmente entre parênteses <c>(...)</c>. Depois de criada, ela não aceita <c>.append()</c>, <c>.pop()</c> nem substituição de elementos por índice. Seus valores podem ser distribuídos diretamente para variáveis individuais por <strong>desempacotamento</strong> (<em>unpacking</em>): <c>x, y, z = tupla</c>.
+        <intuition>
+          Se a lista é uma prancheta escrita a lápis, a tupla é uma placa de metal gravada a laser: você lê e fatia exatamente do mesmo jeito, mas ninguém apaga ou acrescenta itens por acidente.
+        </intuition>
+      </definition>
+
+      A imutabilidade ajuda em três situações muito frequentes na ciência de dados: proteger coordenadas ou parâmetros fixos (como a posição $(x, y, z)$ de um eletrodo ou a resolução $(largura, altura)$ de uma imagem), retornar múltiplos valores de uma função com segurança (como veremos no próximo tema, <mark>Códigos funcionais</mark>) e servir de identificador estável — algo que dicionários e conjuntos exigem, como você verá na próxima seção.
+
+      <code lang="python" id="cod:6-4-tupla-eletrodo">
+eletrodo_ca1 = (1.5, -2.1, 2.4)  # coordenadas (AP, ML, DV) em mm
+ap, ml, dv = eletrodo_ca1
+
+print("AP (mm):", ap)  # AP (mm): 1.5
+print("ML (mm):", ml)  # ML (mm): -2.1
+print("DV (mm):", dv)  # DV (mm): 2.4
+      </code>
+
+      <example id="exm:6-4-potenciais">
+        <title>Potenciais de membrana de uma sessão em lista</title>
+        Durante um registro eletrofisiológico curto, você armazenou oito amostras sucessivas de potencial de membrana (em mV) em uma lista. Queremos calcular o potencial médio da sessão, identificar o menor valor registrado (hiperpolarização máxima) e inspecionar os três primeiros e os dois últimos pontos usando fatiamento.
+
+        <code lang="python" id="cod:6-4-exm-potenciais">
+sessao_mv = [-70.0, -69.5, -68.0, -64.5, -55.0, 27.0, -73.0, -71.0]
+
+media_mv = sum(sessao_mv) / len(sessao_mv)
+minimo_mv = min(sessao_mv)
+primeiros_3 = sessao_mv[:3]
+ultimos_2 = sessao_mv[-2:]
+
+print(f"Média: {media_mv:.1f} mV")     # Média: -55.5 mV
+print(f"Mínimo: {minimo_mv} mV")       # Mínimo: -73.0 mV
+print("Primeiros 3:", primeiros_3)     # Primeiros 3: [-70.0, -69.5, -68.0]
+print("Últimos 2:", ultimos_2)         # Últimos 2: [-73.0, -71.0]
+        </code>
+
+        A soma dos oito valores é $-444{,}0\text{ mV}$, que dividida por $8$ resulta na média $-55{,}5\text{ mV}$. O pico positivo de $27{,}0\text{ mV}$ corresponde a um potencial de ação, seguido da pós-hiperpolarização em $-73{,}0\text{ mV}$, capturada por <c>min()</c>. Repare como <c>[:3]</c> dispensa o <c>0</c> inicial e <c>[-2:]</c> vai do penúltimo elemento até o fim da lista.
+      </example>
+
+      <example id="exm:6-4-eletrodo">
+        <title>Coordenadas de eletrodo como tupla e distância ao alvo</title>
+        Em uma cirurgia estereotáxica, a posição planejada de um eletrodo em milímetros é <c>(-2.0, 1.5, 3.0)</c> e a posição confirmada após o registro é <c>(-1.7, 1.9, 3.0)</c>. Representando cada ponto como uma tupla <c>(x, y, z)</c> e desempacotando os eixos, calcule o erro espacial em milímetros pela distância euclidiana.
+
+        <code lang="python" id="cod:6-4-exm-eletrodo">
+alvo = (-2.0, 1.5, 3.0)
+registro = (-1.7, 1.9, 3.0)
+
+x1, y1, z1 = alvo
+x2, y2, z2 = registro
+
+erro_mm = ((x2 - x1) ** 2 + (y2 - y1) ** 2 + (z2 - z1) ** 2) ** 0.5
+print(f"Erro de posicionamento: {erro_mm:.2f} mm")  # Erro de posicionamento: 0.50 mm
+        </code>
+
+        Ao desempacotar as tuplas em variáveis nomeadas (<c>x1, y1, z1</c>), evitamos índices numéricos obscuros como <c>alvo[0]</c> na fórmula da distância. Como as diferenças nos eixos são $0{,}3\text{ mm}$, $0{,}4\text{ mm}$ e $0{,}0\text{ mm}$, temos $\sqrt{0{,}3^2 + 0{,}4^2 + 0^2} = \sqrt{0{,}25} = 0{,}50\text{ mm}$.
+      </example>
+
+      <example id="exm:6-4-complementar-reverso">
+        <title>Complementar reverso de uma sequência com fatiamento</title>
+        Strings em Python também são sequências ordenadas e aceitam o mesmo fatiamento das listas. Para obter o <strong>complementar reverso</strong> de uma fita de DNA no sentido 5'→3', invertemos a sequência com <c>[::-1]</c> e trocamos cada base por sua complementar (<c>A</c>↔<c>T</c>, <c>C</c>↔<c>G</c>), acumulando o resultado em uma lista e juntando tudo ao final com <c>"".join(...)</c>.
+
+        <code lang="python" id="cod:6-4-exm-revcomp">
+dna = "ATGGCTAA"
+invertida = dna[::-1]
+
+bases_comp = []
+for base in invertida:
+    if base == "A":
+        bases_comp.append("T")
+    elif base == "T":
+        bases_comp.append("A")
+    elif base == "C":
+        bases_comp.append("G")
+    elif base == "G":
+        bases_comp.append("C")
+
+comp_reverso = "".join(bases_comp)
+print("Invertida:", invertida)           # Invertida: AATCGGTA
+print("Comp. reverso:", comp_reverso)    # Comp. reverso: TTAGCCAT
+        </code>
+
+        O método <c>"".join(bases_comp)</c> cola todas as strings da lista usando uma string vazia como separador. Na seção seguinte, você verá como um dicionário substitui toda essa cadeia de <c>if</c>/<c>elif</c> por uma única linha de código.
+      </example>
+
+      <remark id="rem:6-4-armadilha-lista">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Atribuir o retorno de <c>.sort()</c>:</strong> escrever <c>ordenada = taxas.sort()</c> faz com que <c>ordenada</c> receba <c>None</c> (vazio), porque <c>.sort()</c> modifica a lista original e não retorna uma nova lista. Quando quiser guardar o resultado em outra variável, use sempre <c>ordenada = sorted(taxas)</c>.</item>
+          <item><strong>Confundir <c>.append()</c> com <c>.extend()</c>:</strong> chamar <c>xs.append([10, 20])</c> coloca uma sublista inteira dentro de <c>xs</c>, em vez de acrescentar dois números soltos; para juntar os elementos de outra lista, use <c>.extend([10, 20])</c>.</item>
+          <item><strong>Esquecer que o fim do fatiamento é exclusivo:</strong> em uma lista de $6$ itens, <c>lista[0:5]</c> devolve apenas $5$ itens (índices <c>0</c> a <c>4</c>), deixando o último de fora.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:6-4-1-1">
+        <title>Básico — Fatiamento e índices negativos em potenciais de membrana</title>
+        Considere a lista <c>potenciais = [-70.0, -69.0, -66.5, -58.0, -54.5, 32.0, -74.0, -71.5]</c>. Escreva um script que imprima: (a) o primeiro elemento e o último usando índice negativo, (b) a fatia do 2º ao 5º elemento, (c) os três últimos elementos e (d) a lista invertida.
+        <hint><title>Ver dica</title>Lembre que o 2º elemento tem índice <c>1</c> e que o limite final da fatia é exclusivo; para os três últimos, use índice negativo no início da fatia (<c>[-3:]</c>).</hint>
+        <solution collapsible="true" collapsed="true">
+          Como a contagem começa em <c>0</c>, o 2º elemento está no índice <c>1</c> e o 5º está no índice <c>4</c>; portanto, para incluí-lo, a fatia vai até <c>5</c> (<c>[1:5]</c>). O passo <c>-1</c> em <c>[::-1]</c> percorre a lista de trás para frente:
+
+          <code lang="python" id="cod:6-4-sol-1-1">
+potenciais = [-70.0, -69.0, -66.5, -58.0, -54.5, 32.0, -74.0, -71.5]
+
+print("Primeiro:", potenciais[0], "| Último:", potenciais[-1])
+# Primeiro: -70.0 | Último: -71.5
+print("2º ao 5º:", potenciais[1:5])
+# 2º ao 5º: [-69.0, -66.5, -58.0, -54.5]
+print("Três últimos:", potenciais[-3:])
+# Três últimos: [32.0, -74.0, -71.5]
+print("Invertida:", potenciais[::-1])
+# Invertida: [-71.5, -74.0, 32.0, -54.5, -58.0, -66.5, -69.0, -70.0]
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-4-1-2">
+        <title>Básico — Limpeza e resumo de taxas de disparo</title>
+        Você recebeu uma lista de taxas de disparo com uma leitura negativa espúria: <c>taxas = [15.0, -5.0, 22.0, 19.0]</c>. Remova o valor inválido <c>-5.0</c>, acrescente as novas medidas <c>[24.0, 20.0]</c> à lista, imprima uma versão ordenada sem alterar a lista <c>taxas</c> original e calcule a taxa média.
+        <hint><title>Ver dica</title>Use <c>.remove(-5.0)</c> para excluir o erro, <c>.extend([24.0, 20.0])</c> para adicionar os novos valores e <c>sorted(taxas)</c> para ordenar sem modificar <c>taxas</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Após remover <c>-5.0</c> e estender a lista com dois novos valores, restam $5$ taxas válidas cuja soma é $15{,}0 + 22{,}0 + 19{,}0 + 24{,}0 + 20{,}0 = 100{,}0\text{ Hz}$, resultando na média de $20{,}0\text{ Hz}$.
+
+          <code lang="python" id="cod:6-4-sol-1-2">
+taxas = [15.0, -5.0, 22.0, 19.0]
+taxas.remove(-5.0)
+taxas.extend([24.0, 20.0])
+
+print("Ordenada:", sorted(taxas))            # Ordenada: [15.0, 19.0, 20.0, 22.0, 24.0]
+print("Ordem de coleta:", taxas)             # Ordem de coleta: [15.0, 22.0, 19.0, 24.0, 20.0]
+print("Média (Hz):", sum(taxas) / len(taxas))  # Média (Hz): 20.0
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-4-1-3">
+        <title>Intermediário — Desempacotamento de contatos de eletrodo</title>
+        Uma sonda laminar possui três contatos gravados como tuplas <c>(ap, ml, dv)</c> em milímetros: <c>contatos = [(0.0, 1.0, 1.2), (0.0, 1.0, 1.8), (0.0, 1.0, 2.4)]</c>. Percorra a lista com um laço <c>for</c> desempacotando cada tupla, colete apenas as profundidades <c>dv</c> em uma lista e imprima a profundidade mínima, a máxima e a média.
+        <hint><title>Ver dica</title>Você pode desempacotar diretamente no cabeçalho do laço: <c>for ap, ml, dv in contatos:</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Desempacotando cada tupla diretamente no <c>for</c>, extraímos os valores <c>[1.2, 1.8, 2.4]</c>. A soma é $5{,}4\text{ mm}$ dividida por $3$, dando profundidade média de $1{,}8\text{ mm}$.
+
+          <code lang="python" id="cod:6-4-sol-1-3">
+contatos = [(0.0, 1.0, 1.2), (0.0, 1.0, 1.8), (0.0, 1.0, 2.4)]
+profundidades = []
+
+for ap, ml, dv in contatos:
+    profundidades.append(dv)
+
+media_dv = sum(profundidades) / len(profundidades)
+print("Mínima (mm):", min(profundidades))   # Mínima (mm): 1.2
+print("Máxima (mm):", max(profundidades))   # Máxima (mm): 2.4
+print(f"Média (mm): {media_dv:.1f}")        # Média (mm): 1.8
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-4-1-4">
+        <title>Avançado — Varredura de ensaios em lista aninhada</title>
+        Você registrou três ensaios curtos de potencial de membrana (em mV) na lista aninhada <c>ensaios = [[-70.0, -65.0, -58.0, -62.0], [-71.0, -54.0, 30.0, -73.0], [-69.0, -68.0, -55.0, -70.0]]</c>. Para cada ensaio, calcule a amplitude total (<c>max - min</c>) e verifique se houve potencial igual ou superior ao limiar de $-55{,}0\text{ mV}$.
+        <hint><title>Ver dica</title>Use um laço com <c>range(len(ensaios))</c> para acessar tanto o índice do ensaio quanto a sublista <c>ensaios[i]</c>, aplicando <c>max()</c> e <c>min()</c> em cada sublista.</hint>
+        <solution collapsible="true" collapsed="true">
+          Iterando pelos índices <c>0</c>, <c>1</c> e <c>2</c>, avaliamos cada sublista separadamente. No ensaio <c>0</c>, o pico é $-58{,}0\text{ mV}$ (abaixo do limiar); nos ensaios <c>1</c> ($30{,}0\text{ mV}$) e <c>2</c> ($-55{,}0\text{ mV}$), o limiar é atingido ou superado.
+
+          <code lang="python" id="cod:6-4-sol-1-4">
+ensaios = [
+    [-70.0, -65.0, -58.0, -62.0],
+    [-71.0, -54.0,  30.0, -73.0],
+    [-69.0, -68.0, -55.0, -70.0],
+]
+
+for i in range(len(ensaios)):
+    e = ensaios[i]
+    amp = max(e) - min(e)
+    atingiu = max(e) >= -55.0
+    print(f"Ensaio {i}: amplitude = {amp:.1f} mV | atingiu limiar? {atingiu}")
+# Ensaio 0: amplitude = 12.0 mV | atingiu limiar? False
+# Ensaio 1: amplitude = 103.0 mV | atingiu limiar? True
+# Ensaio 2: amplitude = 15.0 mV | atingiu limiar? True
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-4-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Dicionários e conjuntos</title>
+      <intro>
+        Nem todo dado biológico se organiza por posição numérica: muitas vezes queremos buscar a propriedade de um neurônio pelo nome, traduzir um códon em aminoácido ou descobrir quais genes se repetem entre dois experimentos.
+      </intro>
+
+      Em uma lista, você pergunta: "qual é o elemento da posição <c>2</c>?". Mas se você tiver os parâmetros biofísicos de um neurônio, ninguém quer lembrar se o potencial de repouso ficou na posição <c>1</c> ou <c>2</c>. Você quer perguntar pelo rótulo: "qual é o <c>repouso_mv</c>?". Para isso existe o <strong>dicionário</strong> (<em>dictionary</em>), a estrutura que já apareceu disfarçada nos arquivos JSON de <mark>Informática básica</mark>. Já quando o objetivo não é associar valores a rótulos, mas sim responder "quais espécies únicas apareceram?" ou "quais genes estão nos dois grupos?", a ferramenta natural é o <strong>conjunto</strong> (<em>set</em>).
+
+      <definition id="def:6-4-dicionario">
+        <title>Dicionário</title>
+        Um <strong>dicionário</strong> (<c>dict</c>) é uma coleção mutável de pares <strong>chave → valor</strong> escrita entre chaves <c>{chave: valor, ...}</c>. As chaves devem ser únicas e imutáveis (como strings, números ou tuplas); os valores podem ser qualquer objeto Python.
+        <intuition>
+          Pense em um armário de reagentes com gavetas etiquetadas: em vez de contar as gavetas de cima para baixo, você lê diretamente a etiqueta (<c>"ATP"</c>, <c>"NaCl"</c>) e abre a gaveta certa na hora.
+        </intuition>
+      </definition>
+
+      Você acessa um valor escrevendo <c>d[chave]</c>, e adiciona ou atualiza uma entrada com <c>d[chave] = novo_valor</c>. O problema de usar <c>d[chave]</c> diretamente é que, se a chave não existir, o programa para com um erro (<c>KeyError</c>). Para evitar isso, use <c>d.get(chave, padrao)</c>, que devolve o valor associado ou o <c>padrao</c> escolhido quando a chave estiver ausente. Lembre também que o operador <c>x in d</c> testa apenas se <c>x</c> está entre as <strong>chaves</strong> de <c>d</c>, e que o método <c>.items()</c> permite percorrer pares <c>(chave, valor)</c> em um laço <c>for</c>.
+
+      <code lang="python" id="cod:6-4-dict-basico">
+neuronio = {
+    "regiao": "CA1",
+    "repouso_mv": -70.0,
+    "limiar_mv": -55.0,
+}
+
+print("Região:", neuronio["regiao"])                     # Região: CA1
+print("Tipo:", neuronio.get("tipo", "não informado"))    # Tipo: não informado
+
+neuronio["taxa_hz"] = 14.5
+print("Tem 'limiar_mv'?", "limiar_mv" in neuronio)       # Tem 'limiar_mv'? True
+print("Tem -70.0 como chave?", -70.0 in neuronio)        # Tem -70.0 como chave? False
+
+for chave, valor in neuronio.items():
+    print(f"{chave}: {valor}")
+# regiao: CA1
+# repouso_mv: -70.0
+# limiar_mv: -55.0
+# taxa_hz: 14.5
+      </code>
+
+      Combinando listas e dicionários, montamos facilmente pequenas tabelas em memória: cada linha da tabela vira um dicionário com os mesmos nomes de coluna, e a tabela inteira vira uma <strong>lista de dicionários</strong>. Esse formato é idêntico ao que <c>csv.DictReader</c> e arquivos JSON produzem, e prepara o terreno para as tabelas do <c>pandas</c> em <mark>Bibliotecas</mark>.
+
+      <code lang="python" id="cod:6-4-tabela-experimentos">
+experimentos = [
+    {"animal": "Rato_01", "condicao": "controle", "taxa_hz": 12.0},
+    {"animal": "Rato_02", "condicao": "estimulo", "taxa_hz": 38.0},
+    {"animal": "Rato_03", "condicao": "estimulo", "taxa_hz": 42.0},
+]
+
+taxas_estimulo = []
+for linha in experimentos:
+    if linha["condicao"] == "estimulo":
+        taxas_estimulo.append(linha["taxa_hz"])
+
+print("Taxas com estímulo:", taxas_estimulo)                        # Taxas com estímulo: [38.0, 42.0]
+print("Média (Hz):", sum(taxas_estimulo) / len(taxas_estimulo))    # Média (Hz): 40.0
+      </code>
+
+      Agora imagine outra tarefa: você registrou quais neurônios dispararam diante de um estímulo visual e quais dispararam diante de um estímulo sonoro, e quer encontrar os neurônios multimodais que responderam a ambos. Aqui não há pares chave–valor; há apenas pertinência e eliminação de repetições.
+
+      <definition id="def:6-4-conjunto">
+        <title>Conjunto (<c>set</c>)</title>
+        Um <strong>conjunto</strong> (<c>set</c>) é uma coleção mutável de elementos <strong>únicos</strong> e <strong>sem ordem garantida</strong>, escrita entre chaves <c>{a, b, c}</c> (ou criada com <c>set()</c> para um conjunto vazio). Ele suporta diretamente as operações matemáticas de união (<c>|</c>), interseção (<c>&</c>) e diferença (<c>-</c>).
+        <intuition>
+          Um conjunto funciona como uma lista de presença sem repetições: não importa se um neurônio assinou o livro uma vez ou dez vezes, o nome dele aparece apenas uma vez lá dentro, e a ordem na página não tem significado.
+        </intuition>
+      </definition>
+
+      Como conjuntos não mantêm ordem fixa entre execuções do Python, usamos <c>sorted(...)</c> sempre que queremos exibir seus elementos em uma ordem previsível:
+
+      <code lang="python" id="cod:6-4-set-basico">
+estimulo_luz = {"N1", "N2", "N3", "N4"}
+estimulo_som = {"N3", "N4", "N5"}
+
+ambos = estimulo_luz & estimulo_som
+todos = estimulo_luz | estimulo_som
+so_luz = estimulo_luz - estimulo_som
+
+print("Ambos:", sorted(ambos))              # Ambos: ['N3', 'N4']
+print("Qualquer um:", sorted(todos))        # Qualquer um: ['N1', 'N2', 'N3', 'N4', 'N5']
+print("Só luz:", sorted(so_luz))            # Só luz: ['N1', 'N2']
+print("N2 na luz?", "N2" in estimulo_luz)   # N2 na luz? True
+      </code>
+
+      <example id="exm:6-4-contagem-dna">
+        <title>Contagem de nucleotídeos com dicionário</title>
+        Um uso clássico de <c>.get(chave, 0)</c> é contar ocorrências em uma sequência. Ao percorrer uma fita de DNA base por base, somamos <c>1</c> à contagem atual de cada nucleotídeo — começando em <c>0</c> na primeira vez em que a base aparece — e calculamos o conteúdo GC ao final.
+
+        <code lang="python" id="cod:6-4-exm-contagem">
+seq = "ATGCGATACC"
+contagem = {}
+
+for base in seq:
+    contagem[base] = contagem.get(base, 0) + 1
+
+print("Contagem:", contagem)
+# Contagem: {'A': 3, 'T': 2, 'G': 2, 'C': 3}
+gc = (contagem.get("G", 0) + contagem.get("C", 0)) / len(seq)
+print(f"Conteúdo GC: {gc * 100:.1f}%")  # Conteúdo GC: 50.0%
+        </code>
+
+        Na sequência de $10$ bases, <c>G</c> aparece $2$ vezes e <c>C</c> aparece $3$ vezes, somando $5$ bases GC e produzindo $50{,}0\%$ de conteúdo GC. Usar <c>.get("G", 0)</c> no cálculo evita erro mesmo se a fita não contiver nenhuma guanina.
+      </example>
+
+      <example id="exm:6-4-codons">
+        <title>Tradução de sequência curta com tabela de códons</title>
+        No código genético padrão, trincas de nucleotídeos (códons) codificam aminoácidos ou sinais de parada. Podemos guardar uma tabela parcial de códons em um dicionário e avançar ao longo da sequência de $3$ em $3$ posições com <c>range(0, len(dna), 3)</c> para traduzir uma sequência codificadora curta.
+
+        <code lang="python" id="cod:6-4-exm-codons">
+tabela_codons = {
+    "ATG": "M",  # Metionina (início)
+    "TTT": "F",  # Fenilalanina
+    "TTC": "F",  # Fenilalanina
+    "GGC": "G",  # Glicina
+    "GCT": "A",  # Alanina
+    "AAG": "K",  # Lisina
+    "TGG": "W",  # Triptofano
+    "TAA": "*",  # Parada (stop)
+    "TAG": "*",  # Parada (stop)
+    "TGA": "*",  # Parada (stop)
+}
+
+dna = "ATGTTTGGCGCTTGG"
+aminoacidos = []
+
+for i in range(0, len(dna), 3):
+    codon = dna[i:i + 3]
+    aa = tabela_codons.get(codon, "?")
+    aminoacidos.append(aa)
+
+proteina = "".join(aminoacidos)
+print("Peptídeo:", proteina)  # Peptídeo: MFGAW
+        </code>
+
+        Os índices gerados por <c>range(0, 15, 3)</c> são <c>0, 3, 6, 9, 12</c>, extraindo os cinco códons <c>ATG</c> (M), <c>TTT</c> (F), <c>GGC</c> (G), <c>GCT</c> (A) e <c>TGG</c> (W). Repare como o dicionário substitui dezenas de condicionais <c>if</c>/<c>elif</c> por uma única consulta direta.
+      </example>
+
+      <example id="exm:6-4-genes-estimulos">
+        <title>Genes diferencialmente expressos em dois experimentos</title>
+        Suponha que um experimento de RNA-seq identificou genes alterados no hipocampo após aprendizado espacial (<c>exp_a</c>) e outro após privação de sono (<c>exp_b</c>). Usando conjuntos, descobrimos rapidamente os genes compartilhados, os exclusivos do primeiro estudo e o total de genes distintos envolvidos.
+
+        <code lang="python" id="cod:6-4-exm-conjuntos">
+genes_exp_a = {"BDNF", "FOS", "ARC", "EGR1", "BDNF"}
+genes_exp_b = {"ARC", "EGR1", "NPY", "SST"}
+
+comuns = genes_exp_a & genes_exp_b
+exclusivos_a = genes_exp_a - genes_exp_b
+todos_genes = genes_exp_a | genes_exp_b
+
+print("Únicos em A:", len(genes_exp_a))      # Únicos em A: 4
+print("Em ambos:", sorted(comuns))           # Em ambos: ['ARC', 'EGR1']
+print("Só em A:", sorted(exclusivos_a))      # Só em A: ['BDNF', 'FOS']
+print("Total combinado:", len(todos_genes))  # Total combinado: 6
+        </code>
+
+        Mesmo com <c>"BDNF"</c> digitado duas vezes na criação de <c>genes_exp_a</c>, o conjunto descarta a duplicata automaticamente e mantém $4$ elementos únicos. A interseção (<c>&</c>) isola <c>ARC</c> e <c>EGR1</c>, enquanto a união (<c>|</c>) soma $6$ genes distintos ao todo.
+      </example>
+
+      <remark id="rem:6-4-armadilha-dict-set">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Criar um conjunto vazio com <c>{}</c>:</strong> em Python, chaves vazias <c>{}</c> criam um <em>dicionário</em> vazio, não um conjunto! Para criar um conjunto vazio, escreva obrigatoriamente <c>set()</c>.</item>
+          <item><strong>Testar valores com <c>in</c>:</strong> escrever <c>"CA1" in neuronio</c> procura <c>"CA1"</c> entre as <em>chaves</em> do dicionário, não entre os valores, retornando <c>False</c> mesmo quando <c>"CA1"</c> está guardado lá dentro. Para buscar nos valores, use <c>"CA1" in neuronio.values()</c>.</item>
+          <item><strong>Usar <c>d[chave]</c> sem garantia de existência:</strong> se a chave puder faltar em algum registro, troque <c>d[chave]</c> por <c>d.get(chave, padrao)</c> para evitar que um único dado incompleto derrube o script inteiro.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:6-4-2-1">
+        <title>Básico — Contagem de nucleotídeos e conferência</title>
+        Para a sequência <c>dna = "GGATCCATGCTAGGA"</c>, conte quantas vezes cada base (<c>A</c>, <c>T</c>, <c>C</c>, <c>G</c>) aparece usando um laço <c>for</c> e um dicionário. Em seguida, confira cada contagem comparando o valor no dicionário com o método de string <c>dna.count(base)</c>.
+        <hint><title>Ver dica</title>Inicialize <c>contagem = {}</c> e atualize com <c>contagem[base] = contagem.get(base, 0) + 1</c>; depois percorra <c>"ATCG"</c> comparando <c>contagem[b] == dna.count(b)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Na sequência de $15$ nucleotídeos, contamos à mão $5$ guaninas (<c>G</c>), $4$ adeninas (<c>A</c>), $3$ timinas (<c>T</c>) e $3$ citosinas (<c>C</c>). A conferência com <c>dna.count()</c> confirma todos os quatro valores.
+
+          <code lang="python" id="cod:6-4-sol-2-1">
+dna = "GGATCCATGCTAGGA"
+contagem = {}
+
+for base in dna:
+    contagem[base] = contagem.get(base, 0) + 1
+
+print("Contagem:", contagem)
+# Contagem: {'G': 5, 'A': 4, 'T': 3, 'C': 3}
+
+for b in "ATCG":
+    igual = contagem.get(b, 0) == dna.count(b)
+    print(f"Base {b}: {contagem.get(b, 0)} (confere? {igual})")
+# Base A: 4 (confere? True)
+# Base T: 3 (confere? True)
+# Base C: 3 (confere? True)
+# Base G: 5 (confere? True)
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-4-2-2">
+        <title>Básico — Interseção e diferença de conjuntos de genes</title>
+        Dadas as listas <c>genes_controle = ["GAD1", "PVALB", "SST", "VIP", "GAD1"]</c> e <c>genes_tratado = ["SST", "VIP", "BDNF", "FOS"]</c>, converta ambas em conjuntos e imprima em ordem alfabética: (a) os genes presentes nos dois grupos, (b) os genes que surgiram apenas no grupo tratado e (c) o total de genes distintos somando os dois grupos.
+        <hint><title>Ver dica</title>Use <c>set(lista)</c> para converter cada lista em conjunto, depois aplique <c>&</c>, <c>-</c> e <c>|</c>, ordenando na hora de imprimir com <c>sorted(...)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Converter as listas com <c>set()</c> elimina a duplicata <c>"GAD1"</c> no controle. A interseção traz os $2$ genes em comum (<c>SST</c>, <c>VIP</c>), a diferença <c>tratado - controle</c> isola <c>BDNF</c> e <c>FOS</c>, e a união soma $6$ genes únicos.
+
+          <code lang="python" id="cod:6-4-sol-2-2">
+genes_controle = ["GAD1", "PVALB", "SST", "VIP", "GAD1"]
+genes_tratado = ["SST", "VIP", "BDNF", "FOS"]
+
+c = set(genes_controle)
+t = set(genes_tratado)
+
+print("Nos dois grupos:", sorted(c & t))       # Nos dois grupos: ['SST', 'VIP']
+print("Apenas no tratado:", sorted(t - c))     # Apenas no tratado: ['BDNF', 'FOS']
+print("Total distintos:", len(c | t))          # Total distintos: 6
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-4-2-3">
+        <title>Intermediário — Agrupando experimentos por região cerebral</title>
+        Dada a tabela <c>sessoes = [{"animal": "C01", "regiao": "V1", "taxa_hz": 24.0}, {"animal": "C02", "regiao": "CA1", "taxa_hz": 8.5}, {"animal": "C03", "regiao": "V1", "taxa_hz": 36.0}, {"animal": "C04", "regiao": "CA1", "taxa_hz": 11.5}]</c>, construa um dicionário que mapeie cada região para a lista de suas taxas e imprima a taxa média por região.
+        <hint><title>Ver dica</title>Para cada linha, verifique se <c>regiao</c> já está no dicionário agrupador; se não estiver, crie uma lista vazia antes de dar <c>.append(taxa)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Ao agrupar por chave, criamos a chave com uma lista vazia na primeira aparição de cada região e depois acrescentamos cada taxa. Em <c>V1</c>, $(24{,}0 + 36{,}0)/2 = 30{,}0\text{ Hz}$; em <c>CA1</c>, $(8{,}5 + 11{,}5)/2 = 10{,}0\text{ Hz}$.
+
+          <code lang="python" id="cod:6-4-sol-2-3">
+sessoes = [
+    {"animal": "C01", "regiao": "V1", "taxa_hz": 24.0},
+    {"animal": "C02", "regiao": "CA1", "taxa_hz": 8.5},
+    {"animal": "C03", "regiao": "V1", "taxa_hz": 36.0},
+    {"animal": "C04", "regiao": "CA1", "taxa_hz": 11.5},
+]
+
+por_regiao = {}
+for s in sessoes:
+    reg = s["regiao"]
+    if reg not in por_regiao:
+        por_regiao[reg] = []
+    por_regiao[reg].append(s["taxa_hz"])
+
+for reg, taxas in por_regiao.items():
+    media = sum(taxas) / len(taxas)
+    print(f"{reg}: média = {media:.1f} Hz")
+# V1: média = 30.0 Hz
+# CA1: média = 10.0 Hz
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-4-2-4">
+        <title>Intermediário — Tradução até o primeiro códon de parada</title>
+        Usando a tabela de códons do <ref to="exm:6-4-codons"/>, traduza a sequência <c>dna = "ATGAAGGGCTAATGGTTT"</c> parando imediatamente ao encontrar o primeiro códon de parada (<c>"*"</c>), sem incluí-lo na proteína resultante.
+        <hint><title>Ver dica</title>Percorra <c>range(0, len(dna), 3)</c>, consulte o aminoácido com <c>.get(codon, "?")</c> e use <c>if aa == "*": break</c> antes de dar <c>.append(aa)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Os três primeiros códons são <c>ATG</c> (<c>M</c>), <c>AAG</c> (<c>K</c>) e <c>GGC</c> (<c>G</c>). O quarto códon é <c>TAA</c>, que mapeia para <c>"*"</c> e aciona o <c>break</c>, interrompendo o laço antes que <c>TGG</c> e <c>TTT</c> sejam traduzidos.
+
+          <code lang="python" id="cod:6-4-sol-2-4">
+codons = {
+    "ATG": "M", "TTT": "F", "TTC": "F", "GGC": "G",
+    "GCT": "A", "AAG": "K", "TGG": "W",
+    "TAA": "*", "TAG": "*", "TGA": "*",
+}
+
+dna = "ATGAAGGGCTAATGGTTT"
+proteina = []
+
+for i in range(0, len(dna), 3):
+    codon = dna[i:i + 3]
+    aa = codons.get(codon, "?")
+    if aa == "*":
+        break
+    proteina.append(aa)
+
+print("Proteína:", "".join(proteina))  # Proteína: MKG
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-4-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Primeiro contato com arrays NumPy</title>
+      <intro>
+        Quando seus dados formam séries temporais ou matrizes numéricas grandes — como canais de EEG ou centenas de ensaios —, listas comuns exigem laços lentos, enquanto arrays NumPy operam sobre blocos inteiros de números de uma só vez.
+      </intro>
+
+      Em uma lista Python, os elementos ficam espalhados na memória e podem ter tipos misturados (um número, um texto, uma sublista). Por isso, quando você escreve <c>lista * 2</c>, o Python apenas repete a lista duas vezes em vez de multiplicar cada número por $2$ — afinal, como ele saberia multiplicar um texto? Para fazer contas em bloco, como converter $10\,000$ potenciais de milivolts para volts ou calcular a média de cada canal de um EEG, precisamos de uma grade homogênea de números: o <strong>array NumPy</strong> (<c>np.ndarray</c>), que você já conectou conceitualmente aos vetores e matrizes do Módulo 5 (<mark>Álgebra Linear</mark>) e que aprofundará em detalhes no tema <mark>Bibliotecas</mark>.
+
+      <definition id="def:6-4-array">
+        <title>Array NumPy (<c>np.ndarray</c>)</title>
+        Importado por convenção com <c>import numpy as np</c>, um <strong>array</strong> criado com <c>np.array(lista)</c> é uma grade multidimensional de elementos que compartilham todos o <strong>mesmo tipo numérico</strong> (<c>dtype</c>, como <c>int64</c> ou <c>float64</c>). Suas dimensões ficam registradas em <c>.shape</c> (uma tupla com o tamanho de cada eixo) e sua quantidade de eixos em <c>.ndim</c>.
+        <intuition>
+          Se uma lista é um colar onde cada conta pode ter tamanho e material diferentes, o array é uma bandeja rígida de poços idênticos em fileiras perfeitas: como todos os poços contêm o mesmo tipo de líquido, uma pipeta multicanal aplica a mesma operação em todos eles de uma só vez.
+        </intuition>
+      </definition>
+
+      Essa diferença estrutural muda completamente o comportamento dos operadores <c>+</c> e <c>*</c>. Em listas, <c>+</c> concatena duas listas e <c>*</c> repete os itens; em arrays NumPy, as operações aritméticas e comparações acontecem <strong>elemento a elemento</strong> (comportamento chamado de <em>vetorização</em>):
+
+      <code lang="python" id="cod:6-4-numpy-vs-lista">
+import numpy as np
+
+lista_mv = [-70.0, -60.0, -50.0]
+array_mv = np.array(lista_mv)
+
+print("Lista * 2:", lista_mv * 2)
+# Lista * 2: [-70.0, -60.0, -50.0, -70.0, -60.0, -50.0]
+print("Array * 2:", array_mv * 2)
+# Array * 2: [-140. -120. -100.]
+print("Array em volts:", array_mv / 1000)
+# Array em volts: [-0.07 -0.06 -0.05]
+print("Tipo (dtype):", array_mv.dtype)
+# Tipo (dtype): float64
+      </code>
+
+      Em neurofisiologia, quase nunca trabalhamos apenas com um vetor 1D: temos matrizes 2D onde cada linha é um ensaio (ou um canal) e cada coluna é um instante de tempo. Em um array 2D, <c>.shape</c> retorna <c>(n_linhas, n_colunas)</c>, <c>.ndim</c> vale <c>2</c> e <c>len(matriz)</c> devolve apenas o número de linhas. A indexação usa vírgula dentro de um único par de colchetes: <c>matriz[i, j]</c> acessa a linha <c>i</c> e a coluna <c>j</c>, enquanto os dois pontos <c>:</c> selecionam todo um eixo (<c>matriz[0, :]</c> pega a primeira linha inteira; <c>matriz[:, 2]</c> pega a terceira coluna inteira).
+
+      <code lang="python" id="cod:6-4-numpy-2d-eixos">
+import numpy as np
+
+matriz = np.array([
+    [-70.0, -68.0, -65.0, -69.0, -70.0],
+    [-71.0, -62.0, -54.0,  28.0, -72.0],
+    [-69.0, -67.0, -66.0, -68.0, -70.0],
+])
+
+print("Formato (shape):", matriz.shape)       # Formato (shape): (3, 5)
+print("Dimensões (ndim):", matriz.ndim)      # Dimensões (ndim): 2
+print("Linhas (len):", len(matriz))          # Linhas (len): 3
+print("Ensaio 1, amostra 3:", matriz[1, 3])  # Ensaio 1, amostra 3: 28.0
+print("Ensaio 0 inteiro:", matriz[0, :])     # Ensaio 0 inteiro: [-70. -68. -65. -69. -70.]
+print("Instante 2 em todos:", matriz[:, 2])  # Instante 2 em todos: [-65. -54. -66.]
+      </code>
+
+      Outro recurso poderoso do NumPy é a <strong>máscara booleana</strong> (<em>boolean mask</em>). Quando você compara um array inteiro com um limiar — por exemplo, <c>v >= -55</c> —, o resultado é um array de <c>True</c> e <c>False</c> com o mesmo formato. Como em Python <c>True</c> equivale numericamente a <c>1</c> e <c>False</c> a <c>0</c>, chamar <c>np.sum(mascara)</c> conta quantas amostras satisfizeram a condição, e passar <c>v[mascara]</c> filtra apenas os valores verdadeiros! Além disso, métodos como <c>.mean()</c>, <c>.std()</c>, <c>.min()</c> e <c>.max()</c> resumem todo o array — ou apenas um eixo específico através do parâmetro <c>axis</c>.
+
+      <proposition id="prop:6-4-axis">
+        <title>Como interpretar o argumento <c>axis</c> em matrizes 2D</title>
+        Em uma matriz com formato <c>(linhas, colunas)</c>:
+        <list marker="dash">
+          <item><c>axis=0</c> colapsa o eixo das <strong>linhas</strong> (eixo $0$): percorre verticalmente e devolve <strong>um resumo por coluna</strong> (por exemplo, a média de todos os ensaios em cada instante de tempo).</item>
+          <item><c>axis=1</c> colapsa o eixo das <strong>colunas</strong> (eixo $1$): percorre horizontalmente e devolve <strong>um resumo por linha</strong> (por exemplo, a média temporal de cada ensaio).</item>
+        </list>
+        <intuition>
+          Pense que o argumento <c>axis=k</c> indica qual dimensão será "esmagada" no resultado final: se o formato era <c>(3, 5)</c>, usar <c>axis=1</c> elimina o <c>5</c> e sobra um vetor de tamanho <c>3</c> (um valor por ensaio).
+        </intuition>
+      </proposition>
+
+      <example id="exm:6-4-mv-e-limiar">
+        <title>Conversão para volts e contagem de amostras acima do limiar</title>
+        Considere um registro de $8$ amostras de potencial de membrana em milivolts. Queremos convertê-lo para volts (dividindo por $1\,000$ ou multiplicando por $0{,}001$) e contar quantas amostras atingiram ou ultrapassaram o limiar de disparo de $-55{,}0\text{ mV}$.
+
+        <code lang="python" id="cod:6-4-exm-mascara">
+import numpy as np
+
+v_mv = np.array([-70.0, -65.0, -55.0, 25.0, -72.0, -53.0, 30.0, -69.0])
+v_volts = v_mv * 0.001
+
+limiar_mv = -55.0
+mascara = v_mv >= limiar_mv
+acima = np.sum(mascara)
+
+print("Em volts:", v_volts)
+# Em volts: [-0.07  -0.065 -0.055  0.025 -0.072 -0.053  0.03  -0.069]
+print("Máscara:", mascara)
+# Máscara: [False False  True  True False  True  True False]
+print("Amostras >= -55 mV:", acima)  # Amostras >= -55 mV: 4
+        </code>
+
+        Sem escrever nenhum laço <c>for</c>, <c>v_mv * 0.001</c> escalou todas as oito amostras e <c>np.sum(mascara)</c> somou os quatro valores <c>True</c> correspondentes a <c>-55.0</c>, <c>25.0</c>, <c>-53.0</c> e <c>30.0</c>.
+      </example>
+
+      <example id="exm:6-4-axis-ensaios">
+        <title>Média e desvio-padrão por ensaio em matriz 3 × 5</title>
+        Suponha uma matriz $3 \times 5$ contendo taxas de disparo (em Hz) de $3$ ensaios experimentais (linhas) medidos em $5$ janelas temporais consecutivas (colunas). Vamos calcular a média e o desvio-padrão de cada ensaio com <c>axis=1</c>, a média de cada janela temporal com <c>axis=0</c> e o máximo global.
+
+        <code lang="python" id="cod:6-4-exm-axis">
+import numpy as np
+
+# 3 ensaios (linhas) x 5 instantes de tempo (colunas), taxas em Hz
+taxas = np.array([
+    [ 9.0, 11.0, 12.0, 13.0, 15.0],
+    [19.0, 21.0, 22.0, 23.0, 25.0],
+    [29.0, 31.0, 32.0, 33.0, 35.0],
+])
+
+print("Média por ensaio (axis=1):", taxas.mean(axis=1))
+# Média por ensaio (axis=1): [12. 22. 32.]
+print("Desvio por ensaio (axis=1):", taxas.std(axis=1))
+# Desvio por ensaio (axis=1): [2. 2. 2.]
+print("Média por instante (axis=0):", taxas.mean(axis=0))
+# Média por instante (axis=0): [19. 21. 22. 23. 25.]
+print("Máximo global:", taxas.max())  # Máximo global: 35.0
+        </code>
+
+        Confira as contas na primeira linha: $(9 + 11 + 12 + 13 + 15) / 5 = 60 / 5 = 12{,}0\text{ Hz}$; os desvios em relação a $12{,}0$ são $-3, -1, 0, +1, +3$, cujos quadrados somam $9 + 1 + 0 + 1 + 9 = 20$, dando variância $20 / 5 = 4$ e desvio-padrão $\sqrt{4} = 2{,}0\text{ Hz}$. Como havia $3$ linhas e $5$ colunas, <c>axis=1</c> devolve um vetor de comprimento $3$ (um resumo por ensaio) e <c>axis=0</c> devolve um vetor de comprimento $5$ (um resumo por instante).
+      </example>
+
+      <remark id="rem:6-4-armadilha-numpy">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Misturar texto e números dentro de <c>np.array()</c>:</strong> como todos os elementos de um array precisam ter o mesmo tipo, criar <c>np.array([10, 20, "30"])</c> converte silenciosamente todos os números em strings, impedindo operações matemáticas depois.</item>
+          <item><strong>Inverter <c>axis=0</c> e <c>axis=1</c>:</strong> muitos iniciantes leem <c>axis=0</c> como "média de cada linha" porque a linha é o eixo $0$. Lembre-se da regra da <ref to="prop:6-4-axis"/>: o eixo indicado é o que <em>desaparece</em> na redução. Para obter uma média por ensaio (por linha), você precisa colapsar as colunas (<c>axis=1</c>).</item>
+          <item><strong>Esperar que lista multiplique elemento a elemento:</strong> antes de fazer aritmética, confira se a variável é mesmo um <c>np.ndarray</c> e não uma <c>list</c> comum.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:6-4-3-1">
+        <title>Básico — Conversão de unidades e inspeção de array</title>
+        Converta a lista <c>tempos_ms = [500, 1000, 1500, 2000]</c> para um array NumPy, transforme os valores para segundos dividindo por <c>1000</c> e imprima o array em segundos junto de seu <c>.shape</c>, <c>.ndim</c> e <c>.dtype</c>.
+        <hint><title>Ver dica</title>Crie o array com <c>np.array(tempos_ms)</c> e faça a divisão <c>arr / 1000</c>; observe como o <c>dtype</c> muda de inteiro para ponto flutuante após a divisão.</hint>
+        <solution collapsible="true" collapsed="true">
+          A lista inicial tem $4$ inteiros, logo o array 1D possui formato <c>(4,)</c> e <c>ndim</c> igual a <c>1</c>. Ao dividir por <c>1000</c>, o NumPy promove o resultado para ponto flutuante (<c>float64</c>), produzindo <c>[0.5 1. 1.5 2.]</c>.
+
+          <code lang="python" id="cod:6-4-sol-3-1">
+import numpy as np
+
+tempos_ms = [500, 1000, 1500, 2000]
+arr_ms = np.array(tempos_ms)
+arr_s = arr_ms / 1000
+
+print("Em segundos:", arr_s)       # Em segundos: [0.5 1.  1.5 2. ]
+print("shape:", arr_s.shape)       # shape: (4,)
+print("ndim:", arr_s.ndim)         # ndim: 1
+print("dtype:", arr_s.dtype)       # dtype: float64
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-4-3-2">
+        <title>Básico — Contagem e filtragem de spikes com máscara booleana</title>
+        Dado o sinal <c>sinal_mv = np.array([-70.0, -63.0, -55.0, -40.0, 20.0, -72.0, -54.0, 15.0])</c>, construa uma máscara booleana para amostras maiores ou iguais a <c>-55.0</c> mV, conte quantas amostras cruzaram o limiar usando <c>np.sum()</c> e imprima apenas os valores filtrados.
+        <hint><title>Ver dica</title>Crie <c>mascara = sinal_mv >= -55.0</c>, conte com <c>np.sum(mascara)</c> e filtre usando <c>sinal_mv[mascara]</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Cinco amostras satisfazem a condição <c>>= -55.0</c> (<c>-55.0</c>, <c>-40.0</c>, <c>20.0</c>, <c>-54.0</c> e <c>15.0</c>). Indexar o array pela própria máscara devolve um novo array contendo apenas essas cinco leituras.
+
+          <code lang="python" id="cod:6-4-sol-3-2">
+import numpy as np
+
+sinal_mv = np.array([-70.0, -63.0, -55.0, -40.0, 20.0, -72.0, -54.0, 15.0])
+mascara = sinal_mv >= -55.0
+
+print("Qtd acima do limiar:", np.sum(mascara))  # Qtd acima do limiar: 5
+print("Valores:", sinal_mv[mascara])            # Valores: [-55. -40.  20. -54.  15.]
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-4-3-3">
+        <title>Intermediário — Fatiamento de matriz 2D e médias por ensaio</title>
+        Considere a matriz $3 \times 4$ de taxas de disparo (em Hz) <c>matriz = np.array([[10.0, 14.0, 18.0, 14.0], [20.0, 24.0, 28.0, 24.0], [30.0, 34.0, 38.0, 34.0]])</c>. Calcule: (a) a média completa de cada ensaio (<c>axis=1</c>), (b) a média de cada ensaio considerando apenas os dois últimos instantes (<c>matriz[:, -2:]</c>) e (c) o maior valor de toda a matriz.
+        <hint><title>Ver dica</title>Fatie todas as linhas e as duas últimas colunas com <c>matriz[:, -2:]</c> e encadeie <c>.mean(axis=1)</c> sobre essa submatriz.</hint>
+        <solution collapsible="true" collapsed="true">
+          Na matriz completa, as médias das três linhas são $(10+14+18+14)/4 = 14{,}0$, $(20+24+28+24)/4 = 24{,}0$ e $(30+34+38+34)/4 = 34{,}0$. Nos dois últimos instantes, as médias sobem para $(18+14)/2 = 16{,}0$, $(28+24)/2 = 26{,}0$ e $(38+34)/2 = 36{,}0$, e o máximo global vale $38{,}0\text{ Hz}$.
+
+          <code lang="python" id="cod:6-4-sol-3-3">
+import numpy as np
+
+matriz = np.array([
+    [10.0, 14.0, 18.0, 14.0],
+    [20.0, 24.0, 28.0, 24.0],
+    [30.0, 34.0, 38.0, 34.0],
+])
+
+print("Média por ensaio:", matriz.mean(axis=1))
+# Média por ensaio: [14. 24. 34.]
+print("Média últimos 2 instantes:", matriz[:, -2:].mean(axis=1))
+# Média últimos 2 instantes: [16. 26. 36.]
+print("Máximo global:", matriz.max())
+# Máximo global: 38.0
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-4-3-4">
+        <title>Avançado — Padronização (z-score) de registro neuronal sintético</title>
+        Gere $1\,000$ amostras sintéticas de potencial de membrana usando <c>rng = np.random.default_rng(42)</c> com média $-70{,}0\text{ mV}$ e desvio-padrão $5{,}0\text{ mV}$ (<c>rng.normal(-70.0, 5.0, size=1000)</c>). Calcule o sinal padronizado $z = (\text{potencial} - \mu) / \sigma$, verifique a média e o desvio-padrão de <c>z</c> e conte quantas amostras ficaram mais de $2$ desvios-padrão acima da média (<c>z > 2.0</c>).
+        <hint><title>Ver dica</title>Subtraia <c>potencial.mean()</c> do array inteiro e divida por <c>potencial.std()</c>; depois aplique <c>np.sum(z > 2.0)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Subtrair a média desloca o centro da distribuição para zero, e dividir pelo desvio-padrão ajusta a escala para $1$. Em uma distribuição normal, cerca de $2{,}3\%$ das observações ficam acima de $+2$ desvios-padrão (aproximadamente $23$ amostras em $1\,000$).
+
+          <code lang="python" id="cod:6-4-sol-3-4">
+import numpy as np
+
+rng = np.random.default_rng(42)
+potencial = rng.normal(-70.0, 5.0, size=1000)
+
+media = potencial.mean()
+desvio = potencial.std()
+z = (potencial - media) / desvio
+
+print(f"Média original: {media:.2f} mV")   # aprox. -70.0 mV (o valor exato depende da semente)
+print(f"Desvio original: {desvio:.2f} mV") # aprox. 5.0 mV (o valor exato depende da semente)
+print(f"Média z: {z.mean():.2f}")          # 0.00 (ou -0.00 por precisão de ponto flutuante)
+print(f"Desvio z: {z.std():.2f}")          # 1.00
+print("Acima de 2 desvios:", np.sum(z > 2.0))
+# aprox. 23 amostras (cerca de 2,3% de 1000; o valor exato depende da semente)
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-4-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Como escolher a estrutura certa</title>
+      <intro>
+        Saber a sintaxe de cada recipiente é só metade do caminho: a outra metade é bater o olho em um problema biológico e escolher a estrutura que evita lentidão, duplicatas indesejadas e bugs silenciosos de memória.
+      </intro>
+
+      Na bancada do laboratório, você não guarda DNA purificado em um béquer aberto nem tenta centrifugar uma caixa de papelão. Em Python, cada estrutura de dados foi projetada com compromissos bem definidos entre ordem, mutabilidade, unicidade e velocidade de acesso. A tabela abaixo resume as características das cinco estruturas principais que você agora domina.
+
+      <table id="tbl:6-4-comparacao">
+        <title>Comparação entre as estruturas de dados básicas</title>
+        <header>
+          <column>Estrutura</column>
+          <column>Ordenada?</column>
+          <column>Mutável?</column>
+          <column>Permite repetidos?</column>
+          <column>Acesso típico</column>
+        </header>
+        <row><column mono="true">list</column><column>Sim</column><column>Sim</column><column>Sim</column><column>Por índice inteiro <c>[i]</c> ou fatia</column></row>
+        <row><column mono="true">tuple</column><column>Sim</column><column>Não</column><column>Sim</column><column>Por índice inteiro <c>[i]</c> ou desempacotamento</column></row>
+        <row><column mono="true">dict</column><column>Por inserção</column><column>Sim</column><column>Chaves não; valores sim</column><column>Por chave única <c>[chave]</c> ou <c>.get()</c></column></row>
+        <row><column mono="true">set</column><column>Não</column><column>Sim</column><column>Não</column><column>Teste de pertinência <c>in</c> e álgebra de conjuntos</column></row>
+        <row><column mono="true">np.ndarray</column><column>Sim</column><column>Valores sim (tamanho fixo)</column><column>Sim (mesmo <c>dtype</c>)</column><column>Índices <c>[i, j]</c>, fatias e máscaras booleanas</column></row>
+        <caption>Resumo prático para escolher entre coleções nativas do Python e arrays NumPy.</caption>
+      </table>
+
+      Para sair da dúvida diante de um novo conjunto de dados, siga um pequeno roteiro de decisão em quatro perguntas:
+
+      <proposition id="prop:6-4-roteiro-decisao">
+        <title>Roteiro de decisão para escolher a estrutura</title>
+        <list marker="number">
+          <item><strong>Os dados são uma grade numérica homogênea para fazer contas em bloco ou estatísticas?</strong> Escolha <c>np.ndarray</c>.</item>
+          <item><strong>Você precisa buscar valores por um nome, código ou identificador único?</strong> Escolha <c>dict</c>.</item>
+          <item><strong>Você quer apenas evitar duplicatas, testar rapidamente se algo pertence ao grupo ou cruzar dois grupos?</strong> Escolha <c>set</c>.</item>
+          <item><strong>A ordem importa e você quer guardar elementos variados ou de comprimento variável?</strong> Escolha <c>tuple</c> se o registro for fixo após a criação, ou <c>list</c> se você for acrescentar, remover ou reordenar itens.</item>
+        </list>
+      </proposition>
+
+      Depois de escolher o recipiente certo, há um conceito de memória que todo programador precisa enxergar com clareza antes que ele cause um bug invisível: a diferença entre <strong>copiar um objeto</strong> e <strong>criar um apelido</strong> (<em>aliasing</em>).
+
+      <definition id="def:6-4-aliasing">
+        <title>Apelido (<em>aliasing</em>) e cópia</title>
+        Em Python, o sinal de igual <c>=</c> <strong>não copia</strong> listas, dicionários, conjuntos ou arrays: escrever <c>b = a</c> apenas cria um segundo nome (um <strong>apelido</strong>) apontando para exatamente o <strong>mesmo objeto na memória</strong>. Alterar <c>b</c> altera <c>a</c> na hora. Para criar um objeto independente, é preciso pedir uma cópia explícita com <c>a.copy()</c> ou <c>list(a)</c>.
+        <intuition>
+          Pense em um tubo de amostra na geladeira: colocar uma segunda etiqueta com o nome <c>b</c> no mesmo tubo onde já estava colada a etiqueta <c>a</c> não duplica o líquido lá dentro. Se você pingar reagente no tubo <c>b</c>, o conteúdo do tubo <c>a</c> muda junto porque o tubo é um só.
+        </intuition>
+      </definition>
+
+      Observe o efeito do apelido versus <c>.copy()</c> em listas:
+
+      <code lang="python" id="cod:6-4-aliasing-listas">
+original = [-70.0, -68.0, -65.0]
+apelido = original       # NÃO copia: aponta para a mesma lista
+copia = original.copy()  # cria uma lista nova independente
+
+apelido[0] = -99.0
+copia[1] = 0.0
+
+print("Original:", original)  # Original: [-99.0, -68.0, -65.0]
+print("Apelido:", apelido)    # Apelido: [-99.0, -68.0, -65.0]
+print("Cópia:", copia)        # Cópia: [-99.0, 0.0, -65.0]
+      </code>
+
+      Em arrays NumPy, existe um detalhe ainda mais sutil: enquanto fatiar uma lista (<c>lista[1:4]</c>) cria uma lista nova, fatiar um array NumPy (<c>array[1:4]</c>) devolve uma <strong>visão</strong> (<em>view</em>) — uma janela direta para a mesma região de memória do array original, pensada para economizar gigabytes em matrizes grandes de neuroimagem ou EEG. Alterar a visão modifica o array inteiro de onde ela veio; se você pretende editar o trecho fatiado sem afetar o registro bruto, encadeie <c>.copy()</c> na fatia:
+
+      <code lang="python" id="cod:6-4-aliasing-arrays">
+import numpy as np
+
+registro = np.array([-70.0, -68.0, -54.0, 30.0, -71.0])
+visao = registro[1:4]         # fatia é uma visão, não uma cópia
+copia = registro[1:4].copy()  # cópia independente do trecho
+
+visao[0] = 999.0
+copia[1] = -888.0
+
+print("Registro:", registro)  # Registro: [-70. 999. -54.  30. -71.]
+print("Visão:", visao)        # Visão: [999. -54.  30.]
+print("Cópia:", copia)        # Cópia: [ -68. -888.   30.]
+      </code>
+
+      <example id="exm:6-4-escolha-bio">
+        <title>Escolhendo estruturas para quatro dados de laboratório</title>
+        Considere quatro situações reais de um projeto de neurociência e genética: (a) armazenar os códons fixos de um gene curto em ordem; (b) mapear o ID de cada animal ao seu peso em gramas; (c) guardar as espécies únicas observadas em uma coleta de campo; (d) armazenar um registro sintético de EEG com $64$ canais $\times$ $10\,000$ amostras. Aplicando o roteiro da <ref to="prop:6-4-roteiro-decisao"/>, obtemos uma tupla (ou string) para (a), um dicionário para (b), um conjunto para (c) e um array NumPy 2D para (d):
+
+        <code lang="python" id="cod:6-4-exm-escolha">
+import numpy as np
+
+# (a) Sequência ordenada e fixa de códons de um gene
+codons_gene = ("ATG", "GGC", "TTT", "TAA")
+
+# (b) Mapeamento ID do animal -> peso em gramas
+pesos_g = {"R01": 28.4, "R02": 31.0, "R03": 26.8}
+
+# (c) Espécies únicas observadas numa coleta
+especies = {"Rattus norvegicus", "Mus musculus", "Rattus norvegicus"}
+
+# (d) Registro sintético de EEG: 64 canais x 10000 amostras (em uV)
+rng = np.random.default_rng(42)
+eeg_uv = rng.normal(0.0, 20.0, size=(64, 10000))
+
+print("Códons:", len(codons_gene))          # Códons: 4
+print("Peso R02 (g):", pesos_g["R02"])      # Peso R02 (g): 31.0
+print("Espécies únicas:", len(especies))    # Espécies únicas: 2
+print("Formato EEG:", eeg_uv.shape)         # Formato EEG: (64, 10000)
+print("Média global EEG:", round(float(eeg_uv.mean()), 2))
+# aprox. 0.0 (o valor exato depende da semente)
+        </code>
+
+        Cada estrutura cumpre exatamente o papel que faz melhor: os $640\,000$ pontos de EEG cabem em um bloco contínuo de <c>np.ndarray</c> pronto para médias por canal (<c>axis=1</c>), enquanto pesos e espécies ganham acesso direto e unicidade automática.
+      </example>
+
+      <example id="exm:6-4-busca-rapida">
+        <title>Convertendo listas para buscas rápidas em conjuntos e dicionários</title>
+        Suponha que você recebeu de um arquivo CSV uma lista de genes de interesse e uma lista de dicionários com dados de cada animal, mas agora precisa testar milhares de vezes se um gene é alvo ou consultar a taxa de disparo pelo ID <c>"M02"</c>. Converter a lista de genes para um <c>set</c> e indexar os experimentos em um <c>dict</c> por ID evita varrer a lista inteira a cada consulta:
+
+        <code lang="python" id="cod:6-4-exm-busca">
+genes_alvo_lista = ["BDNF", "FOS", "ARC", "EGR1"]
+genes_alvo_set = set(genes_alvo_lista)
+
+experimentos = [
+    {"id": "M01", "idade_dias": 60, "taxa_hz": 18.0},
+    {"id": "M02", "idade_dias": 90, "taxa_hz": 25.0},
+]
+por_id = {}
+for exp in experimentos:
+    por_id[exp["id"]] = exp
+
+print("ARC é alvo?", "ARC" in genes_alvo_set)    # ARC é alvo? True
+print("Taxa de M02:", por_id["M02"]["taxa_hz"])  # Taxa de M02: 25.0
+        </code>
+      </example>
+
+      <remark id="rem:6-4-armadilha-escolha">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Usar <c>lista</c> para checar presença repetidas vezes (<c>x in lista</c>):</strong> testar <c>in</c> em uma lista obriga o Python a percorrer os elementos um por um do início até encontrar <c>x</c> (ou até o fim). Se a coleção tiver dezenas de milhares de genes ou IDs e você fizer muitas buscas, converta a lista para <c>set</c> ou <c>dict</c>: eles localizam a chave diretamente por uma tabela de espalhamento (<em>hash table</em>), assunto cujo custo computacional você medirá formalmente no tema <mark>Complexidade</mark>.</item>
+          <item><strong>Esquecer que <c>.copy()</c> em listas aninhadas é uma cópia rasa:</strong> chamar <c>b = a.copy()</c> em uma lista de listas duplica apenas a lista externa; as sublistas internas continuam sendo apelidos compartilhados! Para copiar estruturas aninhadas por completo, importe o módulo padrão <c>copy</c> e use <c>copy.deepcopy(a)</c>.</item>
+          <item><strong>Editar uma fatia de array NumPy achando que ela é independente:</strong> sempre chame <c>.copy()</c> na fatia antes de zerar artefatos ou alterar valores de teste.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:6-4-4-1">
+        <title>Básico — Removendo duplicatas e indexando medidas por ID</title>
+        Você recebeu uma lista com IDs de neurônios registrados com repetições <c>registrados = ["N04", "N01", "N04", "N02", "N01", "N03"]</c> e uma lista de tuplas com suas taxas <c>medidas = [("N01", 12.0), ("N02", 18.0), ("N03", 9.0), ("N04", 25.0)]</c>. Crie um conjunto com os IDs únicos e um dicionário mapeando cada ID à sua taxa para consultar diretamente a taxa de <c>"N04"</c>.
+        <hint><title>Ver dica</title>Converta <c>registrados</c> com <c>set()</c>; depois percorra <c>medidas</c> desempacotando <c>for nid, taxa in medidas:</c> para preencher o dicionário.</hint>
+        <solution collapsible="true" collapsed="true">
+          O conjunto elimina as duas repetições e guarda $4$ IDs distintos. Desempacotar cada tupla da lista <c>medidas</c> preenche o dicionário <c>taxas</c> diretamente para consulta por chave.
+
+          <code lang="python" id="cod:6-4-sol-4-1">
+registrados = ["N04", "N01", "N04", "N02", "N01", "N03"]
+medidas = [("N01", 12.0), ("N02", 18.0), ("N03", 9.0), ("N04", 25.0)]
+
+unicos = set(registrados)
+taxas = {}
+for nid, taxa in medidas:
+    taxas[nid] = taxa
+
+print("IDs únicos:", sorted(unicos))   # IDs únicos: ['N01', 'N02', 'N03', 'N04']
+print("Taxa de N04:", taxas["N04"])    # Taxa de N04: 25.0
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-4-4-2">
+        <title>Intermediário — Protegendo o sinal bruto contra edição em fatia NumPy</title>
+        Dado o vetor <c>sinal = np.array([-70.0, -69.0, 150.0, -68.0, -70.0])</c>, onde <c>150.0</c> representa um artefato elétrico na posição <c>2</c>, extraia a janela <c>sinal[1:4]</c> como uma cópia independente, substitua o artefato na cópia pelo valor interpolado <c>-68.5</c> e comprove imprimindo ambos os arrays que <c>sinal</c> permaneceu inalterado.
+        <hint><title>Ver dica</title>Escreva <c>janela = sinal[1:4].copy()</c> antes de alterar o elemento do meio (<c>janela[1] = -68.5</c>).</hint>
+        <solution collapsible="true" collapsed="true">
+          Sem <c>.copy()</c>, a fatia <c>sinal[1:4]</c> seria uma visão e <c>janela[1] = -68.5</c> sobrescreveria o índice <c>2</c> do array <c>sinal</c>. Usando <c>.copy()</c>, apenas <c>janela</c> muda.
+
+          <code lang="python" id="cod:6-4-sol-4-2">
+import numpy as np
+
+sinal = np.array([-70.0, -69.0, 150.0, -68.0, -70.0])
+janela = sinal[1:4].copy()
+janela[1] = -68.5
+
+print("Janela limpa:", janela)     # Janela limpa: [-69.  -68.5 -68. ]
+print("Sinal original:", sinal)    # Sinal original: [-70. -69. 150. -68. -70.]
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-4-4-3">
+        <title>Intermediário — Combinando tupla, array 2D e dicionário em EEG sintético</title>
+        Monte um mini-pipeline com dados sintéticos de $4$ canais de EEG ao longo de $500$ amostras: (a) guarde os nomes dos canais em uma tupla imutável <c>("Fz", "Cz", "Pz", "Oz")</c>; (b) gere uma matriz NumPy de formato <c>(4, 500)</c> com <c>rng = np.random.default_rng(42)</c>, média $0{,}0$ e desvio $15{,}0\;\mu\text{V}$; (c) calcule o desvio-padrão de cada canal (<c>axis=1</c>) e armazene o resultado em um dicionário ligando cada nome de canal ao seu desvio-padrão.
+        <hint><title>Ver dica</title>Use <c>desvios = eeg.std(axis=1)</c> e percorra <c>range(len(canais))</c> para ligar <c>canais[i]</c> a <c>float(desvios[i])</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          A tupla fixa a ordem imutável dos $4$ eletrodos, o array <c>(4, 500)</c> calcula os desvios por linha em uma única chamada e o dicionário final associa cada rótulo de canal ao seu valor numérico em microvolts.
+
+          <code lang="python" id="cod:6-4-sol-4-3">
+import numpy as np
+
+canais = ("Fz", "Cz", "Pz", "Oz")
+rng = np.random.default_rng(42)
+eeg = rng.normal(0.0, 15.0, size=(4, 500))
+
+desvios = eeg.std(axis=1)
+resumo = {}
+for i in range(len(canais)):
+    resumo[canais[i]] = round(float(desvios[i]), 2)
+
+print("Formato:", eeg.shape)  # Formato: (4, 500)
+print("Desvios (uV):", resumo)
+# aprox. 15.0 uV em cada canal (os valores exatos dependem da semente)
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:6-4-4-4">
+        <title>Avançado — Por que minha lista original mudou?</title>
+        Um colega escreveu o trecho abaixo para aplicar uma correção de <c>+5.0</c> mV a um registro de potencial de repouso, mas ficou intrigado ao ver que a lista <c>bruto</c> também mudou no final:
+        <code lang="python" numbered="false" lines="false">
+bruto = [-70.0, -72.0, -68.0]
+corrigido = bruto
+for i in range(len(corrigido)):
+    corrigido[i] = corrigido[i] + 5.0
+print("Bruto:", bruto)  # Bruto: [-65.0, -67.0, -63.0]
+        </code>
+        (a) Explique por que <c>bruto</c> foi alterado e corrija o código para preservá-lo intacto usando <c>.copy()</c>. (b) Agora suponha que os dados estejam em uma lista aninhada <c>matriz = [[-70.0, -68.0], [-72.0, -71.0]]</c>: mostre por que <c>matriz.copy()</c> ainda permite que alterar <c>copia[0][0]</c> modifique <c>matriz</c>, e resolva o caso aninhado com <c>copy.deepcopy</c>.
+        <hint><title>Ver dica</title>Em (a), <c>corrigido = bruto</c> cria um apelido para a mesma lista; troque por <c>bruto.copy()</c>. Em (b), importe <c>copy</c> da biblioteca padrão e chame <c>copy.deepcopy(matriz)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          Em (a), <c>corrigido = bruto</c> não cria uma nova lista na memória: os dois nomes apontam para o mesmo objeto (<c>corrigido is bruto</c> é <c>True</c>), logo qualquer alteração em <c>corrigido[i]</c> aparece em <c>bruto</c>. Usar <c>bruto.copy()</c> resolve listas simples. Em (b), <c>.copy()</c> faz uma <strong>cópia rasa</strong> que duplica apenas a lista externa, mantendo as sublistas internas compartilhadas; <c>copy.deepcopy()</c> copia recursivamente cada nível.
+
+          <code lang="python" id="cod:6-4-sol-4-4">
+import copy
+
+# (a) Corrigindo o aliasing em lista simples
+bruto = [-70.0, -72.0, -68.0]
+corrigido = bruto.copy()
+for i in range(len(corrigido)):
+    corrigido[i] = corrigido[i] + 5.0
+
+print("Bruto intacto:", bruto)    # Bruto intacto: [-70.0, -72.0, -68.0]
+print("Corrigido:", corrigido)    # Corrigido: [-65.0, -67.0, -63.0]
+
+# (b) Lista aninhada: cópia rasa vs. cópia profunda
+matriz = [[-70.0, -68.0], [-72.0, -71.0]]
+copia_rasa = matriz.copy()
+copia_rasa[0][0] = 999.0
+print("Matriz após cópia rasa:", matriz)
+# Matriz após cópia rasa: [[999.0, -68.0], [-72.0, -71.0]]
+
+matriz_limpa = [[-70.0, -68.0], [-72.0, -71.0]]
+copia_profunda = copy.deepcopy(matriz_limpa)
+copia_profunda[0][0] = 999.0
+print("Matriz após deepcopy:", matriz_limpa)
+# Matriz após deepcopy: [[-70.0, -68.0], [-72.0, -71.0]]
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:6-4-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Listas (<c>[...]</c>):</strong> sequências ordenadas e mutáveis com índice inicial <c>0</c>, índices negativos a partir do fim (<c>-1</c>) e fatiamento <c>lista[inicio:fim:passo]</c> com fim exclusivo (<c>seq[::-1]</c> inverte); manipule com <c>.append()</c>, <c>.extend()</c>, <c>.insert()</c>, <c>.pop()</c>, <c>.remove()</c>, <c>in</c>, <c>len()</c>, <c>sum()</c>, <c>min()</c>, <c>max()</c>, <c>sorted()</c> (nova lista) e <c>.sort()</c> (no próprio lugar).</item>
+        <item><strong>Tuplas (<c>(...)</c>):</strong> sequências ordenadas e imutáveis ideais para coordenadas e registros fixos; extraia valores diretamente com desempacotamento (<c>x, y, z = ponto</c>).</item>
+        <item><strong>Dicionários (<c>{chave: valor}</c>):</strong> mapeamentos chave → valor com acesso seguro via <c>.get(chave, padrao)</c>, verificação de chaves com <c>in</c> e iteração por <c>.items()</c>; listas de dicionários representam tabelas leves em memória.</item>
+        <item><strong>Conjuntos (<c>{a, b}</c> e <c>set()</c>):</strong> coleções sem ordem e sem duplicatas para unicidade, busca rápida com <c>in</c>, união (<c>|</c>), interseção (<c>&</c>) e diferença (<c>-</c>); lembre que <c>{}</c> cria um dicionário vazio, não um conjunto.</item>
+        <item><strong>Arrays NumPy (<c>import numpy as np</c>):</strong> grades homogêneas (<c>dtype</c> único, <c>.shape</c>, <c>.ndim</c>) que realizam contas elemento a elemento, fatiamento 2D (<c>[i, j]</c>), filtragem e contagem por máscaras booleanas (<c>np.sum(v >= -55)</c>) e reduções como <c>.mean()</c>, <c>.std()</c> e <c>.max()</c> ao longo de <c>axis=0</c> (por coluna) ou <c>axis=1</c> (por linha).</item>
+        <item><strong>Apelidos (<em>aliasing</em>) e cópias:</strong> <c>b = a</c> apenas cria outro nome para o mesmo objeto; use <c>a.copy()</c> (ou <c>copy.deepcopy(a)</c> em listas aninhadas) para listas e sempre use <c>.copy()</c> em fatias de arrays NumPy antes de editá-las, pois fatias de arrays são visões.</item>
+      </list>
+    </section>
+
+    <section id="sec:6-4-alem">
+      <title>Para ir além</title>
+      Dica de sobrevivência do módulo: <strong>programação se aprende programando. Escreva código até a mão cansar.</strong> Abra um notebook no <link to="https://colab.research.google.com">Google Colab</link>, reescreva os exemplos de tradução de códons, interseção de genes e máscaras booleanas com seus próprios dados fictícios e teste propositalmente os casos de <em>aliasing</em> para ver na prática o que muda e o que permanece intacto.
+
+      Com o domínio dessas estruturas básicas — apoiado em <mark>Comandos iniciais e lógica básica</mark> e <mark>Informática básica</mark> —, você está pronto para organizar seu código em blocos reutilizáveis em <mark>Códigos funcionais</mark>, mergulhar fundo em NumPy e pandas no tema <mark>Bibliotecas</mark>, entender os custos de busca no tema <mark>Complexidade</mark> e avançar rumo ao projeto final do Módulo 6: baixar dados neurais públicos via API, passá-los por um <em>pipeline</em> de limpeza leve, gerar dois gráficos e subir tudo no GitHub. Para continuar estudando:
+      <list marker="dash">
+        <item><strong>Material do módulo:</strong> <link to="https://github.com/ry4n-felinto/impytech_2026">Curso IMPATech — repositório no GitHub</link>, com roteiros e listas de exercícios em Python.</item>
+        <item><strong>Tutorial oficial do Python:</strong> <link to="https://docs.python.org/pt-br/3/tutorial/">Tutorial Python (em português)</link>, especialmente o capítulo sobre estruturas de dados (listas, tuplas, conjuntos e dicionários).</item>
+        <item><strong>Documentação do NumPy:</strong> <link to="https://numpy.org/doc/stable/">NumPy Documentation</link>, para consultar operações de fatiamento, indexação booleana e métodos estatísticos em arrays.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 6 · Programação (Python) — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

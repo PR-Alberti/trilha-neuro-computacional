@@ -1,0 +1,995 @@
+<document>
+  <title>Módulo 8 · Machine Learning</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-8-5">Voltar ao guia (Tema 8.5)</link></meta-item>
+    <meta-item key="Módulo">Módulo 8 · Machine Learning — Criando a Inteligência Clássica</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-8-5">
+    <title>Reamostragem</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Validação cruzada e bootstrap: em neuro os dados são poucos e ruidosos — é aqui que a maioria erra.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Em neurociência computacional, raramente temos milhões de amostras independentes: um estudo de fMRI costuma reunir $15$ a $40$ participantes e registros com eletrodos rendem poucas dezenas de ensaios limpos, enquanto cada amostra carrega centenas ou milhares de variáveis (voxels, canais de EEG, neurônios). Quando $n$ é pequeno e $p$ é grande, qualquer descuido ao dividir ou testar os dados fabrica resultados ilusórios.
+
+    Nos temas anteriores, separamos treino e teste (Tema 8.1), treinamos classificadores (Tema 8.3) e escolhemos métricas adequadas (Tema 8.4). Como uma única divisão desperdiça dados e oscila conforme o sorteio, neste tema você vai dominar os métodos de <strong>reamostragem</strong> (<em>resampling</em>) — validação cruzada, validação por grupos, prevenção de vazamento, <em>bootstrap</em> e testes de permutação — que também preparam a escolha de $\lambda$ no Tema 8.6 (Regularização).
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>aplicar validação cruzada $k$-fold e estratificada, separando a escolha de hiperparâmetros da avaliação final;</item>
+      <item>respeitar sujeitos, corridas e autocorrelação temporal com <c>GroupKFold</c>, <c>LeaveOneGroupOut</c> e blocos contíguos;</item>
+      <item>eliminar vazamento de dados (<em>data leakage</em>) e análise circular (<em>double dipping</em>) usando <c>Pipeline</c>;</item>
+      <item>estimar erros padrão e intervalos de confiança por <em>bootstrap</em> (inclusive por sujeito) e explicar a fração fora da bolsa (<em>out-of-bag</em>);</item>
+      <item>avaliar significância estatística de modelos com testes de permutação.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Temas 8.1 (treino $\times$ teste e viés–variância), 8.3 (regressão logística, KNN e MVPA) e 8.4 (acurácia balanceada); Módulo 7 (Combinatória, Introdução à inferência, Testes de hipóteses e Convergências).
+
+    <section id="sec:8-5-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Holdout e validação cruzada k-fold</title>
+      <intro>
+        Uma única divisão em treino e teste desperdiça dados e oscila conforme o sorteio quando $n$ é pequeno.
+      </intro>
+
+      No <strong>método holdout</strong> (<em>holdout approach</em>), dividimos as $n$ observações uma única vez em treino e teste (por exemplo, $70\%$ e $30\%$). Quando $n$ é modesto, o modelo treina com menos dados (estimativa pessimista) e o resultado varia muito com a semente aleatória. A <strong>validação cruzada $k$-fold</strong> (<em>$k$-fold cross-validation</em>) resolve isso fazendo todas as observações passarem pelo treino e pelo teste em rodadas alternadas.
+
+      <definition id="def:8-5-holdout-kfold">
+        <title>Validação cruzada $k$-fold e LOOCV</title>
+        Particionamos aleatoriamente as $n$ amostras em $k$ subconjuntos disjuntos de tamanho aproximadamente igual, chamados <strong>dobras</strong> (<em>folds</em>) $F_1, \dots, F_k$. Em cada rodada $i \in \{1, \dots, k\}$:
+        <list marker="number">
+          <item>ajustamos o modelo $\hat{f}^{(-i)}$ nas $k - 1$ dobras restantes;</item>
+          <item>avaliamos o desempenho na dobra $F_i$ deixada de fora ($\mathrm{MSE}_i$ em regressão ou $\mathrm{Acc}_i$ em classificação).</item>
+        </list>
+        A estimativa final é a média das $k$ rodadas:
+        <equation id="eq:8-5-cvk">
+          \mathrm{CV}_{(k)} = \frac{1}{k}\sum_{i=1}^k \mathrm{MSE}_i \qquad \text{(ou, para acurácia, } \mathrm{CV}_{(k)} = \frac{1}{k}\sum_{i=1}^k \mathrm{Acc}_i\text{)}.
+        </equation>
+        No caso extremo $k = n$ ($n - 1$ amostras no treino e $1$ no teste), temos a <strong>validação cruzada deixando um de fora</strong> (<em>leave-one-out cross-validation</em>, <strong>LOOCV</strong>).
+        <intuition>
+          Em vez de uma única prova simulada, fazemos $k$ rodadas de rodízio: cada amostra é prevista por um modelo que nunca a viu no treinamento.
+        </intuition>
+      </definition>
+
+      A <ref to="fig:8-5-kfold"/> ilustra o rodízio para $k = 5$. Em classificação, preferimos a versão <strong>estratificada</strong> (<c>StratifiedKFold</c>), que preserva a proporção de cada classe em todas as dobras.
+
+      <figure src="fig/t05-kfold.svg" alt="Esquema da validação cruzada 5-fold mostrando 5 rodadas com 4 blocos de treino em índigo e 1 bloco de teste em verde-azulado deslocando-se uma posição a cada rodada" id="fig:8-5-kfold">
+        <caption>Esquema da validação cruzada $5$-fold: em cada rodada, $4$ dobras ($80\%$) treinam o modelo e $1$ dobra ($20\%$) mede o desempenho fora da amostra.</caption>
+      </figure>
+
+      <proposition id="prop:8-5-vies-variancia-cv">
+        <title>Compromisso viés–variância na escolha de $k$</title>
+        Ao estimar o erro de teste a partir de $n$ amostras:
+        <list marker="dash">
+          <item><strong>Viés:</strong> um $k$ pequeno (como $k = 2$) treina com menos dados ($n \cdot \frac{k-1}{k}$) e superestima o erro real (viés pessimista). O LOOCV ($k = n$) treina com $n - 1$ amostras e tem viés quase nulo.</item>
+          <item><strong>Variância:</strong> no LOOCV, os $n$ treinos compartilham $n - 2$ amostras e ficam quase idênticos, gerando previsões correlacionadas e média de variância alta (além de exigir $n$ ajustes).</item>
+        </list>
+        Na prática, <strong>$k = 5$ ou $k = 10$</strong> equilibra viés baixo, variância moderada e custo computacional.
+      </proposition>
+
+      A validação cruzada também escolhe <strong>hiperparâmetros</strong> (como $K$ no KNN ou $\lambda$ no Tema 8.6). Porém, o pico de acurácia obtido ao testar vários candidatos na CV é otimista por selecionar o máximo de tentativas ruidosas. Para avaliar honestamente o modelo escolhido, há dois caminhos:
+      <list marker="number">
+        <item><strong>Teste final intocado:</strong> separar antes um conjunto de teste (ex.: $20\%$), buscar hiperparâmetros com <c>GridSearchCV</c> nos $80\%$ restantes, reajustar o vencedor nos $80\%$ e medir uma única vez nos $20\%$ finais.</item>
+        <item><strong>Validação cruzada aninhada (<em>nested cross-validation</em>):</strong> quando $n$ é pequeno demais para congelar um teste único, um laço externo de $k_{\text{ext}}$ dobras avalia a generalização enquanto um laço interno de $k_{\text{int}}$ dobras escolhe os hiperparâmetros dentro de cada treino externo.</item>
+      </list>
+
+      <example id="exm:8-5-kfold-mao">
+        <title>Contagem de dobras e cálculo de $\mathrm{CV}_{(5)}$ à mão</title>
+        Com $n = 10$ registros comportamentais em validação cruzada $5$-fold:
+        <list marker="a">
+          <item>Quantas amostras vão para treino e teste por rodada, e quantos modelos são ajustados?</item>
+          <item>Se as acurácias nas cinco dobras foram $1{,}00$, $0{,}50$, $1{,}00$, $0{,}50$ e $1{,}00$, qual é $\mathrm{CV}_{(5)}$?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Cada dobra tem $\frac{10}{5} = 2$ amostras de teste e $10 - 2 = 8$ de treino; como há $5$ rodadas, ajustamos $5$ modelos.</item>
+          <item>Pela <ref to="eq:8-5-cvk"/>:
+            $$\mathrm{CV}_{(5)} = \frac{1{,}00 + 0{,}50 + 1{,}00 + 0{,}50 + 1{,}00}{5} = \frac{4{,}00}{5} = 0{,}80 \quad (80{,}0\%).$$
+            Ao todo, o rodízio contabiliza $8$ acertos em $10$ amostras fora do treino.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:8-5-hip-aninhada">
+        <title>Seleção de hiperparâmetros com teste intocado em decodificação</title>
+        Em $n = 150$ ensaios de EEG, um estudante testa $K \in \{1, 3, 5, 9, 15\}$ no KNN com $5$-fold CV em todos os ensaios, obtém $78{,}0\%$ para $K = 3$ e publica esse valor como generalização. Por que o número é otimista e como corrigir?
+
+        <strong>Solução.</strong>
+        Ao escolher $K = 3$ por maximizar o escore na própria CV, o valor de $78{,}0\%$ incorpora a variabilidade favorável da busca (<em>viés de seleção</em>). Para corrigir: (1) separe $30$ ensaios ($20\%$) como teste final intocado, rode o <c>GridSearchCV</c> $5$-fold nos $120$ restantes, reajuste o vencedor nesses $120$ e avalie uma única vez nos $30$; ou (2) use CV aninhada ($5$ dobras externas $\times$ $4$ dobras internas).
+      </example>
+
+      Abaixo aplicamos o fluxo completo com <c>cross_val_score</c> e <c>GridSearchCV</c> no conjunto <c>load_breast_cancer</c>, mantendo um teste intocado.
+
+      <code lang="python" id="cod:8-5-kfold">
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import (
+    GridSearchCV,
+    StratifiedKFold,
+    cross_val_score,
+    train_test_split,
+)
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+dados = load_breast_cancer()
+X, y = dados.data, dados.target
+
+# Separamos 20% como teste final intocado antes de escolher hiperparâmetros
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.2, stratify=y, random_state=0
+)
+
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
+
+# Avaliação de um modelo fixo (K=5 vizinhos) com cross_val_score
+modelo_k5 = Pipeline([
+    ("scaler", StandardScaler()),
+    ("knn", KNeighborsClassifier(n_neighbors=5)),
+])
+escores_k5 = cross_val_score(modelo_k5, X_treino, y_treino, cv=cv, scoring="accuracy")
+print(f"CV 5-fold (K=5): {escores_k5.mean():.3f} ± {escores_k5.std():.3f}")
+# CV 5-fold (K=5): 0.965 ± 0.011
+
+# Busca do melhor número de vizinhos K apenas dentro do treino
+tubo = Pipeline([
+    ("scaler", StandardScaler()),
+    ("knn", KNeighborsClassifier()),
+])
+grade = {"knn__n_neighbors": [1, 3, 5, 7, 11, 15]}
+busca = GridSearchCV(tubo, param_grid=grade, cv=cv, scoring="accuracy")
+busca.fit(X_treino, y_treino)
+
+print(f"Melhor K na CV: {busca.best_params_['knn__n_neighbors']}")
+# Melhor K na CV: 3
+print(f"Melhor acurácia na CV: {busca.best_score_:.3f}")
+# Melhor acurácia na CV: 0.974
+print(f"Acurácia no teste intocado: {busca.score(X_teste, y_teste):.3f}")
+# Acurácia no teste intocado: 0.956
+      </code>
+
+      A acurácia no teste intocado ($0{,}956$) é menor do que o pico da busca com $K = 3$ ($0{,}974$), como esperado ao avaliar em dados que não influenciaram a seleção de $K$.
+
+      <remark id="rem:8-5-armadilha-cv">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Relatar <c>best_score_</c> do <c>GridSearchCV</c> como desempenho final:</strong> esse pico é otimista; avalie o vencedor em um teste intocado ou use CV aninhada.</item>
+          <item><strong>Usar <c>KFold(shuffle=False)</c> em dados ordenados por classe:</strong> por padrão <c>KFold</c> não embaralha, podendo deixar uma dobra com classe única. Para amostras independentes, use <c>StratifiedKFold(shuffle=True, random_state=0)</c>; em séries temporais, embaralhar é proibido.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-5-1-1">
+        <title>Básico — Contagem de dobras e cálculo de MSE em validação cruzada</title>
+        Um eletrofisiologista registrou o potencial pós-sináptico excitatório em $n = 60$ ensaios independentes.
+        <list marker="a">
+          <item>Na CV $5$-fold, quantos modelos são treinados e quantas amostras formam treino e teste em cada rodada?</item>
+          <item>Com $\mathrm{MSE}$ igual a $18{,}0$; $22{,}0$; $16{,}0$; $24{,}0$ e $20{,}0\text{ mV}^2$ nas cinco dobras, calcule $\mathrm{CV}_{(5)}$.</item>
+          <item>Na LOOCV desses $60$ ensaios, quantos modelos seriam treinados e com quantas amostras no treino?</item>
+        </list>
+        <hint><title>Ver dica</title>Em $k$-fold, cada teste tem $n/k$ amostras; em LOOCV, $k = n$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Treinam-se $5$ modelos; cada dobra tem $\frac{60}{5} = 12$ amostras no teste e $60 - 12 = 48$ no treino.</item>
+            <item>Pela <ref to="eq:8-5-cvk"/>:
+              $$\mathrm{CV}_{(5)} = \frac{18{,}0 + 22{,}0 + 16{,}0 + 24{,}0 + 20{,}0}{5} = \frac{100{,}0}{5} = 20{,}0\text{ mV}^2.$$
+            </item>
+            <item>Na LOOCV ($k = 60$), treinam-se $60$ modelos com $59$ amostras no treino e $1$ no teste.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-5-1-2">
+        <title>Intermediário — Viés e variância entre holdout, 5-fold e LOOCV</title>
+        Em $n = 24$ neurônios de patch-clamp, compare (i) <em>holdout</em> $50/50$, (ii) $5$-fold estratificado e (iii) LOOCV quanto ao tamanho do treino, viés e variância da estimativa de erro.
+        <hint><title>Ver dica</title>Compare quantas amostras treinam o modelo ($12$, cerca de $19$, ou $23$) e a sobreposição entre treinos.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="dash">
+            <item><strong>Holdout $50/50$:</strong> treina com $12$ neurônios ($50\%$), gerando alto <strong>viés pessimista</strong> e forte dependência da partição única.</item>
+            <item><strong>LOOCV ($24$-fold):</strong> treina com $23$ neurônios ($95{,}8\%$), com <strong>viés muito baixo</strong>, mas os treinos compartilham $22$ neurônios entre si; essa correlação eleva a <strong>variância</strong> da média estimada (e impede estratificação).</item>
+            <item><strong>$5$-fold estratificado:</strong> treina com $19$ ou $20$ neurônios ($\approx 80\%$), preserva a proporção de classes e tem menor sobreposição entre treinos, equilibrando viés, variância e custo.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-5-1-3">
+        <title>Avançado — Validação cruzada aninhada em Python</title>
+        Em <c>load_wine</c> ($3$ classes, $178$ amostras), implemente CV aninhada com <c>StratifiedKFold</c> $5$-fold externa e $3$-fold interna usando <c>GridSearchCV</c> para <c>n_neighbors</c> em <c>[1, 3, 5, 9, 15]</c> em um <c>Pipeline(StandardScaler(), KNeighborsClassifier())</c>. Compare a acurácia externa média com a média dos <c>best_score_</c> internos.
+        <hint><title>Ver dica</title>Percorra <c>cv_externa.split(X, y)</c> com um laço <c>for</c> para registrar tanto os <c>best_score_</c> internos quanto o escore no teste externo.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.datasets import load_wine
+from sklearn.model_selection import GridSearchCV, StratifiedKFold
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+X, y = load_wine(return_X_y=True)
+
+cv_externa = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
+cv_interna = StratifiedKFold(n_splits=3, shuffle=True, random_state=0)
+
+tubo = Pipeline([
+    ("scaler", StandardScaler()),
+    ("knn", KNeighborsClassifier()),
+])
+grade = {"knn__n_neighbors": [1, 3, 5, 9, 15]}
+
+escores_internos = []
+escores_externos = []
+
+for idx_treino, idx_teste in cv_externa.split(X, y):
+    busca = GridSearchCV(tubo, param_grid=grade, cv=cv_interna, scoring="accuracy")
+    busca.fit(X[idx_treino], y[idx_treino])
+    escores_internos.append(busca.best_score_)
+    escores_externos.append(busca.score(X[idx_teste], y[idx_teste]))
+
+print(f"Média dos picos internos: {np.mean(escores_internos):.3f}")
+# Média dos picos internos: 0.964
+print(f"Acurácia na CV aninhada (externa): {np.mean(escores_externos):.3f}")
+# Acurácia na CV aninhada (externa): 0.955
+          </code>
+          Como a seleção de $K$ ocorre apenas dentro de cada treino externo, a CV aninhada entrega uma estimativa honesta (cerca de $0{,}955$), livre do viés de seleção da média dos picos internos (cerca de $0{,}964$).
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-5-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Dados agrupados: leave-one-subject-out e dependência temporal</title>
+      <intro>
+        Em neurociência, ensaios pertencem ao mesmo sujeito e volumes vizinhos no tempo carregam o mesmo sinal hemodinâmico — violando a hipótese de independência da CV comum.
+      </intro>
+
+      Imagine registrar $30$ ensaios de EEG em $10$ voluntários ($n = 300$). Cada pessoa tem anatomia cortical, espessura craniana e impedância próprias. Se você embaralhar os $300$ ensaios num <c>KFold</c> comum, ensaios do mesmo voluntário cairão no treino e no teste, e o classificador pode acertar apenas reconhecendo <em>quem</em> é o participante.
+
+      O mesmo ocorre numa corrida (<em>run</em>) contínua de fMRI: com $\mathrm{TR} \approx 2\text{ s}$, o sinal BOLD de um único evento se estende pela resposta hemodinâmica lenta por $15$ a $20\text{ s}$ ($8$ a $10$ volumes consecutivos). Embaralhar volumes individuais com <c>shuffle=True</c> coloca o instante $t$ no treino e $t + 1$ no teste, transformando decodificação em interpolação temporal.
+
+      <definition id="def:8-5-cv-agrupada">
+        <title>Validação cruzada por grupos (GroupKFold, LOSO e LORO)</title>
+        Quando cada amostra $i$ pertence a um grupo $g_i \in \{1, \dots, G\}$ (sujeito, sessão ou corrida), nenhuma unidade do mesmo grupo pode aparecer simultaneamente no treino e no teste da mesma dobra:
+        <list marker="dash">
+          <item><strong><c>GroupKFold</c>:</strong> particiona os $G$ grupos em $k$ dobras disjuntas (ou <c>StratifiedGroupKFold</c>, preservando proporções de classe).</item>
+          <item><strong><c>LeaveOneGroupOut</c> (LOGO):</strong> caso $k = G$ que deixa um grupo inteiro de fora por rodada, gerando o <strong>LOSO</strong> (<em>leave-one-subject-out</em>, generalização entre pessoas) e o <strong>LORO</strong> (<em>leave-one-run-out</em>, generalização entre corridas de uma mesma pessoa).</item>
+          <item><strong>Blocos contíguos no tempo:</strong> em séries contínuas, divide-se em blocos sequenciais sem embaralhar (<c>shuffle=False</c>), podendo descartar uma faixa de guarda (<em>buffer</em>) da ordem da resposta hemodinâmica ($\approx 16\text{–}20\text{ s}$) nas bordas.</item>
+        </list>
+        <intuition>
+          Pergunte sempre: <em>qual unidade será inédita no uso real?</em> Novos pacientes pedem LOSO ou <c>GroupKFold</c>; novas sessões do mesmo paciente pedem LORO.
+        </intuition>
+      </definition>
+
+      <example id="exm:8-5-loso-ensaio">
+        <title>LOSO versus LORO em um estudo de EEG</title>
+        Um experimento registra $G = 6$ participantes, cada um com $8$ corridas de $5$ ensaios ($40$ por pessoa, $n = 240$ ao todo).
+        <list marker="a">
+          <item>Quantas dobras tem o LOSO no banco inteiro, e quantos ensaios ficam no treino e no teste?</item>
+          <item>No LORO de um único participante, quantas dobras há e o que ele avalia de diferente?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>O LOSO tem $6$ dobras (uma por participante): $1$ participante ($40$ ensaios) no teste e $5$ ($5 \times 40 = 200$ ensaios) no treino.</item>
+          <item>Para um participante, o LORO tem $8$ dobras (uma por corrida): $1$ corrida ($5$ ensaios) no teste e $7$ ($35$ ensaios) no treino. O LORO avalia generalização entre sessões <em>do mesmo cérebro</em> (intra-sujeito), enquanto o LOSO avalia transferência para um <em>indivíduo inédito</em> (inter-sujeito).</item>
+        </list>
+      </example>
+
+      <example id="exm:8-5-fmri-autocorrelacao">
+        <title>Dependência temporal em uma corrida de fMRI</title>
+        Considere uma corrida contínua de fMRI com $\mathrm{TR} = 2\text{ s}$ e $300$ volumes ($600\text{ s}$), cuja resposta hemodinâmica (HRF) dura $16\text{ s}$ ($8$ volumes).
+        <list marker="a">
+          <item>Por que sortear $20\%$ dos volumes ao acaso (<c>shuffle=True</c>) invalida a avaliação?</item>
+          <item>Como dividir em $5$ blocos contíguos zerando a sobreposição da HRF nas fronteiras?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Com sorteio aleatório, quase todo volume de teste fica a $2\text{ s}$ ou $4\text{ s}$ de um vizinho no treino — dentro da mesma HRF de $16\text{ s}$ —, permitindo memorizar a trajetória suave da corrida.</item>
+          <item>Dividimos em $5$ blocos contíguos de $\frac{300}{5} = 60$ volumes ($120\text{ s}$). Para evitar vazamento pela cauda da HRF, descartamos do treino os $8$ volumes ($16\text{ s}$) adjacentes a cada borda do bloco de teste (restando $224$ a $232$ volumes de treino, conforme o bloco esteja no meio ou numa extremidade).</item>
+        </list>
+      </example>
+
+      No código abaixo, simulamos $10$ sujeitos ($30$ ensaios cada, $n = 300$), sendo $5$ controles ($y = 0$) e $5$ pacientes ($y = 1$), com forte assinatura individual nas $10$ variáveis e pequeno sinal real na primeira. Ao deixar $1$ sujeito de fora no LOSO, o treino fica com $5$ sujeitos de uma classe contra $4$ da outra, por isso usamos <c>class_weight="balanced"</c>. Além disso, no LOSO com diagnóstico entre sujeitos, cada dobra de teste tem ensaios de uma única classe (o sujeito é controle ou paciente), e por isso a acurácia de cada dobra mede ora a especificidade, ora a sensibilidade.
+
+      <code lang="python" id="cod:8-5-grupos">
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import KFold, LeaveOneGroupOut, cross_val_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(0)
+n_sujeitos = 10
+ensaios_por_sujeito = 30
+n_variaveis = 10
+
+# Sujeitos 0..4 pertencem à classe 0; sujeitos 5..9 pertencem à classe 1
+sujeitos = np.repeat(np.arange(n_sujeitos), ensaios_por_sujeito)
+y = (sujeitos >= 5).astype(int)
+
+# Cada sujeito carrega uma assinatura individual forte (desvio padrão 3.0)
+assinatura_sujeito = rng.normal(0.0, 3.0, size=(n_sujeitos, n_variaveis))
+ruido_ensaio = rng.normal(0.0, 0.4, size=(n_sujeitos * ensaios_por_sujeito, n_variaveis))
+X = assinatura_sujeito[sujeitos] + ruido_ensaio
+
+# Adicionamos apenas um efeito real moderado na variável 0 para a classe 1
+X[y == 1, 0] += 1.2
+
+modelo = Pipeline([
+    ("scaler", StandardScaler()),
+    ("clf", LogisticRegression(C=1.0, class_weight="balanced", max_iter=1000)),
+])
+
+# ERRADO: embaralha ensaios e mistura o mesmo sujeito entre treino e teste
+kf_errado = KFold(n_splits=5, shuffle=True, random_state=0)
+acc_errada = cross_val_score(modelo, X, y, cv=kf_errado).mean()
+
+# CORRETO: Leave-One-Subject-Out (deixa um sujeito inteiro para teste)
+logo = LeaveOneGroupOut()
+acc_loso = cross_val_score(modelo, X, y, groups=sujeitos, cv=logo).mean()
+
+print(f"Acurácia com KFold(shuffle=True) — INFLADA: {acc_errada:.3f}")
+# Acurácia com KFold(shuffle=True) — INFLADA: 0.987
+print(f"Acurácia com LeaveOneGroupOut    — REALISTA: {acc_loso:.3f}")
+# Acurácia com LeaveOneGroupOut    — REALISTA: 0.487
+      </code>
+
+      O <c>KFold(shuffle=True)</c> crava cerca de $0{,}987$ ao reconhecer a identidade dos $10$ sujeitos nos dois lados da divisão; já o <c>LeaveOneGroupOut</c> mostra que, para um sujeito inédito, o desempenho cai para cerca de $0{,}487$, no nível do acaso.
+
+      <remark id="rem:8-5-armadilha-grupos">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Tratar ensaios do mesmo sujeito como independentes:</strong> usar <c>StratifiedKFold</c> comum mede reconhecimento de identidade, não generalização clínica. Use <c>groups=sujeitos</c> com <c>GroupKFold</c>, <c>StratifiedGroupKFold</c> ou <c>LeaveOneGroupOut</c>.</item>
+          <item><strong>Embaralhar séries temporais:</strong> nunca use <c>shuffle=True</c> em volumes consecutivos de fMRI ou janelas de EEG; divida por corridas (LORO) ou blocos contíguos.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-5-2-1">
+        <title>Básico — Contagem em LOSO e LORO</title>
+        Um banco de decodificação motora tem $12$ voluntários, cada um com $5$ corridas de $20$ ensaios.
+        <list marker="a">
+          <item>Qual é o total $n$ de ensaios?</item>
+          <item>No LOSO global, quantas dobras há e quantos ensaios ficam no treino e no teste?</item>
+          <item>No LORO de um único voluntário, quantas dobras há e quantos ensaios formam treino e teste?</item>
+        </list>
+        <hint><title>Ver dica</title>Cada voluntário soma $5 \times 20 = 100$ ensaios; identifique a unidade de grupo em cada protocolo.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>O total é $n = 12 \times 5 \times 20 = 1\,200$ ensaios ($100$ por voluntário).</item>
+            <item>No LOSO há $12$ dobras: $1$ voluntário ($100$ ensaios) no teste e $11$ ($1\,100$ ensaios) no treino.</item>
+            <item>No LORO de um voluntário ($5$ corridas) há $5$ dobras: $1$ corrida ($20$ ensaios) no teste e $4$ ($80$ ensaios) no treino.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-5-2-2">
+        <title>Intermediário — Dimensionando blocos em fMRI com autocorrelação</title>
+        Numa corrida contínua de fMRI com $\mathrm{TR} = 2\text{ s}$ e duração de $400\text{ s}$, a resposta hemodinâmica dura $18\text{ s}$.
+        <list marker="a">
+          <item>Quantos volumes tem a corrida e quantos cabem na janela da HRF?</item>
+          <item>Dividindo a corrida em $4$ blocos contíguos e testando no bloco $2$, quantos volumes de guarda devem sair das bordas dos blocos $1$ e $3$, e quantos restam no treino?</item>
+        </list>
+        <hint><title>Ver dica</title>Divida os tempos por $\mathrm{TR} = 2\text{ s}$. O bloco $2$ faz fronteira com o bloco $1$ à esquerda e com o $3$ à direita.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>A corrida tem $\frac{400}{2} = 200$ volumes, e a HRF de $18\text{ s}$ abrange $\frac{18}{2} = 9$ volumes.</item>
+            <item>Cada bloco tem $\frac{200}{4} = 50$ volumes ($150$ nos blocos $1$, $3$ e $4$). Removendo $9$ volumes do fim do bloco $1$ e $9$ do início do bloco $3$ ($18$ de guarda), restam $150 - 18 = 132$ volumes de treino sem sobreposição hemodinâmica direta.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-5-2-3">
+        <title>Avançado — Efeito de embaralhar séries temporais em Python</title>
+        Simule uma série de $300$ instantes aplicando média móvel de janela $10$ sobre ruído gaussiano independente (em <c>X</c> com $p = 5$ variáveis e num alvo contínuo <c>y</c> gerado <em>independentemente</em> de <c>X</c>, também suavizado). Compare o $R^2$ médio de <c>KNeighborsRegressor(n_neighbors=5)</c> usando <c>KFold(n_splits=5, shuffle=True, random_state=0)</c> contra blocos contíguos com <c>KFold(n_splits=5, shuffle=False)</c>.
+        <hint><title>Ver dica</title>Importe <c>KNeighborsRegressor</c> de <c>sklearn.neighbors</c>, aplique <c>np.convolve(sinal, np.ones(10)/10, mode="valid")</c> em um ruído de comprimento $309$ (resultando em $n = 300$) e observe que <c>X</c> e <c>y</c> não têm relação alguma.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.model_selection import KFold, cross_val_score
+from sklearn.neighbors import KNeighborsRegressor
+
+rng = np.random.default_rng(0)
+janela = np.ones(10) / 10.0
+
+# Geramos X e y completamente independentes, ambos suavizados no tempo
+bruto_X = rng.normal(0.0, 1.0, size=(309, 5))
+X = np.column_stack([np.convolve(bruto_X[:, j], janela, mode="valid") for j in range(5)])
+bruto_y = rng.normal(0.0, 1.0, size=309)
+y = np.convolve(bruto_y, janela, mode="valid")
+
+modelo = KNeighborsRegressor(n_neighbors=5)
+r2_embaralhado = cross_val_score(
+    modelo, X, y, cv=KFold(n_splits=5, shuffle=True, random_state=0), scoring="r2"
+).mean()
+r2_blocos = cross_val_score(
+    modelo, X, y, cv=KFold(n_splits=5, shuffle=False), scoring="r2"
+).mean()
+
+print(f"R² com KFold(shuffle=True) : {r2_embaralhado:.3f}")
+# R² com KFold(shuffle=True) : 0.231
+print(f"R² com blocos contíguos    : {r2_blocos:.3f}")
+# R² com blocos contíguos    : -1.171
+          </code>
+          Como <c>X</c> é suave no tempo, os vizinhos mais próximos de um instante de teste no espaço de <c>X</c> são os instantes vizinhos no tempo, que caíram no treino quando embaralhamos; como <c>y</c> também é suave, o KNN "copia" o <c>y</c> vizinho e ganha um $R^2$ positivo falso ($\approx 0{,}23$). Já com blocos contíguos o $R^2$ fica negativo ($\approx -1{,}17$), revelando que não há relação real.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-5-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Vazamento de dados (data leakage)</title>
+      <intro>
+        Qualquer estatística calculada sobre o conjunto de teste antes da divisão contamina o treino e fabrica acurácias artificiais.
+      </intro>
+
+      Olhar as questões de uma prova na véspera para decidir o que decorar não mede domínio da matéria — mede que você espiou a avaliação. Em ML, quando qualquer informação do teste entra na preparação ou seleção do modelo, ocorre <strong>vazamento de dados</strong> (<em>data leakage</em>).
+
+      <definition id="def:8-5-leakage">
+        <title>Vazamento de dados e análise circular (double dipping)</title>
+        Ocorre <strong>vazamento de dados</strong> quando parâmetros de pré-processamento, seleção de variáveis ou escolhas de modelo dependem de amostras do teste (ou da dobra de fora na CV).
+
+        Em neurociência, o caso clássico é a <strong>análise circular</strong> (<em>double dipping</em>; Kriegeskorte et al., 2009): escolher os "voxels mais ativos" ou "eletrodos discriminativos" usando os rótulos de <em>todas</em> as amostras e depois rodar a validação cruzada nessas variáveis.
+        <intuition>
+          Quando $p \gg n$, milhares de variáveis variam ao acaso e algumas coincidem com os rótulos por pura sorte. Pescá-las no conjunto inteiro carrega essas coincidências para o teste.
+        </intuition>
+      </definition>
+
+      As três fontes mais comuns de vazamento são:
+      <list marker="number">
+        <item><strong>Pré-processamento global:</strong> rodar <c>StandardScaler().fit_transform(X)</c>, imputação ou redução de dimensionalidade antes de dividir treino e teste.</item>
+        <item><strong>Seleção fora da CV:</strong> aplicar teste estatístico ou <c>SelectKBest</c> em <c>(X, y)</c> inteiros antes da <c>cross_val_score</c>.</item>
+        <item><strong>Ajuste guiado pelo teste:</strong> escolher $C$, $K$ ou limiar de decisão olhando a métrica do conjunto de teste.</item>
+      </list>
+
+      Para impedir o vazamento, encapsule todas as transformações dependentes dos dados em um <c>Pipeline</c>. Ao passá-lo para <c>cross_val_score</c> ou <c>GridSearchCV</c>, cada dobra chama <c>.fit_transform</c> <strong>apenas no treino</strong> e aplica somente <c>.transform</c> (com parâmetros congelados) no teste.
+
+      <example id="exm:8-5-double-dipping-voxels">
+        <title>Por que pré-processar ou selecionar em todo $\mathbf{X}$ engana</title>
+        <list marker="a">
+          <item>Com potenciais $(2, 4, 6, 8)$, onde $(2, 4, 6)$ vão para treino e $8$ para teste, compare a média de centralização no conjunto inteiro versus apenas no treino.</item>
+          <item>Em $p = 2\,000$ voxels de ruído puro ($H_0$), um pesquisador seleciona todos com $p$-valor &lt; $0{,}01$ na amostra inteira. Quantos voxels espera selecionar por acaso?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>No conjunto inteiro, a média é $\frac{2+4+6+8}{4} = 5$; apenas no treino, $\frac{2+4+6}{3} = 4$. Padronizar antes da divisão deslocou o treino usando o valor $8$ do teste.</item>
+          <item>Sob $H_0$, esperamos:
+            $$2\,000 \times 0{,}01 = 20 \text{ voxels.}$$
+            Esses $20$ falsos positivos foram escolhidos justamente por coincidirem com os rótulos da amostra completa — fabricando acurácia acima do acaso na CV seguinte.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:8-5-pipeline-neuro">
+        <title>Rastreando um Pipeline dentro de uma dobra $5$-fold</title>
+        Em $n = 40$ amostras e $p = 2\,000$ voxels, rastreie uma rodada de <c>StratifiedKFold(n_splits=5)</c> sobre <c>Pipeline([StandardScaler(), SelectKBest(k=20), LogisticRegression()])</c>.
+
+        <strong>Solução.</strong>
+        Separadas $32$ amostras para treino e $8$ para teste, o <c>Pipeline</c>:
+        <list marker="number">
+          <item>calcula média e desvio padrão dos $2\,000$ voxels <strong>só nas $32$ de treino</strong> e as padroniza;</item>
+          <item>calcula a estatística $F$ <strong>só nas $32$ de treino</strong> e retém os $20$ melhores voxels;</item>
+          <item>ajusta a regressão logística nesses $20$ voxels do treino;</item>
+          <item>aplica escala e lista de voxels já congeladas às $8$ amostras de teste e mede a acurácia.</item>
+        </list>
+        Assim, as $8$ amostras de teste nunca influenciam quais voxels entram no modelo.
+      </example>
+
+      O código a seguir testa isso em <strong>ruído puro</strong> ($40$ amostras $\times$ $2\,000$ voxels gaussianos e rótulos aleatórios balanceados):
+
+      <code lang="python" id="cod:8-5-leakage">
+import numpy as np
+from sklearn.feature_selection import SelectKBest, f_classif
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import StratifiedKFold, cross_val_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(0)
+
+# Dados de RUÍDO PURO: 40 amostras x 2000 voxels independentes dos rótulos
+X = rng.normal(0.0, 1.0, size=(40, 2000))
+y = np.array([0] * 20 + [1] * 20)
+rng.shuffle(y)
+
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
+
+# ERRADO (double dipping): seleciona os 20 melhores voxels em TODOS os dados
+X_vazado = SelectKBest(score_func=f_classif, k=20).fit_transform(X, y)
+clf = LogisticRegression(C=1.0, max_iter=1000)
+acc_vazada = cross_val_score(clf, X_vazado, y, cv=cv).mean()
+
+# CORRETO: seleção e padronização encapsuladas dentro do Pipeline
+tubo_limpo = Pipeline([
+    ("scaler", StandardScaler()),
+    ("sel", SelectKBest(score_func=f_classif, k=20)),
+    ("clf", LogisticRegression(C=1.0, max_iter=1000)),
+])
+acc_limpa = cross_val_score(tubo_limpo, X, y, cv=cv).mean()
+
+print(f"Acurácia COM vazamento (double dipping): {acc_vazada:.3f}")
+# Acurácia COM vazamento (double dipping): 0.975
+print(f"Acurácia SEM vazamento (Pipeline)      : {acc_limpa:.3f}")
+# Acurácia SEM vazamento (Pipeline)      : 0.575
+      </code>
+
+      Um ganho de cerca de $40$ pontos percentuais (de cerca de $0{,}575$ para cerca de $0{,}975$) brotou do nada porque a seleção de $20$ dentre $2\,000$ variáveis viu os rótulos de teste antes da divisão!
+
+      <remark id="rem:8-5-armadilha-leakage">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Rodar <c>StandardScaler</c> ou <c>SelectKBest</c> antes da CV:</strong> qualquer etapa com <c>.fit</c> precisa estar dentro de um <c>Pipeline</c>.</item>
+          <item><strong>Análise circular em neuroimagem:</strong> definir ROIs com um contraste sobre toda a amostra e testar MVPA nessas mesmas ROIs distorce o resultado (Kriegeskorte et al., 2009). Defina ROIs anatomicamente ou em dados independentes.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-5-3-1">
+        <title>Básico — Diagnosticando vazamento em um protocolo de EEG</title>
+        Aponte onde há vazamento e como corrigir o protocolo:
+        <em>"Em $100$ janelas de EEG ($50$ repouso, $50$ tarefa motora), padronizamos cada canal usando as $100$ janelas, rodamos um teste $t$ entre as condições para reter as $10$ frequências de menor $p$-valor e avaliamos uma regressão logística em $5$-fold estratificado ($91\%$ de acurácia)."</em>
+        <hint><title>Ver dica</title>Conte quantas operações enxergaram as $100$ janelas completas antes da validação cruzada.</hint>
+        <solution collapsible="true" collapsed="true">
+          Há <strong>dois vazamentos</strong> antes da CV:
+          <list marker="number">
+            <item>a padronização usou média e desvio padrão de todas as $100$ janelas;</item>
+            <item>a seleção das $10$ frequências pelo teste $t$ usou os rótulos de todas as $100$ janelas (<em>double dipping</em>).</item>
+          </list>
+          Correção: colocar ambas no <c>Pipeline([("scaler", StandardScaler()), ("sel", SelectKBest(f_classif, k=10)), ("clf", LogisticRegression(...))])</c> dentro da CV (respeitando blocos contíguos ou corridas se as janelas forem adjacentes no tempo).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-5-3-2">
+        <title>Intermediário — Falsos positivos em massa sob ruído puro</title>
+        Em $p = 5\,000$ voxels sem diferença real entre dois estímulos, um pesquisador testa cada voxel a $\alpha = 0{,}01$ na amostra inteira e seleciona os significativos para treinar um decodificador. Quantos voxels espera selecionar por acaso e por que isso infla a CV?
+        <hint><title>Ver dica</title>Multiplique $5\,000$ pela taxa de falso positivo $\alpha = 0{,}01$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Sob $H_0$, esperam-se $5\,000 \times 0{,}01 = 50$ voxels falsos positivos. Eles passaram no filtro justamente por apresentarem separação espúria na amostra completa — incluindo as futuras amostras de teste da CV —, inflando artificialmente a acurácia.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-5-3-3">
+        <title>Avançado — Consertando um código com vazamento em Python</title>
+        O código abaixo padroniza e seleciona $15$ variáveis fora da CV em ruído puro ($n = 60$, $p = 1\,500$). Reescreva a avaliação usando <c>Pipeline</c> e compare os escores em $5$-fold estratificado.
+        <code lang="python" numbered="false">
+import numpy as np
+from sklearn.feature_selection import SelectKBest, f_classif
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import StratifiedKFold, cross_val_score
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(0)
+X = rng.normal(0.0, 1.0, size=(60, 1500))
+y = rng.integers(0, 2, size=60)
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
+
+# Código com vazamento
+X_esc = StandardScaler().fit_transform(X)
+X_sel = SelectKBest(f_classif, k=15).fit_transform(X_esc, y)
+acc_errada = cross_val_score(LogisticRegression(max_iter=1000), X_sel, y, cv=cv).mean()
+print(f"Com vazamento: {acc_errada:.3f}")
+# Com vazamento: 0.850
+        </code>
+        <hint><title>Ver dica</title>Passe <c>X</c> e <c>y</c> brutos para <c>cross_val_score</c> com um <c>Pipeline</c> contendo <c>StandardScaler()</c>, <c>SelectKBest(f_classif, k=15)</c> e <c>LogisticRegression(max_iter=1000)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.feature_selection import SelectKBest, f_classif
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import StratifiedKFold, cross_val_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(0)
+X = rng.normal(0.0, 1.0, size=(60, 1500))
+y = rng.integers(0, 2, size=60)
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
+
+# Com vazamento
+X_esc = StandardScaler().fit_transform(X)
+X_sel = SelectKBest(f_classif, k=15).fit_transform(X_esc, y)
+acc_errada = cross_val_score(LogisticRegression(max_iter=1000), X_sel, y, cv=cv).mean()
+
+# Sem vazamento: tudo dentro do Pipeline
+tubo = Pipeline([
+    ("scaler", StandardScaler()),
+    ("sel", SelectKBest(f_classif, k=15)),
+    ("clf", LogisticRegression(max_iter=1000)),
+])
+acc_correta = cross_val_score(tubo, X, y, cv=cv).mean()
+
+print(f"Com vazamento: {acc_errada:.3f}")
+# Com vazamento: 0.850
+print(f"Sem vazamento: {acc_correta:.3f}")
+# Sem vazamento: 0.483
+          </code>
+          Com o escalonamento e o <c>SelectKBest</c> encapsulados no <c>Pipeline</c>, cada dobra seleciona variáveis sem olhar o teste, reduzindo a acurácia de cerca de $0{,}850$ para o nível do acaso (cerca de $0{,}483$).
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-5-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Bootstrap</title>
+      <intro>
+        Quando não há fórmula simples para a incerteza de uma estatística — como mediana, razão de taxas ou AUC —, reamostramos os próprios dados com reposição.
+      </intro>
+
+      Para a média simples, conhecemos a fórmula $s / \sqrt{n}$ do Módulo 7; mas e para um intervalo de confiança da <em>mediana</em>, da <em>razão</em> entre duas taxas ou da AUC de um classificador?
+
+      Em 1979, Bradley Efron propôs o <strong><em>bootstrap</em></strong>: tratamos a amostra observada de tamanho $n$ como uma miniatura da população e sorteamos dela novas amostras de tamanho $n$ <strong>com reposição</strong>. Pela lei dos grandes números (Módulo 7 — Convergências), para $n$ razoável a distribuição empírica aproxima bem a populacional.
+
+      <definition id="def:8-5-bootstrap">
+        <title>Amostra bootstrap, erro padrão e intervalo percentil</title>
+        Dada uma amostra $\mathcal{D} = \{z_1, \dots, z_n\}$ e uma estatística $\hat{\theta} = s(\mathcal{D})$, geramos $B$ <strong>amostras bootstrap</strong> $\mathcal{D}^{*1}, \dots, \mathcal{D}^{*B}$ sorteando $n$ observações de $\mathcal{D}$ uniformemente <strong>com reposição</strong>. Com $\hat{\theta}^{*b} = s(\mathcal{D}^{*b})$ ($b = 1, \dots, B$):
+        <list marker="dash">
+          <item><strong>Erro padrão bootstrap:</strong>
+            <equation id="eq:8-5-se-boot">
+              \widehat{\mathrm{EP}}_{\text{boot}}(\hat{\theta}) = \sqrt{\frac{1}{B - 1}\sum_{b=1}^B \left(\hat{\theta}^{*b} - \bar{\theta}^*\right)^2}, \qquad \bar{\theta}^* = \frac{1}{B}\sum_{b=1}^B \hat{\theta}^{*b}.
+            </equation>
+          </item>
+          <item><strong>Intervalo percentil de nível $1 - \alpha$:</strong> tomamos os quantis $\alpha/2$ e $1 - \alpha/2$ dos $B$ valores $\hat{\theta}^{*b}$. Para $95\%$ ($\alpha = 0{,}05$), o IC é $[\hat{\theta}^*_{0{,}025},\; \hat{\theta}^*_{0{,}975}]$.</item>
+        </list>
+        <intuition>
+          Sem reposição, toda réplica teria exatamente os mesmos $n$ elementos e $\hat{\theta}^*$ nunca variaria. A reposição cria variabilidade entre as réplicas, imitando novos sorteios da população.
+        </intuition>
+      </definition>
+
+      <proposition id="prop:8-5-oob-632">
+        <title>Fração fora da bolsa (out-of-bag) e regra dos $63{,}2\%$</title>
+        Em uma amostra <em>bootstrap</em> de tamanho $n$ sorteada com reposição dentre $n$ observações distintas, a probabilidade de uma observação $z_i$ ficar de fora é:
+        $$P(z_i \notin \mathcal{D}^*) = \left(1 - \frac{1}{n}\right)^n.$$
+        Quando $n \to \infty$, essa probabilidade converge para $e^{-1} \approx 0{,}368$.<sidenote>Lembre do limite notável $\lim_{n \to \infty}\left(1 + \frac{x}{n}\right)^n = e^x$, aqui aplicado com $x = -1$.</sidenote> Assim, em média, cada réplica contém cerca de $1 - e^{-1} \approx 63{,}2\%$ das observações distintas e deixa $36{,}8\%$ <strong>fora da bolsa</strong> (<em>out-of-bag</em>, <strong>OOB</strong>).
+      </proposition>
+      <proof of="prop:8-5-oob-632" collapsible="true" collapsed="true">
+        Em um sorteio dentre $n$ elementos, a chance de não escolher $z_i$ é $1 - \frac{1}{n}$. Em $n$ sorteios independentes com reposição, $P(z_i \notin \mathcal{D}^*) = \left(1 - \frac{1}{n}\right)^n \to e^{-1} \approx 0{,}3679$. Logo, $z_i$ aparece ao menos uma vez com probabilidade $\approx 1 - 0{,}3679 = 0{,}6321$ ($63{,}2\%$). No Tema 8.8 (Árvores), florestas aleatórias usarão essas amostras OOB como validação gratuita.
+      </proof>
+
+      Em dados agrupados ($10$ sujeitos com $30$ ensaios cada), não sorteie ensaios soltos: isso subestima a incerteza. Quando a unidade de inferência é o sujeito, aplique <strong><em>bootstrap</em> por grupos</strong> (<em>cluster bootstrap</em>), sorteando $G$ sujeitos inteiros com reposição.
+
+      <example id="exm:8-5-oob-n2310">
+        <title>Fração fora da bolsa para $n = 2$, $3$ e $10$</title>
+        Calcule $\left(1 - \frac{1}{n}\right)^n$ e a fração esperada presente na amostra <em>bootstrap</em> para $n = 2$, $3$ e $10$.
+
+        <strong>Solução.</strong>
+        <list marker="dash">
+          <item><strong>$n = 2$:</strong> $\left(1 - \frac{1}{2}\right)^2 = \frac{1}{4} = 0{,}250$ ($25{,}0\%$ fora e $75{,}0\%$ dentro).</item>
+          <item><strong>$n = 3$:</strong> $\left(1 - \frac{1}{3}\right)^3 = \left(\frac{2}{3}\right)^3 = \frac{8}{27} \approx 0{,}296$ ($29{,}6\%$ fora e $\frac{19}{27} \approx 70{,}4\%$ dentro).</item>
+          <item><strong>$n = 10$:</strong> $0{,}9^{10}$. Como $0{,}9^2 = 0{,}81$, $0{,}9^4 = 0{,}6561$ e $0{,}9^5 = 0{,}59049$, temos $(0{,}59049)^2 \approx 0{,}349$ ($34{,}9\%$ fora e $65{,}1\%$ dentro) — já próximo de $e^{-1} \approx 0{,}368$.</item>
+        </list>
+      </example>
+
+      <example id="exm:8-5-bootstrap-poisson">
+        <title>IC $95\%$ bootstrap da taxa de disparo de um neurônio</title>
+        Simulamos $n = 30$ ensaios de $1\text{ s}$ ($\lambda = 28\text{ Hz}$, Poisson) e estimamos o erro padrão e o IC $95\%$ percentil da taxa média com $B = 2\,000$ réplicas, ilustrando também <c>sklearn.utils.resample</c>.
+
+        <code lang="python" id="cod:8-5-bootstrap">
+import numpy as np
+from sklearn.utils import resample
+
+rng = np.random.default_rng(0)
+
+# 30 ensaios de 1 segundo (contagem de spikes em Hz)
+disparos = rng.poisson(lam=28.0, size=30)
+media_obs = disparos.mean()
+
+B = 2000
+medias_boot = np.empty(B)
+for b in range(B):
+    amostra_b = rng.choice(disparos, size=len(disparos), replace=True)
+    medias_boot[b] = amostra_b.mean()
+
+ep_boot = medias_boot.std(ddof=1)
+ic_inf, ic_sup = np.percentile(medias_boot, [2.5, 97.5])
+
+print(f"Taxa média observada : {media_obs:.3f} Hz")
+# Taxa média observada : 28.200 Hz
+print(f"Erro padrão bootstrap: {ep_boot:.3f} Hz")
+# Erro padrão bootstrap: 0.914 Hz
+print(f"IC 95% percentil     : [{ic_inf:.3f}, {ic_sup:.3f}] Hz")
+# IC 95% percentil     : [26.332, 29.967] Hz
+
+# Equivalente com sklearn.utils.resample (ex.: para reamostrar índices ou matrizes)
+amostra_sk = resample(disparos, replace=True, n_samples=len(disparos), random_state=0)
+print(f"Média de 1 réplica (resample): {amostra_sk.mean():.3f} Hz")
+# Média de 1 réplica (resample): 27.867 Hz
+        </code>
+      </example>
+
+      <remark id="rem:8-5-armadilha-boot">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Bootstrap de ensaios quando a unidade é o sujeito:</strong> reamostrar ensaios soltos ignora correlação intra-sujeito e gera ICs falsamente estreitos; reamostre sujeitos inteiros.</item>
+          <item><strong>Treinar em $\mathcal{D}^*$ e testar em $\mathcal{D}$:</strong> como $\approx 63{,}2\%$ de $\mathcal{D}$ está em $\mathcal{D}^*$, testar em $\mathcal{D}$ mistura treino e teste; avalie apenas nas amostras OOB.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-5-4-1">
+        <title>Básico — Contagem combinatória e probabilidade OOB</title>
+        Considere conjuntos de $n = 3$ neurônios $\{A, B, C\}$ e $n = 4$ neurônios $\{A, B, C, D\}$.
+        <list marker="a">
+          <item>Para $n = 3$, quantas sequências ordenadas <em>bootstrap</em> e quantos multiconjuntos não ordenados existem (Módulo 7 — Combinatória)?</item>
+          <item>Para $n = 4$, qual a probabilidade de $A$ ficar fora da amostra <em>bootstrap</em> e qual a de todos os $4$ aparecerem exatamente uma vez?</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), sequências ordenadas somam $n^n$ e multiconjuntos usam $\binom{2n-1}{n}$. Em (b), há $4!$ ordens sem repetição dentre $4^4$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Existem $3^3 = 27$ sequências ordenadas e $\binom{3+3-1}{3} = \binom{5}{3} = 10$ multiconjuntos distintos.</item>
+            <item>A probabilidade de $A$ ficar fora é $\left(1 - \frac{1}{4}\right)^4 = \left(\frac{3}{4}\right)^4 = \frac{81}{256} \approx 0{,}316$ ($31{,}6\%$). A de saírem todos os $4$ distintos é $\frac{4!}{4^4} = \frac{24}{256} = \frac{3}{32} \approx 0{,}094$ ($9{,}4\%$).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-5-4-2">
+        <title>Intermediário — Erro padrão e número de réplicas $B$</title>
+        Um colega aplicou <em>bootstrap</em> com $B = 20$ réplicas para construir um IC percentil de $95\%$ da mediana da latência em $25$ ensaios. Por que $B = 20$ é inadequado para esses percentis e qual faixa de $B$ usar?
+        <hint><title>Ver dica</title>Calcule $2{,}5\%$ de $20$ réplicas e note a instabilidade nos extremos.</hint>
+        <solution collapsible="true" collapsed="true">
+          Com $B = 20$, cada réplica pesa $5\%$ ($1/20 = 0{,}05$), fazendo os percentis $2{,}5\%$ e $97{,}5\%$ dependerem apenas do menor e do maior valor sorteado, com alta variabilidade de Monte Carlo. Para estabilizar ICs percentis de $95\%$, use $B = 1\,000$ a $10\,000$ réplicas (para o erro padrão, $B \approx 200\text{–}500$ costuma bastar).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-5-4-3">
+        <title>Avançado — Cluster bootstrap versus bootstrap ingênuo em Python</title>
+        Simule $G = 12$ sujeitos com $20$ ensaios cada ($n = 240$), com $\mu_s \sim \mathcal{N}(30,\, 6^2)\text{ Hz}$ e $\sigma_{\text{ensaio}} = 1{,}5\text{ Hz}$. Compare a largura do IC $95\%$ da média global via: (1) <em>bootstrap</em> ingênuo nos $240$ ensaios e (2) <em>cluster bootstrap</em> sorteando $12$ sujeitos ($B = 1\,000$).
+        <hint><title>Ver dica</title>Sorteie <c>rng.choice(12, size=12, replace=True)</c> sobre a matriz $12 \times 20$ e tire a média global de cada réplica.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+
+rng = np.random.default_rng(0)
+n_suj, n_ens = 12, 20
+medias_suj = rng.normal(30.0, 6.0, size=n_suj)
+dados = medias_suj[:, None] + rng.normal(0.0, 1.5, size=(n_suj, n_ens))
+ensaios_planos = dados.ravel()
+
+B = 1000
+# 1) ERRADO: bootstrap ingênuo sobre os 240 ensaios
+boot_ingenuo = np.array([
+    rng.choice(ensaios_planos, size=len(ensaios_planos), replace=True).mean()
+    for _ in range(B)
+])
+ic_ing = np.percentile(boot_ingenuo, [2.5, 97.5])
+
+# 2) CORRETO: cluster bootstrap reamostrando os 12 sujeitos inteiros
+boot_grupo = np.array([
+    dados[rng.choice(n_suj, size=n_suj, replace=True)].mean()
+    for _ in range(B)
+])
+ic_grp = np.percentile(boot_grupo, [2.5, 97.5])
+
+print(f"IC 95% ingênuo (ensaios): [{ic_ing[0]:.3f}, {ic_ing[1]:.3f}] Hz (largura {ic_ing[1]-ic_ing[0]:.3f})")
+# IC 95% ingênuo (ensaios): [29.529, 30.655] Hz (largura 1.126)
+print(f"IC 95% grupos (sujeitos): [{ic_grp[0]:.3f}, {ic_grp[1]:.3f}] Hz (largura {ic_grp[1]-ic_grp[0]:.3f})")
+# IC 95% grupos (sujeitos): [27.683, 32.547] Hz (largura 4.864)
+          </code>
+          Ignorar a estrutura por sujeito reduz artificialmente a largura do intervalo em mais de quatro vezes (cerca de $1{,}13\text{ Hz}$ contra $4{,}86\text{ Hz}$), criando falsa certeza sobre a média populacional.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-5-5">
+      <eyebrow>Subtema 5</eyebrow>
+      <title>Teste de permutação</title>
+      <intro>
+        Obter $62\%$ de acurácia com poucos dados ou classes desbalanceadas não prova que há sinal cerebral: precisamos construir a distribuição nula empírica com rótulos embaralhados.
+      </intro>
+
+      Não existe tabela pronta para a distribuição nula da acurácia de uma CV $5$-fold, e um teste binomial contra $50\%$ falha quando as dobras são correlacionadas ou as classes são desbalanceadas. O <strong>teste de permutação</strong> (<em>permutation test</em>) pergunta diretamente aos dados: <em>que acurácias esse algoritmo alcançaria se não houvesse ligação entre $\mathbf{X}$ e $\mathbf{y}$?</em>
+
+      <definition id="def:8-5-permutacao">
+        <title>Teste de permutação para validação cruzada</title>
+        Sob a hipótese nula $H_0$ de independência entre $\mathbf{X}$ e $\mathbf{y}$:
+        <list marker="number">
+          <item>calculamos o escore observado $S_{\text{obs}}$ nos dados originais $(\mathbf{X}, \mathbf{y})$ com todo o pipeline de CV;</item>
+          <item>repetimos $N_{\text{perm}}$ vezes ($b = 1, \dots, N_{\text{perm}}$): embaralhamos $\mathbf{y}$ gerando $\mathbf{y}^{(\pi_b)}$ e refazemos <strong>toda a CV</strong>, registrando $S_b$;</item>
+          <item>calculamos o $p$-valor empírico:
+            <equation id="eq:8-5-pvalor-perm">
+              p = \frac{1 + \#\{b \in \{1, \dots, N_{\text{perm}}\} : S_b \ge S_{\text{obs}}\}}{1 + N_{\text{perm}}}.
+            </equation>
+          </item>
+        </list>
+        <intuition>
+          O $+1$ no numerador e no denominador inclui o dado observado entre as permutações possíveis sob $H_0$, evitando $p = 0$ e fixando o menor $p$-valor possível em $\frac{1}{1 + N_{\text{perm}}}$.
+        </intuition>
+      </definition>
+
+      Em neurociência, atenção a dois cuidados:
+      <list marker="dash">
+        <item><strong>Permutar dentro dos grupos:</strong> ao passar <c>groups=sujeitos</c> para <c>permutation_test_score</c>, os rótulos são embaralhados apenas dentro de cada sujeito ou corrida.</item>
+        <item><strong>Comparações múltiplas:</strong> no mapeamento por <em>searchlight</em> (milhares de regiões no córtex), testar $10\,000$ regiões a $\alpha = 0{,}05$ gera $\approx 500$ falsos positivos ao acaso (Módulo 7), exigindo correção como Bonferroni ou FDR.</item>
+      </list>
+
+      <example id="exm:8-5-perm-mao">
+        <title>Cálculo do $p$-valor de permutação à mão</title>
+        Um decodificador MVPA obteve $S_{\text{obs}} = 0{,}720$ na CV. Com $N_{\text{perm}} = 999$ permutações:
+        <list marker="a">
+          <item>Calcule o $p$-valor se $4$ permutações atingiram acurácia $\ge 0{,}720$.</item>
+          <item>E se <em>nenhuma</em> permutação superou $S_{\text{obs}}$?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Pela <ref to="eq:8-5-pvalor-perm"/>:
+            $$p = \frac{1 + 4}{1 + 999} = \frac{5}{1\,000} = 0{,}005.$$
+            A $\alpha = 0{,}05$ (ou $0{,}01$), rejeitamos $H_0$.
+          </item>
+          <item>Com $\# = 0$:
+            $$p = \frac{1 + 0}{1 + 999} = \frac{1}{1\,000} = 0{,}001.$$
+            Nunca relate $p = 0$; relate $p = 0{,}001$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:8-5-perm-desbalanceado">
+        <title>Por que comparar com $50\%$ falha em classes desbalanceadas</title>
+        Com $70$ janelas de vigília e $30$ de sono REM, um classificador obteve $72{,}0\%$ de acurácia. Por que comemorar estar $22$ pontos acima de $50\%$ é um erro?
+
+        <strong>Solução.</strong>
+        A linha de base majoritária já é $70{,}0\%$. Como toda permutação preserva a proporção $70/30$, classificadores nulos também pontuam perto de $70\%$ e muitos atingem $72\%$ ao acaso ($p$ alto). Em classes desbalanceadas, o teste de permutação revela a distribuição nula correta — e convém usar <c>scoring="balanced_accuracy"</c> (Tema 8.4).
+      </example>
+
+      No <c>scikit-learn</c>, <c>permutation_test_score</c> automatiza a <ref to="eq:8-5-pvalor-perm"/>:
+
+      <code lang="python" id="cod:8-5-permutacao">
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import StratifiedKFold, permutation_test_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(0)
+
+# Decodificador sintético: 80 ensaios, 30 canais, sinal real nos 3 primeiros canais
+n_ensaios, n_canais = 80, 30
+X = rng.normal(0.0, 1.0, size=(n_ensaios, n_canais))
+y = np.array([0] * 40 + [1] * 40)
+X[y == 1, :3] += 0.9
+
+tubo = Pipeline([
+    ("scaler", StandardScaler()),
+    ("clf", LogisticRegression(C=1.0, max_iter=1000)),
+])
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
+
+escore_obs, escores_perm, p_valor = permutation_test_score(
+    tubo,
+    X,
+    y,
+    scoring="accuracy",
+    cv=cv,
+    n_permutations=200,
+    random_state=0,
+)
+
+print(f"Acurácia observada       : {escore_obs:.3f}")
+# Acurácia observada       : 0.625
+print(f"Média das permutações    : {escores_perm.mean():.3f}")
+# Média das permutações    : 0.502
+print(f"p-valor (200 permutações): {p_valor:.3f}")
+# p-valor (200 permutações): 0.045
+      </code>
+
+      <remark id="rem:8-5-armadilha-perm">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Comparar acurácia com $50\%$ sem permutação:</strong> em classes desbalanceadas ou amostras pequenas, superar $50\%$ ocorre frequentemente ao acaso.</item>
+          <item><strong>Deixar pré-processamento fora do <c>permutation_test_score</c>:</strong> selecionar variáveis antes de permutar invalida o $p$-valor; passe sempre o <c>Pipeline</c> completo.</item>
+          <item><strong>Ignorar comparações múltiplas:</strong> corrija os $p$-valores ao testar dezenas de eletrodos ou milhares de voxels.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-5-5-1">
+        <title>Básico — Cálculo de p-valor e número mínimo de permutações</title>
+        Um decodificador atingiu acurácia $0{,}68$ em $N_{\text{perm}} = 499$ permutações, com $9$ permutações $\ge 0{,}68$.
+        <list marker="a">
+          <item>Calcule o $p$-valor empírico.</item>
+          <item>Qual é o menor $N_{\text{perm}}$ para que seja matematicamente possível obter $p < 0{,}01$?</item>
+        </list>
+        <hint><title>Ver dica</title>Em (b), o menor $p$-valor possível ocorre com $\# = 0$: $\frac{1}{1 + N_{\text{perm}}} < 0{,}01$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pela <ref to="eq:8-5-pvalor-perm"/>:
+              $$p = \frac{1 + 9}{1 + 499} = \frac{10}{500} = 0{,}020.$$
+            </item>
+            <item>No caso extremo ($\# = 0$), para $N_{\text{perm}}$ inteiro:
+              $$\frac{1}{1 + N_{\text{perm}}} < 0{,}01 \iff 1 + N_{\text{perm}} > 100 \iff N_{\text{perm}} > 99 \iff N_{\text{perm}} \ge 100.$$
+              São necessárias pelo menos $100$ permutações (na prática usam-se $1\,000$ ou mais).
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-5-5-2">
+        <title>Intermediário — Acurácia alta em sono desbalanceado</title>
+        Em $200$ janelas de sono ($150$ vigília, $50$ REM), um decodificador atingiu $76{,}0\%$ de acurácia com <c>scoring="accuracy"</c>, mas o teste de permutação deu $p = 0{,}42$.
+        <list marker="a">
+          <item>Por que $76{,}0\%$ gerou $p = 0{,}42$ mesmo estando $26$ pontos acima de $50\%$?</item>
+          <item>Que métrica no <c>permutation_test_score</c> evita mascarar erros no REM?</item>
+        </list>
+        <hint><title>Ver dica</title>Calcule a prevalência de vigília ($150/200$) e lembre a métrica de pesos iguais por classe.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Vigília soma $\frac{150}{200} = 75{,}0\%$ das janelas. Como chutar sempre vigília já acerta $75{,}0\%$, $76{,}0\%$ supera o acaso em apenas $1$ ponto percentual — facilmente reproduzido nas permutações ($p = 0{,}42$).</item>
+            <item>Usar <c>scoring="balanced_accuracy"</c>, na qual chutar sempre a classe majoritária pontua exatamente $0{,}50$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-5-5-3">
+        <title>Avançado — Comparando sinal real e ruído puro com permutation_test_score</title>
+        Adapte o <ref to="cod:8-5-permutacao"/> (<c>n_permutations=200</c>, <c>random_state=0</c>) para comparar dois conjuntos de $n = 80$ e $p = 30$: um com sinal nos $3$ primeiros canais (<c>+0.9</c> na classe $1$) e outro com ruído puro.
+        <hint><title>Ver dica</title>Faça um laço sobre as amplitudes <c>0.9</c> e <c>0.0</c> usando o mesmo <c>Pipeline</c> e <c>StratifiedKFold</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import StratifiedKFold, permutation_test_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(0)
+y = np.array([0] * 40 + [1] * 40)
+tubo = Pipeline([
+    ("scaler", StandardScaler()),
+    ("clf", LogisticRegression(C=1.0, max_iter=1000)),
+])
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
+
+for nome, amplitude in [("Com sinal real", 0.9), ("Ruído puro", 0.0)]:
+    X = rng.normal(0.0, 1.0, size=(80, 30))
+    if amplitude > 0.0:
+        X[y == 1, :3] += amplitude
+    escore, _, p_val = permutation_test_score(
+        tubo, X, y, scoring="accuracy", cv=cv, n_permutations=200, random_state=0
+    )
+    print(f"{nome:14s} | Acurácia: {escore:.3f} | p-valor: {p_val:.3f}")
+# Com sinal real | Acurácia: 0.625 | p-valor: 0.045
+# Ruído puro     | Acurácia: 0.425 | p-valor: 0.905
+          </code>
+          O sinal real alcança $p \approx 0{,}045$ (significativo a $5\%$, mas modesto; lembre que com $200$ permutações o menor $p$ possível é $1/201 \approx 0{,}005$), enquanto o ruído puro permanece no nível do acaso com $p \approx 0{,}905$.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-5-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>CV $k$-fold:</strong> $\mathrm{CV}_{(k)} = \frac{1}{k}\sum_{i=1}^k \mathrm{MSE}_i$ (ou acurácia). Escolher $k = 5$ ou $10$ equilibra viés e variância melhor que <em>holdout</em> ou LOOCV ($k = n$); em classificação, prefira <c>StratifiedKFold</c>.</item>
+        <item><strong>Hiperparâmetros honestos:</strong> nunca relate <c>best_score_</c> de <c>GridSearchCV</c> como desempenho final; avalie em teste intocado ou use CV aninhada.</item>
+        <item><strong>Grupos e séries temporais:</strong> use <c>GroupKFold</c>, <c>StratifiedGroupKFold</c> ou <c>LeaveOneGroupOut</c> (LOSO/LORO) com <c>groups=...</c>; em séries contínuas de fMRI ($\mathrm{TR} \approx 2\text{ s}$, HRF $\approx 15\text{–}20\text{ s}$), use blocos contíguos sem embaralhar.</item>
+        <item><strong>Vazamento e <em>double dipping</em>:</strong> padronizar ou selecionar variáveis antes de dividir fabrica acurácias altas até em ruído puro; encapsule tudo em um <c>Pipeline</c>.</item>
+        <item><strong><em>Bootstrap</em>:</strong> reamostrar $n$ observações com reposição estima $\widehat{\mathrm{EP}}_{\text{boot}}$ e ICs percentis; para dados por sujeito, reamostre sujeitos inteiros (<em>cluster bootstrap</em>).</item>
+        <item><strong>Amostras OOB:</strong> $(1 - 1/n)^n \to e^{-1} \approx 0{,}368$; cada réplica inclui $\approx 63{,}2\%$ dos dados distintos e deixa $\approx 36{,}8\%$ fora da bolsa.</item>
+        <item><strong>Teste de permutação:</strong> embaralha $\mathbf{y}$ por $N_{\text{perm}}$ vezes refazendo toda a CV para obter $p = \frac{1 + \#\{S_b \ge S_{\text{obs}}\}}{1 + N_{\text{perm}}}$, respeitando grupos e corrigindo múltiplas comparações.</item>
+      </list>
+    </section>
+
+    <section id="sec:8-5-alem">
+      <title>Para ir além</title>
+      No próximo passo — <strong>Tema 8.6 (Regularização)</strong> — usaremos a validação cruzada para escolher o parâmetro $\lambda$ em Ridge e Lasso. Como prática, aplique <c>StratifiedKFold</c> com <c>Pipeline</c>, <em>bootstrap</em> e <c>permutation_test_score</c> a um conjunto médico da UCI ou neural aberto.
+      <list marker="dash">
+        <item><strong>Livro-texto:</strong> <link to="https://www.statlearning.com/">ISLR — Introduction to Statistical Learning</link>, Capítulo 5 (<em>Resampling Methods</em>).</item>
+        <item><strong>Notas do curso:</strong> Notas de aula da matéria do IMPATech.</item>
+        <item><strong>Aprofundamento:</strong> <em>Elements of Statistical Learning</em>, Capítulo 7.</item>
+        <item><strong>Documentação Scikit-learn:</strong> <link to="https://scikit-learn.org/stable/modules/cross_validation.html">Cross-validation</link>, <link to="https://scikit-learn.org/stable/modules/compose.html">Pipelines</link> e <link to="https://scikit-learn.org/stable/common_pitfalls.html">Common Pitfalls</link>.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 8 · Machine Learning — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

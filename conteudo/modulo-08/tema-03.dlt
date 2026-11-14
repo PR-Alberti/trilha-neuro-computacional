@@ -1,0 +1,1017 @@
+<document>
+  <title>Módulo 8 · Machine Learning</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-8-3">Voltar ao guia (Tema 8.3)</link></meta-item>
+    <meta-item key="Módulo">Módulo 8 · Machine Learning — Criando a Inteligência Clássica</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-8-3">
+    <title>Classificação</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Prever categorias — ex.: decodificar qual estímulo foi visto a partir do padrão de atividade (MVPA).
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> No Tema 8.2 (Regressão (polinomial)), o alvo $y$ era contínuo, como a taxa de disparo em hertz ou o fluxo sanguíneo cerebral. Na prática biológica e clínica, porém, muitas perguntas pedem resposta categórica: o neurônio dispara ou silencia após um pulso de corrente? Uma biópsia é benigna ou maligna? Em qual estágio do sono está um registro de EEG? E, na neurociência cognitiva, qual estímulo visual (faces, casas ou barras orientadas) o participante observava, dado o padrão de atividade em eletrodos ou ressonância magnética funcional (fMRI)?
+
+    Esse último caso é o <em>decoding</em> neural: enquanto o <em>encoding</em> prevê a atividade cerebral a partir do estímulo (regressão), um decodificador inverte a seta e usa análise de padrões multivariados (MVPA) para ler estados a partir da atividade distribuída. Aqui você aprenderá três famílias clássicas — regressão logística, $K$ vizinhos mais próximos (KNN) e análise discriminante linear (LDA) — aplicadas à decodificação neural.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>explicar por que a regressão linear falha para prever categorias e formular a regressão logística com a função sigmoide, a log-chance e a máxima verossimilhança;</item>
+      <item>interpretar coeficientes de um modelo logístico como razões de chances e ajustá-lo em Python com padronização prévia;</item>
+      <item>classificar amostras com o algoritmo KNN, escolhendo $K$ pelo compromisso entre viés e variância e evitando erros de escala;</item>
+      <item>derivar a fronteira linear do LDA pelo modelo generativo gaussiano e pela regra de Bayes, comparando-o com a regressão logística e o QDA;</item>
+      <item>montar um pipeline de decodificação neural (MVPA) com separação estratificada e interpretar a acurácia em relação ao nível de acaso.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Temas 8.1 (Introdução) e 8.2 (Regressão (polinomial)) do Módulo 8 (compromisso viés–variância, separação treino/teste e modelos lineares); Módulo 4 (Otimização — tema "Métodos computacionais": gradiente descendente); Módulo 5 (Álgebra Linear — tema "Vetores, matrizes e operações": produto interno, norma e distância euclidiana); e Módulo 7 (Estatística e Probabilidade — temas "Variável aleatória": distribuições de Bernoulli e normal; "Inferência Bayesiana": regra de Bayes; e "Inferência não-Bayesiana (Frequentista)": máxima verossimilhança).
+
+    <section id="sec:8-3-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Regressão logística</title>
+      <intro>
+        A regressão logística transforma uma combinação linear das variáveis em uma probabilidade válida entre $0$ e $1$, superando os limites da reta.
+      </intro>
+
+      Suponha que queiramos prever se um neurônio dispara ($y = 1$) ou silencia ($y = 0$) conforme a corrente injetada $x$. Uma regressão linear $\hat{y} = \hat{\beta}_0 + \hat{\beta}_1 x$ inevitavelmente sai de $[0, 1]$, prevendo probabilidades impossíveis ($\hat{y} < 0$ ou $\hat{y} > 1$). Além disso, com $K \ge 3$ categorias sem ordem natural (estímulo visual, auditivo ou tátil), codificá-las como $1, 2, 3$ numa reta inventaria ordenação e espaçamentos falsos.
+
+      Na <strong>regressão logística</strong> (<em>logistic regression</em>) binária ($y \in \{0, 1\}$), calculamos a combinação linear $z = \beta_0 + \boldsymbol{\beta}^\top \mathbf{x} \in \mathbb{R}$ e a comprimimos para $(0, 1)$ pela função sigmoide.
+
+      <definition id="def:8-3-sigmoide">
+        <title>Função sigmoide logística</title>
+        A <strong>função sigmoide</strong> (ou função logística) $\sigma: \mathbb{R} \to (0, 1)$ é definida por:
+        <equation id="eq:8-3-sigmoide">
+          \sigma(z) = \frac{1}{1 + e^{-z}} = \frac{e^z}{1 + e^z}
+        </equation>
+        <intuition>
+          Para $z \to +\infty$, $e^{-z} \to 0$ e $\sigma(z) \to 1$; para $z \to -\infty$, $\sigma(z) \to 0$; e em $z = 0$, $\sigma(0) = 0{,}5$. O formato em "S" lembra curvas dose–efeito farmacológicas e curvas psicométricas sensoriais.
+        </intuition>
+      </definition>
+
+      <definition id="def:8-3-reg-logistica">
+        <title>Modelo de regressão logística e log-chance</title>
+        Seja $\mathbf{x} \in \mathbb{R}^p$ o vetor de variáveis de uma amostra e $y \in \{0, 1\}$ seu rótulo binário. A regressão logística modela a probabilidade condicional $p(\mathbf{x}) = \Pr(y = 1 \mid \mathbf{x})$ como:
+        <equation id="eq:8-3-logistica">
+          p(\mathbf{x}) = \sigma(\beta_0 + \boldsymbol{\beta}^\top \mathbf{x}) = \frac{1}{1 + e^{-(\beta_0 + \boldsymbol{\beta}^\top \mathbf{x})}}
+        </equation>
+        onde $\beta_0 \in \mathbb{R}$ é o intercepto e $\boldsymbol{\beta} = (\beta_1, \dots, \beta_p)^\top \in \mathbb{R}^p$ é o vetor de coeficientes. Isolando a combinação linear, obtemos a <strong>chance</strong> (<em>odds</em>) e a <strong>log-chance</strong> (<em>log-odds</em> ou <em>logit</em>):
+        $$\frac{p(\mathbf{x})}{1 - p(\mathbf{x})} = e^{\beta_0 + \boldsymbol{\beta}^\top \mathbf{x}} \qquad \text{e} \qquad \ln\!\left(\frac{p(\mathbf{x})}{1 - p(\mathbf{x})}\right) = \beta_0 + \boldsymbol{\beta}^\top \mathbf{x}.$$
+        No <c>scikit-learn</c>, $\beta_0$ fica em <c>modelo.intercept_</c> e $\boldsymbol{\beta}$ em <c>modelo.coef_</c> (formato <c>(1, p)</c> no caso binário).
+      </definition>
+
+      Pela log-chance, aumentar $x_j$ em $1$ unidade (mantendo as demais fixas) soma $\beta_j$ à log-chance, isto é, <strong>multiplica a chance</strong> pelo fator $e^{\beta_j}$, a <strong>razão de chances</strong> (<em>odds ratio</em>). Se $\beta_j > 0$, $e^{\beta_j} > 1$ e a probabilidade da classe $1$ sobe com $x_j$; se $\beta_j < 0$, $e^{\beta_j} < 1$ e ela cai.
+
+      Para decidir $\hat{y} \in \{0, 1\}$, o limiar padrão é $0{,}5$: prevemos $\hat{y} = 1$ se $\hat{p}(\mathbf{x}) \ge 0{,}5$. Como $\sigma(z) \ge 0{,}5 \iff z \ge 0$, a <strong>fronteira de decisão</strong> (<em>decision boundary</em>) $\hat{\beta}_0 + \hat{\boldsymbol{\beta}}^\top \mathbf{x} = 0$ é um hiperplano <strong>linear</strong>, apesar da curva em "S" de $\hat{p}(\mathbf{x})$.
+
+      Para estimar $(\beta_0, \boldsymbol{\beta})$ de $n$ amostras independentes $\{(\mathbf{x}_i, y_i)\}_{i=1}^n$, modelamos cada $y_i$ como Bernoulli($p_i$) com $p_i = \sigma(\beta_0 + \boldsymbol{\beta}^\top \mathbf{x}_i)$ (Módulo 7). Pela <strong>máxima verossimilhança</strong> (<em>maximum likelihood</em>), maximizar $\mathcal{L}(\beta_0, \boldsymbol{\beta}) = \prod_{i=1}^n p_i^{y_i}(1 - p_i)^{1 - y_i}$ equivale — tomando o logaritmo negativo e dividindo por $n$ — a minimizar a <strong>entropia cruzada binária</strong> (<em>binary cross-entropy</em> ou <em>log-loss</em>):
+      <equation id="eq:8-3-logloss">
+        J(\beta_0, \boldsymbol{\beta}) = -\frac{1}{n}\sum_{i=1}^n \Bigl[y_i \ln p_i + (1 - y_i)\ln(1 - p_i)\Bigr].
+      </equation>
+
+      Diferente dos mínimos quadrados (Tema 8.2), $J(\beta_0, \boldsymbol{\beta})$ não tem fórmula fechada, mas é convexa (único mínimo global); assim, otimizadores numéricos — como o <strong>gradiente descendente</strong> (Módulo 4) ou L-BFGS — convergem ao ótimo. No <c>scikit-learn</c>, <c>LogisticRegression</c> aplica regularização $\ell_2$ por padrão, minimizando $\frac{1}{2}\|\boldsymbol{\beta}\|_2^2 + C \sum_{i=1}^n \text{(perda logística)}_i$, em que <c>C</c> é o <strong>inverso</strong> da força de regularização (<c>C</c> grande reduz a penalidade; ver Tema 8.6). Para $K \ge 3$ classes, generaliza-se via função <em>softmax</em>.
+
+      <example id="exm:8-3-psicometrica">
+        <title>Curva de disparo neuronal com regressão logística</title>
+        Suponha que um neurônio cortical dispare ($y = 1$) ou permaneça em silêncio ($y = 0$) diante de pulsos curtos de corrente injetada $x$ (em $\text{nA}$), segundo o modelo ajustado $\hat{p}(x) = \sigma(\hat{\beta}_0 + \hat{\beta}_1 x)$ com $\hat{\beta}_0 = -6$ e $\hat{\beta}_1 = 10\text{ nA}^{-1}$.
+        <list marker="a">
+          <item>Qual corrente $x^*$ leva a uma probabilidade prevista de disparo de $50\%$?</item>
+          <item>Calcule a log-chance, a chance e a probabilidade prevista quando $x = 0{,}8\text{ nA}$.</item>
+          <item>O que ocorre com a chance e com a probabilidade se aumentarmos $x$ de $0{,}8\text{ nA}$ para $0{,}9\text{ nA}$?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Para $\hat{p}(x^*) = 0{,}5$, o argumento da sigmoide precisa ser nulo:
+            $$-6 + 10x^* = 0 \implies x^* = \frac{6}{10} = 0{,}6\text{ nA}.$$
+            Essa corrente de $0{,}6\text{ nA}$ ($600\text{ pA}$) é o limiar efetivo de $50\%$ de disparo.
+          </item>
+          <item>Para $x = 0{,}8\text{ nA}$, o preditor linear vale $z = -6 + 10(0{,}8) = 2$. Logo:
+            <list marker="dash">
+              <item>log-chance: $z = 2$;</item>
+              <item>chance: $e^2 \approx 7{,}389$;</item>
+              <item>probabilidade: $\hat{p}(0{,}8) = \dfrac{1}{1 + e^{-2}} \approx \dfrac{1}{1 + 0{,}1353} \approx 0{,}881$ (ou $88{,}1\%$).</item>
+            </list>
+          </item>
+          <item>Um acréscimo de $\Delta x = 0{,}1\text{ nA}$ soma $\hat{\beta}_1 \Delta x = 10 \cdot 0{,}1 = 1$ à log-chance, que passa para $z = 3$. Assim, a chance é multiplicada por $e^1 \approx 2{,}718$:
+            $$\text{nova chance} = e^3 \approx 20{,}086 \qquad (\text{de fato, } 7{,}389 \cdot 2{,}718 \approx 20{,}086).$$
+            Já a nova probabilidade é $\hat{p}(0{,}9) = \frac{1}{1 + e^{-3}} \approx \frac{1}{1 + 0{,}0498} \approx 0{,}953$ ($95{,}3\%$). Note que a chance quase triplicou, enquanto a probabilidade subiu apenas $7{,}2$ pontos percentuais por já estar próxima do teto $1$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:8-3-entropia-cruzada">
+        <title>Verossimilhança e entropia cruzada na mão</title>
+        Considere dois ensaios com rótulos observados $y_1 = 1$ e $y_2 = 0$. Compare um modelo bem ajustado $A$, que prevê $(\hat{p}_1, \hat{p}_2) = (0{,}8;\; 0{,}2)$, com um modelo invertido $B$, que prevê $(\hat{p}_1, \hat{p}_2) = (0{,}2;\; 0{,}8)$, calculando a verossimilhança $\mathcal{L}$ e a entropia cruzada $J$.
+
+        <strong>Solução.</strong> Pela fórmula de Bernoulli para os dois ensaios:
+        <list marker="dash">
+          <item><strong>Modelo $A$:</strong>
+            $$\mathcal{L}_A = \hat{p}_1 \cdot (1 - \hat{p}_2) = 0{,}8 \cdot (1 - 0{,}2) = 0{,}8 \cdot 0{,}8 = 0{,}64.$$
+            $$J_A = -\frac{1}{2}\bigl[\ln(0{,}8) + \ln(1 - 0{,}2)\bigr] = -\ln(0{,}8) \approx 0{,}223.$$
+          </item>
+          <item><strong>Modelo $B$:</strong>
+            $$\mathcal{L}_B = 0{,}2 \cdot (1 - 0{,}8) = 0{,}2 \cdot 0{,}2 = 0{,}04.$$
+            $$J_B = -\frac{1}{2}\bigl[\ln(0{,}2) + \ln(1 - 0{,}8)\bigr] = -\ln(0{,}2) \approx 1{,}609.$$
+          </item>
+        </list>
+        O modelo $A$ tem verossimilhança $16$ vezes maior ($0{,}64$ contra $0{,}04$) e entropia cruzada muito menor ($0{,}223$ contra $1{,}609$). Maximizar $\mathcal{L}$ e minimizar $J$ selecionam exatamente o mesmo modelo.
+      </example>
+
+      Abaixo ajustamos uma regressão logística ao conjunto <c>load_breast_cancer</c> ($n = 569$ biópsias, $p = 30$ variáveis). Um <c>Pipeline</c> com <c>StandardScaler</c> padroniza usando só o treino (sem vazamento), e avaliamos pela <strong>acurácia</strong> (fração de acertos; métricas como precisão, <em>recall</em> e ROC ficam para o Tema 8.4).
+
+      <code lang="python" id="cod:8-3-logistica">
+import numpy as np
+from sklearn.datasets import load_breast_cancer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+dados = load_breast_cancer()
+X, y = dados.data, dados.target
+
+# Divisão estratificada (80% treino, 20% teste) mantendo a proporção das classes
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.2, stratify=y, random_state=0
+)
+
+# Pipeline garante que média e desvio-padrão sejam ajustados só no treino
+modelo = make_pipeline(
+    StandardScaler(),
+    LogisticRegression(C=1.0, max_iter=1000, random_state=0),
+)
+modelo.fit(X_treino, y_treino)
+
+y_pred = modelo.predict(X_teste)
+probs = modelo.predict_proba(X_teste)
+
+acuracia = accuracy_score(y_teste, y_pred)
+print(f"Acurácia de teste: {acuracia:.3f}")
+# Acurácia de teste: 0.982
+
+for i in range(3):
+    print(f"Amostra {i}: P(classe=1) = {probs[i, 1]:.3f}, real = {y_teste[i]}")
+# Amostra 0: P(classe=1) = 0.011, real = 0
+# Amostra 1: P(classe=1) = 0.000, real = 0
+# Amostra 2: P(classe=1) = 0.002, real = 0
+      </code>
+
+      A acurácia de teste fica em $\approx 98\%$. O método <c>predict_proba</c> devolve duas colunas: a coluna <c>0</c> traz $\hat{\Pr}(y = 0 \mid \mathbf{x})$ e a <c>1</c>, $\hat{p}(\mathbf{x})$.
+
+      <remark id="rem:8-3-armadilha-proba">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Tratar <c>predict_proba</c> como certeza absoluta:</strong> probabilidade prevista de $0{,}99$ não garante acerto nem calibração; valores altos de <c>C</c> geram probabilidades extremas mesmo em erros, sem mover a fronteira $\hat{p} = 0{,}5$.</item>
+          <item><strong>Ler $\hat{\beta}_j$ como efeito aditivo na probabilidade:</strong> $\hat{\beta}_1 = 2$ soma $2$ à log-chance (multiplica a chance por $e^2 \approx 7{,}39$), não à probabilidade.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-3-1-1">
+        <title>Básico — Limiar psicométrico auditivo</title>
+        Em um experimento de detecção auditiva, ajustou-se uma regressão logística ligando a probabilidade de o voluntário detectar um tom puro ($y = 1$) à intensidade sonora $x$ (em $\text{dB}$): $\hat{p}(x) = \sigma(-4 + 0{,}2 x)$.
+        <list marker="a">
+          <item>Em qual intensidade $x^*$ a probabilidade prevista de detecção atinge exatamente $50\%$?</item>
+          <item>Calcule a log-chance, a chance e a probabilidade prevista para $x = 25\text{ dB}$.</item>
+        </list>
+        <hint><title>Ver dica</title>Iguale o argumento da sigmoide a $0$ para achar o ponto de $50\%$. Em (b), use $e^1 \approx 2{,}718$ e $e^{-1} \approx 0{,}368$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Temos $\sigma(z) = 0{,}5 \iff z = 0$. Logo:
+              $$-4 + 0{,}2 x^* = 0 \implies x^* = \frac{4}{0{,}2} = 20\text{ dB}.$$
+            </item>
+            <item>Para $x = 25\text{ dB}$, calculamos $z = -4 + 0{,}2(25) = -4 + 5 = 1$. Assim:
+              <list marker="dash">
+                <item>log-chance: $z = 1$;</item>
+                <item>chance: $e^1 \approx 2{,}718$;</item>
+                <item>probabilidade: $\hat{p}(25) = \dfrac{1}{1 + e^{-1}} \approx \dfrac{1}{1 + 0{,}368} = \dfrac{1}{1{,}368} \approx 0{,}731$ ($73{,}1\%$).</item>
+              </list>
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-3-1-2">
+        <title>Básico — Razão de chances em disparo sináptico</title>
+        Um modelo logístico prevê a probabilidade de disparo de um neurônio ($y = 1$) a partir de duas variáveis padronizadas: $x_1$ (corrente excitatória normalizada) e $x_2$ (condutância inibitória normalizada), com $\hat{\beta}_0 = 0$, $\hat{\beta}_1 = \ln 3 \approx 1{,}099$ e $\hat{\beta}_2 = -\ln 2 \approx -0{,}693$.
+        <list marker="a">
+          <item>Por que uma regressão linear comum não garante previsões válidas para $\Pr(y = 1 \mid \mathbf{x})$?</item>
+          <item>Qual é a razão de chances associada ao aumento de $1$ unidade em $x_1$ (com $x_2$ fixo)? E ao aumento de $1$ unidade em $x_2$ (com $x_1$ fixo)?</item>
+          <item>Para $(x_1, x_2) = (1, 1)$, calcule exatamente a chance e a probabilidade prevista de disparo.</item>
+        </list>
+        <hint><title>Ver dica</title>Lembre que a razão de chances de uma variável é $e^{\hat{\beta}_j}$ e que $p = \frac{\text{chance}}{1 + \text{chance}}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Porque uma função linear $\hat{\beta}_0 + \hat{\beta}_1 x_1 + \hat{\beta}_2 x_2$ é ilimitada e produz valores menores que $0$ ou maiores que $1$ fora de uma faixa restrita, violando o intervalo $[0, 1]$ das probabilidades.</item>
+            <item>Aumentando $x_1$ em $1$ unidade, a chance é multiplicada por $e^{\hat{\beta}_1} = e^{\ln 3} = 3$ (a chance triplica). Aumentando $x_2$ em $1$ unidade, a chance é multiplicada por $e^{\hat{\beta}_2} = e^{-\ln 2} = \frac{1}{2} = 0{,}5$ (a chance cai pela metade).</item>
+            <item>Para $(x_1, x_2) = (1, 1)$, a log-chance vale:
+              $$z = 0 + \ln 3 - \ln 2 = \ln\!\left(\frac{3}{2}\right).$$
+              Portanto, a chance é $e^z = \frac{3}{2} = 1{,}5$, e a probabilidade prevista é:
+              $$\hat{p}(1, 1) = \frac{1}{1 + e^{-\ln(3/2)}} = \frac{1}{1 + \frac{2}{3}} = \frac{3}{5} = 0{,}60.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-3-1-3">
+        <title>Intermediário — Propriedades da sigmoide e entropia cruzada</title>
+        <list marker="a">
+          <item>Mostre algebricamente que a sigmoide satisfaz a simetria $\sigma(-z) = 1 - \sigma(z)$ e que sua derivada é $\sigma'(z) = \sigma(z)\bigl(1 - \sigma(z)\bigr)$.</item>
+          <item>Calcule a entropia cruzada binária $J$ para $n = 3$ ensaios com rótulos $(y_1, y_2, y_3) = (1, 0, 1)$ e probabilidades previstas $(\hat{p}_1, \hat{p}_2, \hat{p}_3) = (0{,}5;\; 0{,}5;\; 0{,}9)$. (Use $\ln 2 \approx 0{,}693$ e $\ln(0{,}9) \approx -0{,}105$.)</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), multiplique numerador e denominador de $1 - \sigma(z) = \frac{e^{-z}}{1 + e^{-z}}$ por $e^z$. Em (b), note que $\ln(0{,}5) = -\ln 2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Partindo de $1 - \sigma(z)$:
+              $$1 - \sigma(z) = 1 - \frac{1}{1 + e^{-z}} = \frac{e^{-z}}{1 + e^{-z}}.$$
+              Multiplicando numerador e denominador por $e^z$:
+              $$\frac{e^{-z}}{1 + e^{-z}} = \frac{1}{e^z + 1} = \frac{1}{1 + e^{-(-z)}} = \sigma(-z).$$
+              Para a derivada de $\sigma(z) = (1 + e^{-z})^{-1}$, aplicamos a regra da cadeia:
+              $$\sigma'(z) = -(1 + e^{-z})^{-2} \cdot (-e^{-z}) = \frac{1}{1 + e^{-z}} \cdot \frac{e^{-z}}{1 + e^{-z}} = \sigma(z)\bigl(1 - \sigma(z)\bigr).$$
+            </item>
+            <item>Substituindo os $3$ ensaios na definição de $J$:
+              $$J = -\frac{1}{3}\Bigl[\ln(0{,}5) + \ln(1 - 0{,}5) + \ln(0{,}9)\Bigr] = -\frac{1}{3}\Bigl[2\ln(0{,}5) + \ln(0{,}9)\Bigr].$$
+              Como $\ln(0{,}5) = -\ln 2 \approx -0{,}693$:
+              $$J \approx -\frac{1}{3}\bigl[2(-0{,}693) - 0{,}105\bigr] = \frac{1{,}386 + 0{,}105}{3} = \frac{1{,}491}{3} = 0{,}497.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-3-1-4">
+        <title>Avançado — Efeito de <c>C</c> na regressão logística em Python</title>
+        Usando o conjunto <c>load_breast_cancer</c> com a mesma divisão estratificada do bloco de código desta seção (<c>test_size=0.2</c>, <c>random_state=0</c>), compare três valores do parâmetro <c>C</c> (<c>0.01</c>, <c>1.0</c> e <c>100.0</c>) em um <c>Pipeline</c> com <c>StandardScaler</c>. Imprima a acurácia de treino, a acurácia de teste e a norma euclidiana $\|\hat{\boldsymbol{\beta}}\|_2$ dos coeficientes ajustados para cada <c>C</c>. O que acontece com a norma dos pesos à medida que <c>C</c> cresce?
+        <hint><title>Ver dica</title>Após ajustar <c>pipe</c>, os coeficientes ficam em <c>pipe.named_steps["logisticregression"].coef_</c>; calcule a norma com <c>np.linalg.norm(coef)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.datasets import load_breast_cancer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+X, y = load_breast_cancer(return_X_y=True)
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.2, stratify=y, random_state=0
+)
+
+for c in [0.01, 1.0, 100.0]:
+    pipe = make_pipeline(
+        StandardScaler(),
+        LogisticRegression(C=c, max_iter=1000, random_state=0),
+    )
+    pipe.fit(X_treino, y_treino)
+    acc_treino = accuracy_score(y_treino, pipe.predict(X_treino))
+    acc_teste = accuracy_score(y_teste, pipe.predict(X_teste))
+    norma = np.linalg.norm(pipe.named_steps["logisticregression"].coef_)
+    print(f"C={c:>5} | treino={acc_treino:.3f} | teste={acc_teste:.3f} | ||beta||_2={norma:.3f}")
+# C= 0.01 | treino=0.952 | teste=0.956 | ||beta||_2=0.830
+# C=  1.0 | treino=0.989 | teste=0.982 | ||beta||_2=3.641
+# C=100.0 | treino=0.989 | teste=0.965 | ||beta||_2=20.011
+          </code>
+          Ao aumentar <c>C</c>, a norma $\|\hat{\boldsymbol{\beta}}\|_2$ dos coeficientes cresce muito ($\approx 0{,}83 \to 3{,}64 \to 20{,}0$), a acurácia de treino sobe até $\approx 0{,}989$ e a de teste cai de $0{,}982$ (<c>C = 1</c>) para $0{,}965$ (<c>C = 100</c>): sinal de sobreajuste.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-3-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>K vizinhos mais próximos (KNN)</title>
+      <intro>
+        Em vez de ajustar uma equação global, o KNN decide localmente consultando os $K$ exemplos de treino mais próximos.
+      </intro>
+
+      Quando as classes formam ilhas curvas ou grupos irregulares que uma fronteira plana não separa, o algoritmo dos <strong>$K$ vizinhos mais próximos</strong> (<strong>KNN</strong>, de <em>K-nearest neighbors</em>) abandona fórmulas globais: para classificar $\mathbf{x}_0$, mede a distância até os pontos de treino e vota pela maioria entre os $K$ mais próximos.
+
+      <definition id="def:8-3-knn">
+        <title>Classificador dos K vizinhos mais próximos (KNN)</title>
+        Dado um conjunto de treino $\{(\mathbf{x}_i, y_i)\}_{i=1}^n$ em $\mathbb{R}^p$ e um inteiro $K \ge 1$ (aqui, $K$ designa o número de vizinhos consultados), definimos a <strong>distância euclidiana</strong> entre um ponto novo $\mathbf{x}_0$ e cada amostra de treino $\mathbf{x}_i$ (como vimos no Módulo 5, tema "Vetores, matrizes e operações") por:
+        <equation id="eq:8-3-dist-euclidiana">
+          d(\mathbf{x}_0, \mathbf{x}_i) = \|\mathbf{x}_0 - \mathbf{x}_i\|_2 = \sqrt{\sum_{j=1}^p (x_{0j} - x_{ij})^2}.
+        </equation>
+        Seja $\mathcal{N}_K(\mathbf{x}_0)$ o conjunto dos índices dos $K$ pontos de treino com menor distância $d(\mathbf{x}_0, \mathbf{x}_i)$. O KNN estima a probabilidade da classe $k$ pela proporção de vizinhos dessa classe em $\mathcal{N}_K(\mathbf{x}_0)$:
+        $$\hat{p}_k(\mathbf{x}_0) = \frac{1}{K}\sum_{i \in \mathcal{N}_K(\mathbf{x}_0)} \mathbb{I}(y_i = k),$$
+        onde $\mathbb{I}(\cdot)$ vale $1$ se a condição for verdadeira e $0$ caso contrário, e prevê a classe majoritária $\hat{y}_0 = \arg\max_k \hat{p}_k(\mathbf{x}_0)$.
+        <intuition>
+          Em classificação binária, escolher um $K$ ímpar ($K = 1, 3, 5, \dots$) evita empates na votação. Como o KNN não ajusta pesos $\boldsymbol{\beta}$ antecipadamente — ele apenas guarda os dados de treino — dizemos que é um método <strong>não paramétrico</strong>.
+        </intuition>
+      </definition>
+
+      A escolha de $K$ controla o compromisso entre viés e variância (Tema 8.1):
+      <list marker="dash">
+        <item><strong>$K$ pequeno</strong> (ex.: $K = 1$): fronteira sinuosa que memoriza o ruído do treino (<strong>baixo viés e alta variância</strong>).</item>
+        <item><strong>$K$ grande</strong>: suaviza a fronteira ao promediar vizinhanças amplas, reduzindo a variância e aumentando o <strong>viés</strong> (em $K = n$, prevê sempre a classe majoritária).</item>
+      </list>
+      Ao contrário do grau polinomial $d$ no Tema 8.2, aqui a flexibilidade cresce quando $K$ <em>diminui</em> (varia com $1/K$).
+
+      Dois cuidados são essenciais no KNN. Primeiro, a distância euclidiana depende diretamente das unidades das variáveis: uma grandeza medida em dezenas (como $\text{Hz}$) domina outra medida em frações (como $\text{ms}$), exigindo padronização com os parâmetros do treino. Segundo, quando $p$ cresce muito (centenas de voxels em fMRI), surge a <strong>maldição da dimensionalidade</strong> (<em>curse of dimensionality</em>): o volume do espaço explode, as distâncias entre pontos se igualam e "vizinho próximo" perde sentido sem amostras exponencialmente maiores.
+
+      <example id="exm:8-3-knn-2d">
+        <title>Classificando um ponto novo com K = 1 e K = 3</title>
+        Suponha $7$ neurônios já padronizados segundo duas características morfológicas $(x_1, x_2)$, com rótulos $y = 0$ (interneurônio) e $y = 1$ (célula piramidal):
+        $$A = (1, 2)\;[y=0], \quad B = (2, 0)\;[y=1], \quad C = (3, 3)\;[y=1], \quad D = (0, 2)\;[y=0],$$
+        $$E = (4, 2)\;[y=1], \quad F = (3, 1)\;[y=1], \quad G = (0, 0)\;[y=0].$$
+        Classifique o novo neurônio $\mathbf{x}_0 = (2, 2)$ usando KNN com $K = 1$ e com $K = 3$.
+
+        <strong>Solução.</strong> Calculamos a distância euclidiana $d(\mathbf{x}_0, \mathbf{x}_i) = \sqrt{(2 - x_{i1})^2 + (2 - x_{i2})^2}$ até cada ponto:
+        <list marker="dash">
+          <item>$d(\mathbf{x}_0, A) = \sqrt{(2-1)^2 + (2-2)^2} = \sqrt{1 + 0} = 1$ ($y = 0$);</item>
+          <item>$d(\mathbf{x}_0, C) = \sqrt{(2-3)^2 + (2-3)^2} = \sqrt{1 + 1} = \sqrt{2} \approx 1{,}414$ ($y = 1$);</item>
+          <item>$d(\mathbf{x}_0, F) = \sqrt{(2-3)^2 + (2-1)^2} = \sqrt{1 + 1} = \sqrt{2} \approx 1{,}414$ ($y = 1$);</item>
+          <item>$d(\mathbf{x}_0, B) = \sqrt{(2-2)^2 + (2-0)^2} = \sqrt{0 + 4} = 2$ ($y = 1$);</item>
+          <item>$d(\mathbf{x}_0, D) = \sqrt{(2-0)^2 + (2-2)^2} = \sqrt{4 + 0} = 2$ ($y = 0$);</item>
+          <item>$d(\mathbf{x}_0, E) = \sqrt{(2-4)^2 + (2-2)^2} = \sqrt{4 + 0} = 2$ ($y = 1$);</item>
+          <item>$d(\mathbf{x}_0, G) = \sqrt{(2-0)^2 + (2-0)^2} = \sqrt{4 + 4} = \sqrt{8} \approx 2{,}828$ ($y = 0$).</item>
+        </list>
+        Ordenando as distâncias, temos $1 < \sqrt{2} = \sqrt{2} < 2$:
+        <list marker="dash">
+          <item><strong>Para $K = 1$:</strong> o vizinho mais próximo é $A$ ($d = 1$, $y = 0$). Logo, $\hat{p}_1(\mathbf{x}_0) = 0$ e $\hat{y}_0 = 0$.</item>
+          <item><strong>Para $K = 3$:</strong> os três vizinhos mais próximos são $A$ ($y = 0$), $C$ ($y = 1$) e $F$ ($y = 1$). A maioria pertence à classe $1$ ($2$ votos contra $1$), dando $\hat{p}_1(\mathbf{x}_0) = \frac{2}{3} \approx 0{,}667$ e $\hat{y}_0 = 1$.</item>
+        </list>
+        Veja como $K = 1$ segue um único vizinho isolado, enquanto $K = 3$ consulta a vizinhança ao redor e inverte a decisão.
+      </example>
+
+      <example id="exm:8-3-knn-escala">
+        <title>Por que a padronização salva o KNN</title>
+        Um eletrofisiologista mede a taxa de disparo basal $x_1$ (em $\text{Hz}$) e a meia-largura da espícula $x_2$ (em $\text{ms}$) de dois neurônios de referência:
+        $$P_1 = (40\text{ Hz},\; 0{,}3\text{ ms})\;[y = 0\text{, interneurônio}], \qquad P_2 = (10\text{ Hz},\; 1{,}2\text{ ms})\;[y = 1\text{, piramidal}].$$
+        Deseja-se classificar com $K = 1$ um novo neurônio $Q = (20\text{ Hz},\; 0{,}3\text{ ms})$, que compartilha exatamente a espícula estreita de $P_1$. Compare o resultado sem e com padronização (usando os desvios-padrão populacionais $s_1 = 15\text{ Hz}$ e $s_2 = 0{,}45\text{ ms}$).
+
+        <strong>Solução.</strong>
+        <list marker="dash">
+          <item><strong>Sem padronização (distância bruta):</strong>
+            $$d(Q, P_1) = \sqrt{(20 - 40)^2 + (0{,}3 - 0{,}3)^2} = \sqrt{400 + 0} = 20,$$
+            $$d(Q, P_2) = \sqrt{(20 - 10)^2 + (0{,}3 - 1{,}2)^2} = \sqrt{100 + 0{,}81} = \sqrt{100{,}81} \approx 10{,}04.$$
+            Como $10{,}04 < 20$, o KNN classifica $Q$ como $P_2$ (piramidal), ignorando por completo que a largura do potencial de ação é idêntica à de $P_1$ — a escala em hertz esmagou a escala em milissegundos.
+          </item>
+          <item><strong>Com padronização ($z_j = (x_j - \bar{x}_j)/s_j$):</strong> nas diferenças $z_{Q,j} - z_{P,j} = (x_{Q,j} - x_{P,j})/s_j$, as médias se cancelam e cada coordenada é dividida pelo respectivo desvio-padrão:
+            $$d_{\text{pad}}(Q, P_1) = \sqrt{\left(\frac{20 - 40}{15}\right)^2 + \left(\frac{0{,}3 - 0{,}3}{0{,}45}\right)^2} = \sqrt{\left(-\frac{4}{3}\right)^2 + 0} = \frac{4}{3} \approx 1{,}333,$$
+            $$d_{\text{pad}}(Q, P_2) = \sqrt{\left(\frac{20 - 10}{15}\right)^2 + \left(\frac{0{,}3 - 1{,}2}{0{,}45}\right)^2} = \sqrt{\left(\frac{2}{3}\right)^2 + (-2)^2} = \sqrt{\frac{4}{9} + 4} = \frac{\sqrt{40}}{3} \approx 2{,}108.$$
+            Agora $1{,}333 < 2{,}108$, e $Q$ é classificado corretamente como o interneurônio $P_1$.
+          </item>
+        </list>
+      </example>
+
+      Abaixo, avaliamos as acurácias de treino e de teste de <c>KNeighborsClassifier</c> em duas luas não lineares (<c>make_moons</c>) ao variar $K$.
+
+      <code lang="python" id="cod:8-3-knn">
+from sklearn.datasets import make_moons
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+X, y = make_moons(n_samples=300, noise=0.25, random_state=0)
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.3, stratify=y, random_state=0
+)
+
+for k in [1, 3, 5, 15, 51]:
+    modelo = make_pipeline(
+        StandardScaler(),
+        KNeighborsClassifier(n_neighbors=k),
+    )
+    modelo.fit(X_treino, y_treino)
+    acc_treino = accuracy_score(y_treino, modelo.predict(X_treino))
+    acc_teste = accuracy_score(y_teste, modelo.predict(X_teste))
+    print(f"K={k:>2} | treino={acc_treino:.3f} | teste={acc_teste:.3f}")
+# K= 1 | treino=1.000 | teste=0.922
+# K= 3 | treino=0.981 | teste=0.956
+# K= 5 | treino=0.976 | teste=0.956
+# K=15 | treino=0.948 | teste=0.967
+# K=51 | treino=0.886 | teste=0.856
+      </code>
+
+      Observe o padrão clássico: para $K = 1$, o treino atinge $1{,}000$ (cada ponto é seu próprio vizinho), mas o teste cai para $\approx 0{,}92$; valores intermediários ($K = 3$ a $15$) chegam a $\approx 0{,}96\text{–}0{,}97$ no teste; já $K = 51$ suaviza demais e cai para $\approx 0{,}86$ (subajuste).
+
+      <remark id="rem:8-3-armadilha-knn">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Não padronizar ou padronizar antes de dividir:</strong> escalas diferentes distorcem o KNN, e ajustar média e desvio no conjunto inteiro vaza dados do teste — use sempre <c>StandardScaler</c> dentro de um <c>Pipeline</c>.</item>
+          <item><strong>Avaliar $K = 1$ no treino:</strong> o treino dá $100\%$ por construção e não mede generalização.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-3-2-1">
+        <title>Básico — Votação do KNN para K = 1, 3 e 5</title>
+        Considere os $5$ pontos de treino já padronizados em $\mathbb{R}^2$:
+        $$P_1 = (1, 2)\;[y=0], \quad P_2 = (0, 0)\;[y=1], \quad P_3 = (3, 1)\;[y=0], \quad P_4 = (1, -2)\;[y=1], \quad P_5 = (4, 5)\;[y=1].$$
+        Classifique o ponto novo $\mathbf{x}_0 = (1, 1)$ e calcule $\hat{p}_1(\mathbf{x}_0)$ usando $K = 1$, $K = 3$ e $K = 5$.
+        <hint><title>Ver dica</title>Calcule primeiro as $5$ distâncias euclidianas até $\mathbf{x}_0 = (1, 1)$ e ordene os pontos da menor para a maior distância.</hint>
+        <solution collapsible="true" collapsed="true">
+          As distâncias até $\mathbf{x}_0 = (1, 1)$ são:
+          <list marker="dash">
+            <item>$d(\mathbf{x}_0, P_1) = \sqrt{(1-1)^2 + (1-2)^2} = \sqrt{0 + 1} = 1$ ($y = 0$);</item>
+            <item>$d(\mathbf{x}_0, P_2) = \sqrt{(1-0)^2 + (1-0)^2} = \sqrt{1 + 1} = \sqrt{2} \approx 1{,}414$ ($y = 1$);</item>
+            <item>$d(\mathbf{x}_0, P_3) = \sqrt{(1-3)^2 + (1-1)^2} = \sqrt{4 + 0} = 2$ ($y = 0$);</item>
+            <item>$d(\mathbf{x}_0, P_4) = \sqrt{(1-1)^2 + (1 - (-2))^2} = \sqrt{0 + 9} = 3$ ($y = 1$);</item>
+            <item>$d(\mathbf{x}_0, P_5) = \sqrt{(1-4)^2 + (1-5)^2} = \sqrt{9 + 16} = 5$ ($y = 1$).</item>
+          </list>
+          A ordem crescente é $P_1, P_2, P_3, P_4, P_5$:
+          <list marker="dash">
+            <item><strong>$K = 1$:</strong> $\{P_1\} \implies \hat{p}_1(\mathbf{x}_0) = 0$, previsão $\hat{y}_0 = 0$.</item>
+            <item><strong>$K = 3$:</strong> $\{P_1, P_2, P_3\}$ com rótulos $(0, 1, 0) \implies \hat{p}_1(\mathbf{x}_0) = \frac{1}{3} \approx 0{,}333$, previsão $\hat{y}_0 = 0$.</item>
+            <item><strong>$K = 5$:</strong> todos os cinco pontos com rótulos $(0, 1, 0, 1, 1) \implies \hat{p}_1(\mathbf{x}_0) = \frac{3}{5} = 0{,}6$, previsão $\hat{y}_0 = 1$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-3-2-2">
+        <title>Básico — Mudança de unidades no KNN</title>
+        Dois neurônios de treino são descritos por amplitude do potencial de ação e latência de disparo: $A = (80\text{ mV},\; 2\text{ ms})$ ($y = 0$) e $B = (70\text{ mV},\; 8\text{ ms})$ ($y = 1$). Uma nova célula $C = (78\text{ mV},\; 8\text{ ms})$ será classificada com $K = 1$ sem padronização.
+        <list marker="a">
+          <item>Qual é a previsão usando $\text{mV}$ e $\text{ms}$?</item>
+          <item>Qual passa a ser a previsão se o pesquisador converter apenas a latência para segundos ($\text{s}$, dividindo por $1\,000$), mantendo a amplitude em $\text{mV}$?</item>
+        </list>
+        <hint><title>Ver dica</title>Compare $d(C, A)^2$ e $d(C, B)^2$ antes e depois de converter $2\text{ ms} = 0{,}002\text{ s}$ e $8\text{ ms} = 0{,}008\text{ s}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Em $(\text{mV}, \text{ms})$:
+              $$d(C, A)^2 = (78 - 80)^2 + (8 - 2)^2 = 4 + 36 = 40,$$
+              $$d(C, B)^2 = (78 - 70)^2 + (8 - 8)^2 = 64 + 0 = 64.$$
+              Como $40 < 64$, a célula $C$ é classificada como $A$ ($y = 0$).
+            </item>
+            <item>Em $(\text{mV}, \text{s})$, temos $A = (80,\; 0{,}002)$, $B = (70,\; 0{,}008)$ e $C = (78,\; 0{,}008)$:
+              $$d(C, A)^2 = (78 - 80)^2 + (0{,}008 - 0{,}002)^2 = 4 + 0{,}000036 = 4{,}000036,$$
+              $$d(C, B)^2 = (78 - 70)^2 + 0^2 = 64.$$
+              Neste exemplo numérico, $4{,}000036$ ainda é menor que $64$, logo a previsão se mantém $A$, <em>mas</em> repare que a contribuição da latência caiu de $36$ para $0{,}000036$ (um milhão de vezes menor!): se $C$ tivesse amplitude $74\text{ mV}$, por exemplo, em $(\text{mV}, \text{ms})$ teríamos $d(C, A)^2 = 36 + 36 = 72 > d(C, B)^2 = 16$, prevendo $B$; já em $(\text{mV}, \text{s})$, a latência desapareceria. Padronizar com <c>StandardScaler</c> torna o KNN completamente invariante à escolha de unidades.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-3-2-3">
+        <title>Intermediário — Extremos K = 1 e K = n</title>
+        Considere um conjunto de treino com $n = 100$ ensaios distintos, sendo $70$ da classe $0$ e $30$ da classe $1$.
+        <list marker="a">
+          <item>Qual é a acurácia no conjunto de treino quando $K = 1$? E por que esse valor não reflete o erro de teste?</item>
+          <item>O que o classificador prevê para qualquer novo ponto $\mathbf{x}_0$ quando $K = 100$, e qual seria a acurácia dele no próprio treino?</item>
+        </list>
+        <hint><title>Ver dica</title>Para $K = 1$, qual é a distância de um ponto de treino até ele mesmo? Para $K = n$, quantos vizinhos formam $\mathcal{N}_n(\mathbf{x}_0)$?</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como todos os $100$ pontos são distintos, o vizinho mais próximo de cada ponto de treino $\mathbf{x}_i$ é o próprio $\mathbf{x}_i$ (distância $0$), que tem o rótulo verdadeiro $y_i$. Logo, a acurácia no treino é sempre $1{,}00$ ($100\%$). Isso não reflete o erro de teste porque $K = 1$ tem variância máxima e memoriza até rótulos ruidosos de amostras individuais.</item>
+            <item>Para $K = n = 100$, a vizinhança $\mathcal{N}_{100}(\mathbf{x}_0)$ contém o conjunto de treino inteiro, independentemente de onde $\mathbf{x}_0$ esteja! A votação dá sempre $70$ votos para a classe $0$ e $30$ para a classe $1$, prevendo $\hat{y}_0 = 0$ para todo $\mathbf{x}_0$ (viés máximo, variância mínima). No treino, acerta apenas os $70$ pontos da classe $0$, resultando em acurácia $0{,}70$ ($70\%$).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-3-2-4">
+        <title>Avançado — KNN com e sem padronização no conjunto Wine</title>
+        O conjunto <c>load_wine</c> do <c>scikit-learn</c> classifica $3$ tipos de vinho usando $13$ medições químicas com escalas muito diferentes (por exemplo, prolina na casa das centenas e compostos fenólicos perto de $1$). Faça uma divisão estratificada (<c>test_size=0.3</c>, <c>random_state=0</c>) e compare a acurácia de teste de <c>KNeighborsClassifier(n_neighbors=5)</c> sem padronização e com <c>StandardScaler</c>.
+        <hint><title>Ver dica</title>Ajuste um <c>KNeighborsClassifier(n_neighbors=5)</c> direto nos dados brutos e outro dentro de <c>make_pipeline(StandardScaler(), KNeighborsClassifier(n_neighbors=5))</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+from sklearn.datasets import load_wine
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+X, y = load_wine(return_X_y=True)
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.3, stratify=y, random_state=0
+)
+
+knn_bruto = KNeighborsClassifier(n_neighbors=5)
+knn_bruto.fit(X_treino, y_treino)
+acc_bruto = accuracy_score(y_teste, knn_bruto.predict(X_teste))
+
+knn_pad = make_pipeline(StandardScaler(), KNeighborsClassifier(n_neighbors=5))
+knn_pad.fit(X_treino, y_treino)
+acc_pad = accuracy_score(y_teste, knn_pad.predict(X_teste))
+
+print(f"KNN sem padronização: {acc_bruto:.3f}")
+# KNN sem padronização: 0.722
+print(f"KNN com StandardScaler: {acc_pad:.3f}")
+# KNN com StandardScaler: 0.963
+          </code>
+          A padronização elimina o domínio das variáveis de magnitude numérica alta e eleva drasticamente a acurácia de teste (de cerca de $72\%$ para cerca de $96\%$).
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-3-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Análise discriminante linear (LDA)</title>
+      <intro>
+        Enquanto a regressão logística modela diretamente $\Pr(y = k \mid \mathbf{x})$, o LDA percorre o caminho generativo: descreve como cada classe gera os dados e inverte a pergunta pela regra de Bayes.
+      </intro>
+
+      A regressão logística é <strong>discriminativa</strong>: aprende a fronteira sem modelar como $\mathbf{x}$ se distribui em cada classe. Já a <strong>análise discriminante linear</strong> (<strong>LDA</strong>, de <em>linear discriminant analysis</em>) é <strong>generativa</strong>: modela a distribuição das respostas neurais dado o estímulo, $\Pr(\mathbf{x} \mid y = k)$, e a frequência prévia $\pi_k = \Pr(y = k)$, invertendo pela <strong>regra de Bayes</strong> (Módulo 7) para inferir o estímulo.
+
+      <definition id="def:8-3-bayes-classif">
+        <title>Classificador ótimo de Bayes</title>
+        Se conhecêssemos a distribuição real dos dados, o classificador teórico que minimiza a taxa de erro esperada — chamado <strong>classificador de Bayes</strong> — atribui uma observação $\mathbf{x}$ à classe $k \in \{1, \dots, K\}$ que maximiza a probabilidade a posteriori:
+        <equation id="eq:8-3-bayes">
+          \Pr(y = k \mid \mathbf{x}) = \frac{\pi_k f_k(\mathbf{x})}{\sum_{m=1}^K \pi_m f_m(\mathbf{x})},
+        </equation>
+        onde $\pi_k = \Pr(y = k)$ é a probabilidade a priori da classe $k$ ($\sum_{k=1}^K \pi_k = 1$) e $f_k(\mathbf{x})$ é a densidade de probabilidade de $\mathbf{x}$ na classe $k$.
+      </definition>
+
+      Na falta das distribuições reais, o LDA assume que, em cada classe $k$, $\mathbf{x} \in \mathbb{R}^p$ segue uma normal multivariada com média $\boldsymbol{\mu}_k \in \mathbb{R}^p$ e <strong>matriz de covariância comum</strong> $\boldsymbol{\Sigma} \in \mathbb{R}^{p \times p}$:
+      $$f_k(\mathbf{x}) = \frac{1}{(2\pi)^{p/2}|\boldsymbol{\Sigma}|^{1/2}} \exp\!\left(-\frac{1}{2}(\mathbf{x} - \boldsymbol{\mu}_k)^\top \boldsymbol{\Sigma}^{-1}(\mathbf{x} - \boldsymbol{\mu}_k)\right).$$
+      O caso 1D revela por que essa covariância comum gera uma fronteira linear.
+
+      <proposition id="prop:8-3-lda-1d">
+        <title>Fronteira do LDA em uma dimensão com duas classes</title>
+        Considere $p = 1$ e $K = 2$ classes normais com médias $\mu_1 \ne \mu_2$, variância comum $\sigma^2 > 0$ e prioris $\pi_1, \pi_2 > 0$. A fronteira de decisão onde $\Pr(y = 1 \mid x) = \Pr(y = 2 \mid x)$ ocorre exatamente no ponto:
+        <equation id="eq:8-3-lda-1d">
+          x^* = \frac{\mu_1 + \mu_2}{2} + \frac{\sigma^2}{\mu_2 - \mu_1}\ln\!\left(\frac{\pi_1}{\pi_2}\right).
+        </equation>
+        Em particular, quando as duas classes são igualmente prováveis a priori ($\pi_1 = \pi_2 = 0{,}5$), temos $\ln(1) = 0$ e a fronteira reduz-se ao ponto médio $x^* = \dfrac{\mu_1 + \mu_2}{2}$.
+        <intuition>
+          Se os dois grupos têm a mesma dispersão $\sigma^2$ e a mesma frequência prévia, o ponto de corte justo fica exatamente na metade do caminho entre $\mu_1$ e $\mu_2$. Se uma classe for mais frequente a priori (por exemplo, $\pi_1 > \pi_2$), o limiar se desloca na direção da média menos frequente, ampliando a região da classe mais comum.
+        </intuition>
+      </proposition>
+      <proof of="prop:8-3-lda-1d" collapsible="true" collapsed="true">
+        Na igualdade $\Pr(y = 1 \mid x) = \Pr(y = 2 \mid x)$, o denominador da regra de Bayes é idêntico nos dois lados e pode ser cancelado, restando $\pi_1 f_1(x) = \pi_2 f_2(x)$. Substituindo a densidade normal unidimensional $f_k(x) = \frac{1}{\sqrt{2\pi}\sigma}\exp\!\left(-\frac{(x-\mu_k)^2}{2\sigma^2}\right)$ e aplicando $\ln$ aos dois lados:
+        $$\ln \pi_1 - \frac{(x - \mu_1)^2}{2\sigma^2} = \ln \pi_2 - \frac{(x - \mu_2)^2}{2\sigma^2}.$$
+        Expandindo $(x - \mu_k)^2 = x^2 - 2\mu_k x + \mu_k^2$, o termo quadrático $-\frac{x^2}{2\sigma^2}$ aparece com o mesmo sinal nos dois membros e se cancela! Sobra uma equação de 1º grau em $x$:
+        $$\frac{\mu_1 x}{\sigma^2} - \frac{\mu_1^2}{2\sigma^2} + \ln \pi_1 = \frac{\mu_2 x}{\sigma^2} - \frac{\mu_2^2}{2\sigma^2} + \ln \pi_2.$$
+        Isolando $x$ de um lado:
+        $$\frac{(\mu_2 - \mu_1)x}{\sigma^2} = \frac{\mu_2^2 - \mu_1^2}{2\sigma^2} + \ln\!\left(\frac{\pi_1}{\pi_2}\right).$$
+        Dividindo ambos os lados por $(\mu_2 - \mu_1)/\sigma^2$ e lembrando que $\mu_2^2 - \mu_1^2 = (\mu_2 - \mu_1)(\mu_2 + \mu_1)$, obtemos:
+        $$x^* = \frac{\mu_1 + \mu_2}{2} + \frac{\sigma^2}{\mu_2 - \mu_1}\ln\!\left(\frac{\pi_1}{\pi_2}\right).$$
+      </proof>
+
+      O mesmo cancelamento de $-\frac{1}{2}\mathbf{x}^\top\boldsymbol{\Sigma}^{-1}\mathbf{x}$ vale para qualquer $p$ e $K$, porque $\boldsymbol{\Sigma}$ é compartilhada. Eliminando os termos comuns a todas as classes, maximizar $\Pr(y = k \mid \mathbf{x})$ equivale a maximizar uma função afim de $\mathbf{x}$.
+
+      <definition id="def:8-3-funcao-discriminante">
+        <title>Função discriminante linear do LDA</title>
+        Para $K$ classes com médias $\boldsymbol{\mu}_k \in \mathbb{R}^p$, matriz de covariância comum $\boldsymbol{\Sigma} \in \mathbb{R}^{p \times p}$ e prioris $\pi_k$, o LDA classifica $\mathbf{x}$ na classe $k$ que maximiza a <strong>função discriminante linear</strong>:
+        <equation id="eq:8-3-delta-lda">
+          \delta_k(\mathbf{x}) = \mathbf{x}^\top \boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}_k - \frac{1}{2}\boldsymbol{\mu}_k^\top \boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}_k + \ln \pi_k.
+        </equation>
+        Como $\delta_k(\mathbf{x})$ é linear em $\mathbf{x}$, a fronteira entre quaisquer duas classes $k$ e $m$ (dada por $\delta_k(\mathbf{x}) = \delta_m(\mathbf{x})$) é sempre um hiperplano em $\mathbb{R}^p$. Na prática, estimamos $\hat{\pi}_k = n_k/n$, as médias amostrais $\hat{\boldsymbol{\mu}}_k$ e a covariância conjunta amostral $\hat{\boldsymbol{\Sigma}}$ a partir dos dados de treino.
+      </definition>
+
+      Se cada classe tiver covariância própria $\boldsymbol{\Sigma}_k$, o termo quadrático $-\frac{1}{2}\mathbf{x}^\top\boldsymbol{\Sigma}_k^{-1}\mathbf{x}$ não se cancela, dando a <strong>análise discriminante quadrática</strong> (<strong>QDA</strong>, de <em>quadratic discriminant analysis</em>), com fronteiras curvas e mais parâmetros ($p(p+1)/2$ por classe).
+
+      Como escolher entre <strong>LDA</strong> e <strong>regressão logística</strong>? Quando as classes são aproximadamente normais com covariância parecida — sobretudo com $n$ pequeno ou $K \ge 3$ — o LDA tem menor variância e ainda gera até $K - 1$ eixos discriminantes para visualização. Quando as variáveis fogem da normalidade (preditoras binárias, assimétricas ou com <em>outliers</em>), a regressão logística tende a ser mais robusta.
+
+      <example id="exm:8-3-lda-1d-prioris">
+        <title>Deslocamento do limiar neural com prioris diferentes</title>
+        Um neurônio do córtex auditivo responde a dois sons, "tom A" ($y = 1$) e "tom B" ($y = 2$), com taxas de disparo aproximadamente normais de médias $\mu_1 = 20\text{ Hz}$ e $\mu_2 = 40\text{ Hz}$ e desvio-padrão comum $\sigma = 5\text{ Hz}$ ($\sigma^2 = 25\text{ Hz}^2$).
+        <list marker="a">
+          <item>Qual é o limiar ótimo de decisão quando os dois tons ocorrem com igual frequência ($\pi_1 = \pi_2 = 0{,}5$)?</item>
+          <item>Em um bloco enviesado em que o tom A aparece em $80\%$ dos ensaios ($\pi_1 = 0{,}8$) e o tom B em $20\%$ ($\pi_2 = 0{,}2$), para onde se desloca a fronteira?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Com $\pi_1 = \pi_2$, a fronteira pela <ref to="prop:8-3-lda-1d"/> é o ponto médio:
+            $$x^* = \frac{20 + 40}{2} = 30\text{ Hz}.$$
+          </item>
+          <item>Com $\pi_1 = 0{,}8$ e $\pi_2 = 0{,}2$, usando $\ln 4 \approx 1{,}386$:
+            $$x^* = \frac{20 + 40}{2} + \frac{25}{40 - 20}\ln\!\left(\frac{0{,}8}{0{,}2}\right) = 30 + \frac{25}{20}\ln 4 \approx 30 + 1{,}25 \cdot 1{,}386 = 31{,}733\text{ Hz}.$$
+            Como o tom A ($\mu_1 = 20\text{ Hz}$) é quatro vezes mais provável a priori, o decodificador ótimo desloca o corte em $+1{,}733\text{ Hz}$ na direção do tom B, aceitando classificar taxas entre $30$ e $31{,}733\text{ Hz}$ como tom A.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:8-3-lda-2d-delta">
+        <title>Calculando funções discriminantes em 2D</title>
+        Considere $K = 2$ classes em $\mathbb{R}^2$ com prioris iguais ($\pi_1 = \pi_2 = 0{,}5$), médias $\boldsymbol{\mu}_1 = (0, 0)^\top$ e $\boldsymbol{\mu}_2 = (4, 2)^\top$, e matriz de covariância comum $\boldsymbol{\Sigma} = \begin{pmatrix} 4 & 0 \\ 0 & 1 \end{pmatrix}$. Use $\delta_k(\mathbf{x})$ para classificar o vetor $\mathbf{x} = (2, 1{,}5)^\top$ e escreva a equação da fronteira de decisão.
+
+        <strong>Solução.</strong> A inversa da matriz diagonal é $\boldsymbol{\Sigma}^{-1} = \begin{pmatrix} 1/4 & 0 \\ 0 & 1 \end{pmatrix}$. Como $\ln \pi_1 = \ln \pi_2 = \ln(0{,}5)$ é igual nas duas classes, basta comparar $\tilde{\delta}_k(\mathbf{x}) = \mathbf{x}^\top\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}_k - \frac{1}{2}\boldsymbol{\mu}_k^\top\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}_k$:
+        <list marker="dash">
+          <item><strong>Classe 1:</strong> como $\boldsymbol{\mu}_1 = (0, 0)^\top$, temos $\tilde{\delta}_1(\mathbf{x}) = 0$ para todo $\mathbf{x}$.</item>
+          <item><strong>Classe 2:</strong> primeiro calculamos $\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}_2 = \begin{pmatrix} 1/4 & 0 \\ 0 & 1 \end{pmatrix}\begin{pmatrix} 4 \\ 2 \end{pmatrix} = \begin{pmatrix} 1 \\ 2 \end{pmatrix}$. Logo, para um vetor genérico $\mathbf{x} = (x_1, x_2)^\top$:
+            $$\tilde{\delta}_2(\mathbf{x}) = (x_1, x_2)\begin{pmatrix} 1 \\ 2 \end{pmatrix} - \frac{1}{2}(4, 2)\begin{pmatrix} 1 \\ 2 \end{pmatrix} = x_1 + 2x_2 - \frac{1}{2}(4 + 4) = x_1 + 2x_2 - 4.$$
+          </item>
+        </list>
+        Para $\mathbf{x} = (2, 1{,}5)^\top$, obtemos $\tilde{\delta}_2(\mathbf{x}) = 2 + 2(1{,}5) - 4 = 1 > 0 = \tilde{\delta}_1(\mathbf{x})$, portanto a amostra é atribuída à <strong>classe 2</strong>. Igualando $\tilde{\delta}_1(\mathbf{x}) = \tilde{\delta}_2(\mathbf{x})$, a fronteira de decisão é a reta $x_1 + 2x_2 - 4 = 0$.
+      </example>
+
+      Abaixo, aplicamos <c>LinearDiscriminantAnalysis</c> ao conjunto <c>load_iris</c> ($K = 3$ espécies, $p = 4$ medidas), avaliando a acurácia de teste e a projeção para $K - 1 = 2$ eixos discriminantes.
+
+      <code lang="python" id="cod:8-3-lda">
+from sklearn.datasets import load_iris
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+
+X, y = load_iris(return_X_y=True)
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.3, stratify=y, random_state=0
+)
+
+lda = LinearDiscriminantAnalysis()
+lda.fit(X_treino, y_treino)
+
+y_pred = lda.predict(X_teste)
+X_teste_proj = lda.transform(X_teste)
+
+acuracia = accuracy_score(y_teste, y_pred)
+print(f"Acurácia de teste (LDA): {acuracia:.3f}")
+# Acurácia de teste (LDA): 1.000
+print(f"Dimensão original: {X_teste.shape[1]} -> Eixos LDA: {X_teste_proj.shape[1]}")
+# Dimensão original: 4 -> Eixos LDA: 2
+      </code>
+
+      A <ref to="fig:8-3-fronteiras"/> compara visualmente as fronteiras de decisão dos três classificadores no problema bidimensional <c>make_moons</c>.
+
+      <figure src="fig/t03-fronteiras.svg" alt="Quatro painéis comparando fronteiras de decisão em dados sintéticos em duas luas: regressão logística e LDA traçam retas; KNN com K igual a 1 cria ilhas irregulares; KNN com K igual a 15 acompanha suavemente a curvatura dos dados." id="fig:8-3-fronteiras">
+        <caption>Fronteiras de decisão em um problema bidimensional não linear (<em>make_moons</em>, $n = 220$). Regressão logística e LDA produzem fronteiras lineares; o KNN com $K = 1$ memoriza o ruído local (alta variância), enquanto $K = 15$ acompanha a curvatura global com suavidade.</caption>
+      </figure>
+
+      <remark id="rem:8-3-armadilha-lda">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Ignorar variâncias muito desiguais:</strong> quando uma classe é bem mais dispersa que outra, $\boldsymbol{\Sigma}$ comum distorce a fronteira; teste QDA ou métodos não lineares.</item>
+          <item><strong>Mais variáveis do que amostras ($p \ge n$):</strong> com muitos voxels e poucos ensaios, $\hat{\boldsymbol{\Sigma}}$ torna-se singular (não invertível), exigindo regularização (<em>shrinkage</em>; Tema 8.6).</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-3-3-1">
+        <title>Básico — Fronteira 1D do LDA em potenciais pós-sinápticos</title>
+        Registram-se potenciais pós-sinápticos excitatórios (EPSPs) em dois estados: repouso ($y = 1$, $\mu_1 = 2{,}0\text{ mV}$) e estímulo ($y = 2$, $\mu_2 = 6{,}0\text{ mV}$), com desvio-padrão comum $\sigma = 2{,}0\text{ mV}$ ($\sigma^2 = 4{,}0\text{ mV}^2$).
+        <list marker="a">
+          <item>Qual é o limiar de decisão $x^*$ se $\pi_1 = \pi_2 = 0{,}5$?</item>
+          <item>Qual é o novo limiar $x^*$ se o estado de repouso ocorrer em $90\%$ das janelas ($\pi_1 = 0{,}9$, $\pi_2 = 0{,}1$)? (Use $\ln 9 \approx 2{,}197$.)</item>
+        </list>
+        <hint><title>Ver dica</title>Aplique diretamente a fórmula da <ref to="prop:8-3-lda-1d"/> substituindo $\sigma^2 = 4{,}0$ e $\mu_2 - \mu_1 = 4{,}0$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Com prioris iguais, $\ln(\pi_1/\pi_2) = 0$, logo:
+              $$x^* = \frac{2{,}0 + 6{,}0}{2} = 4{,}0\text{ mV}.$$
+            </item>
+            <item>Com $\pi_1 = 0{,}9$ e $\pi_2 = 0{,}1$, temos $\pi_1/\pi_2 = 9$:
+              $$x^* = 4{,}0 + \frac{4{,}0}{6{,}0 - 2{,}0}\ln 9 = 4{,}0 + 1{,}0 \cdot 2{,}197 = 6{,}197\text{ mV}.$$
+              Observe que, como o repouso é $9$ vezes mais frequente a priori, o limiar se desloca tanto para a direita que ultrapassa até a média $\mu_2 = 6{,}0\text{ mV}$!
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-3-3-2">
+        <title>Básico — LDA com covariância identidade e centróides</title>
+        Considere $K = 2$ classes em $\mathbb{R}^2$ com prioris iguais ($\pi_1 = \pi_2 = 0{,}5$), médias $\boldsymbol{\mu}_1 = (1, 1)^\top$ e $\boldsymbol{\mu}_2 = (5, 3)^\top$, e matriz de covariância comum igual à identidade ($\boldsymbol{\Sigma} = \mathbf{I}_2$).
+        <list marker="a">
+          <item>Simplifique $\tilde{\delta}_1(\mathbf{x})$ e $\tilde{\delta}_2(\mathbf{x})$ e escreva a equação da fronteira de decisão.</item>
+          <item>Classifique o ponto $\mathbf{x} = (4, 1)^\top$ usando as funções discriminantes e confira comparando a distância euclidiana de $\mathbf{x}$ até $\boldsymbol{\mu}_1$ e $\boldsymbol{\mu}_2$.</item>
+        </list>
+        <hint><title>Ver dica</title>Quando $\boldsymbol{\Sigma} = \mathbf{I}_2$, $\boldsymbol{\Sigma}^{-1} = \mathbf{I}_2$, então $\tilde{\delta}_k(\mathbf{x}) = \mathbf{x}^\top\boldsymbol{\mu}_k - \frac{1}{2}\|\boldsymbol{\mu}_k\|_2^2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Para $\boldsymbol{\Sigma}^{-1} = \mathbf{I}_2$:
+              $$\tilde{\delta}_1(\mathbf{x}) = x_1 + x_2 - \frac{1}{2}(1^2 + 1^2) = x_1 + x_2 - 1,$$
+              $$\tilde{\delta}_2(\mathbf{x}) = 5x_1 + 3x_2 - \frac{1}{2}(5^2 + 3^2) = 5x_1 + 3x_2 - 17.$$
+              Igualando $\tilde{\delta}_1(\mathbf{x}) = \tilde{\delta}_2(\mathbf{x})$:
+              $$x_1 + x_2 - 1 = 5x_1 + 3x_2 - 17 \implies 4x_1 + 2x_2 = 16 \implies 2x_1 + x_2 = 8.$$
+              Essa reta passa pelo ponto médio $(3, 2)$ e é perpendicular ao vetor $\boldsymbol{\mu}_2 - \boldsymbol{\mu}_1 = (4, 2)^\top$: é exatamente a mediatriz entre as duas médias.
+            </item>
+            <item>Avaliando em $\mathbf{x} = (4, 1)^\top$:
+              $$\tilde{\delta}_1(4, 1) = 4 + 1 - 1 = 4, \qquad \tilde{\delta}_2(4, 1) = 5(4) + 3(1) - 17 = 23 - 17 = 6.$$
+              Como $\tilde{\delta}_2 > \tilde{\delta}_1$, classificamos na <strong>classe 2</strong>. Conferência pelas distâncias quadráticas: $\|(4,1) - (1,1)\|_2^2 = 3^2 + 0^2 = 9$ e $\|(4,1) - (5,3)\|_2^2 = (-1)^2 + (-2)^2 = 5 < 9$, confirmando que $\boldsymbol{\mu}_2$ é o centróide mais próximo.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-3-3-3">
+        <title>Intermediário — Escolhendo entre LDA, QDA e regressão logística</title>
+        Em um experimento de EEG, queremos distinguir dois estados cognitivos usando duas variáveis: (i) a potência transformada na banda alfa, aproximadamente normal em cada classe, porém com variância $3$ vezes maior no estado de repouso do que no estado de atenção; e (ii) uma variável indicadora binária ($0$ ou $1$) dizendo se houve piscada de olho no ensaio. Compare a adequação das hipóteses de LDA, QDA e regressão logística nesse problema.
+        <hint><title>Ver dica</title>Pergunte-se quais premissas cada modelo exige sobre $\Pr(\mathbf{x} \mid y)$: normalidade, covariância comum e aceitação de variáveis binárias.</hint>
+        <solution collapsible="true" collapsed="true">
+          Tanto o LDA quanto o QDA assumem que o vetor $\mathbf{x}$ inteiro segue uma distribuição normal multivariada dentro de cada classe — hipótese violada pela variável binária de piscada (que só assume os valores $0$ e $1$). Além disso, a variância $3$ vezes maior na banda alfa quebra a hipótese de covariância comum do LDA. O QDA consegue acomodar covariâncias diferentes entre classes se as variáveis forem contínuas e aproximadamente normais, mas continua sofrendo com a variável binária e estima mais parâmetros. Já a <strong>regressão logística</strong> não assume nenhuma distribuição normal para $\mathbf{x} \mid y$, aceita variáveis contínuas e binárias juntas sem contradição e costuma ser mais robusta nesse cenário (eventualmente incluindo termos quadráticos ou de interação, como no Tema 8.2, se a fronteira precisar curvar).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-3-3-4">
+        <title>Avançado — LDA versus QDA com covariâncias diferentes em Python</title>
+        Gere duas classes sintéticas em $\mathbb{R}^2$ ($200$ amostras por classe, <c>rng = np.random.default_rng(0)</c>) usando <c>rng.multivariate_normal</c>: classe $0$ centrada em $(0, 0)$ com covariância $\begin{pmatrix} 4 & 0 \\ 0 & 0{,}3 \end{pmatrix}$ e classe $1$ centrada em $(0, 1{,}5)$ com covariância $\begin{pmatrix} 0{,}3 & 0 \\ 0 & 4 \end{pmatrix}$. Separe em treino e teste (<c>test_size=0.3</c>, <c>stratify=y</c>, <c>random_state=0</c>) e compare as acurácias de teste de <c>LinearDiscriminantAnalysis</c> e <c>QuadraticDiscriminantAnalysis</c>.
+        <hint><title>Ver dica</title>Importe <c>QuadraticDiscriminantAnalysis</c> de <c>sklearn.discriminant_analysis</c>. Como as duas nuvens formam uma cruz em torno da origem, uma fronteira reta consegue separá-las?</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.discriminant_analysis import (
+    LinearDiscriminantAnalysis,
+    QuadraticDiscriminantAnalysis,
+)
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+
+rng = np.random.default_rng(0)
+n_por_classe = 200
+X0 = rng.multivariate_normal([0.0, 0.0], [[4.0, 0.0], [0.0, 0.3]], size=n_por_classe)
+X1 = rng.multivariate_normal([0.0, 1.5], [[0.3, 0.0], [0.0, 4.0]], size=n_por_classe)
+
+X = np.vstack([X0, X1])
+y = np.array([0] * n_por_classe + [1] * n_por_classe)
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    X, y, test_size=0.3, stratify=y, random_state=0
+)
+
+for nome, clf in [
+    ("LDA", LinearDiscriminantAnalysis()),
+    ("QDA", QuadraticDiscriminantAnalysis()),
+]:
+    clf.fit(X_treino, y_treino)
+    acc = accuracy_score(y_teste, clf.predict(X_teste))
+    print(f"{nome} — acurácia de teste: {acc:.3f}")
+# LDA — acurácia de teste: 0.750
+# QDA — acurácia de teste: 0.817
+          </code>
+          Como as duas nuvens têm eixos principais perpendiculares (uma alongada na horizontal e a outra na vertical), nenhuma reta separa bem os extremos horizontais da classe $0$ dos extremos verticais da classe $1$; o QDA modela as duas covariâncias separadamente e supera o LDA (cerca de $82\%$ contra $75\%$).
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-3-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Decodificação neural (MVPA)</title>
+      <intro>
+        Decodificar um estímulo é ler a informação distribuída na população neural — sabendo medir o desempenho contra o acaso e evitando ilusões estatísticas e conceituais.
+      </intro>
+
+      Enquanto análises clássicas testavam um voxel ou neurônio por vez, <strong>Haxby et al. (2001)</strong> mostraram, com fMRI do córtex temporal ventral humano, que padrões distribuídos em muitos voxels decodificam categorias visuais (faces, casas, cadeiras, sapatos) mesmo fora dos picos seletivos. Nascia a <strong>análise de padrões multivariados</strong> (<strong>MVPA</strong>, de <em>multivariate pattern analysis</em>): treinar classificadores sobre todo o vetor populacional $\mathbf{x}_i \in \mathbb{R}^p$.
+
+      <definition id="def:8-3-decodificacao-acaso">
+        <title>Decodificador neural e nível de acaso</title>
+        Em um experimento com $n$ ensaios e $p$ canais de registro (neurônios, eletrodos ou voxels), cada ensaio $i$ gera um vetor populacional $\mathbf{x}_i \in \mathbb{R}^p$ associado a um estímulo discreto $y_i \in \{1, \dots, K\}$. Um <strong>decodificador neural</strong> é um classificador $\hat{f}: \mathbb{R}^p \to \{1, \dots, K\}$ treinado para prever $y_i$ a partir de $\mathbf{x}_i$.
+
+        Quando as $K$ categorias têm a mesma proporção no conjunto de teste (classes balanceadas), um classificador que chuta às cegas acerta, em média, o chamado <strong>nível de acaso</strong> (<em>chance level</em>):
+        <equation id="eq:8-3-acaso">
+          \text{acurácia ao acaso} = \frac{1}{K}.
+        </equation>
+        Para $K = 2$ estímulos, o acaso é $50\%$; para $K = 4$ orientações, é $25\%$; para $K = 8$ categorias, é $12{,}5\%$.
+      </definition>
+
+      Como em MVPA geralmente há poucos ensaios $n$ e muitos canais $p$, use divisão estratificada (<c>train_test_split(..., stratify=y)</c>) ou validação cruzada (<c>cross_val_score</c>, Tema 8.5).
+
+      Mesmo quando a acurácia supera $1/K$, a interpretação científica exige três cuidados:
+      <list marker="number">
+        <item><strong>Informação não implica causalidade:</strong> acertar $42\%$ com $K = 4$ orientações (acaso $= 25\%$) mostra correlação no padrão medido, não que o cérebro use essa fronteira ou dependa causalmente da área.</item>
+        <item><strong>Confundidores e análise circular:</strong> movimentos oculares, luminosidade ou tempo de reação podem vazar o estímulo; selecionar canais ou padronizar usando o conjunto de teste configura <em>double dipping</em> (<strong>Kriegeskorte et al., 2009</strong>) e infla a acurácia.</item>
+        <item><strong>Pesos lineares não são mapas de ativação:</strong> como mostraram <strong>Haufe et al. (2014)</strong>, um neurônio sem resposta ao estímulo pode receber $|\hat{\beta}_j|$ grande só por cancelar ruído correlacionado de outro canal.</item>
+      </list>
+
+      <example id="exm:8-3-mvpa-centroide">
+        <title>Decodificação de padrão populacional pelo centróide mais próximo</title>
+        Registramos $p = 2$ neurônios durante a apresentação de barras horizontais ($y = 1$), oblíquas ($y = 2$) e verticais ($y = 3$). No conjunto de treino, os padrões médios (centróides, em $\text{Hz}$) são:
+        $$\hat{\boldsymbol{\mu}}_1 = (40, 10)^\top, \qquad \hat{\boldsymbol{\mu}}_2 = (25, 25)^\top, \qquad \hat{\boldsymbol{\mu}}_3 = (10, 40)^\top.$$
+        Em um novo ensaio de teste, observamos o vetor $\mathbf{x}_{\text{novo}} = (18, 34)^\top\text{ Hz}$. Decodifique o estímulo pelo centróide mais próximo (equivalente ao LDA isotrópico com prioris iguais) e explique por que uma análise univariada baseada na soma das duas taxas falharia.
+
+        <strong>Solução.</strong> Calculamos a distância euclidiana ao quadrado de $\mathbf{x}_{\text{novo}} = (18, 34)^\top$ até cada centróide:
+        <list marker="dash">
+          <item><strong>Estímulo 1 (horizontal):</strong> $d^2 = (18 - 40)^2 + (34 - 10)^2 = (-22)^2 + 24^2 = 484 + 576 = 1\,060 \implies d \approx 32{,}56\text{ Hz}$.</item>
+          <item><strong>Estímulo 2 (oblíqua):</strong> $d^2 = (18 - 25)^2 + (34 - 25)^2 = (-7)^2 + 9^2 = 49 + 81 = 130 \implies d \approx 11{,}40\text{ Hz}$.</item>
+          <item><strong>Estímulo 3 (vertical):</strong> $d^2 = (18 - 10)^2 + (34 - 40)^2 = 8^2 + (-6)^2 = 64 + 36 = 100 \implies d = 10{,}00\text{ Hz}$.</item>
+        </list>
+        A menor distância é até $\hat{\boldsymbol{\mu}}_3$ ($10{,}00\text{ Hz}$), logo o decodificador prevê o <strong>estímulo 3 (barra vertical)</strong>. Note o poder do padrão multivariado: a soma total de disparos nos três centróides é idêntica ($40+10 = 25+25 = 10+40 = 50\text{ Hz}$, e $18 + 34 = 52\text{ Hz}$ no ensaio novo). Se somássemos os dois neurônios em uma única média global, os três estímulos seriam indistinguíveis!
+      </example>
+
+      <example id="exm:8-3-nivel-acaso">
+        <title>Interpretando a acurácia contra o nível de acaso</title>
+        Compare dois resultados fictícios de decodificação:
+        <list marker="dash">
+          <item><strong>Experimento A:</strong> decodificação de $K = 4$ orientações balanceadas ($0^\circ, 45^\circ, 90^\circ, 135^\circ$) com $42\%$ de acurácia de teste.</item>
+          <item><strong>Experimento B:</strong> decodificação de $K = 2$ estados ("estímulo presente" vs "ausente") em que $85\%$ dos ensaios tinham estímulo presente, obtendo $85\%$ de acurácia de teste.</item>
+        </list>
+
+        <strong>Solução.</strong> No Experimento A, o nível de acaso para $K = 4$ classes balanceadas é $\frac{1}{4} = 25\%$; portanto, $42\%$ representa um ganho claro de $+17$ pontos percentuais acima do acaso ($1{,}68$ vezes o acaso). Já no Experimento B, embora $85\%$ pareça alto à primeira vista, um classificador bobo que responda sempre "estímulo presente" sem sequer olhar para os neurônios já acerta $85\%$! Quando as classes são desbalanceadas, a acurácia simples engana — por isso, no Tema 8.4 (Métricas estatísticas), aprenderemos métricas adequadas como acurácia balanceada, precisão, <em>recall</em> e curva ROC.
+      </example>
+
+      Vamos agora simular uma população realista de $p = 40$ neurônios do córtex visual primário com curvas de sintonia gaussianas para orientação e contagens de disparo de Poisson (Dayan &amp; Abbott), em janelas de $T = 0{,}1\text{ s}$ e taxas entre $5\text{ Hz}$ e $50\text{ Hz}$, comparando os três classificadores na decodificação de $K = 4$ orientações próximas ($0^\circ, 10^\circ, 20^\circ$ e $30^\circ$).
+
+      <code lang="python" id="cod:8-3-mvpa">
+import numpy as np
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(0)
+
+# Parâmetros da população simulada: 40 neurônios, 4 orientações (60 ensaios cada)
+n_neuronios = 40
+orientacoes = np.array([0, 10, 20, 30])
+n_por_classe = 60
+janela_s = 0.1
+
+# Curvas de sintonia gaussianas circulares (período 180 graus): taxa entre 5 e 50 Hz
+pref = np.linspace(0, 180, n_neuronios, endpoint=False)
+r_basal = 5.0
+amplitude = 45.0
+largura = 25.0
+
+y = np.repeat(np.arange(len(orientacoes)), n_por_classe)
+thetas = orientacoes[y][:, None]  # forma (240, 1)
+diff = np.abs(thetas - pref[None, :])
+# A orientação é periódica em 180° (uma barra a 0° é igual a 180°), daí np.minimum(diff, 180.0 - diff)
+diff_circ = np.minimum(diff, 180.0 - diff)
+taxas_esperadas = r_basal + amplitude * np.exp(-0.5 * (diff_circ / largura) ** 2)
+
+# Contagens de Poisson na janela de 0.1 s convertidas para taxa observada (Hz)
+contagens = rng.poisson(taxas_esperadas * janela_s)
+taxas = contagens / janela_s
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(
+    taxas, y, test_size=0.25, stratify=y, random_state=0
+)
+
+decodificadores = [
+    (
+        "Regressão logística",
+        make_pipeline(StandardScaler(), LogisticRegression(C=1.0, max_iter=1000, random_state=0)),
+    ),
+    (
+        "KNN (K=7)",
+        make_pipeline(StandardScaler(), KNeighborsClassifier(n_neighbors=7)),
+    ),
+    ("LDA", LinearDiscriminantAnalysis()),
+]
+
+print(f"Nível de acaso (K=4): {1 / len(orientacoes):.3f}")
+# Nível de acaso (K=4): 0.250
+for nome, clf in decodificadores:
+    clf.fit(X_treino, y_treino)
+    acc = accuracy_score(y_teste, clf.predict(X_teste))
+    print(f"{nome:20s}: {acc:.3f}")
+# Regressão logística : 0.817
+# KNN (K=7)           : 0.667
+# LDA                 : 0.817
+      </code>
+
+      Discriminar diferenças finas de $10^\circ$ com apenas $100\text{ ms}$ de disparos é difícil: regressão logística e LDA chegam a $\approx 82\%$ e o KNN a $\approx 67\%$, todos bem acima do acaso de $25\%$. Os métodos lineares aproveitam melhor a estrutura da população com $40$ dimensões e poucos ensaios, enquanto o KNN sofre com a dimensionalidade e o ruído de Poisson.
+
+      <remark id="rem:8-3-armadilha-mvpa">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Esquecer o nível de acaso:</strong> em $K = 4$ ou $8$ classes balanceadas, $40\%$ ou $25\%$ superam bem o acaso ($25\%$ e $12{,}5\%$); já $85\%$ em classes desbalanceadas pode igualar o chute na classe majoritária.</item>
+          <item><strong>Vazamento de dados (<em>data leakage</em>):</strong> padronizar ou selecionar canais antes de dividir treino e teste contamina a avaliação.</item>
+          <item><strong>Superinterpretação causal:</strong> decodificar acima do acaso prova presença de informação, não mecanismo causal.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:8-3-4-1">
+        <title>Básico — Nível de acaso e interpretação crítica</title>
+        <list marker="a">
+          <item>Qual é a acurácia esperada ao acaso em experimentos balanceados com $K = 2$, $K = 4$ e $K = 8$ categorias visuais?</item>
+          <item>Em um experimento balanceado de decodificação de $K = 5$ sons, um aluno obtém $38\%$ de acurácia no conjunto de teste e conclui que "o classificador falhou porque acertou menos de $50\%$". Essa conclusão faz sentido? Por quê?</item>
+          <item>Se um decodificador atinge $70\%$ em $K = 2$ estímulos balanceados em registros de uma área frontal, isso prova que essa área causa a percepção consciente daquele estímulo?</item>
+        </list>
+        <hint><title>Ver dica</title>Use $\text{acaso} = 1/K$ e distinga correlação estatística de causalidade biológica.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Os níveis de acaso são $\frac{1}{2} = 0{,}50$ ($50\%$), $\frac{1}{4} = 0{,}25$ ($25\%$) e $\frac{1}{8} = 0{,}125$ ($12{,}5\%$).</item>
+            <item>Não faz sentido. Para $K = 5$ classes balanceadas, o nível de acaso é $\frac{1}{5} = 0{,}20$ ($20\%$), e não $50\%$. Uma acurácia de $38\%$ no teste está $18$ pontos percentuais acima do acaso, indicando presença de informação sobre os sons (embora ainda caiba verificar significância estatística e possíveis confundidores).</item>
+            <item>Não. Acurácia acima do acaso mostra apenas que há informação estatística associada ao estímulo na atividade registrada, o que pode refletir até sinais motores, atenção ou cópias eferentes, sem provar causalidade nem que o circuito utiliza aquele código para perceber o estímulo.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-3-4-2">
+        <title>Básico — Decodificação por centróide mais próximo</title>
+        Em um registro com $p = 2$ neurônios e $K = 3$ categorias balanceadas ("rosto", "casa" e "ferramenta"), os centróides de treino (em $\text{Hz}$) são:
+        $$\hat{\boldsymbol{\mu}}_{\text{rosto}} = (50, 10)^\top, \qquad \hat{\boldsymbol{\mu}}_{\text{casa}} = (12, 46)^\top, \qquad \hat{\boldsymbol{\mu}}_{\text{ferramenta}} = (30, 30)^\top.$$
+        Classifique um novo ensaio com vetor de atividade $\mathbf{x}_{\text{novo}} = (42, 16)^\top\text{ Hz}$ pelo centróide mais próximo.
+        <hint><title>Ver dica</title>Calcule o quadrado da distância euclidiana $(42 - \mu_{k1})^2 + (16 - \mu_{k2})^2$ para cada uma das $3$ categorias.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculando as distâncias quadráticas até $\mathbf{x}_{\text{novo}} = (42, 16)^\top$:
+          <list marker="dash">
+            <item><strong>Rosto:</strong> $(42 - 50)^2 + (16 - 10)^2 = (-8)^2 + 6^2 = 64 + 36 = 100 \implies d = 10{,}00\text{ Hz}$.</item>
+            <item><strong>Casa:</strong> $(42 - 12)^2 + (16 - 46)^2 = 30^2 + (-30)^2 = 900 + 900 = 1\,800 \implies d \approx 42{,}43\text{ Hz}$.</item>
+            <item><strong>Ferramenta:</strong> $(42 - 30)^2 + (16 - 30)^2 = 12^2 + (-14)^2 = 144 + 196 = 340 \implies d \approx 18{,}44\text{ Hz}$.</item>
+          </list>
+          A menor distância ocorre para $\hat{\boldsymbol{\mu}}_{\text{rosto}}$ ($10{,}00\text{ Hz}$), logo o decodificador prevê a categoria <strong>rosto</strong>.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-3-4-3">
+        <title>Intermediário — Vazamento de dados na padronização</title>
+        Um pesquisador quer rodar MVPA em padrões de $100$ voxels. Ele escreve o código:
+        <code lang="python" numbered="false" lines="false">
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(0)
+X = rng.normal(size=(80, 100))
+y = np.repeat([0, 1], 40)
+
+X_pad = StandardScaler().fit_transform(X)
+X_treino, X_teste, y_treino, y_teste = train_test_split(X_pad, y, test_size=0.25, stratify=y, random_state=0)
+clf = LogisticRegression(max_iter=1000).fit(X_treino, y_treino)
+        </code>
+        Explique qual erro metodológico foi cometido, por que ele viola a independência do conjunto de teste e como corrigi-lo com <c>make_pipeline</c>.
+        <hint><title>Ver dica</title>Pense em quais amostras foram usadas para calcular a média e o desvio-padrão de cada voxel em <c>fit_transform(X)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          O erro é o <strong>vazamento de dados</strong> (<em>data leakage</em>): ao chamar <c>StandardScaler().fit_transform(X)</c> antes de <c>train_test_split</c>, a média e o desvio-padrão de cada voxel foram estimados usando também os ensaios do conjunto de teste. Com isso, informação da distribuição do teste entra no pré-processamento usado para treinar o modelo, violando a simulação de dados inéditos. A correção é dividir primeiro <c>X</c> e <c>y</c> e encapsular a padronização dentro de um <c>Pipeline</c>:
+          <code lang="python" numbered="false" lines="false">
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(0)
+X = rng.normal(size=(80, 100))
+y = np.repeat([0, 1], 40)
+
+X_treino, X_teste, y_treino, y_teste = train_test_split(X, y, test_size=0.25, stratify=y, random_state=0)
+clf = make_pipeline(StandardScaler(), LogisticRegression(C=1.0, max_iter=1000, random_state=0))
+clf.fit(X_treino, y_treino)
+          </code>
+          Assim, <c>StandardScaler</c> calcula média e desvio-padrão apenas sobre <c>X_treino</c> e aplica exatamente os mesmos valores para transformar <c>X_teste</c>.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:8-3-4-4">
+        <title>Avançado — Efeito da janela temporal na decodificação populacional</title>
+        Adapte a simulação de curvas de sintonia desta seção para $p = 30$ neurônios com taxa basal de $4\text{ Hz}$ e modulação de $16\text{ Hz}$ (máximo de $20\text{ Hz}$), decodificando $K = 4$ orientações ($60$ ensaios por classe) em três durações de janela: $T \in \{0{,}05;\; 0{,}20;\; 0{,}50\}\text{ s}$. Use <c>rng = np.random.default_rng(0)</c> fora do laço (ou reinicializado igualmente) e compare a acurácia de teste da regressão logística padronizada. Por que janelas mais longas melhoram a decodificação?
+        <hint><title>Ver dica</title>Em uma janela curta de $0{,}05\text{ s}$, uma taxa de $20\text{ Hz}$ gera em média apenas $1$ potencial de ação, tornando o ruído relativo de Poisson muito alto.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+n_neuronios = 30
+orientacoes = np.array([0, 45, 90, 135])
+n_por_classe = 60
+pref = np.linspace(0, 180, n_neuronios, endpoint=False)
+y = np.repeat(np.arange(len(orientacoes)), n_por_classe)
+
+diff = np.abs(orientacoes[y][:, None] - pref[None, :])
+diff_circ = np.minimum(diff, 180.0 - diff)
+taxas_esperadas = 4.0 + 16.0 * np.exp(-0.5 * (diff_circ / 25.0) ** 2)
+
+for janela_s in [0.05, 0.20, 0.50]:
+    rng = np.random.default_rng(0)
+    taxas = rng.poisson(taxas_esperadas * janela_s) / janela_s
+    X_treino, X_teste, y_treino, y_teste = train_test_split(
+        taxas, y, test_size=0.25, stratify=y, random_state=0
+    )
+    modelo = make_pipeline(
+        StandardScaler(),
+        LogisticRegression(C=1.0, max_iter=1000, random_state=0),
+    )
+    modelo.fit(X_treino, y_treino)
+    acc = accuracy_score(y_teste, modelo.predict(X_teste))
+    print(f"Janela T={janela_s:.2f} s -> acurácia de teste: {acc:.3f}")
+# Janela T=0.05 s -> acurácia de teste: 0.817
+# Janela T=0.20 s -> acurácia de teste: 1.000
+# Janela T=0.50 s -> acurácia de teste: 1.000
+          </code>
+          Em uma distribuição de Poisson de média $\lambda = r T$, a razão sinal-ruído (média dividida pelo desvio-padrão $\sqrt{r T}$) cresce com $\sqrt{T}$. Logo, integrar os disparos por uma janela mais longa reduz a variabilidade relativa das taxas estimadas e torna os padrões das orientações muito mais separáveis.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:8-3-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Por que não usar regressão linear para classes:</strong> retas saem de $[0, 1]$ e impõem ordem artificial entre categorias.</item>
+        <item><strong>Regressão logística:</strong> $\hat{p}(\mathbf{x}) = \sigma(\hat{\beta}_0 + \hat{\boldsymbol{\beta}}^\top\mathbf{x}) = \dfrac{1}{1 + e^{-(\hat{\beta}_0 + \hat{\boldsymbol{\beta}}^\top\mathbf{x})}}$; a log-chance $\ln\!\left(\dfrac{\hat{p}(\mathbf{x})}{1 - \hat{p}(\mathbf{x})}\right) = \hat{\beta}_0 + \hat{\boldsymbol{\beta}}^\top\mathbf{x}$ é linear em $\mathbf{x}$ e cada aumento de $1$ unidade em $x_j$ multiplica a chance por $e^{\hat{\beta}_j}$.</item>
+        <item><strong>Ajuste e fronteira:</strong> maximizar a verossimilhança equivale a minimizar a entropia cruzada binária $J(\beta_0, \boldsymbol{\beta}) = -\dfrac{1}{n}\sum_{i=1}^n [y_i \ln p_i + (1 - y_i)\ln(1 - p_i)]$ por otimização numérica; com limiar $0{,}5$, a fronteira $\hat{\beta}_0 + \hat{\boldsymbol{\beta}}^\top\mathbf{x} = 0$ é linear.</item>
+        <item><strong>KNN ($K$ vizinhos mais próximos):</strong> método não paramétrico que vota nos $K$ vizinhos pela distância euclidiana $\|\mathbf{x}_0 - \mathbf{x}_i\|_2$; $K$ pequeno tem baixo viés e alta variância, $K$ grande suaviza; exige <c>StandardScaler</c> em <c>Pipeline</c>.</item>
+        <item><strong>LDA (análise discriminante linear):</strong> abordagem generativa que modela $\mathbf{x} \mid y = k \sim \mathcal{N}(\boldsymbol{\mu}_k, \boldsymbol{\Sigma})$ com covariância comum e usa a regra de Bayes, gerando a função discriminante linear $\delta_k(\mathbf{x}) = \mathbf{x}^\top\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}_k - \frac{1}{2}\boldsymbol{\mu}_k^\top\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}_k + \ln \pi_k$.</item>
+        <item><strong>Fronteira 1D do LDA e QDA:</strong> com $p = 1$, $K = 2$ e variância comum $\sigma^2$, a fronteira vale $x^* = \dfrac{\mu_1 + \mu_2}{2} + \dfrac{\sigma^2}{\mu_2 - \mu_1}\ln\!\left(\dfrac{\pi_1}{\pi_2}\right)$; se cada classe possuir covariância própria $\boldsymbol{\Sigma}_k$, obtém-se o QDA, com fronteiras quadráticas.</item>
+        <item><strong>Decodificação neural (MVPA):</strong> usa padrões distribuídos $\mathbf{x} \in \mathbb{R}^p$ para prever o estímulo $y \in \{1, \dots, K\}$; compare sempre com o nível de acaso $1/K$ em classes balanceadas, evite vazamento de dados e lembre que informação estatística não prova mecanismo causal.</item>
+      </list>
+    </section>
+
+    <section id="sec:8-3-alem">
+      <title>Para ir além</title>
+      Antes de avançar para o <strong>Tema 8.4 (Métricas estatísticas)</strong> e o <strong>Tema 8.5 (Reamostragem)</strong>, pratique aplicando logística, KNN e LDA a conjuntos médicos da UC Irvine ou dados neurais abertos. Para aprofundar, consulte os materiais do Módulo 8:
+      <list marker="dash">
+        <item><strong>Livro-texto base:</strong> <link to="https://www.statlearning.com/">ISLR — Introduction to Statistical Learning</link> (em Python ou R, capítulo de <em>Classification</em>).</item>
+        <item><strong>Notas do curso:</strong> Notas de aula da matéria do IMPATech.</item>
+        <item><strong>Aprofundamento teórico:</strong> <em>The Elements of Statistical Learning</em> (versão avançada do ISLR, capítulos sobre métodos lineares de classificação).</item>
+        <item><strong>Documentação oficial (Regressão Logística):</strong> <link to="https://scikit-learn.org/stable/modules/linear_model.html">Scikit-learn — Linear Models</link>.</item>
+        <item><strong>Documentação oficial (KNN):</strong> <link to="https://scikit-learn.org/stable/modules/neighbors.html">Scikit-learn — Nearest Neighbors</link>.</item>
+        <item><strong>Documentação oficial (LDA e QDA):</strong> <link to="https://scikit-learn.org/stable/modules/lda_qda.html">Scikit-learn — Linear and Quadratic Discriminant Analysis</link>.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 8 · Machine Learning — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

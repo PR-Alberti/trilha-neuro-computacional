@@ -1,0 +1,945 @@
+<document>
+  <title>Módulo 2 · Cálculo Real</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-2-2">Voltar ao guia (Tema 2.2)</link></meta-item>
+    <meta-item key="Módulo">Módulo 2 · Cálculo Real — Taxas de Variação e Acúmulo</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-2-2">
+    <title>Derivada</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Taxas de variação instantâneas: a linguagem da dinâmica neural.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> A natureza raramente fica parada: populações bacterianas se dividem, concentrações de neurotransmissores sobem e descem na fenda sináptica e o potencial de membrana de um neurônio oscila a cada milissegundo. Um dos modelos mais célebres da neurociência computacional, o modelo <strong>integra-e-dispara com vazamento</strong> (<em>leaky integrate-and-fire</em>, LIF), descreve o potencial de membrana $V(t)$ ao longo do tempo $t$ por uma única equação:
+    $$\tau \frac{dV}{dt} = -(V - E_L) + R \cdot I,$$
+    em que $\tau \approx 10\text{–}20\text{ ms}$ é a constante de tempo da membrana, $E_L \approx -70\text{ mV}$ é o potencial de repouso (vazamento), $R$ é a resistência de entrada e $I$ é a corrente injetada.
+
+    Sem resolver equação diferencial nenhuma — isso ficará para mais adiante na trilha —, você já consegue <em>ler</em> a física dessa fórmula graças ao termo $\dfrac{dV}{dt}$, a derivada que mede a velocidade com que o potencial muda naquele instante. O valor de equilíbrio para o qual a membrana tende é $E_L + R \cdot I$: se $V$ está acima de $E_L + R \cdot I$, o lado direito fica negativo, logo $\dfrac{dV}{dt} < 0$ e o potencial desce; se $V$ está abaixo, $\dfrac{dV}{dt} > 0$ e o potencial sobe; e exatamente no equilíbrio $V = E_L + R \cdot I$, vale $\dfrac{dV}{dt} = 0$. Quando o potencial sobe até atingir o limiar de disparo (tipicamente em torno de $-55\text{ mV}$), o modelo LIF registra um potencial de ação e reinicia $V$. O modelo biofísico completo de Hodgkin e Huxley (1952), que detalha os canais de sódio e potássio, também é escrito como um sistema de equações com derivadas; além disso, a regra da cadeia para derivadas é o motor do algoritmo de <em>backpropagation</em> em redes neurais (Módulos 3 e 9).
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>interpretar a derivada como taxa de variação instantânea e como inclinação da reta tangente, calculando derivadas simples pela definição;</item>
+      <item>verificar continuidade e derivabilidade, identificando bicos, saltos e tangentes verticais (como na ReLU e na função degrau de disparo);</item>
+      <item>aplicar as propriedades de linearidade, potência, produto e quociente, além das derivadas de $e^x$, $\ln x$, $\operatorname{sen} x$ e $\cos x$;</item>
+      <item>aplicar a regra da cadeia em composições encadeadas — como na sigmoide, na curva de sintonia gaussiana e na ponte para o <em>backpropagation</em> — e usar derivação implícita e taxas relacionadas;</item>
+      <item>calcular derivadas de ordem superior para analisar concavidade, pontos de inflexão e picos de potencial ou de crescimento populacional.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Este tema apoia-se diretamente em <strong>Limite</strong> (Tema 2.1: definição $\varepsilon$-$\delta$, propriedades, limites laterais, continuidade, compostas, teorema do sanduíche, $\lim_{x \to 0} \frac{\operatorname{sen}(x)}{x} = 1$, limites no infinito na cinética de Michaelis–Menten e a função degrau $H$ do disparo tudo-ou-nada), além de <strong>Funções</strong> (Tema 1.3: composição, inversas, sigmoide e gaussiana), <strong>Trigonometria</strong> (Tema 1.4: radianos, senoides de EEG e identidades) e <strong>Geometria Analítica</strong> (Tema 1.5: inclinação de reta e perpendicularidade).
+
+    <section id="sec:2-2-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Introdução</title>
+      <intro>
+        A derivada transforma uma variação média observada entre dois instantes em uma velocidade instantânea medida em um único ponto — geometricamente, é passar da reta secante para a reta tangente.
+      </intro>
+
+      Suponha que um neurônio despolarize de $-70\text{ mV}$ para $-55\text{ mV}$ em $5\text{ ms}$. A <strong>taxa média de variação</strong> nesse intervalo é $\frac{-55 - (-70)}{5 - 0} = 3\text{ mV/ms}$. Mas esse número esconde se o potencial subiu devagar no começo e disparou no final, ou o contrário. Para saber quão rápido $f$ está mudando exatamente em $x = a$, encolhemos o intervalo $[a, a + h]$ fazendo $h \to 0$: a inclinação da reta secante que liga $(a, f(a))$ a $(a + h, f(a + h))$ converge para a inclinação da <strong>reta tangente</strong> em $(a, f(a))$, como ilustra a <ref to="fig:2-2-secante-tangente"/>.
+
+      <figure src="fig/secante-tangente.svg" alt="Gráfico de f(x) = x ao quadrado com duas retas secantes passando por P(2,4) e aproximando-se da reta tangente de inclinação 4" id="fig:2-2-secante-tangente">
+        <caption>Em $f(x) = x^2$, à medida que o passo $h$ diminui ($h = 1{,}5$ e $h = 0{,}5$), os pontos $Q_1$ e $Q_2$ aproximam-se de $P(2, 4)$ e as retas secantes convergem para a reta tangente, cuja inclinação é $f'(2) = 4$.</caption>
+      </figure>
+
+      <definition id="def:2-2-derivada">
+        <title>Derivada em um ponto e como função</title>
+        Seja $f$ uma função definida em um intervalo aberto contendo $a$. A <strong>derivada</strong> de $f$ em $a$, denotada por $f'(a)$, é o limite da razão incremental:
+        $$f'(a) = \lim_{h \to 0} \frac{f(a + h) - f(a)}{h},$$
+        desde que esse limite exista e seja finito (de forma equivalente, fazendo $x = a + h$, $f'(a) = \lim_{x \to a} \frac{f(x) - f(a)}{x - a}$).
+
+        Quando esse limite existe para cada $x$ em um subconjunto do domínio, definimos a <strong>função derivada</strong> $f'(x)$. Usamos também a notação de Leibniz: se $y = f(x)$, escrevemos $\dfrac{dy}{dx}$ ou $\dfrac{df}{dx}$; para um potencial $V(t)$ em função do tempo, escrevemos $\dfrac{dV}{dt}$.
+        <intuition>
+          A notação de Leibniz $\dfrac{dV}{dt}$ lembra a razão $\dfrac{\Delta V}{\Delta t}$ levada ao limite $\Delta t \to 0$ e exibe diretamente as unidades da taxa: se $V$ está em $\text{mV}$ e $t$ em $\text{ms}$, então $\dfrac{dV}{dt}$ é medida em $\text{mV/ms}$.
+        </intuition>
+      </definition>
+
+      Retomando a <strong>Geometria Analítica</strong> (Tema 1.5), uma reta com inclinação $m$ que passa pelo ponto $(a, f(a))$ tem equação $y - f(a) = m(x - a)$. Portanto, quando $f'(a)$ existe, a <strong>equação da reta tangente</strong> ao gráfico de $f$ em $x = a$ é:
+      $$y - f(a) = f'(a)(x - a).$$
+
+      <example id="exm:2-2-derivada-def">
+        <title>Derivadas pela definição e reta tangente</title>
+        Calcule a derivada pela definição para:
+        <list marker="a">
+          <item>$f(x) = x^2$, e encontre a equação da reta tangente em $a = 2$;</item>
+          <item>$g(x) = \dfrac{1}{x}$, para $x \ne 0$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Substituímos $f(x + h) = (x + h)^2 = x^2 + 2xh + h^2$ na definição:
+            $$f'(x) = \lim_{h \to 0} \frac{(x + h)^2 - x^2}{h} = \lim_{h \to 0} \frac{2xh + h^2}{h} = \lim_{h \to 0} (2x + h) = 2x.$$
+            Em $a = 2$, temos $f(2) = 4$ e $f'(2) = 2(2) = 4$. Logo, a reta tangente em $P(2, 4)$ é:
+            $$y - 4 = 4(x - 2) \implies y = 4x - 4,$$
+            exatamente a reta mostrada na <ref to="fig:2-2-secante-tangente"/>.
+          </item>
+          <item>Para $g(x) = \dfrac{1}{x}$ ($x \ne 0$ e $x + h \ne 0$ para $h$ pequeno):
+            $$g'(x) = \lim_{h \to 0} \frac{\dfrac{1}{x + h} - \dfrac{1}{x}}{h} = \lim_{h \to 0} \frac{\dfrac{x - (x + h)}{x(x + h)}}{h} = \lim_{h \to 0} \frac{-h}{h \, x(x + h)} = \lim_{h \to 0} \frac{-1}{x(x + h)} = -\frac{1}{x^2}.$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:2-2-bio-taxas">
+        <title>Potencial polinomial e leitura de modelos populacionais</title>
+        <list marker="a">
+          <item>Durante uma estimulação curta, o potencial de membrana de um neurônio (em $\text{mV}$, para $0 \le t \le 6\text{ ms}$) é modelado por $V(t) = -70 + 10t - t^2$. Calcule $\dfrac{dV}{dt}$ pela definição e avalie em $t = 2\text{ ms}$ e $t = 5\text{ ms}$.</item>
+          <item>Na cultura bacteriana $N(t) = N_0 \cdot 2^t$ do Módulo 1 (com $N_0 = 100$ células e $t$ em gerações), compare as taxas médias nos intervalos $[0, 2]$ e $[2, 4]$. Em seguida, faça a leitura qualitativa das equações $\dfrac{dN}{dt} = rN$ (modelo exponencial) e $\dfrac{dN}{dt} = rN\!\left(1 - \dfrac{N}{K}\right)$ (modelo logístico, com $r, K > 0$).</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Calculamos $V(t + h) - V(t)$:
+            $$V(t + h) - V(t) = \bigl[-70 + 10(t + h) - (t + h)^2\bigr] - (-70 + 10t - t^2) = 10h - 2th - h^2.$$
+            Dividindo por $h \ne 0$ e tomando o limite $h \to 0$:
+            $$\frac{dV}{dt} = \lim_{h \to 0} \frac{10h - 2th - h^2}{h} = \lim_{h \to 0} (10 - 2t - h) = 10 - 2t \text{ mV/ms}.$$
+            Em $t = 2\text{ ms}$, $V(2) = -54\text{ mV}$ e $\left.\dfrac{dV}{dt}\right|_{t=2} = 10 - 4 = 6\text{ mV/ms}$ (despolarização ativa). Em $t = 5\text{ ms}$, $\left.\dfrac{dV}{dt}\right|_{t=5} = 10 - 10 = 0\text{ mV/ms}$: nesse instante a curva atinge o pico $V(5) = -45\text{ mV}$ com tangente horizontal.
+          </item>
+          <item>Para $N(t) = 100 \cdot 2^t$, temos $N(0) = 100$, $N(2) = 400$ e $N(4) = 1\,600$. Assim:
+            $$\text{Taxa média em } [0, 2] = \frac{400 - 100}{2 - 0} = 150 \text{ bactérias/geração},$$
+            $$\text{Taxa média em } [2, 4] = \frac{1\,600 - 400}{4 - 2} = 600 \text{ bactérias/geração}.$$
+            A velocidade quadruplicou porque a própria população cresceu. Sem resolver equações diferenciais, podemos <em>ler</em> esse comportamento nos modelos contínuos:
+            <list marker="dash">
+              <item>Em $\dfrac{dN}{dt} = rN$, a taxa instantânea de crescimento é diretamente proporcional à população atual $N$: quanto mais células dividindo-se, mais rápido $N$ sobe.</item>
+              <item>Em $\dfrac{dN}{dt} = rN\!\left(1 - \dfrac{N}{K}\right)$, o fator $\left(1 - \dfrac{N}{K}\right)$ freia o crescimento conforme $N$ se aproxima da capacidade de suporte $K$. A taxa é nula em $N = 0$ (sem indivíduos) e em $N = K$ (recursos esgotados). Como $N(1 - N/K)$ é uma parábola com concavidade para baixo em função de $N$ e raízes $0$ e $K$, seu vértice — a <strong>taxa máxima de crescimento</strong> — ocorre exatamente na metade da capacidade, $N = K/2$, onde $\dfrac{dN}{dt} = r \cdot \frac{K}{2}\left(1 - \frac{K/2}{K}\right) = r \cdot \frac{K}{2} \cdot \frac{1}{2} = \frac{rK}{4}$.</item>
+            </list>
+          </item>
+        </list>
+      </example>
+
+      O bloco Python a seguir é <strong>opcional</strong> (programação em Python será ensinada formalmente no Módulo 6): ele apenas ilustra numericamente, com a biblioteca <c>numpy</c>, como a razão incremental de $f(x) = x^2$ em $a = 2$ converge para a derivada exata $f'(2) = 4$ quando diminuímos $h$.
+
+      <code lang="python" id="cod:2-2-razao-inc">
+import numpy as np
+
+def f(x):
+    return x ** 2
+
+a = 2.0
+derivada_exata = 2 * a
+hs = np.array([0.1, 0.01, 0.001])
+
+for h in hs:
+    razao = (f(a + h) - f(a)) / h
+    erro = abs(razao - derivada_exata)
+    print(f"h = {h:.3f} | razao = {razao:.6f} | erro = {erro:.6f}")
+
+# Saída esperada:
+# h = 0.100 | razao = 4.100000 | erro = 0.100000
+# h = 0.010 | razao = 4.010000 | erro = 0.010000
+# h = 0.001 | razao = 4.001000 | erro = 0.001000
+      </code>
+
+      <remark id="rem:2-2-armadilha-sec1">
+        <title>Armadilha comum</title>
+        Não confunda a <strong>taxa média de variação</strong> $\dfrac{f(b) - f(a)}{b - a}$ em um intervalo finito com a <strong>derivada</strong> $f'(a)$ em um ponto. Na definição, não basta substituir $h = 0$ na razão incremental (o que daria $\frac{0}{0}$, uma indeterminação já vista no Tema 2.1): é preciso simplificar o fator $h$ antes de aplicar o limite. Também cuide das unidades: $\dfrac{dV}{dt}$ tem unidade de $V$ dividida pela unidade de $t$ (por exemplo, $\text{mV/ms}$).
+      </remark>
+
+      <exercise id="exr:2-2-1-1">
+        <title>Básico — Derivada pela definição e reta tangente</title>
+        Para $f(x) = 3x^2 - 4x + 1$, calcule $f'(x)$ usando a definição de derivada e encontre a equação da reta tangente ao gráfico de $f$ no ponto de abscissa $x = 1$.
+        <hint><title>Ver dica</title>Expanda $f(x + h) = 3(x + h)^2 - 4(x + h) + 1$, subtraia $f(x)$, coloque $h$ em evidência no numerador e depois tome $h \to 0$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculamos a variação $f(x + h) - f(x)$:
+          $$f(x + h) - f(x) = \bigl[3(x^2 + 2xh + h^2) - 4(x + h) + 1\bigr] - (3x^2 - 4x + 1) = 6xh + 3h^2 - 4h.$$
+          Dividindo por $h \ne 0$ e passando ao limite $h \to 0$:
+          $$f'(x) = \lim_{h \to 0} \frac{h(6x + 3h - 4)}{h} = \lim_{h \to 0} (6x + 3h - 4) = 6x - 4.$$
+          Em $x = 1$, temos $f(1) = 3(1)^2 - 4(1) + 1 = 0$ e $f'(1) = 6(1) - 4 = 2$. A equação da reta tangente em $(1, 0)$ é:
+          $$y - 0 = 2(x - 1) \implies y = 2x - 2.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-2-1-2">
+        <title>Intermediário — Leitura da equação LIF e taxa de variação</title>
+        Considere um neurônio no modelo LIF: $\tau \dfrac{dV}{dt} = -(V - E_L) + R \cdot I$, com $\tau = 20\text{ ms}$, $E_L = -70\text{ mV}$, $R = 50\text{ M}\Omega$ e corrente constante $I = 0{,}4\text{ nA}$.
+        <list marker="a">
+          <item>Sem resolver a equação diferencial, encontre o potencial de equilíbrio $V_{\text{eq}}$ no qual $\dfrac{dV}{dt} = 0$.</item>
+          <item>Calcule $\dfrac{dV}{dt}$ (em $\text{mV/ms}$) nos instantes em que $V = -65\text{ mV}$ e $V = -45\text{ mV}$, interpretando o sinal.</item>
+        </list>
+        <hint><title>Ver dica</title>Lembre do Módulo 1 que $\text{M}\Omega \cdot \text{nA} = \text{mV}$ ($10^6 \cdot 10^{-9} = 10^{-3}\text{ V} = 1\text{ mV}$). Iguale o lado direito a zero para achar $V_{\text{eq}}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>O termo de entrada vale $R \cdot I = 50\text{ M}\Omega \cdot 0{,}4\text{ nA} = 20\text{ mV}$. No equilíbrio, $\dfrac{dV}{dt} = 0$, logo:
+              $$-(V_{\text{eq}} - (-70)) + 20 = 0 \implies V_{\text{eq}} = -70 + 20 = -50\text{ mV}.$$
+            </item>
+            <item>Isolando $\dfrac{dV}{dt}$ na equação LIF: $\dfrac{dV}{dt} = \dfrac{-(V + 70) + 20}{20} = \dfrac{-50 - V}{20}\text{ mV/ms}$.
+              <list marker="dash">
+                <item>Em $V = -65\text{ mV}$: $\dfrac{dV}{dt} = \dfrac{-50 - (-65)}{20} = \dfrac{15}{20} = 0{,}75\text{ mV/ms} > 0$. O potencial está subindo rumo a $-50\text{ mV}$ (e ultrapassará um limiar típico de $-55\text{ mV}$).</item>
+                <item>Em $V = -45\text{ mV}$: $\dfrac{dV}{dt} = \dfrac{-50 - (-45)}{20} = \dfrac{-5}{20} = -0{,}25\text{ mV/ms} < 0$. Como está acima de $V_{\text{eq}}$, o vazamento puxa o potencial para baixo.</item>
+              </list>
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-2-1-3">
+        <title>Avançado — Derivada de $\sqrt{x}$ pela definição e modelo logístico</title>
+        <list marker="a">
+          <item>Calcule pela definição a derivada de $f(x) = \sqrt{x}$ para $x > 0$.</item>
+          <item>Uma população bacteriana segue $\dfrac{dN}{dt} = 0{,}4 \, N\!\left(1 - \dfrac{N}{1\,000}\right)$ (em $\text{células/h}$). Em que tamanho populacional $N$ a taxa de crescimento é máxima e quanto vale essa taxa máxima? Compare com as taxas em $N = 200$ e $N = 1\,000$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), multiplique numerador e denominador da razão incremental pelo conjugado $\sqrt{x + h} + \sqrt{x}$. Em (b), identifique $K = 1\,000$ e lembre que o pico da parábola em $N$ ocorre em $N = K/2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Racionalizando o numerador:
+              $$f'(x) = \lim_{h \to 0} \frac{\sqrt{x + h} - \sqrt{x}}{h} \cdot \frac{\sqrt{x + h} + \sqrt{x}}{\sqrt{x + h} + \sqrt{x}} = \lim_{h \to 0} \frac{(x + h) - x}{h(\sqrt{x + h} + \sqrt{x})} = \lim_{h \to 0} \frac{1}{\sqrt{x + h} + \sqrt{x}} = \frac{1}{2\sqrt{x}}.$$
+            </item>
+            <item>Aqui $r = 0{,}4\text{ h}^{-1}$ e $K = 1\,000$ células. A taxa é máxima em $N = \dfrac{K}{2} = 500$ células, valendo:
+              $$\left.\frac{dN}{dt}\right|_{N=500} = 0{,}4 \cdot 500 \cdot \left(1 - \frac{500}{1\,000}\right) = 200 \cdot 0{,}5 = 100\text{ células/h}.$$
+              Comparando: em $N = 200$, $\dfrac{dN}{dt} = 0{,}4 \cdot 200 \cdot 0{,}8 = 64\text{ células/h}$; em $N = 1\,000$, $\dfrac{dN}{dt} = 0{,}4 \cdot 1\,000 \cdot 0 = 0\text{ células/h}$ (estabilização na capacidade de suporte).
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:2-2-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Condições de derivabilidade</title>
+      <intro>
+        Nem toda função contínua possui reta tangente bem definida: quebras bruscas, bicos pontiagudos e inclinações infinitas impedem que a derivada exista.
+      </intro>
+
+      Para que uma curva tenha uma única reta tangente não vertical em $x = a$, ela precisa ser contínua nesse ponto e aproximar-se de $a$ com a mesma inclinação tanto pela esquerda quanto pela direita. O teorema a seguir formaliza a primeira exigência.
+
+      <theorem id="thm:2-2-deriv-cont">
+        <title>Derivabilidade implica continuidade</title>
+        Se uma função $f$ é derivável em $a$, então $f$ é necessariamente contínua em $a$.
+        <intuition>
+          Se o gráfico de $f$ tem uma reta tangente não vertical em $(a, f(a))$, ele não pode dar um salto nem ter um buraco em $a$: à medida que $x \to a$, os pontos $(x, f(x))$ precisam encostar em $(a, f(a))$.
+        </intuition>
+      </theorem>
+      <proof of="thm:2-2-deriv-cont" collapsible="true" collapsed="true">
+        Para $x \ne a$ próximo de $a$, escrevemos:
+        $$f(x) - f(a) = \frac{f(x) - f(a)}{x - a} \cdot (x - a).$$
+        Como $f$ é derivável em $a$, existe o limite $\lim_{x \to a} \frac{f(x) - f(a)}{x - a} = f'(a)$ (finito). Pelas propriedades de limite (Tema 2.1):
+        $$\lim_{x \to a} \bigl[f(x) - f(a)\bigr] = \left(\lim_{x \to a} \frac{f(x) - f(a)}{x - a}\right) \cdot \lim_{x \to a} (x - a) = f'(a) \cdot 0 = 0.$$
+        Logo $\lim_{x \to a} f(x) = f(a)$, isto é, $f$ é contínua em $a$.
+      </proof>
+
+      Pela contrapositiva desse teorema, <strong>se $f$ não é contínua em $a$, então $f$ não é derivável em $a$</strong>. É o caso de funções com <strong>salto</strong>, como a função degrau $H(V - V_{\text{lim}})$ usada para representar o disparo tudo-ou-nada no limiar (Tema 2.1): no ponto $V = V_{\text{lim}}$, $H$ salta de $0$ para $1$, portanto não é contínua nem derivável ali.
+
+      Por outro lado, a recíproca do <ref to="thm:2-2-deriv-cont"/> é <strong>falsa</strong>: uma função pode ser contínua em $a$ e mesmo assim falhar em ter derivada lá. Para diagnosticar esses casos, examinamos os limites laterais da razão incremental.
+
+      <definition id="def:2-2-deriv-laterais">
+        <title>Derivadas laterais</title>
+        As <strong>derivadas laterais</strong> à direita e à esquerda de $f$ em $a$ são definidas por:
+        $$f'_+(a) = \lim_{h \to 0^+} \frac{f(a + h) - f(a)}{h} \qquad \text{e} \qquad f'_-(a) = \lim_{h \to 0^-} \frac{f(a + h) - f(a)}{h}.$$
+        A função $f$ é derivável em $a$ se, e somente se, $f'_-(a)$ e $f'_+(a)$ existirem, forem finitas e coincidirem ($f'_-(a) = f'_+(a)$).
+      </definition>
+
+      Isso revela os dois modos clássicos pelos quais uma função contínua deixa de ser derivável em $a$:
+      <list marker="dash">
+        <item><strong>Bico (quina):</strong> $f'_-(a)$ e $f'_+(a)$ existem e são finitas, mas $f'_-(a) \ne f'_+(a)$. É o que ocorre em $|x|$ na origem ($f'_-(0) = -1$ e $f'_+(0) = 1$) e na função $\text{ReLU}(x) = \max(0, x)$, a função de ativação padrão em redes neurais profundas (Módulo 9).</item>
+        <item><strong>Tangente vertical:</strong> a razão incremental diverge para $+\infty$ ou $-\infty$, como em $f(x) = x^{1/3}$ em $x = 0$, onde o gráfico cruza o eixo vertical na vertical perfeita.</item>
+      </list>
+
+      <example id="exm:2-2-bico-vertical">
+        <title>Bico na função ReLU e tangente vertical em $x^{1/3}$</title>
+        Verifique a continuidade e a derivabilidade em $x = 0$ para:
+        <list marker="a">
+          <item>$f(x) = \max(0, x)$ (função ReLU);</item>
+          <item>$g(x) = x^{1/3}$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Para $x < 0$, $f(x) = 0$; para $x \ge 0$, $f(x) = x$. Os limites laterais em $0$ valem $0 = f(0)$, logo $f$ é contínua em $0$. Calculando as derivadas laterais:
+            $$f'_-(0) = \lim_{h \to 0^-} \frac{0 - 0}{h} = 0, \qquad f'_+(0) = \lim_{h \to 0^+} \frac{h - 0}{h} = 1.$$
+            Como $f'_-(0) \ne f'_+(0)$, a ReLU forma um bico em $x = 0$ e <strong>não é derivável em $0$</strong> (embora seja derivável com derivada $0$ para $x < 0$ e derivada $1$ para $x > 0$). O mesmo ocorre com $|x|$ em $x = 0$, cujas derivadas laterais são $-1$ e $+1$.
+          </item>
+          <item>A função $g(x) = x^{1/3}$ é contínua em $0$ ($\lim_{x \to 0} x^{1/3} = 0 = g(0)$). Na razão incremental em $a = 0$:
+            $$\lim_{h \to 0} \frac{(0 + h)^{1/3} - 0}{h} = \lim_{h \to 0} \frac{h^{1/3}}{h} = \lim_{h \to 0} \frac{1}{h^{2/3}} = +\infty.$$
+            Como o limite não é finito, $g$ <strong>não é derivável em $0$</strong>: o gráfico possui uma tangente vertical no ponto $(0, 0)$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:2-2-taxa-limiar">
+        <title>Taxa de disparo linear com limiar</title>
+        Um modelo comum da taxa de disparo $r$ (em $\text{Hz}$) de um neurônio cortical em função da corrente injetada $I$ (em $\text{nA}$) é a função linear com limiar:
+        $$r(I) = \max\bigl(0,\; k(I - I_{\text{lim}})\bigr),$$
+        com ganho $k = 50\text{ Hz/nA}$ e corrente limiar $I_{\text{lim}} = 0{,}3\text{ nA}$. Analise a continuidade e a derivabilidade de $r$ no limiar $I = 0{,}3\text{ nA}$.
+
+        <strong>Solução.</strong> Reescrevendo por partes: $r(I) = 0$ para $I < 0{,}3$, e $r(I) = 50(I - 0{,}3)$ para $I \ge 0{,}3$. Em $I = 0{,}3$:
+        $$\lim_{I \to 0{,}3^-} r(I) = 0, \qquad \lim_{I \to 0{,}3^+} r(I) = 50(0{,}3 - 0{,}3) = 0 = r(0{,}3).$$
+        Portanto, $r$ é <strong>contínua</strong> no limiar (não há salto brusco na taxa de disparo). Agora calculamos as derivadas laterais em $I = 0{,}3$:
+        $$r'_-(0{,}3) = \lim_{h \to 0^-} \frac{0 - 0}{h} = 0\text{ Hz/nA},$$
+        $$r'_+(0{,}3) = \lim_{h \to 0^+} \frac{50(0{,}3 + h - 0{,}3) - 0}{h} = \lim_{h \to 0^+} \frac{50h}{h} = 50\text{ Hz/nA}.$$
+        Como $r'_-(0{,}3) = 0 \ne 50 = r'_+(0{,}3)$, a função <strong>não é derivável em $I_{\text{lim}} = 0{,}3\text{ nA}$</strong>: abaixo do limiar o neurônio é insensível à corrente (ganho $0$), e logo acima passa a responder com ganho $50\text{ Hz/nA}$, formando uma quina no gráfico.
+      </example>
+
+      <remark id="rem:2-2-armadilha-sec2">
+        <title>Armadilha comum</title>
+        Nunca suponha que "contínua implica derivável"! A continuidade apenas impede saltos e buracos; uma curva contínua ainda pode ter bicos (como $|x|$ e a ReLU) ou tangentes verticais (como $x^{1/3}$). Em funções definidas por partes, jamais derive apenas um dos ramos para decidir o que acontece no ponto de emenda: sempre confira primeiro a continuidade e depois a igualdade entre $f'_-(a)$ e $f'_+(a)$.
+      </remark>
+
+      <exercise id="exr:2-2-2-1">
+        <title>Básico — Bico em $|x - 2|$ e descontinuidade no degrau</title>
+        <list marker="a">
+          <item>Verifique se $f(x) = |x - 2|$ é contínua e derivável em $x = 2$, calculando $f'_-(2)$ e $f'_+(2)$.</item>
+          <item>Explique, usando o <ref to="thm:2-2-deriv-cont"/>, por que a função degrau $H(x)$ (que vale $0$ para $x < 0$ e $1$ para $x \ge 0$) não é derivável em $x = 0$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), abra $|x - 2| = -(x - 2)$ para $x < 2$ e $x - 2$ para $x \ge 2$. Em (b), verifique antes se $H$ é contínua em $0$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Temos $\lim_{x \to 2} |x - 2| = 0 = f(2)$, logo $f$ é contínua em $x = 2$. Para as derivadas laterais:
+              $$f'_-(2) = \lim_{h \to 0^-} \frac{|(2 + h) - 2| - 0}{h} = \lim_{h \to 0^-} \frac{-h}{h} = -1,$$
+              $$f'_+(2) = \lim_{h \to 0^+} \frac{|(2 + h) - 2| - 0}{h} = \lim_{h \to 0^+} \frac{h}{h} = 1.$$
+              Como $-1 \ne 1$, $f$ não é derivável em $x = 2$ (há um bico).
+            </item>
+            <item>Como $\lim_{x \to 0^-} H(x) = 0 \ne 1 = \lim_{x \to 0^+} H(x)$, a função $H$ tem um salto em $x = 0$ e não é contínua nesse ponto. Pela contrapositiva do <ref to="thm:2-2-deriv-cont"/>, uma função descontínua em $0$ não pode ser derivável em $0$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-2-2-2">
+        <title>Intermediário — Emenda suave de uma função por partes</title>
+        Considere a função definida por partes:
+        $$f(x) = \begin{cases} x^2 + 1, & x < 1, \\ ax + b, & x \ge 1. \end{cases}$$
+        Determine os valores reais de $a$ e $b$ para que $f$ seja derivável em $x = 1$.
+        <hint><title>Ver dica</title>Exija primeiro a continuidade em $x = 1$ (igualando os limites laterais a $f(1)$) e depois iguale as derivadas laterais $f'_-(1)$ e $f'_+(1)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Pelo <ref to="thm:2-2-deriv-cont"/>, $f$ precisa primeiro ser contínua em $x = 1$:
+          $$\lim_{x \to 1^-} f(x) = 1^2 + 1 = 2, \qquad f(1) = \lim_{x \to 1^+} f(x) = a(1) + b = a + b.$$
+          Logo, precisamos de $a + b = 2$. Em seguida, calculamos as derivadas laterais em $x = 1$ (usando $f(1) = 2$):
+          $$f'_-(1) = \lim_{h \to 0^-} \frac{\bigl[(1 + h)^2 + 1\bigr] - 2}{h} = \lim_{h \to 0^-} \frac{2h + h^2}{h} = \lim_{h \to 0^-} (2 + h) = 2,$$
+          $$f'_+(1) = \lim_{h \to 0^+} \frac{\bigl[a(1 + h) + b\bigr] - (a + b)}{h} = \lim_{h \to 0^+} \frac{ah}{h} = a.$$
+          Para que $f$ seja derivável em $1$, exigimos $f'_-(1) = f'_+(1)$, ou seja, $a = 2$. Substituindo em $a + b = 2$, obtemos $b = 0$. Portanto, $a = 2$ e $b = 0$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-2-2-3">
+        <title>Avançado — Taxa de disparo com limiar e saturação</title>
+        Um modelo linear por partes da resposta de um neurônio relaciona a taxa de disparo $r$ (em $\text{Hz}$) à corrente $I$ (em $\text{nA}$) por:
+        $$r(I) = \begin{cases} 0, & I < 0{,}2, \\ 80(I - 0{,}2), & 0{,}2 \le I \le 1{,}2, \\ 80, & I > 1{,}2. \end{cases}$$
+        Analise a continuidade e a derivabilidade de $r(I)$ em toda a reta real, calculando as derivadas laterais nos pontos de transição $I = 0{,}2\text{ nA}$ e $I = 1{,}2\text{ nA}$.
+        <hint><title>Ver dica</title>Para $I < 0{,}2$, $0{,}2 < I < 1{,}2$ e $I > 1{,}2$, a função é constante ou afim. Cheque separadamente as duas emendas $I = 0{,}2$ e $I = 1{,}2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Nos intervalos abertos $(-\infty, 0{,}2)$, $(0{,}2;\, 1{,}2)$ e $(1{,}2;\, +\infty)$, $r(I)$ é uma reta (constante ou inclinada), logo é contínua e derivável com $r'(I) = 0$ fora de $[0{,}2;\, 1{,}2]$ e $r'(I) = 80\text{ Hz/nA}$ em $(0{,}2;\, 1{,}2)$.
+
+          Na transição $I = 0{,}2$: $\lim_{I \to 0{,}2^-} r(I) = 0 = 80(0{,}2 - 0{,}2) = r(0{,}2)$, logo $r$ é contínua. As derivadas laterais são:
+          $$r'_-(0{,}2) = 0\text{ Hz/nA}, \qquad r'_+(0{,}2) = \lim_{h \to 0^+} \frac{80(0{,}2 + h - 0{,}2) - 0}{h} = 80\text{ Hz/nA}.$$
+          Como $0 \ne 80$, $r$ não é derivável em $I = 0{,}2\text{ nA}$ (bico de entrada no disparo).
+
+          Na transição $I = 1{,}2$: $\lim_{I \to 1{,}2^-} r(I) = 80(1{,}2 - 0{,}2) = 80 = \lim_{I \to 1{,}2^+} r(I) = r(1{,}2)$, logo $r$ é contínua. As derivadas laterais são:
+          $$r'_-(1{,}2) = \lim_{h \to 0^-} \frac{80(1{,}2 + h - 0{,}2) - 80}{h} = \lim_{h \to 0^-} \frac{80h}{h} = 80\text{ Hz/nA}, \qquad r'_+(1{,}2) = 0\text{ Hz/nA}.$$
+          Como $80 \ne 0$, $r$ também não é derivável em $I = 1{,}2\text{ nA}$ (bico de saturação). Para evitar esses bicos em otimizações por derivada, redes neurais frequentemente substituem rampas rígidas por curvas suaves, como a sigmoide que veremos na <ref to="sec:2-2-4"/>.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:2-2-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Propriedades</title>
+      <intro>
+        Em vez de calcular um limite novo a cada fórmula, combinamos algumas poucas derivadas elementares usando regras exatas de álgebra diferencial.
+      </intro>
+
+      Assim como os limites obedecem a leis de soma e produto (Tema 2.1), as derivadas seguem regras algébricas que permitem diferenciar polinômios, potências, frações racionais, exponenciais e ondas trigonométricas em poucos passos.
+
+      <proposition id="prop:2-2-regras-algebricas">
+        <title>Linearidade, regra da potência, produto e quociente</title>
+        Sejam $f$ e $g$ deriváveis em $x$, e seja $c \in \mathbb{R}$ uma constante. Valem:
+        <list marker="number">
+          <item><strong>Constante e linearidade:</strong> $(c)' = 0$, $(c f)'(x) = c\, f'(x)$ e $(f \pm g)'(x) = f'(x) \pm g'(x)$.</item>
+          <item><strong>Regra da potência:</strong> para todo expoente real $n \in \mathbb{R}$ (incluindo negativos e fracionários, onde $x^n$ e $x^{n-1}$ estejam definidas), $\dfrac{d}{dx}(x^n) = n\, x^{n - 1}$.</item>
+          <item><strong>Regra do produto:</strong> $(f \cdot g)'(x) = f'(x)\, g(x) + f(x)\, g'(x)$.</item>
+          <item><strong>Regra do quociente</strong> (para $g(x) \ne 0$): $\left(\dfrac{f}{g}\right)'(x) = \dfrac{f'(x)\, g(x) - f(x)\, g'(x)}{\bigl[g(x)\bigr]^2}$.</item>
+        </list>
+      </proposition>
+      <proof of="prop:2-2-regras-algebricas" collapsible="true" collapsed="true">
+        A linearidade decorre diretamente da linearidade dos limites: por exemplo, $\frac{[f(x+h)+g(x+h)] - [f(x)+g(x)]}{h} = \frac{f(x+h)-f(x)}{h} + \frac{g(x+h)-g(x)}{h} \to f'(x) + g'(x)$.
+
+        Para demonstrar a <strong>regra do produto</strong>, somamos e subtraímos $f(x)\, g(x + h)$ no numerador da razão incremental:
+        $$\frac{f(x+h)g(x+h) - f(x)g(x)}{h} = \frac{f(x+h) - f(x)}{h}\, g(x + h) + f(x)\, \frac{g(x+h) - g(x)}{h}.$$
+        Como $g$ é derivável em $x$, pelo <ref to="thm:2-2-deriv-cont"/> ela é contínua em $x$, logo $\lim_{h \to 0} g(x + h) = g(x)$. Tomando $h \to 0$, obtemos $f'(x)g(x) + f(x)g'(x)$. A regra do quociente segue de maneira análoga escrevendo $\frac{f(x+h)/g(x+h) - f(x)/g(x)}{h}$ no denominador comum $g(x+h)g(x)$ (ou aplicando a regra do produto a $f = (f/g)\cdot g$).
+      </proof>
+
+      Agora reunimos as derivadas das quatro funções elementares que mais aparecem em modelagem neural e estatística: exponencial natural, logaritmo natural, seno e cosseno.
+
+      <proposition id="prop:2-2-derivadas-elem">
+        <title>Derivadas de $e^x$, $\ln x$, $\operatorname{sen} x$ e $\cos x$</title>
+        <list marker="number">
+          <item><strong>Exponencial natural:</strong> $\dfrac{d}{dx}(e^x) = e^x$ para todo $x \in \mathbb{R}$. O número $e \approx 2{,}71828$ é justamente a única base para a qual vale $\lim_{h \to 0} \dfrac{e^h - 1}{h} = 1$.</item>
+          <item><strong>Logaritmo natural:</strong> $\dfrac{d}{dx}(\ln x) = \dfrac{1}{x}$ para todo $x > 0$ (demonstraremos essa fórmula na <ref to="sec:2-2-5"/> usando derivação implícita a partir de $e^y = x$).</item>
+          <item><strong>Seno e cosseno</strong> (com $x$ medido em <strong>radianos</strong>): $\dfrac{d}{dx}(\operatorname{sen} x) = \cos x$ e $\dfrac{d}{dx}(\cos x) = -\operatorname{sen} x$.</item>
+        </list>
+      </proposition>
+      <proof of="prop:2-2-derivadas-elem" collapsible="true" collapsed="true">
+        Para $e^x$, fatoramos $e^x$ na razão incremental:
+        $$\lim_{h \to 0} \frac{e^{x+h} - e^x}{h} = e^x \lim_{h \to 0} \frac{e^h - 1}{h} = e^x \cdot 1 = e^x.$$
+        Para $\operatorname{sen} x$, usamos a identidade $\operatorname{sen}(x + h) = \operatorname{sen} x \cos h + \cos x \operatorname{sen} h$ (Trigonometria, Tema 1.4):
+        $$\frac{\operatorname{sen}(x + h) - \operatorname{sen} x}{h} = \operatorname{sen} x \cdot \frac{\cos h - 1}{h} + \cos x \cdot \frac{\operatorname{sen} h}{h}.$$
+        Pelo limite trigonométrico fundamental do Tema 2.1, $\lim_{h \to 0} \frac{\operatorname{sen} h}{h} = 1$. Além disso, como $\cos h - 1 = -2\operatorname{sen}^2(h/2)$, temos $\lim_{h \to 0} \frac{\cos h - 1}{h} = \lim_{h \to 0} \left(-\frac{\operatorname{sen}(h/2)}{h/2} \cdot \operatorname{sen}(h/2)\right) = -1 \cdot 0 = 0$. Portanto, o limite vale $(\operatorname{sen} x)\cdot 0 + (\cos x)\cdot 1 = \cos x$. De modo análogo, usando $\cos(x+h) = \cos x \cos h - \operatorname{sen} x \operatorname{sen} h$, obtém-se $\dfrac{d}{dx}(\cos x) = -\operatorname{sen} x$.
+      </proof>
+
+      <example id="exm:2-2-regras-calc">
+        <title>Potências negativas e fracionárias, e regra do produto</title>
+        Calcule as derivadas de:
+        <list marker="a">
+          <item>$f(x) = 3x^4 - 4\sqrt{x} + \dfrac{2}{x^3}$, para $x > 0$;</item>
+          <item>$g(x) = e^x \cos x$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Reescrevemos raízes e frações como potências de $x$: $f(x) = 3x^4 - 4x^{1/2} + 2x^{-3}$. Aplicando linearidade e regra da potência:
+            $$f'(x) = 3(4x^3) - 4\!\left(\frac{1}{2}x^{-1/2}\right) + 2(-3x^{-4}) = 12x^3 - \frac{2}{\sqrt{x}} - \frac{6}{x^4}.$$
+          </item>
+          <item>Aplicamos a regra do produto com $u(x) = e^x$ ($u'(x) = e^x$) e $v(x) = \cos x$ ($v'(x) = -\operatorname{sen} x$):
+            $$g'(x) = (e^x)'\cos x + e^x(\cos x)' = e^x \cos x + e^x(-\operatorname{sen} x) = e^x(\cos x - \operatorname{sen} x).$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:2-2-mm-eeg">
+        <title>Cinética de Michaelis–Menten e oscilação de EEG</title>
+        <list marker="a">
+          <item>A velocidade de uma reação enzimática segundo Michaelis–Menten é $v([S]) = \dfrac{V_{\max}[S]}{K_m + [S]}$, com $V_{\max}, K_m > 0$ e $[S] \ge 0$. Calcule $\dfrac{dv}{d[S]}$ pela regra do quociente e interprete o resultado.</item>
+          <item>Uma onda alfa de eletroencefalograma (EEG) é modelada por $y(t) = A\operatorname{sen}(2\pi f t)$, com amplitude $A = 40\;\mu\text{V}$ e frequência $f = 10\text{ Hz}$ ($t$ em segundos). Calcule $y'(t)$ e destaque o papel do fator $2\pi f$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Na regra do quociente em relação a $[S]$, o numerador é $V_{\max}[S]$ (derivada $V_{\max}$) e o denominador é $K_m + [S]$ (derivada $1$):
+            $$\frac{dv}{d[S]} = \frac{V_{\max}(K_m + [S]) - V_{\max}[S] \cdot 1}{(K_m + [S])^2} = \frac{V_{\max} K_m}{(K_m + [S])^2}.$$
+            Como $V_{\max}, K_m > 0$ e o denominador é um quadrado positivo, $\dfrac{dv}{d[S]} > 0$ para todo $[S] \ge 0$ (mais substrato sempre acelera a reação). Porém, conforme $[S]$ cresce, o denominador $(K_m + [S])^2$ aumenta e $\dfrac{dv}{d[S]}$ diminui: perto da saturação ($v \to V_{\max}$, Tema 2.1), adicionar substrato rende ganhos cada vez menores.
+          </item>
+          <item>Seja $\omega = 2\pi f = 20\pi\text{ rad/s}$. Pela identidade $\operatorname{sen}(\omega(t + h)) = \operatorname{sen}(\omega t)\cos(\omega h) + \cos(\omega t)\operatorname{sen}(\omega h)$ na razão incremental:
+            $$\frac{y(t + h) - y(t)}{h} = A\,\omega\left[\operatorname{sen}(\omega t)\frac{\cos(\omega h) - 1}{\omega h} + \cos(\omega t)\frac{\operatorname{sen}(\omega h)}{\omega h}\right] \xrightarrow{h \to 0} A \cdot 2\pi f \cos(2\pi f t).$$
+            (Na <ref to="sec:2-2-4"/>, a regra da cadeia fará surgir esse fator $2\pi f$ em uma única linha.) Substituindo $A = 40\;\mu\text{V}$ e $f = 10\text{ Hz}$:
+            $$y'(t) = 40 \cdot 20\pi \cos(20\pi t) = 800\pi \cos(20\pi t) \approx 2\,513\cos(20\pi t)\;\mu\text{V/s}.$$
+            O fator $2\pi f$ mostra que, para uma mesma amplitude $A$, oscilações mais rápidas (como ondas gama a $40\text{ Hz}$) têm inclinação máxima quatro vezes maior que ondas alfa a $10\text{ Hz}$.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:2-2-armadilha-sec3">
+        <title>Armadilha comum</title>
+        Quatro armadilhas frequentes nas regras de derivação:
+        <list marker="dash">
+          <item><strong>Derivar produto termo a termo:</strong> $(f \cdot g)' \ne f' \cdot g'$. Teste com $x \cdot x = x^2$: a derivada correta é $2x$, enquanto $1 \cdot 1 = 1$ está errado.</item>
+          <item><strong>Derivar quociente termo a termo:</strong> $(f / g)' \ne f' / g'$. Use sempre $\dfrac{f'g - fg'}{g^2}$, respeitando a ordem da subtração.</item>
+          <item><strong>Confundir $e^x$ com $a^x$:</strong> $\dfrac{d}{dx}(e^x) = e^x$, mas para outra base positiva $a \ne 1$ vale $\dfrac{d}{dx}(a^x) = a^x \ln a$ (provado na próxima seção).</item>
+          <item><strong>Esquecer os radianos:</strong> as fórmulas $(\operatorname{sen} x)' = \cos x$ e $(\cos x)' = -\operatorname{sen} x$ só valem quando $x$ está em <strong>radianos</strong> (por isso escrevemos $2\pi f t$ no EEG, e não $360^\circ f t$).</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:2-2-3-1">
+        <title>Básico — Regras de potência, produto e quociente</title>
+        Calcule as derivadas das seguintes funções (para $x > 0$ quando necessário):
+        <list marker="a">
+          <item>$f(x) = 5x^3 - \dfrac{6}{x} + 8\sqrt[3]{x}$</item>
+          <item>$g(x) = x^2 \operatorname{sen} x$</item>
+          <item>$h(x) = \dfrac{\ln x}{x}$</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), escreva $\frac{6}{x} = 6x^{-1}$ e $\sqrt[3]{x} = x^{1/3}$. Em (b), use a regra do produto; em (c), a regra do quociente.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Escrevemos $f(x) = 5x^3 - 6x^{-1} + 8x^{1/3}$. Pela regra da potência:
+              $$f'(x) = 15x^2 - 6(-1)x^{-2} + 8\left(\frac{1}{3}\right)x^{-2/3} = 15x^2 + \frac{6}{x^2} + \frac{8}{3\sqrt[3]{x^2}}.$$
+            </item>
+            <item>Pela regra do produto:
+              $$g'(x) = (x^2)'\operatorname{sen} x + x^2(\operatorname{sen} x)' = 2x\operatorname{sen} x + x^2\cos x.$$
+            </item>
+            <item>Pela regra do quociente (com $x > 0$):
+              $$h'(x) = \frac{(\ln x)' \cdot x - (\ln x) \cdot (x)'}{x^2} = \frac{\frac{1}{x} \cdot x - \ln x}{x^2} = \frac{1 - \ln x}{x^2}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-2-3-2">
+        <title>Intermediário — Pico de corrente sináptica excitatória</title>
+        Após um disparo pré-sináptico em $t = 0$, uma corrente pós-sináptica excitatória (em $\text{pA}$, com $t \ge 0$ em $\text{ms}$) é modelada por:
+        $$I(t) = \frac{50t}{e^t}.$$
+        Calcule $\dfrac{dI}{dt}$ pela regra do quociente, determine em que instante $t$ ocorre o pico da corrente ($\dfrac{dI}{dt} = 0$) e estime o valor máximo da corrente (usando $e \approx 2{,}718$).
+        <hint><title>Ver dica</title>Aplique a regra do quociente a $\frac{50t}{e^t}$ e lembre que $e^t > 0$ para todo $t$, logo pode ser simplificado entre numerador e denominador.</hint>
+        <solution collapsible="true" collapsed="true">
+          Aplicando a regra do quociente com numerador $50t$ (derivada $50$) e denominador $e^t$ (derivada $e^t$):
+          $$\frac{dI}{dt} = \frac{50 e^t - 50t e^t}{(e^t)^2} = \frac{50 e^t (1 - t)}{e^{2t}} = \frac{50(1 - t)}{e^t}\text{ pA/ms}.$$
+          Como $e^t > 0$, $\dfrac{dI}{dt} = 0$ ocorre somente quando $1 - t = 0$, ou seja, em $t = 1\text{ ms}$. Para $0 \le t < 1$, $\dfrac{dI}{dt} > 0$ (a corrente cresce); para $t > 1$, $\dfrac{dI}{dt} < 0$ (a corrente decai exponencialmente). Logo, o pico acontece em $t = 1\text{ ms}$ e vale:
+          $$I(1) = \frac{50 \cdot 1}{e^1} = \frac{50}{e} \approx \frac{50}{2{,}718} \approx 18{,}39\text{ pA}.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-2-3-3">
+        <title>Avançado — Derivada da função de Hill na ligação cooperativa</title>
+        Na bioquímica de receptores e hemoglobina, a fração de sítios ocupados $\theta$ em função da concentração do ligante $[L] \ge 0$ segue a equação de Hill:
+        $$\theta([L]) = \frac{[L]^n}{K + [L]^n},$$
+        em que $K > 0$ e $n \ge 1$ é o coeficiente de Hill. Usando a regra do quociente, mostre que:
+        $$\frac{d\theta}{d[L]} = \frac{n K [L]^{n - 1}}{(K + [L]^n)^2},$$
+        e calcule essa taxa para $n = 2$, $K = 4\text{ mM}^2$ e $[L] = 2\text{ mM}$.
+        <hint><title>Ver dica</title>A derivada de $[L]^n$ em relação a $[L]$ é $n[L]^{n-1}$, e a derivada de $K + [L]^n$ também é $n[L]^{n-1}$ porque $K$ é constante.</hint>
+        <solution collapsible="true" collapsed="true">
+          Aplicamos a regra do quociente em relação a $[L]$:
+          $$\frac{d\theta}{d[L]} = \frac{n[L]^{n-1}(K + [L]^n) - [L]^n \cdot n[L]^{n-1}}{(K + [L]^n)^2}.$$
+          Expandindo o numerador:
+          $$nK[L]^{n-1} + n[L]^{2n-1} - n[L]^{2n-1} = nK[L]^{n-1}.$$
+          Portanto:
+          $$\frac{d\theta}{d[L]} = \frac{n K [L]^{n-1}}{(K + [L]^n)^2}.$$
+          Substituindo $n = 2$, $K = 4\text{ mM}^2$ e $[L] = 2\text{ mM}$:
+          $$\left.\frac{d\theta}{d[L]}\right|_{[L]=2} = \frac{2 \cdot 4 \cdot 2^{2-1}}{(4 + 2^2)^2} = \frac{16}{8^2} = \frac{16}{64} = 0{,}25\text{ mM}^{-1}.$$
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:2-2-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Regra da cadeia</title>
+      <intro>
+        Na biologia e nas redes neurais, um estímulo aciona uma variável intermediária que, por sua vez, altera uma resposta final: a regra da cadeia mostra que, ao longo de uma cadeia de causas, as taxas se multiplicam.
+      </intro>
+
+      Imagine uma cascata simples: uma mudança na corrente $I$ altera o potencial $V$, e a mudança em $V$ altera a taxa de disparo $r$. Se $1\text{ nA}$ extra eleva $V$ em $40\text{ mV}$, e cada $1\text{ mV}$ extra acrescenta $2$ disparos por segundo, então $1\text{ nA}$ extra acrescenta $2 \times 40 = 80$ disparos por segundo. A <strong>regra da cadeia</strong> formaliza exatamente essa multiplicação de sensibilidades para funções compostas $f(g(x))$.
+
+      <theorem id="thm:2-2-cadeia">
+        <title>Regra da cadeia</title>
+        Se $g$ é derivável em $x$ e $f$ é derivável em $u = g(x)$, então a função composta $(f \circ g)(x) = f(g(x))$ é derivável em $x$ e sua derivada vale:
+        $$(f \circ g)'(x) = f'\bigl(g(x)\bigr) \cdot g'(x).$$
+        Na notação de Leibniz, escrevendo $y = f(u)$ com $u = g(x)$:
+        $$\frac{dy}{dx} = \frac{dy}{du} \cdot \frac{du}{dx}.$$
+        Para uma composição de três funções $y = f(g(h(x)))$, com $w = h(x)$, $u = g(w)$ e $y = f(u)$:
+        $$\frac{dy}{dx} = \frac{dy}{du} \cdot \frac{du}{dw} \cdot \frac{dw}{dx} = f'\bigl(g(h(x))\bigr) \cdot g'\bigl(h(x)\bigr) \cdot h'(x).$$
+        <intuition>
+          Embora $\dfrac{dy}{du}$ e $\dfrac{du}{dx}$ sejam limites (e não frações comuns), variações pequenas se propagam por multiplicação: $\Delta u \approx \dfrac{du}{dx}\Delta x$ e $\Delta y \approx \dfrac{dy}{du}\Delta u$, de modo que $\Delta y \approx \dfrac{dy}{du}\dfrac{du}{dx}\Delta x$.
+        </intuition>
+      </theorem>
+
+      <example id="exm:2-2-cadeia-est-sig">
+        <title>Cadeia estímulo $\to$ potencial $\to$ taxa e derivada da sigmoide</title>
+        <list marker="a">
+          <item>Na composição apresentada em <strong>Funções</strong> (Tema 1.3), uma corrente $I$ gera um potencial passivo $V(I) = E_L + R \cdot I$, que determina uma taxa de disparo $r = f(V)$. Expresse $\dfrac{dr}{dI}$ pela regra da cadeia e calcule seu valor quando $R = 40\text{ M}\Omega$ (logo $\dfrac{dV}{dI} = 40\text{ mV/nA}$) e $f'(V) = 2{,}5\text{ Hz/mV}$.</item>
+          <item>Calcule a derivada da função sigmoide logística $\sigma(x) = \dfrac{1}{1 + e^{-x}}$, mostre que $\sigma'(x) = \sigma(x)\bigl(1 - \sigma(x)\bigr)$ e calcule o valor máximo $\sigma'(0)$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Como $r$ depende de $V$ e $V$ depende de $I$, a regra da cadeia fornece:
+            $$\frac{dr}{dI} = \frac{dr}{dV} \cdot \frac{dV}{dI} = f'(V) \cdot R.$$
+            Com $\dfrac{dV}{dI} = 40\text{ mV/nA}$ e $f'(V) = 2{,}5\text{ Hz/mV}$, temos:
+            $$\frac{dr}{dI} = (2{,}5\text{ Hz/mV}) \cdot (40\text{ mV/nA}) = 100\text{ Hz/nA}.$$
+            Repare como até as unidades se cancelam perfeitamente ($\text{Hz/mV} \cdot \text{mV/nA} = \text{Hz/nA}$).
+          </item>
+          <item>Escrevemos $\sigma(x) = (1 + e^{-x})^{-1}$. Temos uma composição com função externa $u^{-1}$ (derivada $-u^{-2}$) e função interna $u(x) = 1 + e^{-x}$. Para derivar $e^{-x}$, aplicamos a cadeia novamente: $(e^{-x})' = e^{-x} \cdot (-x)' = -e^{-x}$. Logo, $u'(x) = -e^{-x}$ e:
+            $$\sigma'(x) = -(1 + e^{-x})^{-2} \cdot (-e^{-x}) = \frac{e^{-x}}{(1 + e^{-x})^2} = \frac{1}{1 + e^{-x}} \cdot \frac{e^{-x}}{1 + e^{-x}}.$$
+            Observando que $\dfrac{e^{-x}}{1 + e^{-x}} = \dfrac{(1 + e^{-x}) - 1}{1 + e^{-x}} = 1 - \dfrac{1}{1 + e^{-x}} = 1 - \sigma(x)$, obtemos a identidade célebre:
+            $$\sigma'(x) = \sigma(x)\bigl(1 - \sigma(x)\bigr).$$
+            Em $x = 0$, $\sigma(0) = \dfrac{1}{1 + e^0} = \dfrac{1}{2}$, portanto:
+            $$\sigma'(0) = \frac{1}{2}\left(1 - \frac{1}{2}\right) = \frac{1}{4} = 0{,}25.$$
+            Como $p(1 - p) = \frac{1}{4} - \left(p - \frac{1}{2}\right)^2 \le \frac{1}{4}$ para todo $p \in (0, 1)$, esse valor $\sigma'(0) = \dfrac{1}{4}$ é o máximo global da derivada da sigmoide.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:2-2-sintonia-gaussiana">
+        <title>Curva de sintonia gaussiana e discriminação de orientação</title>
+        Um neurônio do córtex visual primário responde à orientação $\theta$ (em graus) de uma barra luminosa com a curva de sintonia gaussiana (Tema 1.3):
+        $$f(\theta) = r_{\max} \exp\!\left(-\frac{(\theta - \theta_{\text{pref}})^2}{2\sigma^2}\right),$$
+        com $r_{\max} = 80\text{ Hz}$, $\theta_{\text{pref}} = 90^\circ$ e $\sigma = 20^\circ$. Calcule $f'(\theta)$, avalie em $\theta_{\text{pref}}$ e nos flancos $\theta_{\text{pref}} \pm \sigma$, e interprete o resultado.
+
+        <strong>Solução.</strong> Seja $u(\theta) = -\dfrac{(\theta - \theta_{\text{pref}})^2}{2\sigma^2}$. Derivando $u(\theta)$ pela regra da cadeia:
+        $$u'(\theta) = -\frac{2(\theta - \theta_{\text{pref}}) \cdot 1}{2\sigma^2} = -\frac{\theta - \theta_{\text{pref}}}{\sigma^2}.$$
+        Aplicando a regra da cadeia a $f(\theta) = r_{\max} e^{u(\theta)}$:
+        $$f'(\theta) = r_{\max} e^{u(\theta)} \cdot u'(\theta) = -\frac{\theta - \theta_{\text{pref}}}{\sigma^2}\, f(\theta).$$
+        Avaliando com $r_{\max} = 80\text{ Hz}$, $\theta_{\text{pref}} = 90^\circ$ e $\sigma = 20^\circ$:
+        <list marker="dash">
+          <item><strong>No pico ($\theta = 90^\circ$):</strong> $f(90^\circ) = 80\text{ Hz}$ e $f'(90^\circ) = -\dfrac{90 - 90}{400}\cdot 80 = 0\text{ Hz}/^\circ$.</item>
+          <item><strong>Nos flancos ($\theta = 70^\circ$ e $\theta = 110^\circ$, isto é, $\theta_{\text{pref}} \pm \sigma$):</strong> $f(70^\circ) = f(110^\circ) = 80 e^{-1/2} \approx 48{,}52\text{ Hz}$, e
+            $$f'(70^\circ) = -\frac{-20}{400}\cdot 80 e^{-1/2} = 4 e^{-1/2} \approx +2{,}43\text{ Hz}/^\circ, \qquad f'(110^\circ) = -4 e^{-1/2} \approx -2{,}43\text{ Hz}/^\circ.$$
+          </item>
+        </list>
+        Como confirmaremos na <ref to="sec:2-2-6"/>, $|f'(\theta)|$ atinge seu valor máximo justamente em $\theta = \theta_{\text{pref}} \pm \sigma$ (<ref to="fig:2-2-sintonia-derivada"/>). Isso revela um fato clássico da neurociência teórica (Dayan e Abbott): <strong>um neurônio discrimina pequenas mudanças de orientação melhor nos flancos da sua curva de sintonia, e não no pico</strong>, porque no pico $f'(\theta) = 0$ e uma pequena rotação quase não altera a taxa de disparo, enquanto nos flancos cada grau de variação gera a maior mudança possível de resposta.
+      </example>
+
+      <figure src="fig/sintonia-derivada.svg" alt="Dois gráficos empilhados: em cima, a curva de sintonia gaussiana com pico em 90 graus e flancos em 70 e 110 graus; em baixo, sua derivada anulando-se em 90 graus e atingindo extremos nos flancos" id="fig:2-2-sintonia-derivada">
+        <caption>Curva de sintonia gaussiana $f(\theta)$ (acima) e sua derivada $f'(\theta)$ (abaixo) para $r_{\max} = 80\text{ Hz}$, $\theta_{\text{pref}} = 90^\circ$ e $\sigma = 20^\circ$. No pico $\theta_{\text{pref}}$, $f'(90^\circ) = 0$; nos flancos $\theta_{\text{pref}} \pm \sigma$ ($70^\circ$ e $110^\circ$), $|f'(\theta)|$ é máximo ($\approx 2{,}43\text{ Hz}/^\circ$).</caption>
+      </figure>
+
+      <box type="note">
+        <title>Ponte para o backpropagation</title>
+        Considere uma rede neural simples de duas camadas com entrada escalar $x$, pesos sinápticos $w_1, w_2$ e funções de ativação $f_1, f_2$:
+        $$y = f_2\bigl(w_2 \cdot f_1(w_1 \cdot x)\bigr).$$
+        Definindo $z_1 = w_1 x$, $a_1 = f_1(z_1)$ e $z_2 = w_2 a_1$, quanto a saída $y$ varia se ajustarmos o primeiro peso $w_1$? Pela regra da cadeia:
+        $$\frac{dy}{dw_1} = \frac{dy}{dz_2} \cdot \frac{dz_2}{da_1} \cdot \frac{da_1}{dz_1} \cdot \frac{dz_1}{dw_1} = f_2'(z_2) \cdot w_2 \cdot f_1'(z_1) \cdot x.$$
+        Esse produto de derivadas locais — propagadas da saída de volta até cada peso — é a essência do <em>backpropagation</em>. No Módulo 3 estenderemos essa ideia para gradientes em várias variáveis e, no Módulo 9, para redes profundas completas.
+      </box>
+
+      <remark id="rem:2-2-armadilha-sec4">
+        <title>Armadilha comum</title>
+        O erro número um em Cálculo é <strong>esquecer a derivada da função de dentro</strong> na regra da cadeia. Por exemplo, $\dfrac{d}{dx}(e^{-x^2}) = e^{-x^2} \cdot (-2x) = -2x\, e^{-x^2}$, e <strong>não</strong> $e^{-x^2}$! Da mesma forma, $\dfrac{d}{dx}\operatorname{sen}(3x) = 3\cos(3x)$, e não $\cos(3x)$. Pergunte sempre a si mesmo: "qual é a casca externa e qual é o miolo interno?" e multiplique por $g'(x)$.
+      </remark>
+
+      <exercise id="exr:2-2-4-1">
+        <title>Básico — Regra da cadeia em composições elementares</title>
+        Calcule as derivadas das seguintes funções:
+        <list marker="a">
+          <item>$f(x) = (2x + 5)^4$</item>
+          <item>$g(x) = e^{-3x^2}$</item>
+          <item>$h(t) = \cos(2\pi f t + \varphi)$, em que $f$ e $\varphi$ são constantes</item>
+        </list>
+        <hint><title>Ver dica</title>Identifique a função interna $u(x)$ em cada caso: $2x + 5$ em (a), $-3x^2$ em (b) e $2\pi f t + \varphi$ em (c), e multiplique a derivada da externa por $u'$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Com $u = 2x + 5$, temos $u' = 2$:
+              $$f'(x) = 4(2x + 5)^3 \cdot 2 = 8(2x + 5)^3.$$
+            </item>
+            <item>Com $u = -3x^2$, temos $u' = -6x$:
+              $$g'(x) = e^{-3x^2} \cdot (-6x) = -6x\, e^{-3x^2}.$$
+            </item>
+            <item>Com $u(t) = 2\pi f t + \varphi$, temos $u'(t) = 2\pi f$:
+              $$h'(t) = -\operatorname{sen}(2\pi f t + \varphi) \cdot 2\pi f = -2\pi f \operatorname{sen}(2\pi f t + \varphi).$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-2-4-2">
+        <title>Intermediário — Derivada de $\ln(g(x))$ e da exponencial $a^x$</title>
+        <list marker="a">
+          <item>Usando a regra da cadeia e $\dfrac{d}{du}(\ln u) = \dfrac{1}{u}$, mostre que $\dfrac{d}{dx}\bigl(\ln g(x)\bigr) = \dfrac{g'(x)}{g(x)}$ para $g(x) > 0$ derivável, e aplique em $y(x) = \ln(x^2 + 4)$.</item>
+          <item>Escrevendo $a^x = e^{x \ln a}$ ($a > 0$, $a \ne 1$), deduza $\dfrac{d}{dx}(a^x) = a^x \ln a$. Aplique ao crescimento bacteriano $N(t) = 100 \cdot 2^t$ para achar a taxa instantânea em $t = 3$ gerações (use $\ln 2 \approx 0{,}6931$).</item>
+        </list>
+        <hint><title>Ver dica</title>Em (b), trate $\ln a$ como uma constante multiplicando $x$ ao derivar $e^{x \ln a}$ pela regra da cadeia.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Com $u = g(x) > 0$, temos $\dfrac{d}{dx}(\ln u) = \dfrac{1}{u}\cdot \dfrac{du}{dx} = \dfrac{g'(x)}{g(x)}$. Para $g(x) = x^2 + 4 > 0$, $g'(x) = 2x$, logo:
+              $$y'(x) = \frac{2x}{x^2 + 4}.$$
+            </item>
+            <item>Como $a^x = e^{x \ln a}$ e $\ln a$ é constante, pela regra da cadeia:
+              $$\frac{d}{dx}(a^x) = e^{x \ln a} \cdot \frac{d}{dx}(x \ln a) = e^{x \ln a} \cdot \ln a = a^x \ln a.$$
+              Para $N(t) = 100 \cdot 2^t$, temos $N'(t) = 100 \cdot 2^t \ln 2$. Em $t = 3$ gerações:
+              $$N'(3) = 100 \cdot 2^3 \cdot \ln 2 = 800 \ln 2 \approx 800 \cdot 0{,}6931 \approx 554{,}5\text{ bactérias/geração}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-2-4-3">
+        <title>Avançado — Regra da cadeia em cascata de duas camadas</title>
+        Considere uma unidade neural de duas camadas com ativação sigmoide:
+        $$y = \sigma\bigl(w_2 \cdot \sigma(w_1 x)\bigr).$$
+        <list marker="a">
+          <item>Chamando $z_1 = w_1 x$, $a_1 = \sigma(z_1)$ e $z_2 = w_2 a_1$, obtenha a fórmula para $\dfrac{dy}{dw_1}$ em função de $x$, $w_2$, $a_1$ e $y$ (use $\sigma'(z) = \sigma(z)(1 - \sigma(z))$).</item>
+          <item>Calcule o valor numérico de $\dfrac{dy}{dw_1}$ para $x = 2$, $w_1 = 0$ e $w_2 = 2$, sabendo que $\sigma(0) = 0{,}5$ e $\sigma(1) \approx 0{,}7311$.</item>
+        </list>
+        <hint><title>Ver dica</title>Aplique a cadeia de quatro elos $\frac{dy}{dz_2}\cdot\frac{dz_2}{da_1}\cdot\frac{da_1}{dz_1}\cdot\frac{dz_1}{dw_1}$ e substitua $\sigma'(z_2) = y(1 - y)$ e $\sigma'(z_1) = a_1(1 - a_1)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pela regra da cadeia ao longo da cascata:
+              $$\frac{dy}{dw_1} = \frac{dy}{dz_2} \cdot \frac{dz_2}{da_1} \cdot \frac{da_1}{dz_1} \cdot \frac{dz_1}{dw_1} = \sigma'(z_2) \cdot w_2 \cdot \sigma'(z_1) \cdot x.$$
+              Usando $\sigma'(z_2) = y(1 - y)$ e $\sigma'(z_1) = a_1(1 - a_1)$, obtemos:
+              $$\frac{dy}{dw_1} = y(1 - y) \cdot w_2 \cdot a_1(1 - a_1) \cdot x.$$
+            </item>
+            <item>Para $x = 2$, $w_1 = 0$ e $w_2 = 2$:
+              <list marker="dash">
+                <item>$z_1 = 0 \cdot 2 = 0 \implies a_1 = \sigma(0) = 0{,}5 \implies a_1(1 - a_1) = 0{,}5 \cdot 0{,}5 = 0{,}25$;</item>
+                <item>$z_2 = 2 \cdot 0{,}5 = 1 \implies y = \sigma(1) \approx 0{,}7311 \implies y(1 - y) \approx 0{,}7311 \cdot 0{,}2689 \approx 0{,}1966$;</item>
+                <item>Multiplicando os fatores locais: $\dfrac{dy}{dw_1} \approx 0{,}1966 \cdot 2 \cdot 0{,}25 \cdot 2 = 0{,}1966$.</item>
+              </list>
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:2-2-5">
+      <eyebrow>Subtema 5</eyebrow>
+      <title>Derivação implícita</title>
+      <intro>
+        Muitas relações geométricas e leis fisiológicas ligam duas variáveis em uma equação fechada sem isolar uma delas: derivar ambos os lados usando a regra da cadeia resolve o problema diretamente.
+      </intro>
+
+      Em curvas como o círculo $x^2 + y^2 = r^2$ ou na lei dos gases $P \cdot V = C$, nem sempre é prático (ou sequer possível por fórmulas elementares) isolar $y$ como função explícita de $x$ antes de derivar. A <strong>derivação implícita</strong> trata $y = y(x)$ como uma função derivável de $x$ e aplica a regra da cadeia sempre que $y$ aparece: por exemplo, $\dfrac{d}{dx}(y^2) = 2y\dfrac{dy}{dx}$ e $\dfrac{d}{dx}(e^y) = e^y\dfrac{dy}{dx}$. Em seguida, isolamos $\dfrac{dy}{dx}$ algebricamente.
+
+      Essa técnica também permite deduzir rapidamente as derivadas de funções inversas, como $\ln x$ (inversa de $e^x$) e $\arctan x$ (inversa de $\tan x$).
+
+      <proposition id="prop:2-2-inversas">
+        <title>Derivadas de $\ln x$ e $\arctan x$ por derivação implícita</title>
+        <list marker="number">
+          <item>Para todo $x > 0$, $\dfrac{d}{dx}(\ln x) = \dfrac{1}{x}$.</item>
+          <item>Para todo $x \in \mathbb{R}$, $\dfrac{d}{dx}(\arctan x) = \dfrac{1}{1 + x^2}$.</item>
+        </list>
+      </proposition>
+      <proof of="prop:2-2-inversas" collapsible="true" collapsed="true">
+        <list marker="number">
+          <item>Se $y = \ln x$ ($x > 0$), então $e^y = x$. Derivando os dois lados em relação a $x$ (usando a regra da cadeia no termo $e^y$):
+            $$e^y \frac{dy}{dx} = 1 \implies \frac{dy}{dx} = \frac{1}{e^y} = \frac{1}{x}.$$
+          </item>
+          <item>Se $y = \arctan x$ ($-\frac{\pi}{2} < y < \frac{\pi}{2}$), então $\tan y = x$. Pela regra do quociente e pela identidade fundamental da Trigonometria ($\cos^2 y + \operatorname{sen}^2 y = 1$, Tema 1.4), $\frac{d}{dy}(\tan y) = \frac{d}{dy}\left(\frac{\operatorname{sen} y}{\cos y}\right) = \frac{\cos^2 y + \operatorname{sen}^2 y}{\cos^2 y} = \frac{1}{\cos^2 y} = 1 + \tan^2 y$. Derivando $\tan y = x$ implicitamente em relação a $x$:
+            $$(1 + \tan^2 y)\frac{dy}{dx} = 1 \implies \frac{dy}{dx} = \frac{1}{1 + \tan^2 y} = \frac{1}{1 + x^2}.$$
+          </item>
+        </list>
+      </proof>
+
+      <example id="exm:2-2-circulo-mm">
+        <title>Círculo e Michaelis–Menten na forma implícita</title>
+        <list marker="a">
+          <item>No círculo $x^2 + y^2 = r^2$ ($r > 0$), calcule $\dfrac{dy}{dx}$ por derivação implícita e confira com a geometria do raio.</item>
+          <item>Escreva a equação de Michaelis–Menten na forma implícita $v(K_m + [S]) = V_{\max}[S]$ e obtenha $\dfrac{dv}{d[S]}$, conferindo com a <ref to="sec:2-2-3"/>.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Derivamos ambos os lados de $x^2 + y^2 = r^2$ em relação a $x$ (lembrando que $r^2$ é constante, logo sua derivada é $0$):
+            $$2x + 2y\frac{dy}{dx} = 0 \implies \frac{dy}{dx} = -\frac{x}{y} \quad (y \ne 0).$$
+            Em <strong>Geometria Analítica</strong> (Tema 1.5), o raio que liga a origem $(0, 0)$ ao ponto $(x, y)$ tem inclinação $m_{\text{raio}} = \dfrac{y}{x}$ ($x \ne 0$). O produto das inclinações vale $m_{\text{tang}} \cdot m_{\text{raio}} = \left(-\dfrac{x}{y}\right)\!\left(\dfrac{y}{x}\right) = -1$, confirmando que a tangente ao círculo é sempre perpendicular ao raio!
+          </item>
+          <item>Derivando $v(K_m + [S]) = V_{\max}[S]$ em relação a $[S]$ (com $v = v([S])$ e regra do produto no lado esquerdo):
+            $$\frac{dv}{d[S]}(K_m + [S]) + v \cdot 1 = V_{\max}.$$
+            Isolando $\dfrac{dv}{d[S]}$ e substituindo $v = \dfrac{V_{\max}[S]}{K_m + [S]}$:
+            $$\frac{dv}{d[S]} = \frac{V_{\max} - v}{K_m + [S]} = \frac{V_{\max} - \dfrac{V_{\max}[S]}{K_m + [S]}}{K_m + [S]} = \frac{V_{\max} K_m}{(K_m + [S])^2},$$
+            em acordo exato com o resultado obtido pela regra do quociente no <ref to="exm:2-2-mm-eeg"/>.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:2-2-boyle-pulmao">
+        <title>Lei de Boyle no pulmão e taxas relacionadas</title>
+        A temperatura constante, o ar nos alvéolos pulmonares obedece aproximadamente à lei de Boyle: $P \cdot V = C$ (constante), em que $P$ é a pressão alveolar e $V$ é o volume pulmonar.
+        <list marker="a">
+          <item>Calcule $\dfrac{dP}{dV}$ por derivação implícita.</item>
+          <item>Se tanto a pressão $P(t)$ quanto o volume $V(t)$ variam com o tempo $t$ durante a respiração, relacione $\dfrac{dP}{dt}$ com $\dfrac{dV}{dt}$. Num instante da inspiração em que $V = 2{,}5\text{ L}$, $P = 100\text{ kPa}$ e o pulmão expande a $\dfrac{dV}{dt} = 0{,}5\text{ L/s}$, a que taxa varia a pressão?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Derivando $P \cdot V = C$ em relação a $V$ pela regra do produto:
+            $$\frac{dP}{dV} \cdot V + P \cdot 1 = 0 \implies \frac{dP}{dV} = -\frac{P}{V}.$$
+            O sinal negativo mostra que aumentar o volume pulmonar reduz a pressão interna.
+          </item>
+          <item>Agora derivamos $P(t) \cdot V(t) = C$ em relação ao tempo $t$ pela regra do produto e pela regra da cadeia:
+            $$\frac{dP}{dt} \cdot V + P \cdot \frac{dV}{dt} = 0 \implies \frac{dP}{dt} = -\frac{P}{V}\frac{dV}{dt}.$$
+            Substituindo $V = 2{,}5\text{ L}$, $P = 100\text{ kPa}$ e $\dfrac{dV}{dt} = 0{,}5\text{ L/s}$:
+            $$\frac{dP}{dt} = -\frac{100\text{ kPa}}{2{,}5\text{ L}} \cdot (0{,}5\text{ L/s}) = -40 \cdot 0{,}5 = -20\text{ kPa/s}.$$
+            A pressão cai a $20\text{ kPa/s}$, criando o gradiente que puxa ar para dentro dos pulmões.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:2-2-armadilha-sec5">
+        <title>Armadilha comum</title>
+        Ao derivar implicitamente em relação a $x$, <strong>jamais trate $y$ como se fosse uma constante nem como se fosse a própria variável $x$</strong>: escrever $\frac{d}{dx}(y^2) = 2y$ sem multiplicar por $\frac{dy}{dx}$ é esquecer a regra da cadeia. Lembre também que a derivada de uma constante isolada no lado direito (como $r^2$ ou $C$) é $0$, e não $2r$ ou $C$.
+      </remark>
+
+      <exercise id="exr:2-2-5-1">
+        <title>Básico — Reta tangente em uma curva implícita</title>
+        Considere a curva definida por $x^3 + y^3 = 9xy$. Calcule $\dfrac{dy}{dx}$ por derivação implícita e determine a inclinação da reta tangente no ponto $(2, 4)$.
+        <hint><title>Ver dica</title>Use a regra do produto em $9xy$ e não esqueça o fator $\frac{dy}{dx}$ ao derivar $y^3$ e $y$. Confira antes que $2^3 + 4^3 = 9 \cdot 2 \cdot 4 = 72$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Derivando ambos os lados de $x^3 + y^3 = 9xy$ em relação a $x$:
+          $$3x^2 + 3y^2 \frac{dy}{dx} = 9y + 9x \frac{dy}{dx}.$$
+          Agrupando os termos com $\dfrac{dy}{dx}$ à esquerda e os demais à direita:
+          $$(3y^2 - 9x)\frac{dy}{dx} = 9y - 3x^2 \implies \frac{dy}{dx} = \frac{9y - 3x^2}{3y^2 - 9x} = \frac{3y - x^2}{y^2 - 3x}.$$
+          No ponto $(2, 4)$ (que pertence à curva, pois $8 + 64 = 72 = 9 \cdot 2 \cdot 4$), a inclinação da tangente vale:
+          $$\left.\frac{dy}{dx}\right|_{(2,4)} = \frac{3(4) - 2^2}{4^2 - 3(2)} = \frac{12 - 4}{16 - 6} = \frac{8}{10} = \frac{4}{5} = 0{,}8.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-2-5-2">
+        <title>Intermediário — Derivada de $\operatorname{arcsen} x$ por derivação implícita</title>
+        Para $y = \operatorname{arcsen} x$ com $-1 < x < 1$ e $-\dfrac{\pi}{2} < y < \dfrac{\pi}{2}$, temos $\operatorname{sen} y = x$. Use derivação implícita e a identidade $\operatorname{sen}^2 y + \cos^2 y = 1$ para provar que:
+        $$\frac{d}{dx}(\operatorname{arcsen} x) = \frac{1}{\sqrt{1 - x^2}}.$$
+        <hint><title>Ver dica</title>Derive $\operatorname{sen} y = x$ em relação a $x$ para achar $\frac{dy}{dx} = \frac{1}{\cos y}$, e justifique o sinal positivo de $\cos y = +\sqrt{1 - \operatorname{sen}^2 y}$ usando o intervalo de $y$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Derivando $\operatorname{sen} y = x$ em relação a $x$ pela regra da cadeia:
+          $$\cos y \cdot \frac{dy}{dx} = 1 \implies \frac{dy}{dx} = \frac{1}{\cos y}.$$
+          Como $-\dfrac{\pi}{2} < y < \dfrac{\pi}{2}$, temos $\cos y > 0$ (primeiro e quarto quadrantes no círculo trigonométrico, Tema 1.4). Da identidade $\operatorname{sen}^2 y + \cos^2 y = 1$, segue:
+          $$\cos y = +\sqrt{1 - \operatorname{sen}^2 y} = \sqrt{1 - x^2}.$$
+          Logo, $\dfrac{d}{dx}(\operatorname{arcsen} x) = \dfrac{1}{\sqrt{1 - x^2}}$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-2-5-3">
+        <title>Avançado — Taxas relacionadas em uma célula esférica</title>
+        Suponha que um corpo celular esférico de raio $r(t)$ absorva água e aumente seu volume $V = \dfrac{4}{3}\pi r^3$ a uma taxa constante $\dfrac{dV}{dt} = 36\pi\;\mu\text{m}^3/\text{min}$.
+        <list marker="a">
+          <item>Com que velocidade $\dfrac{dr}{dt}$ o raio cresce no instante em que $r = 3\;\mu\text{m}$?</item>
+          <item>Sabendo que a área de superfície da membrana é $A = 4\pi r^2$, a que taxa $\dfrac{dA}{dt}$ (em $\mu\text{m}^2/\text{min}$) a área da membrana precisa se expandir nesse mesmo instante?</item>
+        </list>
+        <hint><title>Ver dica</title>Derive $V = \frac{4}{3}\pi r^3$ e $A = 4\pi r^2$ em relação ao tempo $t$ usando a regra da cadeia (não esqueça $\frac{dr}{dt}$).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Derivando $V(t) = \dfrac{4}{3}\pi \bigl[r(t)\bigr]^3$ em relação a $t$:
+              $$\frac{dV}{dt} = \frac{4}{3}\pi \cdot 3r^2 \frac{dr}{dt} = 4\pi r^2 \frac{dr}{dt}.$$
+              Substituindo $\dfrac{dV}{dt} = 36\pi\;\mu\text{m}^3/\text{min}$ e $r = 3\;\mu\text{m}$:
+              $$36\pi = 4\pi (3^2)\frac{dr}{dt} = 36\pi \frac{dr}{dt} \implies \frac{dr}{dt} = 1\;\mu\text{m/min}.$$
+            </item>
+            <item>Derivando $A(t) = 4\pi \bigl[r(t)\bigr]^2$ em relação a $t$:
+              $$\frac{dA}{dt} = 8\pi r \frac{dr}{dt}.$$
+              Substituindo $r = 3\;\mu\text{m}$ e $\dfrac{dr}{dt} = 1\;\mu\text{m/min}$:
+              $$\frac{dA}{dt} = 8\pi \cdot 3 \cdot 1 = 24\pi \approx 75{,}40\;\mu\text{m}^2/\text{min}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:2-2-6">
+      <eyebrow>Subtema 6</eyebrow>
+      <title>Derivadas de ordem superior</title>
+      <intro>
+        Se a primeira derivada mede a velocidade com que uma grandeza muda, a segunda derivada mede a aceleração — indicando se a taxa está aumentando ou diminuindo e revelando a curvatura do gráfico.
+      </intro>
+
+      Como $f'(x)$ também é uma função, podemos derivá-la novamente para obter a <strong>segunda derivada</strong>, depois a terceira e assim por diante. Em física, se $s(t)$ é a posição, $s'(t)$ é a velocidade e $s''(t)$ é a aceleração. Em neurociência e análise de dados, $f''(x)$ identifica onde uma resposta acelera, onde desacelera e se um ponto crítico ($f'(c) = 0$) é um pico ou um vale.
+
+      <definition id="def:2-2-ordem-superior">
+        <title>Derivadas sucessivas</title>
+        Seja $f$ derivável em um intervalo aberto. Definimos a <strong>segunda derivada</strong> como a derivada da primeira derivada:
+        $$f''(x) = (f')'(x) = \frac{d^2 f}{dx^2} = \frac{d}{dx}\!\left(\frac{df}{dx}\right).$$
+        De forma recursiva, a <strong>terceira derivada</strong> é $f'''(x) = (f'')'(x) = \dfrac{d^3 f}{dx^3}$, e a derivada de ordem $n$ ($n \ge 1$) é denotada por $f^{(n)}(x)$ ou $\dfrac{d^n f}{dx^n}$.
+      </definition>
+
+      <proposition id="prop:2-2-concavidade">
+        <title>Concavidade, ponto de inflexão e teste da segunda derivada</title>
+        Seja $f$ duas vezes derivável em um intervalo aberto $I$:
+        <list marker="number">
+          <item><strong>Concavidade:</strong> se $f''(x) > 0$ em $I$, então $f'$ é crescente e o gráfico de $f$ tem <strong>concavidade para cima</strong> (curva-se acima das retas tangentes); se $f''(x) < 0$ em $I$, então $f'$ é decrescente e o gráfico tem <strong>concavidade para baixo</strong>.</item>
+          <item><strong>Ponto de inflexão:</strong> um ponto $x = c$ onde $f$ é contínua e a concavidade <strong>troca de sentido</strong> (isto é, $f''$ muda de sinal ao passar por $c$) é chamado de <strong>ponto de inflexão</strong>. Nesse ponto, $|f'(x)|$ atinge um extremo local.</item>
+          <item><strong>Teste da segunda derivada:</strong> se $f'(c) = 0$ e $f''(c) < 0$, então $f$ tem um <strong>máximo local</strong> em $c$; se $f'(c) = 0$ e $f''(c) > 0$, tem um <strong>mínimo local</strong> em $c$.</item>
+        </list>
+      </proposition>
+
+      <example id="exm:2-2-inflexao-logistica-sig">
+        <title>Ponto de inflexão no crescimento logístico e na sigmoide</title>
+        <list marker="a">
+          <item>No modelo logístico $\dfrac{dN}{dt} = rN\!\left(1 - \dfrac{N}{K}\right)$ (com $r, K > 0$ e $0 < N < K$), derive em relação ao tempo $t$ para mostrar que o crescimento é mais rápido no ponto de inflexão $N = K/2$.</item>
+          <item>A partir de $\sigma'(x) = \sigma(x)\bigl(1 - \sigma(x)\bigr)$, calcule $\sigma''(x)$ e mostre que $x = 0$ é ponto de inflexão da sigmoide.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Reescrevemos $\dfrac{dN}{dt} = rN - \dfrac{r}{K}N^2$. Derivando os dois lados em relação a $t$ pela regra da cadeia (lembrando que $N = N(t)$):
+            $$\frac{d^2 N}{dt^2} = r\frac{dN}{dt} - \frac{2r}{K}N\frac{dN}{dt} = r\left(1 - \frac{2N}{K}\right)\frac{dN}{dt}.$$
+            Para $0 < N < K$, sabemos que $\dfrac{dN}{dt} > 0$. Logo, o sinal de $\dfrac{d^2 N}{dt^2}$ coincide com o de $1 - \dfrac{2N}{K}$: para $N < K/2$, $\dfrac{d^2 N}{dt^2} > 0$ (crescimento acelerando, concavidade para cima); para $N > K/2$, $\dfrac{d^2 N}{dt^2} < 0$ (crescimento freando, concavidade para baixo). A troca de sinal em $N = K/2$ confirma o ponto de inflexão com taxa máxima de crescimento.
+          </item>
+          <item>Escrevemos $\sigma'(x) = \sigma(x) - [\sigma(x)]^2$ e derivamos em relação a $x$ pela regra da cadeia:
+            $$\sigma''(x) = \sigma'(x) - 2\sigma(x)\sigma'(x) = \sigma'(x)\bigl(1 - 2\sigma(x)\bigr).$$
+            Como $\sigma'(x) = \sigma(x)(1 - \sigma(x)) > 0$ para todo $x$, o sinal de $\sigma''(x)$ é o mesmo de $1 - 2\sigma(x)$: positivo para $x < 0$ (pois $\sigma(x) < 1/2$), zero em $x = 0$ ($\sigma(0) = 1/2$) e negativo para $x > 0$ (pois $\sigma(x) > 1/2$). Assim, $x = 0$ é o ponto de inflexão da sigmoide, confirmando que $\sigma'(0) = 1/4$ é a inclinação máxima da curva.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:2-2-segunda-derivada-potencial">
+        <title>Segunda derivada e inflexão de um potencial polinomial</title>
+        Considere um potencial de membrana modelado em $0 \le t \le 4\text{ ms}$ por:
+        $$V(t) = -70 + 9t^2 - 2t^3\text{ mV}.$$
+        Calcule $\dfrac{dV}{dt}$ e $\dfrac{d^2V}{dt^2}$, encontre o ponto de inflexão e determine o instante e o valor do pico de potencial.
+
+        <strong>Solução.</strong> Derivando sucessivamente em relação a $t$:
+        $$\frac{dV}{dt} = 18t - 6t^2 = 6t(3 - t)\text{ mV/ms}, \qquad \frac{d^2 V}{dt^2} = 18 - 12t\text{ mV/ms}^2.$$
+        Igualando a segunda derivada a zero, $18 - 12t = 0 \implies t = 1{,}5\text{ ms}$. Para $0 \le t < 1{,}5$, $\dfrac{d^2V}{dt^2} > 0$ (concavidade para cima: a despolarização acelera); para $1{,}5 < t \le 4$, $\dfrac{d^2V}{dt^2} < 0$ (concavidade para baixo: a despolarização desacelera). Portanto, $t = 1{,}5\text{ ms}$ é o ponto de inflexão onde a velocidade de subida é máxima, valendo $\left.\dfrac{dV}{dt}\right|_{t=1{,}5} = 18(1{,}5) - 6(1{,}5)^2 = 27 - 13{,}5 = 13{,}5\text{ mV/ms}$.
+
+        Os pontos críticos ($\dfrac{dV}{dt} = 0$) são $t = 0$ e $t = 3\text{ ms}$. Em $t = 3\text{ ms}$, $\left.\dfrac{d^2 V}{dt^2}\right|_{t=3} = 18 - 36 = -18\text{ mV/ms}^2 < 0$ (concavidade para baixo), confirmando um máximo local com valor de pico:
+        $$V(3) = -70 + 9(3)^2 - 2(3)^3 = -70 + 81 - 54 = -43\text{ mV}.$$
+      </example>
+
+      <remark id="rem:2-2-armadilha-sec6">
+        <title>Armadilha comum</title>
+        Encontrar $f''(a) = 0$ <strong>não garante</strong> que $x = a$ seja ponto de inflexão! Por exemplo, para $f(x) = x^4$, temos $f'(x) = 4x^3$ e $f''(x) = 12x^2$, logo $f''(0) = 0$. No entanto, $12x^2 > 0$ tanto para $x < 0$ quanto para $x > 0$: a segunda derivada não troca de sinal em $x = 0$, e $(0, 0)$ é um mínimo local com concavidade para cima, não uma inflexão.
+      </remark>
+
+      <exercise id="exr:2-2-6-1">
+        <title>Básico — Derivadas sucessivas e concavidade</title>
+        Dada $f(x) = x^3 - 6x^2 + 9x + 2$:
+        <list marker="a">
+          <item>Calcule $f'(x)$, $f''(x)$ e $f'''(x)$.</item>
+          <item>Encontre os pontos onde $f'(x) = 0$ e classifique-os como máximo ou mínimo local pelo teste da segunda derivada.</item>
+          <item>Determine os intervalos de concavidade e o ponto de inflexão.</item>
+        </list>
+        <hint><title>Ver dica</title>Fatore $f'(x) = 3(x^2 - 4x + 3) = 3(x - 1)(x - 3)$. Para a inflexão, resolva $f''(x) = 0$ e confirme a mudança de sinal.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$f'(x) = 3x^2 - 12x + 9$, $f''(x) = 6x - 12$ e $f'''(x) = 6$.</item>
+            <item>Resolvendo $3x^2 - 12x + 9 = 0 \implies 3(x - 1)(x - 3) = 0$, temos $x = 1$ e $x = 3$.
+              <list marker="dash">
+                <item>Em $x = 1$: $f''(1) = 6(1) - 12 = -6 < 0$, logo é máximo local com $f(1) = 1 - 6 + 9 + 2 = 6$.</item>
+                <item>Em $x = 3$: $f''(3) = 6(3) - 12 = +6 > 0$, logo é mínimo local com $f(3) = 27 - 54 + 27 + 2 = 2$.</item>
+              </list>
+            </item>
+            <item>$f''(x) = 6x - 12 = 0 \implies x = 2$. Para $x < 2$, $f''(x) < 0$ (concavidade para baixo); para $x > 2$, $f''(x) > 0$ (concavidade para cima). Como há troca de sinal, $x = 2$ (com $f(2) = 8 - 24 + 18 + 2 = 4$) é ponto de inflexão.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-2-6-2">
+        <title>Intermediário — Flancos ótimos da curva de sintonia gaussiana</title>
+        Na <ref to="sec:2-2-4"/>, vimos que a curva de sintonia gaussiana $f(\theta) = r_{\max} \exp\!\left(-\dfrac{(\theta - \theta_{\text{pref}})^2}{2\sigma^2}\right)$ tem primeira derivada $f'(\theta) = -\dfrac{\theta - \theta_{\text{pref}}}{\sigma^2}\, f(\theta)$. Calcule $f''(\theta)$ usando a regra do produto e mostre que $f''(\theta) = 0$ exatamente em $\theta = \theta_{\text{pref}} \pm \sigma$, confirmando que os flancos são pontos de inflexão nos quais $|f'(\theta)|$ é máximo.
+        <hint><title>Ver dica</title>Ao derivar $-\frac{\theta - \theta_{\text{pref}}}{\sigma^2} f(\theta)$ pelo produto, substitua $f'(\theta)$ pela própria expressão $-\frac{\theta - \theta_{\text{pref}}}{\sigma^2} f(\theta)$ e coloque $\frac{f(\theta)}{\sigma^2}$ em evidência.</hint>
+        <solution collapsible="true" collapsed="true">
+          Aplicando a regra do produto em $f'(\theta) = -\dfrac{\theta - \theta_{\text{pref}}}{\sigma^2}\, f(\theta)$:
+          $$f''(\theta) = -\frac{1}{\sigma^2}\, f(\theta) - \frac{\theta - \theta_{\text{pref}}}{\sigma^2}\, f'(\theta) = -\frac{1}{\sigma^2}\, f(\theta) + \frac{(\theta - \theta_{\text{pref}})^2}{\sigma^4}\, f(\theta).$$
+          Colocando $\dfrac{f(\theta)}{\sigma^2}$ em evidência:
+          $$f''(\theta) = \frac{f(\theta)}{\sigma^2}\left[\frac{(\theta - \theta_{\text{pref}})^2}{\sigma^2} - 1\right].$$
+          Como $f(\theta) > 0$ e $\sigma^2 > 0$, temos $f''(\theta) = 0 \iff (\theta - \theta_{\text{pref}})^2 = \sigma^2 \iff \theta = \theta_{\text{pref}} \pm \sigma$. Além disso, $f''(\theta) < 0$ dentro de $(\theta_{\text{pref}} - \sigma,\; \theta_{\text{pref}} + \sigma)$ e $f''(\theta) > 0$ fora desse intervalo: há mudança de sinal nos dois pontos, confirmando que $\theta_{\text{pref}} \pm \sigma$ são os pontos de inflexão onde a inclinação $|f'(\theta)|$ é máxima.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-2-6-3">
+        <title>Avançado — Dinâmica de um potencial de membrana polinomial</title>
+        Durante uma resposta sináptica excitatória breve ($0 \le t \le 4\text{ ms}$), o potencial de membrana de um neurônio (em $\text{mV}$) é descrito por:
+        $$V(t) = -70 + 12t - 3t^2.$$
+        <list marker="a">
+          <item>Deduza analiticamente $\dfrac{dV}{dt}$ e $\dfrac{d^2V}{dt^2}$, indicando suas unidades.</item>
+          <item>Determine o instante e o valor do pico de potencial (verificando se atinge o limiar de $-55\text{ mV}$) e avalie $\dfrac{dV}{dt}$ em $t = 0$, $t = 2$ e $t = 4\text{ ms}$.</item>
+          <item>Interprete fisiologicamente o sinal de $\dfrac{dV}{dt}$ e de $\dfrac{d^2V}{dt^2}$ ao longo de todo o intervalo $[0, 4]\text{ ms}$.</item>
+        </list>
+        <hint><title>Ver dica</title>Iguale $\frac{dV}{dt} = 0$ para achar o instante do pico e use o sinal constante de $\frac{d^2V}{dt^2}$ para classificar o extremo e a concavidade.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Derivando polinomialmente em relação a $t$:
+              $$\frac{dV}{dt} = 12 - 6t\text{ mV/ms}, \qquad \frac{d^2 V}{dt^2} = -6\text{ mV/ms}^2.$$
+            </item>
+            <item>Igualando $\dfrac{dV}{dt} = 0$: $12 - 6t = 0 \implies t = 2\text{ ms}$. Como $\dfrac{d^2V}{dt^2} = -6 < 0$, o ponto é um máximo, onde:
+              $$V(2) = -70 + 12(2) - 3(2)^2 = -70 + 24 - 12 = -58\text{ mV}.$$
+              Como $-58\text{ mV} < -55\text{ mV}$, trata-se de um potencial pós-sináptico sub-limiar (não gera disparo). As taxas nos extremos e no pico valem $V'(0) = +12\text{ mV/ms}$, $V'(2) = 0\text{ mV/ms}$ e $V'(4) = 12 - 24 = -12\text{ mV/ms}$ (retornando a $V(4) = -70 + 48 - 48 = -70\text{ mV}$).
+            </item>
+            <item>Como $\dfrac{d^2V}{dt^2} = -6\text{ mV/ms}^2 < 0$ em todo o intervalo, o gráfico tem concavidade para baixo e a velocidade $\dfrac{dV}{dt}$ decresce continuamente. De $0$ a $2\text{ ms}$, $\dfrac{dV}{dt} > 0$ (despolarização, cada vez mais lenta até zerar no pico em $t = 2\text{ ms}$); de $2$ a $4\text{ ms}$, $\dfrac{dV}{dt} < 0$ (repolarização cada vez mais rápida de volta ao repouso de $-70\text{ mV}$).
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:2-2-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Definição e reta tangente:</strong> $f'(a) = \lim_{h \to 0} \dfrac{f(a+h) - f(a)}{h}$ mede a taxa de variação instantânea e a inclinação da reta tangente $y - f(a) = f'(a)(x - a)$.</item>
+        <item><strong>Derivabilidade e continuidade:</strong> derivável $\implies$ contínua, mas a recíproca é falsa; descontinuidades (como a função degrau $H$), bicos ($|x|$ e ReLU em $0$, com $f'_-(a) \ne f'_+(a)$) e tangentes verticais ($x^{1/3}$ em $0$) não são deriváveis.</item>
+        <item><strong>Regras algébricas:</strong> $(cf \pm g)' = cf' \pm g'$, $(x^n)' = n x^{n-1}$, $(fg)' = f'g + fg'$ e $\left(\dfrac{f}{g}\right)' = \dfrac{f'g - fg'}{g^2}$.</item>
+        <item><strong>Derivadas elementares:</strong> $(e^x)' = e^x$, $(a^x)' = a^x \ln a$, $(\ln x)' = \dfrac{1}{x}$ ($x > 0$), $(\operatorname{sen} x)' = \cos x$, $(\cos x)' = -\operatorname{sen} x$ (em radianos) e $(\arctan x)' = \dfrac{1}{1 + x^2}$.</item>
+        <item><strong>Regra da cadeia:</strong> $(f \circ g)'(x) = f'(g(x)) \cdot g'(x)$, ou $\dfrac{dy}{dx} = \dfrac{dy}{du} \cdot \dfrac{du}{dx}$; base do algoritmo de <em>backpropagation</em> em redes neurais.</item>
+        <item><strong>Sigmoide e sintonia gaussiana:</strong> para $\sigma(x) = \dfrac{1}{1 + e^{-x}}$, vale $\sigma'(x) = \sigma(x)(1 - \sigma(x))$ com máximo $\sigma'(0) = \dfrac{1}{4}$; na gaussiana $f(\theta)$, $f'(\theta) = -\dfrac{\theta - \theta_{\text{pref}}}{\sigma^2}f(\theta)$ anula-se no pico e tem módulo máximo nos flancos $\theta_{\text{pref}} \pm \sigma$.</item>
+        <item><strong>Derivação implícita:</strong> derive ambos os lados em relação a $x$ tratando $y = y(x)$ pela regra da cadeia (ex.: $x^2 + y^2 = r^2 \implies \frac{dy}{dx} = -\frac{x}{y}$; lei de Boyle $PV = C \implies \frac{dP}{dt} = -\frac{P}{V}\frac{dV}{dt}$).</item>
+        <item><strong>Ordem superior e concavidade:</strong> $f''(x) > 0$ indica concavidade para cima e $f''(x) < 0$ indica concavidade para baixo; quando $f'(c) = 0$, $f''(c) < 0$ dá máximo local e $f''(c) > 0$ dá mínimo local; pontos de inflexão ocorrem onde $f''$ troca de sinal.</item>
+      </list>
+    </section>
+
+    <section id="sec:2-2-alem">
+      <title>Para ir além</title>
+      Para consolidar as técnicas de derivação e modelagem biológica antes de avançar para o próximo tema do módulo — <strong>Integral de Riemann</strong> (Tema 2.3), em que passaremos da taxa instantânea ao acúmulo de correntes sinápticas e áreas sob a resposta hemodinâmica do fMRI —, consulte a bibliografia recomendada do Módulo 2:
+      <list marker="dash">
+        <item><strong>Livro base:</strong> Guidorizzi — <em>Um Curso de Cálculo</em>, vol. 1, para o rigor das definições, demonstrações e propriedades de derivadas.</item>
+        <item><strong>Livros complementares:</strong> Anton, Bivens e Davis — <em>Cálculo</em>, e James Stewart — <em>Cálculo</em>, com grande variedade de interpretações gráficas e aplicações.</item>
+        <item><strong>Prática recomendada (<em>drill</em>):</strong> em cada subseção, selecione exercícios de modelagem do Stewart focados em Biologia (geralmente ao final dos capítulos).</item>
+        <item><strong>Projeto final do módulo:</strong> deduzir analiticamente a taxa instantânea de variação do potencial de membrana, dada uma função polinomial do tempo — habilidade que você já praticou em versão compacta no último exercício deste tema.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 2 · Cálculo Real — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

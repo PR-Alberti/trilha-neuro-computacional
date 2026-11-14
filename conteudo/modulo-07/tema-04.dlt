@@ -1,0 +1,1125 @@
+<document>
+  <title>Módulo 7 · Estatística e Probabilidade</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-7-4">Voltar ao guia (Tema 7.4)</link></meta-item>
+    <meta-item key="Módulo">Módulo 7 · Estatística e Probabilidade — Encontrando Certezas no Caos Experimental</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-7-4">
+    <title>Testes de hipóteses</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      O p-valor e as comparações múltiplas — críticos em neuroimagem.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> A neuroimagem e a eletrofisiologia vivem — bem ou mal — de estatística: p-valores, comparações múltiplas em dezenas de milhares de <em>voxels</em> de ressonância magnética funcional (fMRI) e decisões tomadas em cima de medidas biológicas ruidosas. No tema anterior (<mark>Introdução à inferência</mark>), você aprendeu a estimar parâmetros desconhecidos e a quantificar a incerteza dessas estimativas com erros padrões e intervalos de confiança. Mas o dia a dia do laboratório frequentemente exige uma decisão objetiva: um novo fármaco realmente altera a taxa de disparo de neurônios corticais, ou a diferença observada na amostra poderia surgir por pura flutuação aleatória?
+
+    Quando um experimento de fMRI testa simultaneamente $50\,000$ <em>voxels</em> cerebrais para descobrir quais regiões respondem a um estímulo visual, o problema se multiplica. Mesmo que o estímulo não cause efeito algum, testar dezenas de milhares de locais ao mesmo tempo garante uma enxurrada de alarmes falsos se você usar critérios ingênuos. Dominar a lógica dos testes de hipóteses, o cálculo de poder estatístico e as correções para comparações múltiplas — como Bonferroni e a taxa de descobertas falsas (FDR) — separa achados reprodutíveis de ilusões estatísticas e prepara o caminho para os modelos Bayesianos que dominam as teorias modernas de percepção e decisão.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>formular hipóteses nula ($H_0$) e alternativa ($H_1$), escolher uma estatística de teste e calcular e interpretar o p-valor, inclusive por testes de permutação;</item>
+      <item>executar e interpretar os testes $t$ de uma amostra, $t$ pareado e $t$ de Welch para duas amostras independentes, à mão e com <c>scipy.stats</c>, evitando pseudorreplicação;</item>
+      <item>relacionar erros tipo I ($\alpha$), tipo II ($\beta$), poder estatístico ($1 - \beta$), tamanho de efeito ($d$ de Cohen) e tamanho de amostra, estimando poder por simulação;</item>
+      <item>explicar a explosão de falsos positivos em comparações múltiplas e aplicar as correções de Bonferroni e de Benjamini–Hochberg (FDR) passo a passo e em simulações de fMRI.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Temas 7.2 (<mark>Variável aleatória</mark>: distribuições binomial, normal e soma de variáveis independentes) e 7.3 (<mark>Introdução à inferência</mark>: estimadores, erro padrão, distribuição $t$ de Student e intervalos de confiança), além do Módulo 6 (<mark>Programação em Python</mark>: <c>numpy</c> e <c>matplotlib</c>). A demonstração formal do Teorema Central do Limite (TCL) virá no próximo tema (<mark>Convergências</mark>); sempre que aproximarmos a distribuição da média amostral por uma normal em amostras grandes, sinalizaremos que estamos antecipando esse resultado.
+
+    <section id="sec:7-4-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>A lógica do teste: H0, estatística de teste e p-valor</title>
+      <intro>
+        Testar uma hipótese científica é raciocinar como um investigador cético: primeiro assumimos que nada extraordinário está acontecendo e perguntamos quão improváveis seriam os dados observados nesse cenário.
+      </intro>
+
+      Imagine que você registre um neurônio do córtex visual enquanto apresenta um estímulo de luz em $10$ ensaios independentes. Em cada ensaio, há dois intervalos possíveis — o estímulo aparece em um deles ao acaso — e o neurônio dispara mais no intervalo correto em $9$ dos $10$ ensaios. Será que esse neurônio realmente detecta o estímulo, ou ele poderia ter acertado $9$ em $10$ por pura sorte, como alguém jogando uma moeda honesta $10$ vezes e obtendo $9$ caras?
+
+      Essa é a essência de um <strong>teste de hipóteses</strong> (<em>hypothesis test</em>). Em vez de tentar provar diretamente que nossa teoria é verdadeira, construímos um modelo de referência cético — "o neurônio responde ao acaso" — e medimos se os dados observados são compatíveis ou incompatíveis com esse modelo.
+
+      <definition id="def:7-4-hipoteses">
+        <title>Hipótese nula e hipótese alternativa</title>
+        Em um teste de hipóteses estatístico, contrastamos duas afirmações sobre o processo gerador dos dados:
+        <list marker="dash">
+          <item>a <strong>hipótese nula</strong> (<em>null hypothesis</em>), denotada por $H_0$, representa a ausência de efeito, ausência de diferença ou o comportamento de referência ao acaso (por exemplo, $H_0: p = 0{,}5$ ou $H_0: \mu = \mu_0$);</item>
+          <item>a <strong>hipótese alternativa</strong> (<em>alternative hypothesis</em>), denotada por $H_1$ (ou $H_a$), representa a afirmação complementar que desejamos investigar, como uma diferença ou um efeito real ($H_1: p \ne 0{,}5$ ou $H_1: p &gt; 0{,}5$).</item>
+        </list>
+        <intuition>
+          Pense em um julgamento criminal: o réu entra na sala presumido inocente ($H_0$). Não é preciso provar inocência; basta verificar se as evidências reunidas ($H_1$) são fortes o bastante para tornar a hipótese de inocência implausível além de uma dúvida razoável.
+        </intuition>
+      </definition>
+
+      Para quantificar o grau de surpresa dos dados sob $H_0$, resumimos a amostra em um único número chamado <strong>estatística de teste</strong> (<em>test statistic</em>), como o número total de acertos $X$ ou a diferença entre médias amostrais $\bar{X}_1 - \bar{X}_2$. Como os dados são aleatórios antes da coleta, a estatística de teste é uma variável aleatória com uma distribuição conhecida quando $H_0$ é verdadeira — a chamada <strong>distribuição nula</strong>.
+
+      <definition id="def:7-4-estatistica-pvalor">
+        <title>p-valor, testes unilaterais e bilaterais e nível de significância</title>
+        Seja $T$ uma estatística de teste e $t_{\text{obs}}$ o valor efetivamente observado na amostra.
+        <list marker="dash">
+          <item>O <strong>p-valor</strong> (<em>p-value</em>) é a probabilidade, <strong>supondo $H_0$ verdadeira</strong>, de obter uma estatística de teste tão ou mais extrema do que $t_{\text{obs}}$ na direção prevista por $H_1$:
+            <list marker="dash">
+              <item>em um <strong>teste unilateral à direita</strong> ($H_1: \theta &gt; \theta_0$), $p\text{-valor} = P(T \ge t_{\text{obs}} \mid H_0)$; no <strong>unilateral à esquerda</strong> ($H_1: \theta &lt; \theta_0$), $p\text{-valor} = P(T \le t_{\text{obs}} \mid H_0)$;</item>
+              <item>em um <strong>teste bilateral</strong> ($H_1: \theta \ne \theta_0$), somamos desvios igualmente ou mais extremos em <em>ambas</em> as direções. Quando a distribuição nula é simétrica em torno de zero, $p\text{-valor} = P(|T| \ge |t_{\text{obs}}| \mid H_0) = 2 \, P(T \ge |t_{\text{obs}}| \mid H_0)$.</item>
+            </list>
+          </item>
+          <item>O <strong>nível de significância</strong> $\alpha \in (0, 1)$ (tradicionalmente $\alpha = 0{,}05$ ou $0{,}01$) é o limiar fixado <em>antes</em> do experimento para decidir se a evidência basta para rejeitar $H_0$:
+            <list marker="dash">
+              <item>se $p\text{-valor} \le \alpha$, <strong>rejeitamos $H_0$</strong> (resultado estatisticamente significativo ao nível $\alpha$);</item>
+              <item>se $p\text{-valor} &gt; \alpha$, <strong>não rejeitamos $H_0$</strong>.</item>
+            </list>
+          </item>
+        </list>
+      </definition>
+
+      A escolha entre teste unilateral e bilateral deve ser feita <em>antes</em> de olhar os dados, com base na pergunta científica. Na prática biológica, o teste bilateral é o padrão mais honesto sempre que um efeito inesperado na direção oposta (por exemplo, um fármaco que inibe em vez de excitar o neurônio) também seria relevante. Usar um teste unilateral só porque o sinal da amostra já deu positivo divide o p-valor pela metade artificialmente e dobra sua taxa de falsos positivos.
+
+      Por que a regra "$p\text{-valor} \le \alpha$" funciona como filtro contra alarmes falsos? A proposição a seguir mostra que, sob $H_0$, o p-valor não se concentra perto de zero: ele se espalha uniformemente entre $0$ e $1$.
+
+      <proposition id="prop:7-4-pvalor-controle">
+        <title>Controle de falsos positivos pelo p-valor</title>
+        Seja $T$ uma estatística de teste contínua com função distribuição acumulada $F_0$ sob $H_0$. Em um teste unilateral à direita com $p\text{-valor} = 1 - F_0(T)$, se $H_0$ é verdadeira, então $p\text{-valor} \sim \operatorname{Uniforme}(0, 1)$ e, portanto:
+        $$P(p\text{-valor} \le \alpha \mid H_0) = \alpha.$$
+        Para estatísticas discretas (como a binomial), vale a desigualdade $P(p\text{-valor} \le \alpha \mid H_0) \le \alpha$.
+      </proposition>
+      <proof of="prop:7-4-pvalor-controle" collapsible="true" collapsed="true">
+        Para qualquer $u \in (0, 1)$, escrevemos o evento $\{p\text{-valor} \le u\}$ em termos de $T$:
+        $$P(1 - F_0(T) \le u \mid H_0) = P(F_0(T) \ge 1 - u \mid H_0).$$
+        Como $T$ é contínua com distribuição $F_0$ sob $H_0$, sua transformada $F_0(T)$ tem distribuição $\operatorname{Uniforme}(0, 1)$ (pois $P(F_0(T) \le y) = P(T \le F_0^{-1}(y)) = F_0(F_0^{-1}(y)) = y$). Logo:
+        $$P(F_0(T) \ge 1 - u \mid H_0) = 1 - (1 - u) = u.$$
+        Tomando $u = \alpha$, obtemos exatamente $P(p\text{-valor} \le \alpha \mid H_0) = \alpha$.
+      </proof>
+
+      <example id="exm:7-4-neuronio-binomial">
+        <title>Neurônio seletivo a estímulo visual (teste binomial exato)</title>
+        Voltando ao neurônio do início da seção: em $n = 10$ ensaios independentes de escolha forçada entre dois intervalos, ele indica o intervalo correto em $x = 9$ ensaios. Se o neurônio não distinguisse o estímulo ($H_0: p = 0{,}5$), quantas chances haveria de observar algo tão extremo?
+        <list marker="a">
+          <item>Calcule o p-valor unilateral para $H_1: p &gt; 0{,}5$.</item>
+          <item>Calcule o p-valor bilateral para $H_1: p \ne 0{,}5$.</item>
+          <item>Qual é a decisão ao nível $\alpha = 0{,}05$?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Sob $H_0$, o número de acertos $X$ segue $X \sim \operatorname{Binomial}(10,\, 0{,}5)$. Valores tão ou mais extremos na direção $p &gt; 0{,}5$ são $X = 9$ e $X = 10$:
+            $$p_{\text{uni}} = P(X \ge 9 \mid H_0) = \binom{10}{9}(0{,}5)^{10} + \binom{10}{10}(0{,}5)^{10} = \frac{10 + 1}{2^{10}} = \frac{11}{1024} \approx 0{,}0107.$$
+          </item>
+          <item>Como $\operatorname{Binomial}(10,\, 0{,}5)$ é simétrica em torno da média $5$, desvios de mesma ou maior magnitude para baixo são $X = 1$ e $X = 0$, com probabilidade $\frac{10 + 1}{1024} = \frac{11}{1024}$. Somando as duas caudas:
+            $$p_{\text{bi}} = 2 \cdot \frac{11}{1024} = \frac{22}{1024} = \frac{11}{512} \approx 0{,}0215.$$
+          </item>
+          <item>Tanto $p_{\text{uni}} \approx 0{,}0107$ quanto $p_{\text{bi}} \approx 0{,}0215$ são menores que $\alpha = 0{,}05$. Portanto, rejeitamos $H_0$ ao nível de $5\%$ e concluímos que há evidência estatística de que o neurônio responde acima do acaso.</item>
+        </list>
+      </example>
+
+      Nem sempre temos uma fórmula fechada simples (como a binomial ou a normal) para a distribuição nula da estatística de teste, sobretudo com amostras muito pequenas ou distribuições assimétricas. Nesses casos, podemos construir a distribuição nula diretamente dos próprios dados por meio de um <strong>teste de permutação</strong> (<em>permutation test</em>): se $H_0$ for verdadeira e os dois grupos vierem da mesma distribuição, os rótulos "Tratado" e "Controle" atribuídos às observações são meras etiquetas arbitrárias que podem ser embaralhadas.
+
+      <example id="exm:7-4-permutacao">
+        <title>Teste de permutação exato com rótulos embaralhados</title>
+        Um pesquisador mede a taxa de disparo (em $\text{Hz}$) de $6$ neurônios independentes em fatias corticais: $3$ tratados com um neuromodulador $A$, com taxas $[18, 21, 24]\text{ Hz}$ ($\bar{x}_A = 21\text{ Hz}$), e $3$ controles $B$, com taxas $[10, 12, 14]\text{ Hz}$ ($\bar{x}_B = 12\text{ Hz}$). A diferença observada é $d_{\text{obs}} = \bar{x}_A - \bar{x}_B = 9\text{ Hz}$. Sem assumir normalidade, calcule o p-valor exato por permutação (unilateral $H_1: \mu_A &gt; \mu_B$ e bilateral $H_1: \mu_A \ne \mu_B$).
+
+        <strong>Solução.</strong> Sob $H_0$, os rótulos $A$ e $B$ são permutáveis entre os $6$ valores $\{10, 12, 14, 18, 21, 24\}$, cuja soma total é $99$. O número total de maneiras de escolher quais $3$ valores recebem o rótulo $A$ é:
+        $$\binom{6}{3} = \frac{6 \cdot 5 \cdot 4}{3 \cdot 2 \cdot 1} = 20.$$
+        Seja $S_A$ a soma dos $3$ valores escolhidos para $A$; então a diferença entre as médias vale:
+        $$\bar{x}_A - \bar{x}_B = \frac{S_A}{3} - \frac{99 - S_A}{3} = \frac{2 S_A - 99}{3}.$$
+        Para atingir $\bar{x}_A - \bar{x}_B \ge 9$, precisamos de $2 S_A - 99 \ge 27 \implies S_A \ge 63$. Entre todos os subconjuntos de $3$ elementos de $\{10, 12, 14, 18, 21, 24\}$, o único com soma $\ge 63$ é justamente $\{18, 21, 24\}$ ($S_A = 63$; o segundo maior é $\{14, 21, 24\}$ com $S_A = 59$). Logo, o p-valor unilateral é:
+        $$p_{\text{uni}} = \frac{1}{20} = 0{,}05.$$
+        Para o teste bilateral ($|\bar{x}_A - \bar{x}_B| \ge 9$), precisamos de $S_A \ge 63$ ou $S_A \le 36$ (o que dá $\bar{x}_A - \bar{x}_B \le -9$). O único subconjunto com soma $\le 36$ é $\{10, 12, 14\}$ ($S_A = 36$). Portanto:
+        $$p_{\text{bi}} = \frac{2}{20} = 0{,}10.$$
+        Note uma lição prática importante: mesmo com separação completa entre os dois grupos, amostras de tamanho $3$ por grupo não conseguem produzir $p_{\text{bi}} &lt; 0{,}05$ em um teste de permutação exato!
+      </example>
+
+      Quando $n$ cresce, enumerar todas as $\binom{n_1 + n_2}{n_1}$ partições fica inviável (para $n_1 = n_2 = 15$, já são mais de $155$ milhões). Por isso, na prática, sorteamos milhares de permutações aleatórias com <c>numpy</c> e estimamos o p-valor pela frequência simulada. O código abaixo confere tanto o teste binomial exato quanto o teste de permutação.
+
+      <code lang="python" id="cod:7-4-binomial-perm">
+from itertools import combinations
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(42)
+
+# 1. Conferência do teste binomial (Exemplo: 9 acertos em 10 ensaios sob p0 = 0.5)
+p_uni_exato = stats.binom.sf(8, n=10, p=0.5)  # P(X >= 9) = 11/1024
+p_bi_exato = 2 * p_uni_exato
+print(f"Binomial exato -> unilateral: {p_uni_exato:.4f}, bilateral: {p_bi_exato:.4f}")
+# Saída determinística esperada:
+# Binomial exato -> unilateral: 0.0107, bilateral: 0.0215
+
+sim_binom = rng.binomial(n=10, p=0.5, size=100_000)
+p_uni_sim = np.mean(sim_binom >= 9)
+p_bi_sim = np.mean((sim_binom >= 9) | (sim_binom <= 1))
+print(f"Binomial sim   -> unilateral: {p_uni_sim:.4f}, bilateral: {p_bi_sim:.4f}")
+# Saída esperada: aprox. 0.0107 e aprox. 0.0215
+
+# 2. Teste de permutação: exato (20 combinações) vs. Monte Carlo (20.000 embaralhamentos)
+grupo_a = np.array([18.0, 21.0, 24.0])
+grupo_b = np.array([10.0, 12.0, 14.0])
+todos = np.concatenate([grupo_a, grupo_b])
+diff_obs = grupo_a.mean() - grupo_b.mean()
+soma_total = todos.sum()
+
+diffs_exatas = np.array([
+    (sum(comb) / 3.0) - ((soma_total - sum(comb)) / 3.0)
+    for comb in combinations(todos, 3)
+])
+print(f"Permutação exata (bi): {np.mean(np.abs(diffs_exatas) >= diff_obs - 1e-12):.4f}")
+# Saída determinística esperada: 0.1000
+
+n_perm = 20_000
+diffs_mc = np.empty(n_perm)
+for i in range(n_perm):
+    perm = rng.permutation(todos)
+    diffs_mc[i] = perm[:3].mean() - perm[3:].mean()
+
+print(f"Permutação MC (bi):    {np.mean(np.abs(diffs_mc) >= diff_obs - 1e-12):.4f}")
+# Saída esperada: aprox. 0.1000
+      </code>
+
+      <remark id="rem:7-4-armadilha-pvalor">
+        <title>Armadilha comum</title>
+        Três interpretações erradas do p-valor aparecem constantemente até em artigos publicados:
+        <list marker="dash">
+          <item><strong>O p-valor NÃO é $P(H_0 \mid \text{dados})$:</strong> obter $p = 0{,}03$ não significa que há "$3\%$ de chance de a hipótese nula ser verdadeira". O p-valor é $P(\text{dados tão extremos} \mid H_0)$, isto é, uma probabilidade calculada <em>supondo</em> $H_0$ verdadeira. Para calcular $P(H_0 \mid \text{dados})$, seria preciso usar o Teorema de Bayes e especificar uma probabilidade a priori — assunto do tema <mark>Inferência Bayesiana</mark>.</item>
+          <item><strong>O p-valor NÃO mede tamanho nem relevância biológica do efeito:</strong> uma alteração minúscula de $0{,}1\text{ mV}$ no potencial de repouso pode gerar $p &lt; 10^{-6}$ se a amostra tiver dezenas de milhares de células, enquanto uma diferença grande de $5\text{ mV}$ pode dar $p = 0{,}12$ com apenas $n = 4$ células.</item>
+          <item><strong>$p &gt; 0{,}05$ NÃO prova que $H_0$ é verdadeira:</strong> falhar em rejeitar $H_0$ significa apenas que os dados atuais não bastam para descartá-la — muitas vezes porque a amostra era pequena demais para detectar o efeito real.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:7-4-1-1">
+        <title>Básico — Interpretação correta do p-valor</title>
+        Em um estudo sobre o efeito de um bloqueador sináptico no potencial de repouso neuronal, um laboratório compara dois grupos independentes e obtém $p = 0{,}03$ (teste bilateral, $\alpha = 0{,}05$). Em um segundo experimento com outro fármaco e amostra pequena, obtém $p = 0{,}42$. Avalie se cada afirmação abaixo é <strong>verdadeira</strong> ou <strong>falsa</strong>, justificando:
+        <list marker="a">
+          <item>"No primeiro experimento, há $3\%$ de probabilidade de que o bloqueador não tenha efeito algum ($H_0$ ser verdadeira)."</item>
+          <item>"No primeiro experimento, supondo que o bloqueador não tenha efeito, a probabilidade de observar uma diferença ao menos tão extrema quanto a da amostra é de $3\%$."</item>
+          <item>"No segundo experimento, $p = 0{,}42$ prova que o fármaco não altera o potencial de repouso."</item>
+          <item>"Um p-valor de $0{,}001$ garante automaticamente que a mudança no potencial de repouso é biologicamente grande."</item>
+        </list>
+        <hint><title>Ver dica</title>Releia a definição de p-valor condicionada a $H_0$ e os três itens da armadilha comum logo acima.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item><strong>Falsa.</strong> O p-valor não é $P(H_0 \mid \text{dados})$. Na estatística frequentista, $H_0$ é verdadeira ou falsa (não tem probabilidade após os dados); $0{,}03$ é a probabilidade de obter dados tão ou mais extremos <em>caso</em> $H_0$ seja verdadeira.</item>
+            <item><strong>Verdadeira.</strong> Essa é exatamente a definição de p-valor para um teste bilateral.</item>
+            <item><strong>Falsa.</strong> Não rejeitar $H_0$ ($p = 0{,}42 &gt; 0{,}05$) não prova que o efeito é zero; com amostra pequena, o experimento pode simplesmente não ter tido sensibilidade suficiente para detectar uma diferença real.</item>
+            <item><strong>Falsa.</strong> O p-valor depende tanto do tamanho do efeito quanto do tamanho da amostra $n$. Um $n$ muito grande pode tornar um efeito minúsculo altamente significativo ($p = 0{,}001$).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-4-1-2">
+        <title>Básico — Teste binomial em tarefa de discriminação comportamental</title>
+        Um camundongo treinado em um labirinto em T precisa escolher o braço associado a um odor recompensado. Em $10$ ensaios independentes após o treino inicial, ele escolhe o braço correto $8$ vezes. Sob a hipótese nula de escolha ao acaso ($H_0: p = 0{,}5$):
+        <list marker="a">
+          <item>Calcule o p-valor unilateral para $H_1: p &gt; 0{,}5$.</item>
+          <item>Calcule o p-valor bilateral para $H_1: p \ne 0{,}5$.</item>
+          <item>Em qual(is) caso(s) rejeitaríamos $H_0$ ao nível $\alpha = 0{,}05$?</item>
+        </list>
+        <hint><title>Ver dica</title>Para $X \sim \operatorname{Binomial}(10,\, 0{,}5)$, some as probabilidades de $X = 8$, $X = 9$ e $X = 10$, lembrando que $\binom{10}{8} = \frac{10 \cdot 9}{2} = 45$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Sob $H_0$, cada sequência de $10$ escolhas tem probabilidade $2^{-10} = \frac{1}{1024}$. Calculando as combinações para $X \ge 8$:
+              $$\binom{10}{8} = 45, \qquad \binom{10}{9} = 10, \qquad \binom{10}{10} = 1.$$
+              Logo:
+              $$p_{\text{uni}} = P(X \ge 8 \mid H_0) = \frac{45 + 10 + 1}{1024} = \frac{56}{1024} = \frac{7}{128} \approx 0{,}0547.$$
+            </item>
+            <item>Pela simetria da $\operatorname{Binomial}(10,\, 0{,}5)$, a cauda esquerda ($X \le 2$) tem a mesma probabilidade $\frac{56}{1024}$:
+              $$p_{\text{bi}} = 2 \cdot \frac{56}{1024} = \frac{112}{1024} = \frac{7}{64} \approx 0{,}1094.$$
+            </item>
+            <item>Como $p_{\text{uni}} \approx 0{,}0547 &gt; 0{,}05$ e $p_{\text{bi}} \approx 0{,}1094 &gt; 0{,}05$, <strong>não rejeitamos $H_0$</strong> em nenhum dos dois casos ao nível $\alpha = 0{,}05$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-4-1-3">
+        <title>Intermediário — Teste de permutação exato à mão</title>
+        Em um experimento preliminar de atividade elétrica, você mede a taxa de disparo de $2$ neurônios do grupo $A$ (estimulados), obtendo $[25, 29]\text{ Hz}$, e de $3$ neurônios do grupo $B$ (controle), obtendo $[15, 18, 21]\text{ Hz}$.
+        <list marker="a">
+          <item>Calcule a diferença observada entre as médias $\bar{x}_A - \bar{x}_B$.</item>
+          <item>Quantas partições distintas dos $5$ valores em um grupo $A$ de tamanho $2$ e um grupo $B$ de tamanho $3$ existem? Liste todas as diferenças $\bar{x}_A - \bar{x}_B$ possíveis.</item>
+          <item>Determine o p-valor exato unilateral ($H_1: \mu_A &gt; \mu_B$) e o p-valor exato bilateral ($H_1: \mu_A \ne \mu_B$).</item>
+        </list>
+        <hint><title>Ver dica</title>Há $\binom{5}{2} = 10$ escolhas para os $2$ valores do grupo $A$. Como a soma dos $5$ valores é $108$, se a soma de $A$ é $S_A$, então $\bar{x}_A = \frac{S_A}{2}$ e $\bar{x}_B = \frac{108 - S_A}{3}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Temos $\bar{x}_A = \frac{25 + 29}{2} = 27\text{ Hz}$ e $\bar{x}_B = \frac{15 + 18 + 21}{3} = 18\text{ Hz}$, logo a diferença observada é $27 - 18 = 9\text{ Hz}$.</item>
+            <item>Existem $\binom{5}{2} = 10$ escolhas possíveis para o par do grupo $A$ dentro de $\{15, 18, 21, 25, 29\}$ (soma total $108$). Para cada par, calculamos $\bar{x}_A = \frac{S_A}{2}$, $\bar{x}_B = \frac{108 - S_A}{3}$ e $d = \bar{x}_A - \bar{x}_B$:
+              <list marker="dash">
+                <item>$\{25, 29\}$: $S_A = 54 \implies \bar{x}_A = 27{,}0$, $\bar{x}_B = 18{,}0 \implies d = +9{,}0$;</item>
+                <item>$\{21, 29\}$: $S_A = 50 \implies \bar{x}_A = 25{,}0$, $\bar{x}_B = 58/3 \approx 19{,}33 \implies d \approx +5{,}67$;</item>
+                <item>$\{18, 29\}$: $S_A = 47 \implies \bar{x}_A = 23{,}5$, $\bar{x}_B = 61/3 \approx 20{,}33 \implies d \approx +3{,}17$;</item>
+                <item>$\{21, 25\}$: $S_A = 46 \implies \bar{x}_A = 23{,}0$, $\bar{x}_B = 62/3 \approx 20{,}67 \implies d \approx +2{,}33$;</item>
+                <item>$\{15, 29\}$: $S_A = 44 \implies \bar{x}_A = 22{,}0$, $\bar{x}_B = 64/3 \approx 21{,}33 \implies d \approx +0{,}67$;</item>
+                <item>$\{18, 25\}$: $S_A = 43 \implies \bar{x}_A = 21{,}5$, $\bar{x}_B = 65/3 \approx 21{,}67 \implies d \approx -0{,}17$;</item>
+                <item>$\{15, 25\}$: $S_A = 40 \implies \bar{x}_A = 20{,}0$, $\bar{x}_B = 68/3 \approx 22{,}67 \implies d \approx -2{,}67$;</item>
+                <item>$\{18, 21\}$: $S_A = 39 \implies \bar{x}_A = 19{,}5$, $\bar{x}_B = 69/3 = 23{,}0 \implies d = -3{,}50$;</item>
+                <item>$\{15, 21\}$: $S_A = 36 \implies \bar{x}_A = 18{,}0$, $\bar{x}_B = 72/3 = 24{,}0 \implies d = -6{,}00$;</item>
+                <item>$\{15, 18\}$: $S_A = 33 \implies \bar{x}_A = 16{,}5$, $\bar{x}_B = 75/3 = 25{,}0 \implies d = -8{,}50$.</item>
+              </list>
+            </item>
+            <item>Apenas $1$ das $10$ partições produz $d \ge 9{,}0$, logo $p_{\text{uni}} = \frac{1}{10} = 0{,}10$. E, como o menor valor possível foi $d = -8{,}50$ (em módulo menor que $9{,}0$, devido aos tamanhos desiguais $2$ e $3$), apenas $1$ das $10$ partições satisfaz $|d| \ge 9{,}0$, dando também $p_{\text{bi}} = \frac{1}{10} = 0{,}10$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-4-1-4">
+        <title>Intermediário — Simulação de teste de permutação e uniformidade do p-valor em Python</title>
+        Escreva um código em Python com <c>rng = np.random.default_rng(42)</c> que:
+        <list marker="a">
+          <item>simule um grupo controle ($n = 12$) com tempos de reação em $\mathcal{N}(320,\, 35^2)\text{ ms}$ e um grupo tratado ($n = 12$) em $\mathcal{N}(295,\, 35^2)\text{ ms}$, e estime o p-valor bilateral da diferença de médias usando $20\,000$ permutações aleatórias;</item>
+          <item>repita um teste unilateral à direita em $5\,000$ experimentos simulados <em>sob $H_0$</em> (gerando estatísticas $Z \sim \mathcal{N}(0, 1)$) e confira que a proporção de p-valores $\le 0{,}05$ fica próxima de $0{,}05$, verificando numericamente a <ref to="prop:7-4-pvalor-controle"/>.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), concatene os $24$ tempos em um vetor e use <c>rng.permutation</c> em um laço de $20\,000$ iterações. Em (b), use <c>stats.norm.sf(z)</c> para calcular os $5\,000$ p-valores de uma só vez.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(42)
+
+# (a) Teste de permutação com n1 = n2 = 12
+controle = rng.normal(loc=320.0, scale=35.0, size=12)
+tratado = rng.normal(loc=295.0, scale=35.0, size=12)
+diff_obs = tratado.mean() - controle.mean()
+
+todos = np.concatenate([tratado, controle])
+n_perm = 20_000
+diffs = np.empty(n_perm)
+for i in range(n_perm):
+    perm = rng.permutation(todos)
+    diffs[i] = perm[:12].mean() - perm[12:].mean()
+
+p_perm = np.mean(np.abs(diffs) >= np.abs(diff_obs))
+print(f"Diferença observada: {diff_obs:.2f} ms")   # aprox. -25.00 ms
+print(f"p-valor por permutação: {p_perm:.4f}")    # aprox. pequeno (< 0.10, depende da semente)
+
+# (b) Conferência da Proposição: P(p-valor <= 0.05 | H0) = 0.05
+z_h0 = rng.normal(loc=0.0, scale=1.0, size=5_000)
+p_vals_h0 = stats.norm.sf(z_h0)
+print(f"Proporção de p <= 0.05 sob H0: {np.mean(p_vals_h0 <= 0.05):.4f}")  # aprox. 0.0500
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:7-4-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>O teste t</title>
+      <intro>
+        Na prática experimental, quase nunca conhecemos o desvio-padrão populacional $\sigma$. O teste $t$ substitui $\sigma$ pelo desvio-padrão amostral $s$ e usa a distribuição $t$ de Student para decidir se uma média ou diferença de médias é compatível com $H_0$.
+      </intro>
+
+      No tema anterior (<mark>Introdução à inferência</mark>), vimos que quando estimamos a variabilidade populacional $\sigma$ pelo desvio-padrão amostral $s$, a quantidade padronizada $\frac{\bar{X} - \mu}{s / \sqrt{n}}$ não segue mais exatamente a normal padrão: ela ganha caudas mais pesadas e segue a distribuição $t$ de Student com $n - 1$ graus de liberdade. Para testar hipóteses sobre médias, fazemos exatamente o mesmo cálculo, colocando no lugar de $\mu$ o valor hipotético $\mu_0$ da hipótese nula.
+
+      <definition id="def:7-4-teste-t-1amostra">
+        <title>Teste t para uma amostra</title>
+        Dada uma amostra i.i.d. $X_1, \dots, X_n$ com média amostral $\bar{x}$ e desvio-padrão amostral $s$, queremos testar $H_0: \mu = \mu_0$. A <strong>estatística $t$ de uma amostra</strong> é:
+        <equation id="eq:7-4-t-1amostra">
+          t = \frac{\bar{x} - \mu_0}{s / \sqrt{n}}.
+        </equation>
+        Sob $H_0$, supondo observações aproximadamente normais (ou $n$ grande pelo TCL, que formalizaremos em <mark>Convergências</mark>), a estatística segue a distribuição $t_{n-1}$ com $\text{gl} = n - 1$ graus de liberdade.
+        <intuition>
+          A estatística $t$ mede a distância entre a média observada $\bar{x}$ e o valor nulo $\mu_0$ em unidades de erro padrão estimado ($\widehat{\operatorname{EP}} = s/\sqrt{n}$). Um $|t|$ perto de $0$ ou $1$ é perfeitamente compatível com ruído amostral; já um $|t|$ muito grande mostra que $\bar{x}$ está muitos erros padrões longe de $\mu_0$.
+        </intuition>
+      </definition>
+
+      Se você já construiu um intervalo de confiança de $95\%$ em <mark>Introdução à inferência</mark>, vai reconhecer imediatamente a conexão abaixo: o intervalo de confiança e o teste $t$ bilateral são duas faces da mesma moeda.
+
+      <proposition id="prop:7-4-dualidade-ic-t">
+        <title>Dualidade entre intervalo de confiança e teste t bilateral</title>
+        Ao nível de significância $\alpha$, o teste $t$ bilateral de uma amostra rejeita $H_0: \mu = \mu_0$ se, e somente se, o valor hipotético $\mu_0$ está <strong>fora</strong> do intervalo de confiança de $100(1 - \alpha)\%$ para $\mu$:
+        $$\left[\bar{x} - t_{n-1;\, 1 - \alpha/2}\,\frac{s}{\sqrt{n}},\;\; \bar{x} + t_{n-1;\, 1 - \alpha/2}\,\frac{s}{\sqrt{n}}\right].$$
+      </proposition>
+      <proof of="prop:7-4-dualidade-ic-t" collapsible="true" collapsed="true">
+        O teste bilateral rejeita $H_0$ ao nível $\alpha$ exatamente quando $|t| &gt; t_{n-1;\, 1-\alpha/2}$, ou seja:
+        $$\frac{|\bar{x} - \mu_0|}{s / \sqrt{n}} &gt; t_{n-1;\, 1 - \alpha/2} \iff |\bar{x} - \mu_0| &gt; t_{n-1;\, 1 - \alpha/2}\,\frac{s}{\sqrt{n}}.$$
+        A última desigualdade diz precisamente que a distância entre $\mu_0$ e $\bar{x}$ excede a margem de erro do intervalo de confiança de $100(1 - \alpha)\%$, isto é, $\mu_0$ cai fora do intervalo.
+      </proof>
+
+      Na biologia e na neurociência, porém, o mais comum é comparar <em>duas</em> condições: antes e depois de um fármaco no mesmo neurônio, ou um grupo de animais controle contra um grupo tratado. A estrutura experimental determina qual versão do teste $t$ usar.
+
+      <definition id="def:7-4-teste-t-pareado">
+        <title>Teste t pareado</title>
+        Quando as duas medidas são coletadas em pares ligados — por exemplo, o mesmo neurônio, a mesma fatia ou o mesmo voluntário medido antes e depois de uma intervenção — definimos para cada par $i = 1, \dots, n$ a diferença:
+        $$d_i = x_{i,\text{depois}} - x_{i,\text{antes}}.$$
+        Testar $H_0: \mu_{\text{depois}} = \mu_{\text{antes}}$ equivale a testar $H_0: \mu_d = 0$ aplicando um teste $t$ de uma amostra às $n$ diferenças $d_1, \dots, d_n$:
+        <equation id="eq:7-4-t-pareado">
+          t = \frac{\bar{d}}{s_d / \sqrt{n}}, \qquad \text{gl} = n - 1,
+        </equation>
+        onde $\bar{d} = \frac{1}{n}\sum_{i=1}^n d_i$ e $s_d = \sqrt{\frac{1}{n - 1}\sum_{i=1}^n (d_i - \bar{d})^2}$.
+      </definition>
+
+      Já quando comparamos dois grupos de unidades experimentais <em>independentes</em> (por exemplo, $n_1$ neurônios de animais controle e $n_2$ neurônios de animais tratados), as médias amostrais $\bar{X}_1$ e $\bar{X}_2$ são independentes, de modo que a variância de sua diferença é a soma das variâncias: $\operatorname{Var}(\bar{X}_1 - \bar{X}_2) = \frac{\sigma_1^2}{n_1} + \frac{\sigma_2^2}{n_2}$.
+
+      <definition id="def:7-4-teste-t-welch">
+        <title>Teste t de Welch para duas amostras independentes</title>
+        Dadas duas amostras independentes de tamanhos $n_1$ e $n_2$, médias $\bar{x}_1$ e $\bar{x}_2$ e variâncias amostrais $s_1^2$ e $s_2^2$, <strong>sem supor igualdade de variâncias</strong> ($\sigma_1^2$ e $\sigma_2^2$ podem diferir), a estatística de <strong>teste $t$ de Welch</strong> para $H_0: \mu_1 = \mu_2$ é:
+        <equation id="eq:7-4-t-welch">
+          t = \frac{\bar{x}_1 - \bar{x}_2}{\sqrt{\dfrac{s_1^2}{n_1} + \dfrac{s_2^2}{n_2}}}.
+        </equation>
+        Sob $H_0$ (com normalidade aproximada ou amostras grandes via TCL), $T$ segue aproximadamente uma distribuição $t_\nu$ com graus de liberdade efetivos dados pela fórmula de Welch–Satterthwaite:
+        $$\nu = \frac{\left(\dfrac{s_1^2}{n_1} + \dfrac{s_2^2}{n_2}\right)^2}{\dfrac{(s_1^2 / n_1)^2}{n_1 - 1} + \dfrac{(s_2^2 / n_2)^2}{n_2 - 1}}.$$
+      </definition>
+
+      Você também encontrará na literatura o clássico <strong>teste $t$ de Student para duas amostras</strong>, que assume variâncias populacionais iguais ($\sigma_1^2 = \sigma_2^2$) e combina os desvios em uma variância combinada (<em>pooled variance</em>) $s_p^2 = \frac{(n_1 - 1)s_1^2 + (n_2 - 1)s_2^2}{n_1 + n_2 - 2}$, usando $\text{gl} = n_1 + n_2 - 2$. Como na biologia grupos tratados frequentemente ficam mais heterogêneos do que controles, o teste de Welch é a escolha padrão mais segura: ele quase não perde desempenho quando as variâncias são iguais e protege contra distorções severas quando são diferentes.
+
+      Em Python, o módulo <c>scipy.stats</c> implementa diretamente as três versões: <c>ttest_1samp(x, popmean=mu0)</c> para uma amostra, <c>ttest_rel(depois, antes)</c> para amostras pareadas e <c>ttest_ind(grupo1, grupo2, equal_var=False)</c> para o teste de Welch.
+
+      <example id="exm:7-4-t-pareado-farmaco">
+        <title>Efeito de fármaco na taxa de disparo de 8 neurônios (teste t pareado)</title>
+        Você registra a taxa de disparo (em $\text{Hz}$) de $n = 8$ neurônios corticais independentes antes e após a aplicação de um agonista glutamatérgico:
+        <list marker="dash">
+          <item><strong>Antes:</strong> $12,\; 15,\; 18,\; 14,\; 20,\; 16,\; 22,\; 11\text{ Hz}$;</item>
+          <item><strong>Depois:</strong> $13,\; 17,\; 21,\; 18,\; 24,\; 21,\; 28,\; 18\text{ Hz}$.</item>
+        </list>
+        Realize um teste $t$ pareado bilateral ao nível $\alpha = 0{,}05$ (dado o quantil crítico $t_{7;\, 0{,}975} \approx 2{,}365$).
+
+        <strong>Solução.</strong> Calculamos primeiro as diferenças $d_i = \text{depois}_i - \text{antes}_i$ para cada um dos $8$ neurônios:
+        $$d = [1,\; 2,\; 3,\; 4,\; 4,\; 5,\; 6,\; 7]\text{ Hz}.$$
+        A média das diferenças é:
+        $$\bar{d} = \frac{1 + 2 + 3 + 4 + 4 + 5 + 6 + 7}{8} = \frac{32}{8} = 4{,}0\text{ Hz}.$$
+        Os desvios em relação a $\bar{d} = 4{,}0$ são $[-3, -2, -1, 0, 0, 1, 2, 3]$. Somando os quadrados e dividindo por $n - 1 = 7$:
+        $$s_d^2 = \frac{(-3)^2 + (-2)^2 + (-1)^2 + 0^2 + 0^2 + 1^2 + 2^2 + 3^2}{7} = \frac{9 + 4 + 1 + 0 + 0 + 1 + 4 + 9}{7} = \frac{28}{7} = 4{,}0\text{ Hz}^2,$$
+        de onde $s_d = \sqrt{4{,}0} = 2{,}0\text{ Hz}$. Calculamos o erro padrão e a estatística $t$:
+        $$\widehat{\operatorname{EP}}(\bar{d}) = \frac{s_d}{\sqrt{8}} = \frac{2{,}0}{2\sqrt{2}} = \frac{1}{\sqrt{2}} \approx 0{,}7071\text{ Hz},$$
+        $$t = \frac{\bar{d}}{\widehat{\operatorname{EP}}(\bar{d})} = \frac{4{,}0}{2{,}0 / \sqrt{8}} = 2\sqrt{8} = 4\sqrt{2} \approx 5{,}6569, \qquad \text{gl} = 7.$$
+        Como $|t| \approx 5{,}657 &gt; t_{7;\, 0{,}975} \approx 2{,}365$, rejeitamos $H_0: \mu_d = 0$ ao nível de $5\%$ (na verdade, $p &lt; 0{,}001$). O agonista aumentou consistentemente a taxa de disparo desses neurônios em cerca de $4{,}0\text{ Hz}$.
+      </example>
+
+      <example id="exm:7-4-t-welch-repouso">
+        <title>Potencial de repouso em células controle versus tratadas (Welch)</title>
+        Dois grupos independentes de neurônios piramidais foram registrados por <em>patch-clamp</em>: $n_1 = 10$ células controle tiveram potencial de repouso médio $\bar{x}_1 = -70{,}0\text{ mV}$ com desvio-padrão $s_1 = 3{,}0\text{ mV}$; $n_2 = 10$ células tratadas com um bloqueador parcial de canais de potássio tiveram $\bar{x}_2 = -65{,}0\text{ mV}$ com $s_2 = 4{,}0\text{ mV}$. Aplique o teste $t$ de Welch bilateral ao nível $\alpha = 0{,}05$.
+
+        <strong>Solução.</strong> Calculamos a diferença entre as médias ($\bar{x}_2 - \bar{x}_1 = -65{,}0 - (-70{,}0) = 5{,}0\text{ mV}$) e as contribuições de cada grupo à variância da diferença:
+        $$\frac{s_1^2}{n_1} = \frac{3{,}0^2}{10} = \frac{9}{10} = 0{,}9\text{ mV}^2, \qquad \frac{s_2^2}{n_2} = \frac{4{,}0^2}{10} = \frac{16}{10} = 1{,}6\text{ mV}^2.$$
+        Somando e extraindo a raiz quadrada, temos o erro padrão de Welch e a estatística $t$:
+        $$\widehat{\operatorname{EP}} = \sqrt{0{,}9 + 1{,}6} = \sqrt{2{,}5} \approx 1{,}5811\text{ mV}, \qquad t = \frac{5{,}0}{\sqrt{2{,}5}} = \sqrt{10} \approx 3{,}1623.$$
+        Pela fórmula de Welch–Satterthwaite, os graus de liberdade efetivos são:
+        $$\nu = \frac{(0{,}9 + 1{,}6)^2}{\dfrac{0{,}9^2}{9} + \dfrac{1{,}6^2}{9}} = \frac{2{,}5^2}{\dfrac{0{,}81 + 2{,}56}{9}} = \frac{6{,}25 \cdot 9}{3{,}37} = \frac{56{,}25}{3{,}37} \approx 16{,}69.$$
+        Comparando com o valor crítico aproximado para $16$ graus de liberdade ($t_{16;\, 0{,}975} \approx 2{,}120$), observamos $|t| \approx 3{,}162 &gt; 2{,}120$, portanto rejeitamos $H_0: \mu_1 = \mu_2$ ao nível $\alpha = 0{,}05$ ($p &lt; 0{,}01$). O bloqueador despolarizou significativamente o potencial de repouso.
+      </example>
+
+      <remark id="rem:7-4-armadilha-t">
+        <title>Armadilha comum</title>
+        Dois erros de delineamento arruínam testes $t$ na biologia experimental:
+        <list marker="dash">
+          <item><strong>Usar teste independente para dados pareados:</strong> se você ignorar o pareamento do <ref to="exm:7-4-t-pareado-farmaco"/> e rodar um teste de Welch entre os $8$ valores "antes" e os $8$ valores "depois", a variação basal enorme de célula para célula (de $11$ a $22\text{ Hz}$) entra inteira no denominador, derrubando a estatística $t$ de $5{,}66$ para cerca de $1{,}89$ ($p &gt; 0{,}05$) e escondendo um efeito real. O pareamento remove a variabilidade entre indivíduos e aumenta muito o poder.</item>
+          <item><strong>Pseudorreplicação (<em>pseudoreplication</em>):</strong> registrar $30$ neurônios ou $50$ ensaios de um <em>único</em> camundongo e tratá-los como $n = 30$ ou $n = 50$ observações independentes viola a hipótese de independência do teste $t$. Células de um mesmo animal compartilham genética, metabolismo e preparação histológica; se você quer concluir algo sobre o tratamento na espécie, a unidade experimental independente é o <em>animal</em> (por exemplo, tirando uma média por animal antes de testar, ou usando modelos hierárquicos).</item>
+        </list>
+      </remark>
+
+      O código a seguir confere os dois exemplos desta seção com <c>scipy.stats</c>, mostra na prática a perda de sensibilidade ao ignorar o pareamento e verifica por simulação que o teste $t$ de uma amostra mantém o erro tipo I igual a $5\%$ quando os pressupostos são respeitados.
+
+      <code lang="python" id="cod:7-4-testes-t">
+import numpy as np
+from scipy import stats
+
+# 1. Conferência do Exemplo pareado (8 neurônios)
+antes = np.array([12.0, 15.0, 18.0, 14.0, 20.0, 16.0, 22.0, 11.0])
+depois = np.array([13.0, 17.0, 21.0, 18.0, 24.0, 21.0, 28.0, 18.0])
+
+res_rel = stats.ttest_rel(depois, antes)
+res_ind_errado = stats.ttest_ind(depois, antes, equal_var=False)
+print(f"Pareado (correto) -> t = {res_rel.statistic:.4f}, p = {res_rel.pvalue:.6f}")
+# Saída determinística esperada: t = 5.6569 (p < 0.001)
+print(f"Indep. (errado)   -> t = {res_ind_errado.statistic:.4f}, p = {res_ind_errado.pvalue:.4f}")
+# Saída determinística esperada: t = 1.8933 (p > 0.05!)
+
+# 2. Conferência do Exemplo de Welch com estatísticas resumidas
+res_welch = stats.ttest_ind_from_stats(
+    mean1=-65.0, std1=4.0, nobs1=10,
+    mean2=-70.0, std2=3.0, nobs2=10,
+    equal_var=False,
+)
+print(f"Welch (resumido)  -> t = {res_welch.statistic:.4f}, p = {res_welch.pvalue:.5f}")
+# Saída determinística esperada: t = 3.1623 (p < 0.01)
+
+# 3. Simulação: taxa de rejeição sob H0 no teste t de uma amostra (n = 12, alpha = 0.05)
+rng = np.random.default_rng(42)
+amostras_h0 = rng.normal(loc=-70.0, scale=4.0, size=(20_000, 12))
+_, p_vals = stats.ttest_1samp(amostras_h0, popmean=-70.0, axis=1)
+print(f"Taxa de rejeição sob H0 (20 mil testes): {np.mean(p_vals <= 0.05):.4f}")
+# Saída esperada: aprox. 0.0500
+      </code>
+
+      <exercise id="exr:7-4-2-1">
+        <title>Básico — Teste t de uma amostra no potencial de repouso</title>
+        Você mede o potencial de repouso de $n = 9$ neurônios independentes de uma região do hipocampo e obtém média $\bar{x} = -67{,}0\text{ mV}$ e desvio-padrão amostral $s = 4{,}5\text{ mV}$. Deseja testar se a média populacional difere do valor de referência clássico $\mu_0 = -70{,}0\text{ mV}$ usando um teste $t$ bilateral ao nível $\alpha = 0{,}05$ (considere $t_{8;\, 0{,}975} \approx 2{,}306$).
+        <hint><title>Ver dica</title>Calcule o erro padrão estimado $\frac{s}{\sqrt{n}} = \frac{4{,}5}{3}$ e substitua na fórmula de $t$ com $\text{gl} = 9 - 1 = 8$.</hint>
+        <solution collapsible="true" collapsed="true">
+          As hipóteses são $H_0: \mu = -70{,}0\text{ mV}$ e $H_1: \mu \ne -70{,}0\text{ mV}$. O erro padrão estimado é:
+          $$\widehat{\operatorname{EP}} = \frac{4{,}5}{\sqrt{9}} = \frac{4{,}5}{3} = 1{,}5\text{ mV}.$$
+          Logo, a estatística $t$ vale:
+          $$t = \frac{-67{,}0 - (-70{,}0)}{1{,}5} = \frac{3{,}0}{1{,}5} = 2{,}00, \qquad \text{gl} = 8.$$
+          Como $|t| = 2{,}00 &lt; t_{8;\, 0{,}975} \approx 2{,}306$ (equivalentemente, $p &gt; 0{,}05$), <strong>não rejeitamos $H_0$</strong> ao nível de $5\%$. Note que, pela <ref to="prop:7-4-dualidade-ic-t"/>, o intervalo de confiança de $95\%$ seria $[-67{,}0 - 2{,}306 \cdot 1{,}5;\; -67{,}0 + 2{,}306 \cdot 1{,}5] \approx [-70{,}46;\; -63{,}54]\text{ mV}$, que de fato contém $-70{,}0\text{ mV}$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-4-2-2">
+        <title>Básico — Teste t pareado em latência de potencial evocado</title>
+        Em um protocolo de eletroencefalografia (EEG), você mede a latência (em $\text{ms}$) da onda P300 em $n = 6$ voluntários antes e depois de um treino de atenção visual:
+        <list marker="dash">
+          <item><strong>Antes:</strong> $318,\; 304,\; 312,\; 292,\; 300,\; 296\text{ ms}$;</item>
+          <item><strong>Depois:</strong> $300,\; 290,\; 300,\; 280,\; 290,\; 290\text{ ms}$.</item>
+        </list>
+        Calcule à mão a média das diferenças $\bar{d}$, o desvio-padrão $s_d$, a estatística $t$ e os graus de liberdade, e decida ao nível $\alpha = 0{,}05$ (teste bilateral; $t_{5;\, 0{,}975} \approx 2{,}571$).
+        <hint><title>Ver dica</title>Subtraia par a par $d_i = \text{depois}_i - \text{antes}_i$, depois calcule $\bar{d}$ e $s_d$ dividindo a soma dos quadrados dos desvios por $n - 1 = 5$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculamos as diferenças $d_i = \text{depois}_i - \text{antes}_i$:
+          $$d = [-18,\; -14,\; -12,\; -12,\; -10,\; -6]\text{ ms}.$$
+          A soma das diferenças é $-18 - 14 - 12 - 12 - 10 - 6 = -72\text{ ms}$, logo:
+          $$\bar{d} = \frac{-72}{6} = -12{,}0\text{ ms}.$$
+          Os desvios $d_i - (-12)$ são $[-6, -2, 0, 0, 2, 6]$, cuja soma dos quadrados vale $36 + 4 + 0 + 0 + 4 + 36 = 80$. Dividindo por $n - 1 = 5$:
+          $$s_d^2 = \frac{80}{5} = 16\text{ ms}^2 \implies s_d = 4{,}0\text{ ms}.$$
+          Portanto, a estatística $t$ pareada com $\text{gl} = 5$ é:
+          $$t = \frac{-12{,}0}{4{,}0 / \sqrt{6}} = -3\sqrt{6} \approx -7{,}3485.$$
+          Como $|t| \approx 7{,}35 &gt; t_{5;\, 0{,}975} \approx 2{,}571$, rejeitamos $H_0: \mu_d = 0$ ao nível $\alpha = 0{,}05$: o treino reduziu a latência da onda P300 em média em $12{,}0\text{ ms}$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-4-2-3">
+        <title>Intermediário — Teste t de Welch com variâncias diferentes</title>
+        Você compara a taxa de disparo máxima evocada por estímulo em duas populações independentes de neurônios: $n_1 = 8$ células da camada 2/3 com $\bar{x}_1 = 42{,}0\text{ Hz}$ e $s_1 = 4{,}0\text{ Hz}$, e $n_2 = 12$ células da camada 5 com $\bar{x}_2 = 36{,}0\text{ Hz}$ e $s_2 = 6{,}0\text{ Hz}$. Calcule a estatística $t$ de Welch, os graus de liberdade efetivos $\nu$ e decida ao nível $\alpha = 0{,}05$ (teste bilateral; considere $t_{18;\, 0{,}975} \approx 2{,}101$).
+        <hint><title>Ver dica</title>Calcule primeiro $v_1 = \frac{s_1^2}{n_1} = \frac{16}{8} = 2$ e $v_2 = \frac{s_2^2}{n_2} = \frac{36}{12} = 3$. Depois use $\frac{\bar{x}_1 - \bar{x}_2}{\sqrt{v_1 + v_2}}$ e $\nu = \frac{(v_1 + v_2)^2}{v_1^2/7 + v_2^2/11}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculamos as variâncias das médias amostrais:
+          $$v_1 = \frac{4{,}0^2}{8} = \frac{16}{8} = 2{,}0, \qquad v_2 = \frac{6{,}0^2}{12} = \frac{36}{12} = 3{,}0.$$
+          Logo, o erro padrão da diferença é $\sqrt{2{,}0 + 3{,}0} = \sqrt{5} \approx 2{,}2361\text{ Hz}$, e a estatística de Welch vale:
+          $$t = \frac{42{,}0 - 36{,}0}{\sqrt{5}} = \frac{6}{\sqrt{5}} \approx 2{,}6833.$$
+          Os graus de liberdade efetivos de Welch–Satterthwaite são:
+          $$\nu = \frac{(2 + 3)^2}{\dfrac{2^2}{7} + \dfrac{3^2}{11}} = \frac{25}{\dfrac{4}{7} + \dfrac{9}{11}} = \frac{25}{\dfrac{44 + 63}{77}} = \frac{25 \cdot 77}{107} = \frac{1925}{107} \approx 17{,}99 \approx 18.$$
+          Como $|t| \approx 2{,}683 &gt; t_{18;\, 0{,}975} \approx 2{,}101$, rejeitamos $H_0: \mu_1 = \mu_2$ ao nível $\alpha = 0{,}05$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-4-2-4">
+        <title>Avançado — Simulando a armadilha da pseudorreplicação em Python</title>
+        Suponha um experimento com $6$ camundongos controle e $6$ camundongos tratados, sem efeito real algum do tratamento ($\mu_{\text{ctrl}} = \mu_{\text{trat}} = -70\text{ mV}$). Cada camundongo $j$ tem seu próprio deslocamento basal aleatório $b_j \sim \mathcal{N}(0, 3^2)\text{ mV}$, e dentro de cada camundongo registramos $20$ neurônios com potencial $-70 + b_j + \varepsilon_{jk}$, onde $\varepsilon_{jk} \sim \mathcal{N}(0, 2^2)\text{ mV}$.
+        Escreva um código em Python (<c>rng = np.random.default_rng(42)</c>) que simule $1\,000$ estudos e compare a taxa de falsos positivos ($\alpha = 0{,}05$) entre:
+        <list marker="number">
+          <item>o erro da pseudorreplicação: rodar <c>ttest_ind</c> diretamente sobre os $120$ neurônios por grupo;</item>
+          <item>a análise correta por animal: calcular a média de cada camundongo primeiro e rodar <c>ttest_ind</c> sobre as $6$ médias por grupo.</item>
+        </list>
+        <hint><title>Ver dica</title>Para cada grupo em cada estudo, gere um array de efeitos de animal com formato <c>(6, 1)</c> e ruído neuronal com formato <c>(6, 20)</c>, some os dois para obter matrizes <c>(6, 20)</c>, e compare <c>ttest_ind(ctrl.ravel(), trat.ravel(), equal_var=False)</c> com <c>ttest_ind(ctrl.mean(axis=1), trat.mean(axis=1), equal_var=False)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(42)
+n_estudos = 1_000
+fp_pseudo = 0
+fp_correto = 0
+
+for _ in range(n_estudos):
+    b_ctrl = rng.normal(0.0, 3.0, size=(6, 1))
+    b_trat = rng.normal(0.0, 3.0, size=(6, 1))
+    ctrl = -70.0 + b_ctrl + rng.normal(0.0, 2.0, size=(6, 20))
+    trat = -70.0 + b_trat + rng.normal(0.0, 2.0, size=(6, 20))
+
+    # 1. Errado: tratar 120 neurônios como independentes
+    _, p_pseudo = stats.ttest_ind(ctrl.ravel(), trat.ravel(), equal_var=False)
+    if p_pseudo <= 0.05:
+        fp_pseudo += 1
+
+    # 2. Correto: resumir pela unidade independente (animal)
+    _, p_correto = stats.ttest_ind(ctrl.mean(axis=1), trat.mean(axis=1), equal_var=False)
+    if p_correto <= 0.05:
+        fp_correto += 1
+
+print(f"Falsos positivos (pseudorreplicação): {fp_pseudo / n_estudos:.3f}")  # muito maior que 0.05 (aprox. 0.65)
+print(f"Falsos positivos (por animal):        {fp_correto / n_estudos:.3f}")  # aprox. 0.050
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:7-4-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Erros tipo I e II, poder e tamanho de amostra</title>
+      <intro>
+        Controlar alarmes falsos é só metade da história: um experimento pequeno demais deixa escapar descobertas reais e ainda distorce os poucos achados que passam pelo filtro de significância.
+      </intro>
+
+      Todo teste de hipóteses funciona como um detector de sinal em meio a ruído — exatamente como um circuito sensorial decidindo se um flash fraco de luz realmente ocorreu na retina ou se houve apenas disparo espontâneo de fotorreceptores. Há duas maneiras corretas de decidir e dois tipos de erro possíveis, resumidos na <ref to="tbl:7-4-erros"/>.
+
+      <table id="tbl:7-4-erros">
+        <title>Possíveis desfechos de um teste de hipóteses</title>
+        <header>
+          <column>Decisão do teste</column>
+          <column>$H_0$ verdadeira na natureza</column>
+          <column>$H_1$ verdadeira na natureza</column>
+        </header>
+        <row>
+          <column><strong>Não rejeitar $H_0$</strong></column>
+          <column>Decisão correta ($1 - \alpha$)</column>
+          <column><strong>Erro tipo II</strong>: falso negativo ($\beta$)</column>
+        </row>
+        <row>
+          <column><strong>Rejeitar $H_0$</strong></column>
+          <column><strong>Erro tipo I</strong>: falso positivo ($\alpha$)</column>
+          <column>Detecção correta: <strong>poder</strong> ($1 - \beta$)</column>
+        </row>
+        <caption>Equilíbrio entre falso positivo ($\alpha$), falso negativo ($\beta$) e poder estatístico ($1 - \beta$).</caption>
+      </table>
+
+      <definition id="def:7-4-erros-poder">
+        <title>Erros tipo I e II e poder estatístico</title>
+        Em um teste de hipóteses:
+        <list marker="dash">
+          <item>o <strong>erro tipo I</strong> ocorre ao rejeitar $H_0$ quando ela é verdadeira; sua probabilidade máxima controlada pelo critério de decisão é $\alpha = P(\text{rejeitar } H_0 \mid H_0 \text{ verdadeira})$;</item>
+          <item>o <strong>erro tipo II</strong> ocorre ao deixar de rejeitar $H_0$ quando $H_1$ é verdadeira; sua probabilidade é denotada por $\beta = P(\text{não rejeitar } H_0 \mid H_1 \text{ verdadeira})$;</item>
+          <item>o <strong>poder estatístico</strong> (<em>statistical power</em>) é a probabilidade de detectar um efeito verdadeiro: $\text{Poder} = 1 - \beta = P(\text{rejeitar } H_0 \mid H_1 \text{ verdadeira})$.</item>
+        </list>
+      </definition>
+
+      Para calcular o poder, não basta saber que $H_0$ é falsa: é preciso perguntar "quão grande é o efeito real em comparação com o ruído dos dados?". Se um fármaco desloca o potencial de repouso em $0{,}1\text{ mV}$ num tecido com desvio-padrão de $5\text{ mV}$, detectá-lo exige milhares de células; se desloca em $6\text{ mV}$, bastam poucas células. Para padronizar essa razão sinal-ruído em qualquer unidade de medida, usamos o tamanho de efeito $d$ de Cohen.
+
+      <definition id="def:7-4-cohen-d">
+        <title>Tamanho de efeito d de Cohen</title>
+        Para duas populações com médias $\mu_1$ e $\mu_2$ e desvio-padrão comum $\sigma$, o <strong>tamanho de efeito $d$ de Cohen</strong> é a diferença padronizada entre as médias:
+        <equation id="eq:7-4-cohen-d">
+          d = \frac{\mu_1 - \mu_2}{\sigma}.
+        </equation>
+        Para uma amostra comparada a $\mu_0$, usa-se $d = \frac{\mu - \mu_0}{\sigma}$. Na amostra, substituímos $\mu_1, \mu_2, \sigma$ pelas estimativas amostrais (usando o desvio-padrão combinado $s_p$ no caso de duas amostras). Por convenção didática de Cohen, valores de $|d|$ próximos de $0{,}2$, $0{,}5$ e $0{,}8$ costumam ser chamados de efeitos pequeno, médio e grande, respectivamente.
+      </definition>
+
+      Na forma fechada mais simples — o teste $Z$ com $\sigma$ conhecido — conseguimos enxergar exatamente o que governa o poder estatístico.
+
+      <proposition id="prop:7-4-poder-normal">
+        <title>Poder e tamanho de amostra no teste Z unilateral</title>
+        Considere uma amostra i.i.d. de uma população $\mathcal{N}(\mu, \sigma^2)$ com $\sigma$ conhecido. Para testar $H_0: \mu = \mu_0$ contra $H_1: \mu = \mu_0 + \Delta$ ($\Delta &gt; 0$) ao nível $\alpha$, seja $d = \frac{\Delta}{\sigma}$ o tamanho de efeito e $\Phi$ a função distribuição acumulada da normal padrão. Então:
+        <equation id="eq:7-4-poder-normal">
+          \text{Poder} = 1 - \beta = \Phi\!\left(d\sqrt{n} - z_{1-\alpha}\right).
+        </equation>
+        Consequentemente, para atingir um poder desejado $1 - \beta$, o tamanho de amostra necessário satisfaz:
+        $$n \ge \left(\frac{z_{1-\alpha} + z_{1-\beta}}{d}\right)^2.$$
+      </proposition>
+      <proof of="prop:7-4-poder-normal" collapsible="true" collapsed="true">
+        O teste rejeita $H_0$ quando $\frac{\bar{X} - \mu_0}{\sigma/\sqrt{n}} &gt; z_{1-\alpha}$, isto é, $\bar{X} &gt; \mu_0 + z_{1-\alpha}\frac{\sigma}{\sqrt{n}}$. Sob a alternativa verdadeira $\mu = \mu_0 + \Delta$, a média amostral satisfaz $\bar{X} = \mu_0 + \Delta + Z\frac{\sigma}{\sqrt{n}}$, com $Z \sim \mathcal{N}(0, 1)$. Substituindo na região de rejeição:
+        $$\mu_0 + \Delta + Z\frac{\sigma}{\sqrt{n}} &gt; \mu_0 + z_{1-\alpha}\frac{\sigma}{\sqrt{n}} \iff Z &gt; z_{1-\alpha} - \frac{\Delta\sqrt{n}}{\sigma} = z_{1-\alpha} - d\sqrt{n}.$$
+        Pela simetria da normal padrão ($P(Z &gt; c) = \Phi(-c)$), segue imediatamente que:
+        $$\text{Poder} = \Phi\!\left(d\sqrt{n} - z_{1-\alpha}\right).$$
+        Igualando o argumento a $z_{1-\beta}$ (pois $\Phi(z_{1-\beta}) = 1 - \beta$), obtemos $d\sqrt{n} - z_{1-\alpha} \ge z_{1-\beta}$, de onde $n \ge \left(\frac{z_{1-\alpha} + z_{1-\beta}}{d}\right)^2$.
+      </proof>
+
+      A fórmula da <ref to="prop:7-4-poder-normal"/> revela diretamente os quatro fatores que aumentam o poder de qualquer teste estatístico:
+      <list marker="number">
+        <item><strong>efeito real maior</strong> ($\Delta$ ou $d$ maior);</item>
+        <item><strong>tamanho de amostra $n$ maior</strong> (reduz o erro padrão por $\sqrt{n}$, separando melhor as distribuições sob $H_0$ e sob $H_1$);</item>
+        <item><strong>menor ruído $\sigma$</strong> (por exemplo, com medidas mais precisas ou usando delineamento pareado para remover variação entre indivíduos);</item>
+        <item><strong>nível $\alpha$ maior</strong> (reduz $z_{1-\alpha}$, mas ao preço de aceitar mais falsos positivos).</item>
+      </list>
+      Em um teste bilateral, trocamos $z_{1-\alpha}$ por $z_{1-\alpha/2}$ na aproximação (desprezando a chance mínima de rejeitar na cauda errada). E, para duas amostras independentes com $n$ observações <em>por grupo</em> e mesma variância $\sigma^2$, o erro padrão da diferença é $\sigma\sqrt{2/n}$ em vez de $\sigma/\sqrt{n}$, o que multiplica por $2$ a fórmula do $n$ por grupo: $n_{\text{grupo}} \approx 2\left(\frac{z_{1-\alpha/2} + z_{1-\beta}}{d}\right)^2$.
+
+      <example id="exm:7-4-poder-analitico">
+        <title>Poder e tamanho de amostra em tarefa de tempo de reação</title>
+        Um pesquisador espera que um composto melhore o tempo de reação em $\Delta = 20\text{ ms}$ numa tarefa cujo desvio-padrão populacional conhecido é $\sigma = 40\text{ ms}$ (logo $d = \frac{20}{40} = 0{,}5$). Planeja um teste $Z$ unilateral à direita ao nível $\alpha = 0{,}05$ ($z_{0{,}95} \approx 1{,}645$).
+        <list marker="a">
+          <item>Se recrutar $n = 16$ voluntários, qual será o poder estatístico (dado $\Phi(0{,}355) \approx 0{,}639$)?</item>
+          <item>Quantos voluntários são necessários para atingir $80\%$ de poder ($1 - \beta = 0{,}80$, $z_{0{,}80} \approx 0{,}842$)?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Aplicando a <ref to="eq:7-4-poder-normal"/> com $d = 0{,}5$ e $n = 16$:
+            $$\text{Poder} = \Phi\!\left(0{,}5\sqrt{16} - 1{,}645\right) = \Phi(2{,}0 - 1{,}645) = \Phi(0{,}355) \approx 0{,}639 \text{ (cerca de } 64\%\text{)}.$$
+            Ou seja, ainda há $\beta \approx 36\%$ de risco de falhar em detectar um efeito real desse porte.
+          </item>
+          <item>Para obter $80\%$ de poder:
+            $$n \ge \left(\frac{1{,}645 + 0{,}842}{0{,}5}\right)^2 = \left(\frac{2{,}487}{0{,}5}\right)^2 = (4{,}974)^2 \approx 24{,}74.$$
+            Arredondando para o próximo inteiro, precisamos de $n = 25$ voluntários.
+          </item>
+        </list>
+      </example>
+
+      Quando passamos para o teste $t$ (com $\sigma$ desconhecido, variâncias possivelmente desiguais ou distribuições não normais), as fórmulas analíticas ficam bem mais complicadas — envolve a chamada distribuição $t$ não central. Felizmente, você já tem no Python uma ferramenta universal para estimar poder em <em>qualquer</em> delineamento experimental: <strong>simulação de Monte Carlo</strong>. A ideia é simples: geramos milhares de experimentos sintéticos em que o efeito verdadeiro existe ($d \ne 0$), rodamos o teste planejado em cada um e contamos em que fração deles o teste rejeita $H_0$.
+
+      <example id="exm:7-4-poder-simulacao">
+        <title>Poder por simulação para duas amostras independentes e alerta na neurociência</title>
+        Suponha que você planeje comparar dois grupos independentes de animais (controle versus tratado) usando um teste $t$ bilateral ao nível $\alpha = 0{,}05$, esperando um tamanho de efeito médio $d = 0{,}5$. Usando a fórmula aproximada para duas amostras, estimamos:
+        $$n_{\text{grupo}} \approx 2\left(\frac{1{,}960 + 0{,}842}{0{,}5}\right)^2 = 2 \cdot (5{,}604)^2 \approx 62{,}8 \text{ por grupo}$$
+        (a correção exata para a distribuição $t$ eleva esse número para $n = 64$ por grupo, totalizando $128$ animais). Em contrapartida, estudos pré-clínicos frequentemente trabalham com $n = 20$ por grupo (ou até menos). Para $d = 0{,}5$ e $\alpha = 0{,}05$ bilateral, $n = 20$ por grupo fornece poder de apenas $\approx 0{,}34$: dois em cada três estudos reais desse tamanho deixam o efeito passar despercebido! Button e colaboradores (2013) chamaram atenção justamente para o fato de que estudos de neurociência com amostras pequenas frequentemente operam com poder estatístico muito baixo, reduzindo a reprodutibilidade da literatura.
+      </example>
+
+      O bloco abaixo verifica por simulação tanto o poder analítico do <ref to="exm:7-4-poder-analitico"/> quanto os valores de referência ($\approx 0{,}34$ para $n = 20$ e $\approx 0{,}80$ para $n = 64$) do teste $t$ de duas amostras.
+
+      <code lang="python" id="cod:7-4-poder-sim">
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(42)
+
+# 1. Conferência do Exemplo analítico (teste Z unilateral, d = 0.5, n = 16)
+poder_teorico = stats.norm.cdf(0.5 * np.sqrt(16) - stats.norm.ppf(0.95))
+print(f"Poder teórico (Z, 1 amostra, n=16): {poder_teorico:.4f}")
+# Saída determinística esperada: 0.6387
+
+amostras_z = rng.normal(loc=20.0, scale=40.0, size=(50_000, 16))
+z_stat = (amostras_z.mean(axis=1) - 0.0) / (40.0 / np.sqrt(16))
+p_z = stats.norm.sf(z_stat)
+print(f"Poder simulado (Z, n=16):          {np.mean(p_z <= 0.05):.4f}")
+# Saída esperada: aprox. 0.6387
+
+# 2. Poder por simulação: teste t bilateral de 2 amostras, alpha = 0.05, d = 0.5
+n_sim = 10_000
+for n_grupo, esperado in [(20, 0.34), (64, 0.80)]:
+    g_ctrl = rng.normal(loc=0.0, scale=1.0, size=(n_sim, n_grupo))
+    g_trat = rng.normal(loc=0.5, scale=1.0, size=(n_sim, n_grupo))
+    _, p_vals = stats.ttest_ind(g_trat, g_ctrl, axis=1, equal_var=False)
+    poder_sim = np.mean(p_vals <= 0.05)
+    print(f"n = {n_grupo:2d}/grupo -> poder simulado: {poder_sim:.3f} (ref. aprox. {esperado:.2f})")
+# Saídas esperadas:
+# n = 20/grupo -> aprox. 0.34
+# n = 64/grupo -> aprox. 0.80
+      </code>
+
+      <remark id="rem:7-4-armadilha-poder">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>"Não significativo" em estudo de baixo poder não indica ausência de efeito:</strong> se o seu experimento tem poder de $34\%$ para o efeito esperado, obter $p = 0{,}28$ não é evidência a favor de $H_0$; o resultado é simplesmente inconclusivo.</item>
+          <item><strong>Viés do vencedor (<em>winner's curse</em>):</strong> em amostras pequenas com baixo poder, os poucos experimentos que por flutuação aleatória cruzam $p \le 0{,}05$ são aqueles em que o ruído somou na mesma direção do efeito real. Por isso, estudos subdimensionados que dão "significativo" tendem a superestimar bastante o tamanho real do efeito.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:7-4-3-1">
+        <title>Básico — Identificando erros tipo I, tipo II e poder</title>
+        Um algoritmo baseado em EEG busca detectar crises epilépticas silenciosas em pacientes na UTI. A hipótese nula $H_0$ é "o paciente não está tendo crise naquela janela de tempo", e $H_1$ é "o paciente está em crise". Descreva o que representam, nesse contexto clínico:
+        <list marker="a">
+          <item>um erro tipo I;</item>
+          <item>um erro tipo II;</item>
+          <item>o poder estatístico do detector.</item>
+        </list>
+        <hint><title>Ver dica</title>Lembre que o erro tipo I é rejeitar $H_0$ quando $H_0$ é verdadeira (alarme falso), e o erro tipo II é não rejeitar $H_0$ quando $H_1$ é verdadeira (alarme omitido).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item><strong>Erro tipo I ($\alpha$):</strong> o algoritmo dispara um alerta de crise quando o paciente está sem crise (alarme falso, podendo levar a medicação desnecessária).</item>
+            <item><strong>Erro tipo II ($\beta$):</strong> o algoritmo não dispara o alerta quando o paciente está efetivamente tendo uma crise (falso negativo, deixando a crise sem tratamento).</item>
+            <item><strong>Poder ($1 - \beta$):</strong> a probabilidade (sensibilidade) de o algoritmo soar o alerta corretamente quando uma crise real está acontecendo.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-4-3-2">
+        <title>Básico — O que altera $\alpha$, $\beta$ e o poder?</title>
+        Mantendo todos os outros parâmetros fixos, indique se cada mudança abaixo <strong>aumenta</strong>, <strong>diminui</strong> ou <strong>mantém constante</strong> o poder estatístico ($1 - \beta$) de um teste:
+        <list marker="a">
+          <item>aumentar o tamanho da amostra de $n = 15$ para $n = 60$;</item>
+          <item>tornar o critério de significância mais rigoroso, passando de $\alpha = 0{,}05$ para $\alpha = 0{,}01$;</item>
+          <item>trocar um experimento entre sujeitos por um experimento pareado no mesmo sujeito, reduzindo o desvio-padrão efetivo $\sigma$ das diferenças;</item>
+          <item>testar um efeito biológico real menor ($d$ cai de $0{,}8$ para $0{,}3$).</item>
+        </list>
+        <hint><title>Ver dica</title>Observe o sinal de cada termo na expressão $d\sqrt{n} - z_{1-\alpha}$ da <ref to="prop:7-4-poder-normal"/>: quanto maior esse número, maior o poder.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item><strong>Aumenta o poder:</strong> $\sqrt{n}$ dobra, diminuindo o erro padrão à metade e aumentando $d\sqrt{n}$.</item>
+            <item><strong>Diminui o poder:</strong> reduzir $\alpha$ de $0{,}05$ para $0{,}01$ aumenta o valor crítico $z_{1-\alpha}$, exigindo evidência mais extrema para rejeitar $H_0$ (aumenta $\beta$).</item>
+            <item><strong>Aumenta o poder:</strong> menor $\sigma$ aumenta o tamanho de efeito padronizado $d = \Delta/\sigma$.</item>
+            <item><strong>Diminui o poder:</strong> um efeito real menor ($d$ menor) fica mais misturado com o ruído de fundo.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-4-3-3">
+        <title>Intermediário — Planejando o tamanho de amostra</title>
+        Você planeja um experimento de <em>patch-clamp</em> para verificar se uma mutação altera o potencial de repouso neuronal em pelo menos $\Delta = 2{,}0\text{ mV}$ em relação ao valor padrão $-70{,}0\text{ mV}$, sabendo de registros prévios que $\sigma = 4{,}0\text{ mV}$. Usando a fórmula aproximada do teste $Z$ bilateral ao nível $\alpha = 0{,}05$ ($z_{0{,}975} = 1{,}96$) com poder desejado de $80\%$ ($z_{0{,}80} = 0{,}84$), quantos neurônios independentes você precisa registrar?
+        <hint><title>Ver dica</title>Calcule $d = \frac{\Delta}{\sigma}$ e use $n \ge \left(\frac{z_{0{,}975} + z_{0{,}80}}{d}\right)^2$, arredondando para cima.</hint>
+        <solution collapsible="true" collapsed="true">
+          O tamanho de efeito esperado é:
+          $$d = \frac{2{,}0}{4{,}0} = 0{,}5.$$
+          Substituindo $z_{0{,}975} = 1{,}96$, $z_{0{,}80} = 0{,}84$ e $d = 0{,}5$ na aproximação para o teste bilateral de uma amostra:
+          $$n \ge \left(\frac{1{,}96 + 0{,}84}{0{,}5}\right)^2 = \left(\frac{2{,}80}{0{,}5}\right)^2 = (5{,}6)^2 = 31{,}36.$$
+          Como $n$ precisa ser um número inteiro capaz de atingir <em>pelo menos</em> $80\%$ de poder, arredondamos para cima: são necessários $n = 32$ neurônios independentes.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-4-3-4">
+        <title>Avançado — Curva de poder por simulação em Python</title>
+        Escreva um código em Python com <c>rng = np.random.default_rng(42)</c> que estime, por simulação de $2\,000$ experimentos por ponto, o poder do teste $t$ de Welch bilateral ($\alpha = 0{,}05$) para tamanhos por grupo $n \in \{10, 20, 40, 64, 80, 100\}$, comparando dois tamanhos de efeito: $d = 0{,}5$ e $d = 0{,}8$. Trace as duas curvas de poder no mesmo gráfico com <c>fig, ax = plt.subplots()</c>, incluindo uma linha horizontal de referência em $0{,}80$.
+        <hint><title>Ver dica</title>Para cada par <c>(d, n)</c>, gere matrizes <c>(2000, n)</c> para controle ($\mathcal{N}(0, 1)$) e tratado ($\mathcal{N}(d, 1)$), passe <c>axis=1</c> em <c>stats.ttest_ind</c> e armazene a fração de p-valores menores ou iguais a $0{,}05$ usando <c>np.mean</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(42)
+tamanhos = [10, 20, 40, 64, 80, 100]
+n_sim = 2_000
+
+fig, ax = plt.subplots(figsize=(7.5, 4.5))
+for d, rotulo in [(0.5, "Efeito médio (d = 0,5)"), (0.8, "Efeito grande (d = 0,8)")]:
+    poderes = []
+    for n in tamanhos:
+        ctrl = rng.normal(0.0, 1.0, size=(n_sim, n))
+        trat = rng.normal(d, 1.0, size=(n_sim, n))
+        _, p_vals = stats.ttest_ind(trat, ctrl, axis=1, equal_var=False)
+        poderes.append(np.mean(p_vals <= 0.05))
+    ax.plot(tamanhos, poderes, marker="o", linewidth=2, label=rotulo)
+
+ax.axhline(0.80, color="gray", linestyle="--", label="Poder alvo (80%)")
+ax.set_xlabel("Tamanho da amostra por grupo (n)")
+ax.set_ylabel("Poder estatístico estimado")
+ax.set_title("Curvas de poder simuladas (teste t de Welch, alpha = 0,05)")
+ax.set_ylim(0, 1.05)
+ax.legend()
+ax.grid(True, linestyle=":", alpha=0.5)
+plt.show()
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:7-4-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Comparações múltiplas: Bonferroni e FDR em voxels de fMRI</title>
+      <intro>
+        Um único falso positivo em $5\%$ dos estudos já exige cuidado; testar $50\,000$ voxels cerebrais simultaneamente sem correção transforma ruído aleatório em centenas ou milhares de "ativações" ilusórias.
+      </intro>
+
+      Em um experimento típico de fMRI (com tempo de repetição $\text{TR} \approx 2\text{ s}$), o cérebro humano inteiro é fatiado em uma grade tridimensional de $30\,000$ a $100\,000$ pequenos cubos chamados <em>voxels</em>. Para saber onde uma tarefa cognitiva altera o sinal sanguíneo, rodamos um teste de hipóteses em <em>cada voxel</em> separadamente.
+
+      Aqui surge o problema das <strong>comparações múltiplas</strong> (<em>multiple comparisons</em>): se você jogar uma moeda viciada que dá "alarme falso" em $5\%$ das jogadas uma única vez, provavelmente não verá nada; mas se jogá-la $50\,000$ vezes, verá alarmes falsos o tempo todo! Em 2009, Bennett e colegas ilustraram esse perigo de maneira memorável ao colocar um salmão-do-atlântico morto dentro de um scanner de fMRI durante uma tarefa de reconhecimento de emoções em fotos: quando aplicaram um limiar estatístico sem correção para comparações múltiplas, o salmão morto "mostrou" <em>voxels</em> ativos no cérebro — que desapareceram completamente assim que a correção apropriada foi aplicada.
+
+      <definition id="def:7-4-fwer">
+        <title>Taxa de erro por família (FWER)</title>
+        Ao realizar simultaneamente $m$ testes de hipóteses, a <strong>taxa de erro por família</strong> (<em>family-wise error rate</em>, FWER) é a probabilidade de cometer <strong>pelo menos um</strong> erro tipo I (falso positivo) em todo o conjunto dos $m$ testes:
+        $$\operatorname{FWER} = P(\text{rejeitar ao menos uma } H_0 \text{ verdadeira}).$$
+      </definition>
+
+      <proposition id="prop:7-4-inflacao-fwer">
+        <title>Explosão da FWER com testes independentes</title>
+        Se realizarmos $m$ testes independentes, todos sob $H_0$ verdadeira, cada um ao nível $\alpha$, então:
+        <equation id="eq:7-4-fwer-indep">
+          \operatorname{FWER} = 1 - (1 - \alpha)^m.
+        </equation>
+      </proposition>
+      <proof of="prop:7-4-inflacao-fwer" collapsible="true" collapsed="true">
+        Pela regra do evento complementar, ocorrer pelo menos um falso positivo é o complemento de "nenhum dos $m$ testes cometer erro tipo I". Como cada teste erra com probabilidade $\alpha$, ele acerta (não rejeita $H_0$) com probabilidade $1 - \alpha$. Pela independência entre os $m$ testes:
+        $$P(\text{nenhum falso positivo}) = (1 - \alpha)^m.$$
+        Logo, $\operatorname{FWER} = 1 - P(\text{nenhum falso positivo}) = 1 - (1 - \alpha)^m$.
+      </proof>
+
+      Mesmo para um $m$ modesto, essa inflação é dramática. Com $\alpha = 0{,}05$ e $m = 20$ regiões cerebrais testadas, a FWER já salta para $1 - 0{,}95^{20} \approx 0{,}6415$ ($64\%$ de chance de ao menos um falso positivo!). Com $m = 100$ testes, chega a $1 - 0{,}95^{100} \approx 0{,}9941$ ($99{,}4\%$ — praticamente garantido!).
+
+      A maneira mais direta de conter a FWER é dividir o orçamento de erro $\alpha$ igualmente entre todos os $m$ testes: é a famosa <strong>correção de Bonferroni</strong>.
+
+      <definition id="def:7-4-bonferroni">
+        <title>Correção de Bonferroni</title>
+        Para garantir $\operatorname{FWER} \le \alpha$ ao testar $m$ hipóteses simultaneamente, a <strong>correção de Bonferroni</strong> rejeita a $i$-ésima hipótese apenas quando:
+        <equation id="eq:7-4-bonferroni">
+          p_i \le \frac{\alpha}{m}.
+        </equation>
+      </definition>
+
+      <proposition id="prop:7-4-bonferroni-garantia">
+        <title>Garantia da correção de Bonferroni (mesmo sem independência)</title>
+        Para quaisquer $m$ testes (mesmo correlacionados entre si), a correção de Bonferroni garante $\operatorname{FWER} \le \alpha$.
+      </proposition>
+      <proof of="prop:7-4-bonferroni-garantia" collapsible="true" collapsed="true">
+        Seja $\mathcal{H}_0$ o conjunto dos índices cujas hipóteses nulas são verdadeiras, com tamanho $m_0 \le m$. Pela desigualdade de Boole (cota da união, do Tema 7.1/7.2), a probabilidade da união de eventos é no máximo a soma das probabilidades individuais:
+        $$\operatorname{FWER} = P\!\left(\bigcup_{i \in \mathcal{H}_0} \left\{p_i \le \frac{\alpha}{m}\right\}\right) \le \sum_{i \in \mathcal{H}_0} P\!\left(p_i \le \frac{\alpha}{m}\right) \le m_0 \cdot \frac{\alpha}{m} \le \alpha.$$
+      </proof>
+
+      O preço da proteção absoluta de Bonferroni aparece quando $m$ é enorme. Em um mapa de fMRI com $m = 50\,000$ <em>voxels</em> e $\alpha = 0{,}05$, o limiar corrigido cai para $\frac{0{,}05}{50\,000} = 10^{-6}$. Exigir $p \le 10^{-6}$ em cada <em>voxel</em> torna o teste extremamente <strong>conservador</strong> (<em>conservative</em>): quase elimina falsos positivos, mas eleva tanto o erro tipo II ($\beta$) que ativações cerebrais reais acabam apagadas do mapa.
+
+      Em 1995, Yoav Benjamini e Yosef Hochberg propuseram uma filosofia alternativa muito mais adequada a estudos exploratórios de neuroimagem e genômica: em vez de proibir <em>qualquer</em> falso positivo no cérebro inteiro (FWER), controlamos a <strong>proporção esperada de falsos positivos entre as descobertas</strong>.
+
+      <definition id="def:7-4-fdr-bh">
+        <title>Taxa de descobertas falsas (FDR) e procedimento de Benjamini–Hochberg</title>
+        Sejam $V$ o número de falsos positivos e $R$ o número total de hipóteses rejeitadas em $m$ testes. A <strong>taxa de descobertas falsas</strong> (<em>false discovery rate</em>, FDR) é o valor esperado da proporção de falsos positivos entre os rejeitados (definida como $0$ se $R = 0$):
+        $$\operatorname{FDR} = \mathbb{E}\!\left[\frac{V}{\max(R, 1)}\right].$$
+        Dado um nível alvo $q \in (0, 1)$ (por exemplo, $q = 0{,}05$), o <strong>procedimento de Benjamini–Hochberg (BH)</strong> funciona em três passos:
+        <list marker="number">
+          <item>ordene todos os $m$ p-valores em ordem crescente: $p_{(1)} \le p_{(2)} \le \dots \le p_{(m)}$;</item>
+          <item>encontre o <strong>maior</strong> índice $k \in \{1, \dots, m\}$ tal que:
+            <equation id="eq:7-4-bh">
+              p_{(k)} \le \frac{k}{m} \, q;
+            </equation>
+          </item>
+          <item>se tal $k$ existir, rejeite todas as $k$ hipóteses correspondentes aos menores p-valores $p_{(1)}, \dots, p_{(k)}$; caso contrário, não rejeite nenhuma.</item>
+        </list>
+        <intuition>
+          Em vez de usar uma régua horizontal baixíssima e igual para todo mundo ($\alpha/m$), o procedimento de BH traça uma rampa crescente $(k/m)q$: o menor p-valor ($k = 1$) enfrenta o mesmo rigor de Bonferroni ($q/m$), mas, conforme vão surgindo outros sinais fortes ($k = 2, 3, \dots$), a rampa sobe e dá mais fôlego para detectar efeitos verdadeiros sem perder o controle da proporção de falsos alarmes.
+        </intuition>
+      </definition>
+
+      A <ref to="fig:7-4-bonferroni-fdr"/> mostra essa geometria em uma simulação com $m = 200$ <em>voxels</em> ($175$ nulos e $25$ ativos): você vê imediatamente como a rampa $(k/m)q$ de BH captura bem mais ativações do que a linha horizontal de Bonferroni.
+
+      <figure src="fig/bonferroni-fdr.svg" alt="Dois gráficos comparando os 200 p-valores ordenados com a curva de Benjamini–Hochberg (k/m)q e a linha horizontal de Bonferroni alpha/m: painel esquerdo em escala logarítmica para todos os 200 testes e painel direito com zoom linear para k até 35" id="fig:7-4-bonferroni-fdr">
+        <caption>Comparação entre Bonferroni ($\alpha/m = 2{,}5 \times 10^{-4}$) e Benjamini–Hochberg ($q = 0{,}05$) em $m = 200$ testes simulados. À esquerda, a visão completa em escala logarítmica; à direita, o zoom em escala linear mostra a reta crescente $(k/m)q$ e o maior índice $k$ aprovado por BH.</caption>
+      </figure>
+
+      Vale acrescentar que, em imagens reais de fMRI, <em>voxels</em> vizinhos costumam responder juntos em regiões anatômicas contínuas (não são independentes entre si). Por isso, além de Bonferroni e BH voxel a voxel, os softwares de neuroimagem (como os que você encontrará em pacotes como <c>nilearn</c>) também empregam correções baseadas em <strong>agrupamentos espaciais (<em>clusters</em>)</strong> e em <strong>testes de permutação</strong> que consideram a dependência espacial sem sacrificar tanto o poder.
+
+      <example id="exm:7-4-fwer-fmri">
+        <title>Inflação de erros e limiar de Bonferroni em fMRI</title>
+        <list marker="a">
+          <item>Suponha que um estudo avalie $m = 20$ regiões independentes (e depois $m = 100$ regiões) sem correção, usando $\alpha = 0{,}05$, quando nenhum efeito existe. Qual é a FWER?</item>
+          <item>Em um mapa cerebral com $m = 50\,000$ <em>voxels</em> sob $H_0$ global, quantos <em>voxels</em> falsos positivos esperaríamos em média sem correção ($\alpha = 0{,}05$), e qual seria o limiar de Bonferroni?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Pela <ref to="eq:7-4-fwer-indep"/>:
+            $$\operatorname{FWER}_{20} = 1 - (1 - 0{,}05)^{20} = 1 - 0{,}95^{20} \approx 1 - 0{,}3585 = 0{,}6415 \text{ (cerca de } 64\%\text{)},$$
+            $$\operatorname{FWER}_{100} = 1 - 0{,}95^{100} \approx 1 - 0{,}0059 = 0{,}9941 \text{ (cerca de } 99{,}4\%\text{)}.$$
+          </item>
+          <item>Sem correção, cada <em>voxel</em> nulo tem probabilidade $0{,}05$ de cruzar o limiar; portanto, o número esperado de falsos positivos é $50\,000 \cdot 0{,}05 = 2\,500$ <em>voxels</em>. Com Bonferroni, o novo limiar cai para:
+            $$\frac{\alpha}{m} = \frac{0{,}05}{50\,000} = 10^{-6}.$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:7-4-bh-passo-a-passo">
+        <title>Procedimento de Benjamini–Hochberg passo a passo (10 ROIs)</title>
+        Em uma análise de $m = 10$ regiões de interesse (ROIs) corticais, você obtém os seguintes p-valores (em ordem da ROI 1 até a ROI 10):
+        $$0{,}044,\; 0{,}002,\; 0{,}019,\; 0{,}240,\; 0{,}017,\; 0{,}510,\; 0{,}004,\; 0{,}085,\; 0{,}032,\; 0{,}780.$$
+        Compare as regiões rejeitadas sem correção ($\alpha = 0{,}05$), com Bonferroni ($\alpha = 0{,}05$) e com Benjamini–Hochberg ($q = 0{,}05$).
+
+        <strong>Solução.</strong> Primeiro ordenamos os $10$ p-valores do menor para o maior e calculamos, para cada posição $k = 1, \dots, 10$, o limiar de BH $\frac{k}{10} \cdot 0{,}05 = 0{,}005\,k$:
+        <list marker="dash">
+          <item>$k = 1$ (ROI 2): $p_{(1)} = 0{,}002 \le 0{,}005$ — passa;</item>
+          <item>$k = 2$ (ROI 7): $p_{(2)} = 0{,}004 \le 0{,}010$ — passa;</item>
+          <item>$k = 3$ (ROI 5): $p_{(3)} = 0{,}017 &gt; 0{,}015$ — não passa individualmente;</item>
+          <item>$k = 4$ (ROI 3): $p_{(4)} = 0{,}019 \le 0{,}020$ — <strong>passa!</strong>;</item>
+          <item>$k = 5$ (ROI 9): $p_{(5)} = 0{,}032 &gt; 0{,}025$ — não passa;</item>
+          <item>$k = 6$ (ROI 1): $p_{(6)} = 0{,}044 &gt; 0{,}030$ — não passa;</item>
+          <item>$k = 7$ (ROI 8): $p_{(7)} = 0{,}085 &gt; 0{,}035$ — não passa;</item>
+          <item>$k = 8$ (ROI 4): $p_{(8)} = 0{,}240 &gt; 0{,}040$ — não passa;</item>
+          <item>$k = 9$ (ROI 6): $p_{(9)} = 0{,}510 &gt; 0{,}045$ — não passa;</item>
+          <item>$k = 10$ (ROI 10): $p_{(10)} = 0{,}780 &gt; 0{,}050$ — não passa.</item>
+        </list>
+        Agora comparamos os três métodos:
+        <list marker="number">
+          <item><strong>Sem correção ($p_i \le 0{,}05$):</strong> rejeita $6$ regiões (ROIs 2, 7, 5, 3, 9 e 1).</item>
+          <item><strong>Bonferroni ($p_i \le 0{,}05/10 = 0{,}005$):</strong> rejeita apenas $2$ regiões (ROIs 2 e 7).</item>
+          <item><strong>Benjamini–Hochberg ($q = 0{,}05$):</strong> o <em>maior</em> $k$ com $p_{(k)} \le 0{,}005\,k$ é $k = 4$. Por isso, rejeitamos <strong>todas</strong> as $4$ primeiras posições ($k = 1, 2, 3, 4$), ou seja, as ROIs 2, 7, 5 e 3 — inclusive a ROI 5 ($p_{(3)} = 0{,}017$), porque ela é menor que $p_{(4)} = 0{,}019$.</item>
+        </list>
+      </example>
+
+      O código a seguir implementa o procedimento BH em <c>numpy</c>, confere o exemplo das $10$ ROIs com a função pronta <c>scipy.stats.false_discovery_control</c> e simula um mapa simplificado com $10\,000$ <em>voxels</em> ($9\,500$ nulos e $500$ ativos) comparando os três critérios.
+
+      <code lang="python" id="cod:7-4-fmri-bh">
+import numpy as np
+from scipy import stats
+
+
+def bh_manual(p_valores, q=0.05):
+    p_valores = np.asarray(p_valores)
+    m = len(p_valores)
+    ordem = np.argsort(p_valores)
+    p_ord = p_valores[ordem]
+    limiares = (np.arange(1, m + 1) / m) * q
+    passam = np.where(p_ord <= limiares)[0]
+    rejeita = np.zeros(m, dtype=bool)
+    if len(passam) > 0:
+        k_max = passam[-1]
+        rejeita[ordem[: k_max + 1]] = True
+    return rejeita
+
+
+# 1. Conferência da FWER teórica e do Exemplo das 10 ROIs
+print(f"FWER (m=20):  {1 - 0.95**20:.4f}")   # Saída determinística: 0.6415
+print(f"FWER (m=100): {1 - 0.95**100:.4f}")  # Saída determinística: 0.9941
+
+p_rois = np.array([0.044, 0.002, 0.019, 0.240, 0.017, 0.510, 0.004, 0.085, 0.032, 0.780])
+rej_manual = bh_manual(p_rois, q=0.05)
+p_adj_scipy = stats.false_discovery_control(p_rois, method="bh")
+rej_scipy = p_adj_scipy <= 0.05
+
+print("ROIs rejeitadas (BH manual):", np.where(rej_manual)[0] + 1)  # [2 3 5 7]
+print("Confere com scipy?         ", np.array_equal(rej_manual, rej_scipy))  # True
+
+# 2. Simulação de 10.000 voxels (9.500 nulos e 500 ativos)
+rng = np.random.default_rng(42)
+n_nulos, n_ativos = 9_500, 500
+z_vals = np.concatenate([
+    rng.normal(0.0, 1.0, size=n_nulos),
+    rng.normal(3.5, 1.0, size=n_ativos),
+])
+p_voxels = 2.0 * stats.norm.sf(np.abs(z_vals))
+eh_ativo = np.array([False] * n_nulos + [True] * n_ativos)
+
+metodos = {
+    "Sem correção": p_voxels <= 0.05,
+    "Bonferroni  ": p_voxels <= (0.05 / len(p_voxels)),
+    "BH (FDR)    ": stats.false_discovery_control(p_voxels, method="bh") <= 0.05,
+}
+for nome, rej in metodos.items():
+    fp = int(np.sum(rej & (~eh_ativo)))
+    vp = int(np.sum(rej & eh_ativo))
+    print(f"{nome} -> falsos positivos: {fp:3d}, detecções verdadeiras: {vp:3d}")
+# Saídas esperadas (aprox., depende da semente):
+# Sem correção -> aprox. 475 falsos positivos, aprox. 469 detecções verdadeiras
+# Bonferroni   -> aprox. 0 falsos positivos,   aprox. 72 detecções verdadeiras
+# BH (FDR)     -> aprox. 16 falsos positivos,  aprox. 320 detecções verdadeiras
+      </code>
+
+      <remark id="rem:7-4-armadilha-multiplas">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong><em>p-hacking</em> (pescaria de significância):</strong> testar $20$ janelas temporais de EEG, $15$ áreas corticais ou vários subgrupos de animais e publicar apenas o único teste que deu $p = 0{,}03$ como se tivesse sido a única hipótese planejada desde o início. Os testes não relatados continuam contando como comparações múltiplas ocultas, inflando a chance de falso positivo para dezenas de porcento.</item>
+          <item><strong>Confundir FDR com FWER:</strong> controlar FDR em $q = 0{,}05$ <em>não</em> significa que há apenas $5\%$ de chance de existir algum falso positivo no mapa; significa que, entre os <em>voxels</em> declarados significativos, espera-se que cerca de $5\%$ sejam falsos positivos (por exemplo, cerca de $16$ em $336$ descobertas na simulação acima). Se o custo de um único alarme falso for inaceitável, prefira controlar a FWER.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:7-4-4-1">
+        <title>Básico — FWER e limiar de Bonferroni em eletrodos de EEG</title>
+        Em uma análise exploratória de EEG, você testa independentemente $m = 10$ eletrodos distintos ao nível $\alpha = 0{,}05$ cada um, quando na verdade o estímulo não tem efeito em nenhum eletrodo.
+        <list marker="a">
+          <item>Qual é a probabilidade (FWER) de encontrar pelo menos $1$ eletrodo "significativo" por puro acaso?</item>
+          <item>Qual deve ser o limiar de p-valor por eletrodo usando a correção de Bonferroni para manter a FWER no máximo em $0{,}05$?</item>
+        </list>
+        <hint><title>Ver dica</title>Use $1 - (1 - \alpha)^m$ no item (a) e $\frac{\alpha}{m}$ no item (b).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como os $10$ testes são independentes e sob $H_0$:
+              $$\operatorname{FWER} = 1 - (1 - 0{,}05)^{10} = 1 - 0{,}95^{10} \approx 1 - 0{,}5987 = 0{,}4013.$$
+              Há cerca de $40{,}1\%$ de probabilidade de obter ao menos um falso positivo.
+            </item>
+            <item>Pela correção de Bonferroni, o limiar ajustado para cada eletrodo é:
+              $$\frac{\alpha}{m} = \frac{0{,}05}{10} = 0{,}005.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-4-4-2">
+        <title>Intermediário — Benjamini–Hochberg à mão com 8 testes</title>
+        Você mede a expressão de $m = 8$ genes ligados à plasticidade sináptica após um protocolo de aprendizado e obtém os p-valores:
+        $$0{,}095,\; 0{,}008,\; 0{,}048,\; 0{,}310,\; 0{,}041,\; 0{,}015,\; 0{,}140,\; 0{,}068.$$
+        Aplique à mão o procedimento de Benjamini–Hochberg com $q = 0{,}10$ e compare com a correção de Bonferroni ao nível $\alpha = 0{,}10$.
+        <hint><title>Ver dica</title>Ordene os $8$ p-valores e compare o $k$-ésimo p-valor com $\frac{k}{8} \cdot 0{,}10 = 0{,}0125\,k$, lembrando de procurar o <em>maior</em> $k$ que satisfaz a desigualdade.</hint>
+        <solution collapsible="true" collapsed="true">
+          Ordenando os $8$ p-valores e comparando cada um com $\frac{k}{8} \cdot 0{,}10 = 0{,}0125\,k$:
+          <list marker="dash">
+            <item>$k = 1$: $0{,}008 \le 0{,}0125$ — passa;</item>
+            <item>$k = 2$: $0{,}015 \le 0{,}0250$ — passa;</item>
+            <item>$k = 3$: $0{,}041 &gt; 0{,}0375$ — não passa individualmente;</item>
+            <item>$k = 4$: $0{,}048 \le 0{,}0500$ — <strong>passa!</strong>;</item>
+            <item>$k = 5$: $0{,}068 &gt; 0{,}0625$ — não passa;</item>
+            <item>$k = 6$: $0{,}095 &gt; 0{,}0750$ — não passa;</item>
+            <item>$k = 7$: $0{,}140 &gt; 0{,}0875$ — não passa;</item>
+            <item>$k = 8$: $0{,}310 &gt; 0{,}1000$ — não passa.</item>
+          </list>
+          O maior índice aprovado é $k = 4$. Logo, o procedimento de Benjamini–Hochberg ($q = 0{,}10$) rejeita as $4$ hipóteses de menor p-valor ($0{,}008;\; 0{,}015;\; 0{,}041;\; 0{,}048$). Já Bonferroni ($\alpha/m = 0{,}10/8 = 0{,}0125$) rejeitaria apenas $1$ gene ($0{,}008$).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-4-4-3">
+        <title>Intermediário — Conferindo a FWER por simulação em Python</title>
+        Escreva um código em Python com <c>rng = np.random.default_rng(42)</c> que simule $1\,000$ estudos de neuroimagem, cada um realizando $m = 50$ testes $Z$ bilaterais independentes ($\alpha = 0{,}05$) todos sob $H_0$ verdadeira ($Z \sim \mathcal{N}(0, 1)$). Calcule a FWER observada sem correção (conferindo com o valor teórico $1 - 0{,}95^{50} \approx 0{,}9231$) e com a correção de Bonferroni.
+        <hint><title>Ver dica</title>Gere uma matriz <c>(1000, 50)</c> com <c>rng.normal(0, 1, size=(1000, 50))</c>, converta em p-valores via <c>2 * stats.norm.sf(np.abs(z))</c> e use <c>np.any(..., axis=1).mean()</c> para contar em quantos estudos ao menos um p-valor fica menor ou igual ao limiar.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(42)
+m = 50
+z_sim = rng.normal(loc=0.0, scale=1.0, size=(1_000, m))
+p_sim = 2.0 * stats.norm.sf(np.abs(z_sim))
+
+fwer_teorica = 1.0 - (1.0 - 0.05) ** m
+fwer_sem_corr = np.any(p_sim <= 0.05, axis=1).mean()
+fwer_bonf = np.any(p_sim <= (0.05 / m), axis=1).mean()
+
+print(f"FWER teórica (sem correção):  {fwer_teorica:.4f}")   # Determinístico: 0.9231
+print(f"FWER simulada (sem correção): {fwer_sem_corr:.4f}")  # aprox. 0.9231
+print(f"FWER simulada (Bonferroni):   {fwer_bonf:.4f}")      # aprox. 0.0500
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-4-4-4">
+        <title>Avançado — Simulando um mapa sintético de fMRI em Python</title>
+        Crie um código em Python (<c>rng = np.random.default_rng(42)</c>) que simule um corte 2D de $50 \times 50 = 2\,500$ <em>voxels</em> medidos em $n = 16$ volumes independentes: $2\,350$ <em>voxels</em> são puramente nulos ($\mathcal{N}(0, 1)$) e $150$ <em>voxels</em> ativos têm sinal médio $\mu = 0{,}8$ ($\mathcal{N}(0{,}8, 1)$). Rode um teste $t$ de uma amostra contra zero em cada <em>voxel</em> e compare os falsos positivos e as detecções verdadeiras sem correção ($\alpha = 0{,}05$), com Bonferroni e com BH ($q = 0{,}05$). Exiba a comparação em um gráfico de barras usando <c>fig, ax = plt.subplots()</c>.
+        <hint><title>Ver dica</title>Gere um array <c>(16, 2500)</c> de ruído <c>rng.normal(0, 1, size=(16, 2500))</c>, some <c>0.8</c> nos primeiros <c>150</c> <em>voxels</em>, chame <c>stats.ttest_1samp(dados, popmean=0.0, axis=0)</c> e aplique os três limiares aos $2\,500$ p-valores.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(42)
+n_vol, m_voxels, n_ativos = 16, 2_500, 150
+
+dados = rng.normal(loc=0.0, scale=1.0, size=(n_vol, m_voxels))
+dados[:, :n_ativos] += 0.8
+
+_, p_vals = stats.ttest_1samp(dados, popmean=0.0, axis=0)
+ativos = np.zeros(m_voxels, dtype=bool)
+ativos[:n_ativos] = True
+
+rejeicoes = {
+    "Sem correção": p_vals <= 0.05,
+    "Bonferroni": p_vals <= (0.05 / m_voxels),
+    "BH (FDR = 0,05)": stats.false_discovery_control(p_vals, method="bh") <= 0.05,
+}
+
+nomes = list(rejeicoes.keys())
+fps = [int(np.sum(r & (~ativos))) for r in rejeicoes.values()]
+vps = [int(np.sum(r & ativos)) for r in rejeicoes.values()]
+
+for nome, fp, vp in zip(nomes, fps, vps):
+    print(f"{nome:16s} -> falsos positivos: {fp:3d}, ativos detectados: {vp:3d}")
+# Valores esperados aproximados:
+# Sem correção    -> aprox. 118 falsos positivos (5% de 2350), maioria dos ativos detectados
+# Bonferroni      -> aprox. 0 falsos positivos, poucos ativos detectados
+# BH (FDR = 0,05) -> poucos falsos positivos (aprox. 5% das rejeições), bem mais ativos que Bonferroni
+
+x = np.arange(len(nomes))
+largura = 0.35
+fig, ax = plt.subplots(figsize=(7.5, 4.3))
+ax.bar(x - largura / 2, fps, largura, label="Falsos positivos", color="#DC2626")
+ax.bar(x + largura / 2, vps, largura, label="Ativos detectados (VP)", color="#0D9488")
+ax.set_xticks(x)
+ax.set_xticklabels(nomes)
+ax.set_ylabel("Número de voxels")
+ax.set_title("Mapa sintético de fMRI (2.500 voxels, 150 ativos)")
+ax.legend()
+ax.grid(True, axis="y", linestyle=":", alpha=0.5)
+plt.show()
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:7-4-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Hipóteses e p-valor:</strong> formulamos uma hipótese nula $H_0$ (ausência de efeito) e uma alternativa $H_1$; o p-valor é $P(\text{estatística tão ou mais extrema que a observada} \mid H_0)$. Rejeitamos $H_0$ quando $p\text{-valor} \le \alpha$.</item>
+        <item><strong>O que o p-valor não é:</strong> o p-valor não é $P(H_0 \mid \text{dados})$, não mede a magnitude biológica do efeito e $p &gt; \alpha$ não prova que $H_0$ é verdadeira.</item>
+        <item><strong>Teste de permutação:</strong> constrói a distribuição nula embaralhando os rótulos das observações sob $H_0$, sem depender de pressupostos paramétricos como normalidade.</item>
+        <item><strong>Testes $t$:</strong> uma amostra usa $t = \frac{\bar{x} - \mu_0}{s/\sqrt{n}}$ ($\text{gl} = n - 1$); dados pareados usam as diferenças $d_i$ com $t = \frac{\bar{d}}{s_d/\sqrt{n}}$ ($\text{gl} = n - 1$); duas amostras independentes usam o teste de Welch $t = \frac{\bar{x}_1 - \bar{x}_2}{\sqrt{s_1^2/n_1 + s_2^2/n_2}}$ sem assumir variâncias iguais. Nunca ignore o pareamento nem cometa pseudorreplicação.</item>
+        <item><strong>Dualidade IC e teste $t$:</strong> ao nível $\alpha$, rejeitamos $H_0: \mu = \mu_0$ no teste bilateral se, e somente se, $\mu_0$ está fora do intervalo de confiança de $100(1 - \alpha)\%$.</item>
+        <item><strong>Erros tipo I, tipo II e poder:</strong> $\alpha = P(\text{rejeitar } H_0 \mid H_0)$, $\beta = P(\text{não rejeitar } H_0 \mid H_1)$ e $\text{Poder} = 1 - \beta$. O poder cresce com efeito $d = \frac{\mu_1 - \mu_2}{\sigma}$ maior, $n$ maior, ruído $\sigma$ menor ou $\alpha$ maior.</item>
+        <item><strong>Cálculo de amostra e simulação:</strong> no teste $Z$ unilateral, $\text{Poder} = \Phi(d\sqrt{n} - z_{1-\alpha})$ e $n \ge \left(\frac{z_{1-\alpha} + z_{1-\beta}}{d}\right)^2$; para testes gerais (como Welch), estimamos o poder por simulação de Monte Carlo.</item>
+        <item><strong>Inflação da FWER e Bonferroni:</strong> em $m$ testes independentes sob $H_0$, $\operatorname{FWER} = 1 - (1 - \alpha)^m$. A correção de Bonferroni usa limiar $\frac{\alpha}{m}$ e garante $\operatorname{FWER} \le \alpha$, mas perde muito poder quando $m$ é grande.</item>
+        <item><strong>FDR e Benjamini–Hochberg:</strong> o procedimento BH ordena $p_{(1)} \le \dots \le p_{(m)}$, acha o maior $k$ com $p_{(k)} \le \frac{k}{m}q$ e rejeita os $k$ menores p-valores, controlando $\operatorname{FDR} = \mathbb{E}[V / \max(R, 1)] \le q$ com bem mais poder que Bonferroni em neuroimagem.</item>
+      </list>
+    </section>
+
+    <section id="sec:7-4-alem">
+      <title>Para ir além</title>
+      Com os testes de hipóteses, o cálculo de poder e as correções para comparações múltiplas no repertório, você está pronto para o próximo tema do Módulo 7, <strong>Convergências</strong> — onde formalizaremos a Lei dos Grandes Números e o Teorema Central do Limite que sustentam as aproximações normais usadas aqui —, seguindo depois para <strong>Inferência Bayesiana</strong> e <strong>Inferência não-Bayesiana (Frequentista)</strong>. Todo esse percurso culminará no projeto final do módulo: montar o design estatístico completo de um experimento de neuroimagem, especificando testes de hipóteses com correção para comparações múltiplas e rodando-os numa simulação no Python.
+
+      Para consolidar os conceitos desta aula, utilize os materiais recomendados do Módulo 7:
+      <list marker="dash">
+        <item><strong>Livro-texto:</strong> <em>Tertuliano — Princípios de Probabilidade</em>. Acompanhar os exercícios do livro: o tema é muito complexo à primeira vista, mas se desmistifica com o tempo e a repetição.</item>
+        <item><strong>Apoio em vídeo:</strong> aulas pontuais no YouTube para desmistificar os temas espinhosos à primeira vista (ex.: <em>StatQuest</em>), especialmente sobre p-valores, testes $t$, poder estatístico e taxa de descobertas falsas (Benjamini–Hochberg).</item>
+        <item><strong>Documentação oficial:</strong> <link to="https://docs.scipy.org/doc/scipy/reference/stats.html">SciPy — Módulo <c>scipy.stats</c></link>, para consultar as funções <c>ttest_1samp</c>, <c>ttest_rel</c>, <c>ttest_ind</c>, <c>false_discovery_control</c> e <c>binom</c>.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 7 · Estatística e Probabilidade — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

@@ -1,0 +1,911 @@
+<document>
+  <title>Módulo 9 · Deep Learning</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-9-2">Voltar ao guia (Tema 9.2)</link></meta-item>
+    <meta-item key="Módulo">Módulo 9 · Deep Learning — O Estado da Arte da Neurociência Computacional</meta-item>
+    <meta-item key="Nível">Intermediário</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-9-2">
+    <title>CNN</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Convoluções para imagens — e os principais modelos do córtex visual.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> O sistema visual de primatas reconhece um rosto, um predador ou uma célula em cerca de $150\text{ ms}$, mesmo sob variações de posição, tamanho ou iluminação na retina. Redes neurais convolucionais (<strong>CNNs</strong>, de <em>convolutional neural networks</em>) inspiram-se na organização hierárquica da via visual — da retina a V1 até o córtex inferotemporal (IT) — e tornaram-se os principais modelos quantitativos para prever respostas de neurônios reais a imagens naturais.
+
+    No Tema 9.1 (<mark>Fundamentos</mark>), você viu que um perceptron multicamadas (MLP) liga cada entrada a todos os neurônios seguintes. Isso funciona para dígitos $8 \times 8$ ($64$ pixels), mas em uma foto RGB $224 \times 224$ ($150\,528$ entradas), uma única camada densa com $1\,000$ neurônios exigiria mais de $150$ milhões de pesos e ignoraria quais pixels são vizinhos. A convolução resolve isso com detectores locais compartilhados que varrem a imagem inteira. Todos os códigos desta aula rodam em CPU em poucos segundos.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>definir convolução discreta e correlação cruzada em 1D e 2D, calcular dimensões de saída com preenchimento (<em>padding</em>) e passo (<em>stride</em>) e contar parâmetros convolucionais;</item>
+      <item>relacionar filtros e agrupamento (<em>pooling</em>) aos campos receptivos de Hubel e Wiesel em V1 e aos filtros de Gabor;</item>
+      <item>construir, inspecionar formas de tensores e treinar uma CNN pequena em PyTorch para classificar imagens, comparando-a a um MLP;</item>
+      <item>explicar como CNNs atuam como modelos de codificação (<em>encoding models</em>) do córtex visual via regressão <em>ridge</em>, identificando avanços e limites biológicos.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Tema 9.1 (<mark>Fundamentos</mark>, para MLP, retropropagação, Adam e PyTorch); Módulo 5 (<mark>Vetores, matrizes e operações</mark>); Módulo 2 (<mark>Integral de Riemann</mark>, pela analogia contínua); e Módulo 8 (<mark>Métricas estatísticas</mark> e <mark>Regularização</mark>, para <em>ridge</em> e $R^2$).
+
+    <section id="sec:9-2-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Convolução em 1D e 2D</title>
+      <intro>
+        Em vez de ligar cada pixel a todos os neurônios, a convolução desliza um molde numérico pelo sinal ou imagem, medindo onde padrões locais aparecem.
+      </intro>
+
+      Ao buscar um motivo em um EEG ou lâmina histológica, você desliza uma janela pequena pela entrada e mede a semelhança local. No Módulo 2 (<mark>Integral de Riemann</mark>), a versão contínua é $(x * w)(t) = \int_{-\infty}^{\infty} x(\tau)\, w(t - \tau)\, d\tau$; em sinais discretos (potenciais em milissegundos ou pixels), a integral vira somatório finito.
+
+      <definition id="def:9-2-conv1d">
+        <title>Convolução discreta e correlação cruzada em 1D</title>
+        Seja $\mathbf{x} = (x[0], \dots, x[n-1])$ um sinal 1D e $\mathbf{w} = (w[0], \dots, w[k-1])$ um filtro (<em>kernel</em>) de tamanho $k$.
+        <list marker="dash">
+          <item><strong>Convolução discreta</strong> (<em>discrete convolution</em>), espelhando o filtro:
+            <equation id="eq:9-2-conv1d">(x * w)[n] = \sum_{m=0}^{k-1} x[n - m]\, w[m]</equation>
+          </item>
+          <item><strong>Correlação cruzada</strong> (<em>cross-correlation</em>), sem espelhar:
+            <equation id="eq:9-2-xcorr1d">(x \star w)[n] = \sum_{m=0}^{k-1} x[n + m]\, w[m]</equation>
+          </item>
+        </list>
+        <intuition>
+          Na correlação cruzada, $\mathbf{w}$ é um gabarito direto: você alinha o filtro em $n$, multiplica ponto a ponto e soma. Quanto maior a semelhança local, maior o produto escalar.
+        </intuition>
+      </definition>
+
+      Camadas como <c>torch.nn.Conv1d</c> e <c>torch.nn.Conv2d</c> calculam <strong>correlação cruzada</strong>, mantendo o nome histórico de "convolução". Como os pesos são aprendidos pelo gradiente, a rede simplesmente aprende o filtro já na orientação útil (e em filtros simétricos ambas coincidem).
+
+      Em 2D, o filtro desliza na vertical e horizontal, controlado pelo <strong>preenchimento</strong> (<em>padding</em>) $p$ (zeros nas bordas) e pelo <strong>passo</strong> (<em>stride</em>) $s$ (salto entre janelas).
+
+      <definition id="def:9-2-conv2d">
+        <title>Camada convolucional 2D</title>
+        Seja $\tilde{\mathbf{X}}$ a entrada com $p$ bordas de zeros. Dado o filtro $\mathbf{W} \in \mathbb{R}^{k \times k}$, passo $s \ge 1$ e viés $b \in \mathbb{R}$, a pré-ativação $\mathbf{Z}$ vale:
+        <equation id="eq:9-2-conv2d">Z[i, j] = \sum_{u=0}^{k-1} \sum_{v=0}^{k-1} \tilde{X}[i \cdot s + u,\; j \cdot s + v]\, W[u, v] + b</equation>
+        Depois aplica-se uma ativação, como $\mathrm{ReLU}(z) = \max(0, z)$.
+      </definition>
+
+      <proposition id="prop:9-2-tamanho-saida">
+        <title>Tamanho da saída de uma convolução 1D ou 2D</title>
+        Para entrada de tamanho $n$, filtro $k \ge 1$, preenchimento $p \ge 0$ e passo $s \ge 1$ ($n + 2p \ge k$), a saída mede:
+        <equation id="eq:9-2-tamanho-saida">n_{\text{out}} = \left\lfloor \frac{n + 2p - k}{s} \right\rfloor + 1</equation>
+      </proposition>
+      <proof of="prop:9-2-tamanho-saida" collapsible="true" collapsed="true">
+        A entrada preenchida tem comprimento $n + 2p$ (índices $0$ a $n + 2p - 1$). A janela $j$ termina em $j \cdot s + k - 1 \le n + 2p - 1$, logo $j \le (n + 2p - k)/s$. Contando $j = 0, \dots, j_{\max}$, há $\lfloor (n + 2p - k)/s \rfloor + 1$ posições.
+      </proof>
+
+      Casos comuns da <ref to="eq:9-2-tamanho-saida"/>: com $p = 0, s = 1$ (<em>valid</em>), $n_{\text{out}} = n - k + 1$; com $s = 1$, $k$ ímpar e $p = (k - 1)/2$ (<em>same</em>), o tamanho se preserva (ex.: $k = 3, p = 1$).
+
+      Com $C_{\text{in}}$ canais (ex.: RGB, $C_{\text{in}} = 3$), cada filtro é um bloco $C_{\text{in}} \times k \times k$ que soma as contribuições de todos os canais com um viés $b$, gerando um mapa; $C_{\text{out}}$ filtros geram $C_{\text{out}}$ mapas.
+
+      <proposition id="prop:9-2-params-conv">
+        <title>Contagem de parâmetros de uma camada convolucional 2D</title>
+        Com $C_{\text{in}}$ canais de entrada, $C_{\text{out}}$ filtros $k \times k$ e um viés por filtro, há:
+        <equation id="eq:9-2-params-conv">P_{\text{conv}} = \left(k^2 \cdot C_{\text{in}} + 1\right) C_{\text{out}} = k^2 \, C_{\text{in}} \, C_{\text{out}} + C_{\text{out}}</equation>
+        parâmetros — independentemente de altura $H$ e largura $W$.
+      </proposition>
+
+      Para uma imagem RGB $100 \times 100$ gerando $16$ mapas $100 \times 100$, uma camada densa exigiria $30\,001 \times 160\,000 \approx 4{,}8 \times 10^9$ pesos, contra apenas $(3^2 \cdot 3 + 1) \cdot 16 = 448$ na convolução $3 \times 3$ ($p=1$).
+
+      <example id="exm:9-2-trem-disparos">
+        <title>Suavizando um trem de disparos binário em 1D</title>
+        Um trem em <em>bins</em> de $\Delta t = 10\text{ ms} = 0{,}01\text{ s}$ é $\mathbf{x} = [0, 1, 0, 1, 1, 0, 0, 1]$. Aplique $\mathbf{w} = [\frac{1}{3}, \frac{1}{3}, \frac{1}{3}]$ ($k = 3, p = 0, s = 1$) e converta para $\text{Hz}$.
+
+        <strong>Solução.</strong> Pela <ref to="eq:9-2-tamanho-saida"/>, $n_{\text{out}} = (8 - 3) + 1 = 6$. Somando trincas e dividindo por $3$:
+        <list marker="dash">
+          <item>$y[0] = 1/3$, $y[1] = 2/3$, $y[2] = 2/3$, $y[3] = 2/3$, $y[4] = 1/3$, $y[5] = 1/3\text{ disparos/bin}$.</item>
+        </list>
+        Dividindo por $\Delta t = 0{,}01\text{ s}$ ($\times 100$): $\mathbf{r} = [33{,}3;\; 66{,}7;\; 66{,}7;\; 66{,}7;\; 33{,}3;\; 33{,}3]\text{ Hz}$.
+      </example>
+
+      <example id="exm:9-2-borda-2d">
+        <title>Detector de borda vertical em uma imagem 5×5</title>
+        Calcule a correlação cruzada ($p = 0, s = 1, b = 0$) de $\mathbf{X}$ com $\mathbf{W}$:
+        $$\mathbf{X} = \begin{pmatrix} 0 & 0 & 4 & 4 & 0 \\ 0 & 0 & 4 & 4 & 0 \\ 0 & 0 & 4 & 4 & 0 \\ 0 & 0 & 0 & 0 & 0 \\ 0 & 0 & 0 & 0 & 0 \end{pmatrix}, \qquad \mathbf{W} = \begin{pmatrix} -1 & 0 & 1 \\ -1 & 0 & 1 \\ -1 & 0 & 1 \end{pmatrix}.$$
+
+        <strong>Solução.</strong> A saída é $3 \times 3$, e $\mathbf{W}$ calcula $(\text{col. direita}) - (\text{col. esquerda})$:
+        <list marker="dash">
+          <item>$i = 0$: $12 - 0 = 12$, $12 - 0 = 12$, $0 - 12 = -12$.</item>
+          <item>$i = 1$: $8 - 0 = 8$, $8 - 0 = 8$, $0 - 8 = -8$.</item>
+          <item>$i = 2$: $4 - 0 = 4$, $4 - 0 = 4$, $0 - 4 = -4$.</item>
+        </list>
+        $$\mathbf{Y} = \begin{pmatrix} 12 & 12 & -12 \\ 8 & 8 & -8 \\ 4 & 4 & -4 \end{pmatrix}.$$
+        Positivos marcam borda esquerda (escuro $\to$ claro); negativos, borda direita.
+      </example>
+
+      O código a seguir reproduz o <ref to="exm:9-2-borda-2d"/> e verifica que <c>F.conv2d</c> calcula correlação cruzada.
+
+      <code lang="python" id="cod:9-2-conv2d">
+import numpy as np
+import torch
+import torch.nn.functional as F
+
+
+def conv2d_valida(imagem: np.ndarray, filtro: np.ndarray) -> np.ndarray:
+    """Correlação cruzada 2D válida (padding=0, stride=1) em NumPy."""
+    h_in, w_in = imagem.shape
+    kh, kw = filtro.shape
+    h_out = h_in - kh + 1
+    w_out = w_in - kw + 1
+    saida = np.zeros((h_out, w_out), dtype=np.float32)
+    for i in range(h_out):
+        for j in range(w_out):
+            janela = imagem[i : i + kh, j : j + kw]
+            saida[i, j] = np.sum(janela * filtro)
+    return saida
+
+
+# 1. Conferindo o Exemplo 2 (imagem 5x5 e detector de borda vertical 3x3)
+X = np.array(
+    [
+        [0, 0, 4, 4, 0],
+        [0, 0, 4, 4, 0],
+        [0, 0, 4, 4, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+    ],
+    dtype=np.float32,
+)
+
+W = np.array(
+    [
+        [-1, 0, 1],
+        [-1, 0, 1],
+        [-1, 0, 1],
+    ],
+    dtype=np.float32,
+)
+
+saida_np = conv2d_valida(X, W)
+
+# Em PyTorch, os tensores têm formato (lote, canais, altura, largura)
+X_t = torch.from_numpy(X).unsqueeze(0).unsqueeze(0)
+W_t = torch.from_numpy(W).unsqueeze(0).unsqueeze(0)
+saida_torch = F.conv2d(X_t, W_t, padding=0, stride=1).squeeze().numpy()
+
+print("Saída NumPy:\n", saida_np)
+# [[ 12.  12. -12.]
+#  [  8.   8.  -8.]
+#  [  4.   4.  -4.]]
+print("Igual ao PyTorch?", np.allclose(saida_np, saida_torch))  # True
+
+# 2. Provando que F.conv2d faz correlação cruzada (sem espelhar filtro assimétrico)
+W_assim = np.array(
+    [
+        [1, 2, 0],
+        [0, -1, 1],
+        [2, 0, -1],
+    ],
+    dtype=np.float32,
+)
+W_assim_t = torch.from_numpy(W_assim).unsqueeze(0).unsqueeze(0)
+torch_assim = F.conv2d(X_t, W_assim_t, padding=0, stride=1).squeeze().numpy()
+
+print("Igual à correlação cruzada?", np.allclose(torch_assim, conv2d_valida(X, W_assim)))  # True
+print("Igual à convolução espelhada?", np.allclose(torch_assim, conv2d_valida(X, np.flip(W_assim))))  # False
+      </code>
+
+      <remark id="rem:9-2-armadilha-conv">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Espelhar filtros no PyTorch:</strong> <c>Conv2d</c> faz correlação cruzada; só use <c>np.flip</c> para convolução estrita.</item>
+          <item><strong>Esquecer <c>padding=0</c>:</strong> em <c>nn.Conv2d</c>, um filtro $3 \times 3$ sem preenchimento reduz $8 \times 8$ para $6 \times 6$, quebrando a dimensão da camada linear.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-2-1-1">
+        <title>Básico — Tamanho da saída e contagem de parâmetros</title>
+        Uma imagem RGB ($C_{\text{in}} = 3$) de $32 \times 32$ passa por $C_{\text{out}} = 16$ filtros $5 \times 5$ com $p = 2, s = 1$.
+        <list marker="a">
+          <item>Calcule as dimensões $(C_{\text{out}}, H_{\text{out}}, W_{\text{out}})$ da saída.</item>
+          <item>Calcule os parâmetros da camada convolucional e compare com uma camada densa ligando $32 \cdot 32 \cdot 3$ entradas a $32 \cdot 32 \cdot 16$ unidades.</item>
+        </list>
+        <hint><title>Ver dica</title>Use a <ref to="eq:9-2-tamanho-saida"/> e a <ref to="eq:9-2-params-conv"/>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$n_{\text{out}} = \lfloor (32 + 4 - 5)/1 \rfloor + 1 = 32$, logo $(16, 32, 32)$.</item>
+            <item>$P_{\text{conv}} = (5^2 \cdot 3 + 1) \cdot 16 = 76 \cdot 16 = 1\,216$. A camada densa teria $(3\,072 + 1) \cdot 16\,384 = 50\,348\,032$ parâmetros ($> 41\,000\times$ mais).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-2-1-2">
+        <title>Intermediário — Detector de picos de potencial de ação em 1D</title>
+        Um registro (em $\text{mV}$, a cada $1\text{ ms}$) é $\mathbf{x} = [-70, -70, -68, -55, -20, -65, -70, -70]$. Aplique $\mathbf{w} = [-1, 2, -1]$ ($p = 0, s = 1$), calcule os $6$ valores e explique por que um repouso constante $c$ zera a saída.
+        <hint><title>Ver dica</title>Em cada janela $[a, b, c]$, calcule $-a + 2b - c$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para $n_{\text{out}} = 8 - 3 + 1 = 6$:
+          <list marker="dash">
+            <item>$y[0] = 70 - 140 + 68 = -2$; $y[1] = 70 - 136 + 55 = -11$; $y[2] = 68 - 110 + 20 = -22$;</item>
+            <item>$y[3] = 55 - 40 + 65 = +80$; $y[4] = 20 - 130 + 70 = -40$; $y[5] = 65 - 140 + 70 = -5$.</item>
+          </list>
+          Como $-1 + 2 - 1 = 0$, qualquer janela $[c, c, c]$ dá $0$; o filtro ignora o repouso ($-70\text{ mV}$) e destaca o pico ($+80\text{ mV}$) centrado em $-20\text{ mV}$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-2-1-3">
+        <title>Avançado — Convolução 2D com padding e stride à mão e em código</title>
+        Aplique $\mathbf{W}$ ($3 \times 3$, $b = 0$) em $\mathbf{X}$ ($4 \times 4$) com $p = 1$ e $s = 2$:
+        $$\mathbf{X} = \begin{pmatrix} 1 & 2 & 0 & 1 \\ 0 & 1 & 3 & 2 \\ 2 & 0 & 1 & 0 \\ 1 & 1 & 2 & 1 \end{pmatrix}, \qquad \mathbf{W} = \begin{pmatrix} 1 & 0 & -1 \\ 1 & 0 & -1 \\ 1 & 0 & -1 \end{pmatrix}.$$
+        <list marker="a">
+          <item>Calcule o formato e os elementos da saída por correlação cruzada.</item>
+          <item>Confira em PyTorch com <c>F.conv2d</c>.</item>
+        </list>
+        <hint><title>Ver dica</title>Na matriz $6 \times 6$ preenchida com zeros, os cantos das $4$ janelas ficam em $(0,0), (0,2), (2,0)$ e $(2,2)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$n_{\text{out}} = \lfloor (4 + 2 - 3)/2 \rfloor + 1 = 2$ ($2 \times 2$). Fazendo a 1ª coluna menos a 3ª coluna em $\tilde{\mathbf{X}}$: $(0,0) \to 0 - 3 = -3$; $(0,2) \to 3 - 3 = 0$; $(2,0) \to 0 - 2 = -2$; $(2,2) \to 2 - 3 = -1$. Logo $\mathbf{Y} = \begin{pmatrix} -3 & 0 \\ -2 & -1 \end{pmatrix}$.</item>
+            <item>Conferência em PyTorch:
+              <code lang="python" numbered="false">
+import torch
+import torch.nn.functional as F
+
+X = torch.tensor([[1, 2, 0, 1], [0, 1, 3, 2], [2, 0, 1, 0], [1, 1, 2, 1]], dtype=torch.float32)
+W = torch.tensor([[1, 0, -1], [1, 0, -1], [1, 0, -1]], dtype=torch.float32)
+Y = F.conv2d(X.unsqueeze(0).unsqueeze(0), W.unsqueeze(0).unsqueeze(0), padding=1, stride=2)
+print(Y.squeeze().numpy())
+# [[-3.  0.]
+#  [-2. -1.]]
+              </code>
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-2-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Filtros como campos receptivos</title>
+      <intro>
+        Cada filtro de uma CNN ecoa uma descoberta feita no córtex visual há mais de sessenta anos: neurônios sensíveis a barras orientadas em pequenas regiões do campo visual, organizados em cascata para ganhar tolerância espacial.
+      </intro>
+
+      O <strong>campo receptivo</strong> (<em>receptive field</em>) de um neurônio sensorial é a região do espaço (como uma área da retina) em que um estímulo altera sua taxa de disparo. Em experimentos clássicos no córtex visual primário (<strong>V1</strong>), David Hubel e Torsten Wiesel (1959, 1962; Nobel de 1981) mostraram que, ao contrário dos campos circulares da retina e do LGN, neurônios de V1 preferem <strong>bordas ou barras em uma orientação específica</strong>, dividindo-se em dois tipos:
+      <list marker="dash">
+        <item><strong>Células simples</strong> (<em>simple cells</em>): têm sub-regiões excitatórias (ON) e inibitórias (OFF) fixas e lado a lado; exigem orientação e posição precisas da barra.</item>
+        <item><strong>Células complexas</strong> (<em>complex cells</em>): preferem uma orientação $\theta$, mas toleram pequenos deslocamentos de posição — exibindo <strong>invariância local à translação</strong> ao integrar várias células simples vizinhas.</item>
+      </list>
+
+      Os campos receptivos das células simples são modelados por <strong>filtros de Gabor</strong> (<em>Gabor filters</em>): um cosseno plano modulado por um envelope gaussiano 2D.
+
+      <definition id="def:9-2-gabor">
+        <title>Filtro de Gabor 2D</title>
+        Com coordenadas rotacionadas $x' = x \cos\theta + y \sin\theta$ e $y' = -x \sin\theta + y \cos\theta$ para a orientação $\theta$, o filtro de Gabor de comprimento de onda $\lambda > 0$, fase $\psi$, largura $\sigma > 0$ e razão de aspecto $\gamma > 0$ é:
+        <equation id="eq:9-2-gabor">g(x, y; \lambda, \theta, \psi, \sigma, \gamma) = \exp\!\left(-\frac{x'^2 + \gamma^2 y'^2}{2\sigma^2}\right) \cos\!\left(2\pi \frac{x'}{\lambda} + \psi\right)</equation>
+        <intuition>
+          A gaussiana localiza o campo receptivo (raio $\propto \sigma$), enquanto o cosseno alterna faixas ON positivas e OFF negativas. Com $\psi = 0$ o filtro é par (detector de barra); com $\psi = \pm\pi/2$ é ímpar (detector de borda).
+        </intuition>
+      </definition>
+
+      Note que aqui $\sigma$ indica a largura do envelope gaussiano, e <strong>não</strong> a função sigmoide $\sigma(z)$. A <ref to="fig:9-2-gabor"/> mostra quatro orientações.
+
+      <figure src="fig/t02-gabor.svg" alt="Quatro filtros de Gabor 2D em escala de cores divergente para orientações theta = 0 graus (vertical), 45 graus, 90 graus (horizontal) e 135 graus, mostrando lóbulos excitatórios ON em vermelho e inibitórios OFF em azul" id="fig:9-2-gabor">
+        <caption>Filtros de Gabor ($\lambda = 6$, $\sigma = 3$, $\psi = 0$, $\gamma = 1$). Lóbulos vermelhos (ON) e azuis (OFF) modelam células simples de V1; como a onda oscila ao longo de $\theta$, $\theta = 0^\circ$ gera faixas verticais e $\theta = 90^\circ$ gera faixas horizontais.</caption>
+      </figure>
+
+      Essa neurobiologia motiva os dois mecanismos centrais das CNNs:
+      <list marker="number">
+        <item><strong>Compartilhamento de pesos (<em>weight sharing</em>) e equivariância:</strong> aplicar o mesmo filtro $\mathbf{W}$ em toda a imagem (como detectores repetidos no mapa retinotópico) confere <strong>equivariância à translação</strong> (<em>translation equivariance</em>): se o estímulo desloca $5$ pixels, o pico no mapa de saída também desloca $5$ pixels.</item>
+        <item><strong>Agrupamento (<em>pooling</em>) e invariância local:</strong> inspirado nas células complexas, o <strong><em>max pooling</em></strong> (ou <em>average pooling</em>) toma o máximo (ou a média) em janelas locais (tipicamente $2 \times 2$, $s = 2$) sem nenhum parâmetro treinável, reduzindo a resolução e gerando <strong>invariância local à translação</strong>.</item>
+      </list>
+
+      Essa ideia guiou o <strong>Neocognitron</strong> de Kunihiko Fukushima (1980, alternando camadas S e C) e, combinada à retropropagação por Yann LeCun e colegas (1989; <strong>LeNet-5</strong>, 1998), permitiu aprender os filtros diretamente dos dados. Na <strong>via ventral</strong> do cérebro ($\text{Retina} \to \text{LGN} \to \text{V1} \to \text{V2} \to \text{V4} \to \text{IT}$), os campos receptivos crescem de bordas locais até objetos inteiros. Nas CNNs, empilhar camadas cria o mesmo efeito pelo <strong>campo receptivo efetivo</strong> (<em>effective receptive field</em>).
+
+      <proposition id="prop:9-2-campo-efetivo">
+        <title>Campo receptivo efetivo em camadas convolucionais empilhadas</title>
+        Em uma pilha de $L \ge 1$ camadas convolucionais $k \times k$ com passo $s = 1$ (sem <em>pooling</em>), cada unidade da camada $L$ enxerga uma janela $r_L \times r_L$ da entrada dada por:
+        <equation id="eq:9-2-campo-efetivo">r_L = 1 + L(k - 1)</equation>
+      </proposition>
+      <proof of="prop:9-2-campo-efetivo" collapsible="true" collapsed="true">
+        Na entrada, $r_0 = 1$. Cada nova camada $k \times k$ ($s = 1$) combina $k$ unidades adjacentes da camada anterior, estendendo o alcance em $k - 1$ pixels: $r_l = r_{l-1} + (k - 1)$, donde $r_L = 1 + L(k - 1)$.
+      </proof>
+
+      <example id="exm:9-2-maxpool">
+        <title>Max pooling e invariância local em uma matriz 4×4</title>
+        Aplique <em>max pooling</em> e <em>average pooling</em> $2 \times 2$ ($s = 2$) em $\mathbf{A}$, e verifique o efeito de deslocar o pico $8$ de $(1,1)$ para $(0,1)$:
+        $$\mathbf{A} = \begin{pmatrix} 0 & 2 & 1 & 0 \\ 4 & 8 & 0 & 3 \\ 1 & 0 & 5 & 2 \\ 0 & 2 & 1 & 6 \end{pmatrix}.$$
+
+        <strong>Solução.</strong> A saída tem tamanho $\lfloor(4 - 2)/2\rfloor + 1 = 2 \times 2$ sobre os quatro quadrantes:
+        <list marker="dash">
+          <item>Sup. esq. $\begin{pmatrix} 0 & 2 \\ 4 & 8 \end{pmatrix}$: máx $= 8$, média $= 14/4 = 3{,}5$; sup. dir. $\begin{pmatrix} 1 & 0 \\ 0 & 3 \end{pmatrix}$: máx $= 3$, média $= 4/4 = 1{,}0$.</item>
+          <item>Inf. esq. $\begin{pmatrix} 1 & 0 \\ 0 & 2 \end{pmatrix}$: máx $= 2$, média $= 3/4 = 0{,}75$; inf. dir. $\begin{pmatrix} 5 & 2 \\ 1 & 6 \end{pmatrix}$: máx $= 6$, média $= 14/4 = 3{,}5$.</item>
+        </list>
+        $$\mathbf{P}_{\max} = \begin{pmatrix} 8 & 3 \\ 2 & 6 \end{pmatrix}, \qquad \mathbf{P}_{\text{média}} = \begin{pmatrix} 3{,}5 & 1{,}0 \\ 0{,}75 & 3{,}5 \end{pmatrix}.$$
+        Movendo $8$ para $(0,1)$ no bloco superior esquerdo, $\mathbf{P}_{\max}[0,0]$ continua $8$ — invariância local.
+      </example>
+
+      <example id="exm:9-2-campo-efetivo">
+        <title>Empilhando filtros 3×3 versus um único filtro 7×7</title>
+        Para cobrir $7 \times 7$ pixels ($1{,}4^\circ$ na fóvea a $0{,}2^\circ/\text{pixel}$) com $1$ canal, compare $L = 3$ camadas $3 \times 3$ ($s = 1$) com uma única camada $7 \times 7$.
+
+        <strong>Solução.</strong> Pela <ref to="eq:9-2-campo-efetivo"/>, $r_3 = 1 + 3(3 - 1) = 7$. Um único filtro $7 \times 7$ usa $7^2 + 1 = 50$ parâmetros e $1$ $\mathrm{ReLU}$, enquanto três camadas $3 \times 3$ usam apenas $3 \times (3^2 + 1) = 30$ parâmetros e intercalam $3$ não linearidades $\mathrm{ReLU}$ capazes de compor formas curvas.
+      </example>
+
+      O código a seguir simula uma <strong>curva de sintonia de orientação</strong> (<em>orientation tuning curve</em>) em V1 com um filtro de Gabor preferindo $0^\circ$.
+
+      <code lang="python" id="cod:9-2-gabor">
+import numpy as np
+
+# Grade espacial 21x21 centrada na origem
+eixo = np.arange(-10, 11, dtype=np.float64)
+x, y = np.meshgrid(eixo, eixo)
+
+# Filtro de Gabor sintonizado para barras verticais (theta = 0 rad)
+lambd, sigma, psi = 6.0, 3.0, 0.0
+gabor = np.exp(-(x**2 + y**2) / (2.0 * sigma**2)) * np.cos(2.0 * np.pi * x / lambd + psi)
+gabor -= gabor.mean()  # média zero: fundo uniforme claro ou escuro gera resposta nula
+
+angulos = list(range(0, 180, 15))
+respostas = []
+for ang in angulos:
+    rad = np.deg2rad(ang)
+    # Barra centrada de largura ~2 pixels inclinada segundo o ângulo
+    dist = np.abs(x * np.cos(rad) + y * np.sin(rad))
+    barra = (dist <= 1.0).astype(np.float64)
+    # Produto interno seguido de retificação (como taxa de disparo >= 0)
+    resp = max(0.0, float(np.sum(gabor * barra)))
+    respostas.append(resp)
+
+pico = max(respostas)
+print("Curva de sintonia de orientação (célula simples simulada):")
+for ang, r in zip(angulos, respostas):
+    r_norm = r / pico
+    traco = "#" * int(round(20 * r_norm))
+    print(f"{ang:3d}° | resp = {r_norm:.2f} | {traco}")
+
+# Saída esperada (pico em 0° e queda para valores baixos <= 0.13 longe da orientação preferida):
+#   0° | resp = 1.00 | ####################
+#  15° | resp = 0.61 | ############
+#  30° | resp = 0.33 | #######
+#  45° | resp = 0.08 | ##
+#  60° | resp = 0.09 | ##
+#  75° | resp = 0.07 | #
+#  90° | resp = 0.13 | ###
+# 105° | resp = 0.07 | #
+# 120° | resp = 0.04 | #
+# 135° | resp = 0.08 | ##
+# 150° | resp = 0.33 | #######
+# 165° | resp = 0.61 | ############
+      </code>
+
+      <remark id="rem:9-2-armadilha-gabor">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Achar que CNNs usam Gabors fixos:</strong> filtros de CNN começam aleatórios e são aprendidos pelos dados; a semelhança com Gabors na 1ª camada emerge naturalmente em imagens naturais.</item>
+          <item><strong>Confundir $\sigma$ do Gabor com a sigmoide $\sigma(z)$:</strong> aqui $\sigma$ é o raio do envelope gaussiano, não uma função de ativação.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-2-2-1">
+        <title>Básico — Max pooling e média pooling à mão</title>
+        Aplique <em>max pooling</em> e <em>average pooling</em> $2 \times 2$ ($s = 2$) sobre $\mathbf{A}$ e indique quantos parâmetros treináveis a camada possui:
+        $$\mathbf{A} = \begin{pmatrix} 2 & 6 & 0 & 1 \\ 1 & 3 & 4 & 0 \\ 0 & 0 & 2 & 8 \\ 5 & 1 & 6 & 4 \end{pmatrix}.$$
+        <hint><title>Ver dica</title>Calcule o máximo e a média dos quatro quadrantes disjuntos $2 \times 2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Nos blocos $\begin{pmatrix} 2 & 6 \\ 1 & 3 \end{pmatrix}$, $\begin{pmatrix} 0 & 1 \\ 4 & 0 \end{pmatrix}$, $\begin{pmatrix} 0 & 0 \\ 5 & 1 \end{pmatrix}$ e $\begin{pmatrix} 2 & 8 \\ 6 & 4 \end{pmatrix}$:
+          $$\mathbf{P}_{\max} = \begin{pmatrix} 6 & 4 \\ 5 & 8 \end{pmatrix}, \qquad \mathbf{P}_{\text{média}} = \begin{pmatrix} 3 & 1{,}25 \\ 1{,}5 & 5 \end{pmatrix}.$$
+          A camada de <em>pooling</em> tem $0$ parâmetros treináveis, pois aplica apenas operações fixas.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-2-2-2">
+        <title>Intermediário — Simetria par e ímpar de células simples de V1</title>
+        Avalie $g(x) = \exp(-x^2/8)\cos(\frac{\pi}{2} x + \psi)$ em $x \in \{-2, -1, 0, 1, 2\}$ (com $e^{-1/8} \approx 0{,}882$ e $e^{-1/2} \approx 0{,}607$) para:
+        <list marker="a">
+          <item>$\psi = 0$ (par);</item>
+          <item>$\psi = -\pi/2$ (ímpar, usando $\cos(\alpha - \pi/2) = \sin(\alpha)$).</item>
+        </list>
+        Identifique qual fase detecta barra centrada e qual detecta borda de contraste.
+        <hint><title>Ver dica</title>Substitua $\frac{\pi}{2}x \in \{-\pi, -\pi/2, 0, \pi/2, \pi\}$ em $\cos$ e $\sin$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$\psi = 0$: $g(0)=1{,}000$; $g(\pm 1)=0{,}882\cos(\pm\pi/2)=0$; $g(\pm 2)=0{,}607\cos(\pm\pi)=-0{,}607$. Perfil $[-0{,}607;\; 0;\; +1{,}000;\; 0;\; -0{,}607]$ (centro ON, flancos OFF: detecta <strong>barra</strong>).</item>
+            <item>$\psi = -\pi/2$: $g(0)=0$; $g(\pm 1)=0{,}882\sin(\pm\pi/2)=\pm 0{,}882$; $g(\pm 2)=0{,}607\sin(\pm\pi)=0$. Perfil $[0;\; -0{,}882;\; 0;\; +0{,}882;\; 0]$ (OFF à esquerda, ON à direita: detecta <strong>borda</strong>).</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-2-2-3">
+        <title>Avançado — Equivariância na convolução versus invariância no pooling</title>
+        Dados $\mathbf{x}_A = [0, 0, 5, 0, 0, 0]$ e a versão deslocada $\mathbf{x}_B = [0, 0, 0, 5, 0, 0]$, aplique $\mathbf{w} = [1, 2]$ ($p = 0, s = 1$) para obter $\mathbf{a}_A$ e $\mathbf{a}_B$, e depois <em>max pooling</em> ($k=2, s=2$).
+        <list marker="a">
+          <item>Mostre a equivariância entre $\mathbf{a}_A$ e $\mathbf{a}_B$.</item>
+          <item>Compare o resultado após o <em>max pooling</em> (e máximo global) e conecte a células simples e complexas.</item>
+        </list>
+        <hint><title>Ver dica</title>Os mapas $\mathbf{a}_A$ e $\mathbf{a}_B$ têm tamanho $5$; o <em>pooling</em> ($k=2, s=2$) avalia as janelas $(0,1)$ e $(2,3)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Com $\mathbf{w} = [1, 2]$: $\mathbf{a}_A = [0, 10, 5, 0, 0]$ e $\mathbf{a}_B = [0, 0, 10, 5, 0]$. O pico $10$ acompanha o deslocamento de $1$ posição (equivariância, como células simples).</item>
+            <item>O <em>max pooling</em> dá $[10, 5]$ para $\mathbf{a}_A$ e $[0, 10]$ para $\mathbf{a}_B$; no máximo global ($\max = 10$), ou dentro da segunda janela se o deslocamento ocorrer entre os índices $2$ e $3$, a resposta máxima se mantém idêntica (invariância local, como células complexas).</item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-2-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Uma CNN pequena em PyTorch</title>
+      <intro>
+        Chegou a hora de sair do papel e acompanhar um lote de imagens atravessando uma CNN real em PyTorch — prevendo à mão cada dimensão de tensor, contando cada parâmetro e vendo os filtros sendo aprendidos pelos dados.
+      </intro>
+
+      No Tema 9.1 (<mark>Fundamentos</mark>), trabalhamos com o conjunto <c>load_digits</c> do <c>scikit-learn</c>, composto por $1\,797$ imagens $8 \times 8$ de dígitos manuscritos ($0$ a $9$), com intensidades inteiras de $0$ a $16$. Para alimentar um MLP, precisávamos achatar cada imagem em um vetor de $64$ números logo na entrada, destruindo a informação espacial de quais pixels são vizinhos. Em uma CNN, preservamos a grade 2D usando tensores de quatro eixos no formato padrão do PyTorch:
+      $$(N,\; C,\; H,\; W)$$
+      onde $N$ é o tamanho do lote (<em>batch size</em>), $C$ é o número de canais, $H$ é a altura e $W$ é a largura. Para dígitos em escala de cinza $8 \times 8$, cada lote entra como $(N, 1, 8, 8)$, normalizado para $[0, 1]$ ao dividir os pixels por $16$.
+
+      Vamos projetar uma arquitetura enxuta que alterna extração local e redução espacial antes da decisão final:
+      $$\text{Conv2d} \longrightarrow \text{ReLU} \longrightarrow \text{MaxPool2d} \longrightarrow \text{Conv2d} \longrightarrow \text{ReLU} \longrightarrow \text{Flatten} \longrightarrow \text{Linear}.$$
+      A primeira convolução (<c>conv1</c>) detecta traços simples em toda a grade $8 \times 8$, o agrupamento (<c>pool</c>) reduz a resolução para $4 \times 4$ trazendo tolerância local, a segunda convolução (<c>conv2</c>) combina esses traços em padrões maiores, <c>Flatten</c> transforma o mapa 3D em vetor e <c>Linear</c> produz os $10$ <em>logits</em> das classes. Antes de executar código, é essencial prever na mão o formato após cada camada (para evitar erros de dimensão) usando <c>padding=1</c> nas duas convoluções $3 \times 3$, como resume a <ref to="tbl:9-2-arquitetura"/>.
+
+      <table id="tbl:9-2-arquitetura">
+        <title>Fluxo de tensores e contagem de parâmetros na PequenaCNN para dígitos 8×8</title>
+        <header>
+          <column>Camada</column>
+          <column>Configuração</column>
+          <column>Forma da saída $(N, C, H, W)$</column>
+          <column align="right">Parâmetros</column>
+        </header>
+        <row><column>Entrada</column><column>Imagens normalizadas ($\div 16$)</column><column mono="true">(N, 1, 8, 8)</column><column align="right">0</column></row>
+        <row><column mono="true">conv1</column><column>3×3, C_out=8, p=1, s=1</column><column mono="true">(N, 8, 8, 8)</column><column align="right">80</column></row>
+        <row><column mono="true">relu</column><column>max(0, z)</column><column mono="true">(N, 8, 8, 8)</column><column align="right">0</column></row>
+        <row><column mono="true">pool</column><column>MaxPool2d(2×2, s=2)</column><column mono="true">(N, 8, 4, 4)</column><column align="right">0</column></row>
+        <row><column mono="true">conv2</column><column>3×3, C_out=16, p=1, s=1</column><column mono="true">(N, 16, 4, 4)</column><column align="right">1.168</column></row>
+        <row><column mono="true">relu</column><column>max(0, z)</column><column mono="true">(N, 16, 4, 4)</column><column align="right">0</column></row>
+        <row><column mono="true">flatten</column><column>Achata (16·4·4)</column><column mono="true">(N, 256)</column><column align="right">0</column></row>
+        <row><column mono="true">fc</column><column>Linear(256 → 10)</column><column mono="true">(N, 10)</column><column align="right">2.570</column></row>
+        <caption>Acompanhamento camada a camada da <c>PequenaCNN</c>. A soma total é $80 + 1\,168 + 2\,570 = 3\,818$ parâmetros.</caption>
+      </table>
+
+      <example id="exm:9-2-formas-cnn">
+        <title>Calculando formas e parâmetros da PequenaCNN à mão</title>
+        Verifique todos os números da <ref to="tbl:9-2-arquitetura"/> pelas fórmulas da Seção 1 e compare com um MLP ($64 \to 128 \to 10$).
+
+        <strong>Solução.</strong>
+        <list marker="number">
+          <item><strong><c>conv1</c>:</strong> entrada $8 \times 8$, $k = 3$, $p = 1$, $s = 1$. Pela <ref to="eq:9-2-tamanho-saida"/>, $\lfloor (8 + 2(1) - 3)/1 \rfloor + 1 = 8$, logo $(N, 8, 8, 8)$. Pela <ref to="eq:9-2-params-conv"/>, com $C_{\text{in}} = 1$ e $C_{\text{out}} = 8$: $P_{\text{conv1}} = (3^2 \cdot 1 + 1) \cdot 8 = 80$.</item>
+          <item><strong><c>pool</c>:</strong> janela $2 \times 2$, $p = 0$, $s = 2$. As dimensões viram $\lfloor (8 - 2)/2 \rfloor + 1 = 4$, dando $(N, 8, 4, 4)$ com $0$ parâmetros.</item>
+          <item><strong><c>conv2</c>:</strong> entrada $4 \times 4$, $C_{\text{in}} = 8$, $C_{\text{out}} = 16$, $k = 3$, $p = 1$, $s = 1$. Mantém $4 \times 4$, dando $(N, 16, 4, 4)$, e $P_{\text{conv2}} = (3^2 \cdot 8 + 1) \cdot 16 = 73 \cdot 16 = 1\,168$.</item>
+          <item><strong><c>flatten</c> e <c>fc</c>:</strong> cada imagem gera $16 \cdot 4 \cdot 4 = 256$ características para $10$ classes, logo $P_{\text{fc}} = (256 + 1) \cdot 10 = 2\,570$.</item>
+        </list>
+        Somando tudo: $80 + 1\,168 + 2\,570 = 3\,818$ parâmetros. Já um MLP com uma camada oculta de $128$ unidades ($64 \to 128 \to 10$) exige $(64 + 1)\cdot 128 + (128 + 1)\cdot 10 = 8\,320 + 1\,290 = 9\,610$ parâmetros — mais que o dobro da nossa CNN.
+      </example>
+
+      <example id="exm:9-2-comparacao-mlp">
+        <title>Comparação com o MLP e interpretação dos filtros aprendidos</title>
+        Ao treinar a <c>PequenaCNN</c> por $25$ épocas com Adam sobre <c>load_digits</c>, obtemos perda de teste $\approx 0{,}12$ e acurácia de teste $\approx 96{,}4\%$. No Tema 9.1, o MLP denso chegou a $\approx 96{,}7\%$ nesses mesmos dígitos $8 \times 8$: em miniaturas tão pequenas a diferença de acurácia é mínima (ambos acertam $\approx 96\%$), e a vantagem da CNN aqui está em atingir desempenho equivalente usando menos da metade dos parâmetros ($3\,818$ contra $9\,610$). Além disso, ao inspecionar as matrizes $3 \times 3$ aprendidas em <c>conv1</c> (pesos positivos de um lado e negativos do outro), vemos detectores locais de bordas e traços descobertos automaticamente dos dados, sem desenho manual como no filtro de Gabor.
+      </example>
+
+      O bloco a seguir reúne o código autocontido: carrega <c>load_digits</c>, divide em treino e teste (<c>random_state=0</c>), imprime as formas tensor a tensor, confere o total de $3\,818$ parâmetros, treina por $25$ épocas com Adam em CPU e exibe dois filtros $3 \times 3$ aprendidos pela primeira camada.
+
+      <code lang="python" id="cod:9-2-cnn-digits">
+import numpy as np
+import torch
+import torch.nn as nn
+from sklearn.datasets import load_digits
+from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader, TensorDataset
+
+# Sementes fixas para reprodutibilidade
+np.random.seed(0)
+torch.manual_seed(0)
+
+# 1. Dados: 1797 imagens 8x8 normalizadas para [0, 1]
+digitos = load_digits()
+X = (digitos.images / 16.0).astype(np.float32)
+y = digitos.target.astype(np.int64)
+
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, random_state=0)
+
+# Adiciona o eixo de canal C=1 -> (N, 1, 8, 8)
+X_tr_t = torch.from_numpy(X_tr).unsqueeze(1)
+X_te_t = torch.from_numpy(X_te).unsqueeze(1)
+y_tr_t = torch.from_numpy(y_tr)
+y_te_t = torch.from_numpy(y_te)
+
+loader_tr = DataLoader(TensorDataset(X_tr_t, y_tr_t), batch_size=64, shuffle=True)
+
+
+# 2. Arquitetura: conv -> ReLU -> pool -> conv -> ReLU -> flatten -> linear
+class PequenaCNN(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=8, kernel_size=3, padding=1)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.conv2 = nn.Conv2d(in_channels=8, out_channels=16, kernel_size=3, padding=1)
+        self.relu = nn.ReLU()
+        self.flatten = nn.Flatten()
+        self.fc = nn.Linear(16 * 4 * 4, 10)
+
+    def forward(self, x: torch.Tensor, mostrar_formas: bool = False) -> torch.Tensor:
+        if mostrar_formas:
+            print("Entrada:        ", tuple(x.shape))
+        x = self.relu(self.conv1(x))
+        if mostrar_formas:
+            print("Após conv1+ReLU:", tuple(x.shape))
+        x = self.pool(x)
+        if mostrar_formas:
+            print("Após pool:      ", tuple(x.shape))
+        x = self.relu(self.conv2(x))
+        if mostrar_formas:
+            print("Após conv2+ReLU:", tuple(x.shape))
+        x = self.flatten(x)
+        if mostrar_formas:
+            print("Após flatten:   ", tuple(x.shape))
+        x = self.fc(x)
+        if mostrar_formas:
+            print("Saída linear:   ", tuple(x.shape))
+        return x
+
+
+modelo = PequenaCNN()
+
+with torch.no_grad():
+    _ = modelo(X_tr_t[:1], mostrar_formas=True)
+
+# Saída exata das formas:
+# Entrada:         (1, 1, 8, 8)
+# Após conv1+ReLU: (1, 8, 8, 8)
+# Após pool:       (1, 8, 4, 4)
+# Após conv2+ReLU: (1, 16, 4, 4)
+# Após flatten:    (1, 256)
+# Saída linear:    (1, 10)
+
+n_params = sum(p.numel() for p in modelo.parameters())
+print(f"Total de parâmetros: {n_params}")  # Total de parâmetros: 3818
+
+# 3. Treinamento rápido em CPU com Adam
+criterio = nn.CrossEntropyLoss()
+otimizador = torch.optim.Adam(modelo.parameters(), lr=0.005)
+
+for epoca in range(1, 26):
+    modelo.train()
+    for xb, yb in loader_tr:
+        otimizador.zero_grad()
+        logits = modelo(xb)
+        perda = criterio(logits, yb)
+        perda.backward()
+        otimizador.step()
+
+# 4. Avaliação no conjunto de teste (valores aproximados; variam conforme versão/CPU)
+modelo.eval()
+with torch.no_grad():
+    logits_te = modelo(X_te_t)
+    perda_te = criterio(logits_te, y_te_t).item()
+    acuracia_te = (logits_te.argmax(dim=1) == y_te_t).float().mean().item()
+
+print(f"Perda de teste: {perda_te:.3f} | Acurácia de teste: {100 * acuracia_te:.1f}%")
+# Perda de teste ≈ 0.12 | Acurácia de teste ≈ 96% (pode variar um pouco)
+
+# 5. Inspecionando dois filtros 3x3 aprendidos pela primeira camada
+filtros = modelo.conv1.weight.data[:, 0].numpy()
+for idx in range(2):
+    print(f"\nFiltro {idx} aprendido (3x3):")
+    print(np.round(filtros[idx], 2))
+      </code>
+
+      <remark id="rem:9-2-armadilha-pytorch">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Esquecer o eixo do canal <c>unsqueeze(1)</c>:</strong> <c>digits.images</c> tem formato $(1797, 8, 8)$, com apenas $3$ eixos; passar isso direto a <c>nn.Conv2d</c> gera erro porque o PyTorch exige $(N, C, H, W)$ com $C = 1$ explícito.</item>
+          <item><strong>Esquecer de normalizar os pixels:</strong> intensidades brutas de $0$ a $16$ (ou $0$ a $255$) geram gradientes desproporcionais; dividir por $16$ mantém as entradas em $[0, 1]$ e estabiliza o treinamento.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-2-3-1">
+        <title>Básico — Formas dos tensores e parâmetros sem padding</title>
+        Na <c>PequenaCNN</c> da <ref to="tbl:9-2-arquitetura"/>, troque <c>padding=1</c> por <c>padding=0</c> em <c>conv1</c> e <c>conv2</c>, mantendo $8$ e $16$ filtros $3 \times 3$ e pool $2 \times 2$ ($s = 2$).
+        <list marker="a">
+          <item>Calcule o novo formato após cada camada, partindo de $(N, 1, 8, 8)$.</item>
+          <item>Qual o novo número de entradas de <c>self.fc = nn.Linear(..., 10)</c>?</item>
+          <item>Calcule o novo total de parâmetros da rede.</item>
+        </list>
+        <hint><title>Ver dica</title>Aplique $n_{\text{out}} = n - k + 1$ nas duas convoluções e $\lfloor n/2 \rfloor$ no agrupamento.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Entrada $(N,1,8,8)$ $\to$ <c>conv1</c> ($8-3+1=6$): $(N,8,6,6)$ $\to$ <c>pool</c> ($\lfloor(6-2)/2\rfloor+1=3$): $(N,8,3,3)$ $\to$ <c>conv2</c> ($3-3+1=1$): $(N,16,1,1)$ $\to$ <c>flatten</c>: $(N,16)$ $\to$ <c>fc</c>: $(N,10)$.</item>
+            <item>A camada linear passa a ser <c>nn.Linear(16, 10)</c>.</item>
+            <item>Os parâmetros de <c>conv1</c> ($80$) e <c>conv2</c> ($1\,168$) não dependem da resolução, enquanto <c>fc</c> cai para $(16 + 1) \cdot 10 = 170$. Total: $80 + 1\,168 + 170 = 1\,418$ parâmetros.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-2-3-2">
+        <title>Intermediário — Classificando morfologia dendrítica sintética em PyTorch</title>
+        Em um experimento simplificado de microscopia de fluorescência, gere $400$ recortes sintéticos $8 \times 8$ de dendritos: metade contendo um segmento predominantemente <strong>horizontal</strong> (classe $0$) e metade um segmento <strong>vertical</strong> (classe $1$), somados a ruído gaussiano leve ($\sigma = 0{,}25$). Adapte a <c>PequenaCNN</c> para $2$ classes (<c>nn.Linear(256, 2)</c>), treine por $20$ épocas e imprima a acurácia de teste.
+        <hint><title>Ver dica</title>Preencha duas linhas adjacentes para a classe $0$ ou duas colunas para a classe $1$ e some <c>rng.normal(0, 0.25, ...)</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+import torch
+import torch.nn as nn
+from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader, TensorDataset
+
+rng = np.random.default_rng(0)
+torch.manual_seed(0)
+
+n_por_classe = 200
+imagens = np.zeros((2 * n_por_classe, 8, 8), dtype=np.float32)
+rotulos = np.zeros(2 * n_por_classe, dtype=np.int64)
+
+for i in range(n_por_classe):
+    linha = rng.integers(2, 6)
+    imagens[i, linha : linha + 2, 1:7] = 1.0  # classe 0: dendrito horizontal
+    col = rng.integers(2, 6)
+    imagens[n_por_classe + i, 1:7, col : col + 2] = 1.0  # classe 1: vertical
+    rotulos[n_por_classe + i] = 1
+
+imagens += rng.normal(0.0, 0.25, size=imagens.shape).astype(np.float32)
+
+X_tr, X_te, y_tr, y_te = train_test_split(imagens, rotulos, test_size=0.25, random_state=0)
+X_tr_t = torch.from_numpy(X_tr).unsqueeze(1)
+X_te_t = torch.from_numpy(X_te).unsqueeze(1)
+
+modelo = nn.Sequential(
+    nn.Conv2d(1, 8, kernel_size=3, padding=1),
+    nn.ReLU(),
+    nn.MaxPool2d(2, 2),
+    nn.Conv2d(8, 16, kernel_size=3, padding=1),
+    nn.ReLU(),
+    nn.Flatten(),
+    nn.Linear(16 * 4 * 4, 2),
+)
+
+criterio = nn.CrossEntropyLoss()
+otimizador = torch.optim.Adam(modelo.parameters(), lr=0.005)
+loader = DataLoader(TensorDataset(X_tr_t, torch.from_numpy(y_tr)), batch_size=32, shuffle=True)
+
+for _ in range(20):
+    for xb, yb in loader:
+        otimizador.zero_grad()
+        criterio(modelo(xb), yb).backward()
+        otimizador.step()
+
+modelo.eval()
+with torch.no_grad():
+    acuracia = (modelo(X_te_t).argmax(dim=1).numpy() == y_te).mean()
+print(f"Acurácia de teste: {100 * acuracia:.1f}%")
+# Acurácia de teste ≈ 100% (a tarefa sintética é fácil)
+          </code>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-2-3-3">
+        <title>Avançado — Por que não remover a ReLU entre convoluções?</title>
+        Considere duas camadas de correlação cruzada 1D seguidas <strong>sem</strong> ativação entre elas (vieses nulos): $\mathbf{w}^{(1)} = [1, 1]$ e $\mathbf{w}^{(2)} = [1, -1]$, ambas com $p = 0, s = 1$. Mostre algebricamente para um sinal qualquer $\mathbf{x}$ que a composição $y[i] = z^{(2)}[i]$ equivale a uma <strong>única</strong> camada linear de filtro $k = 3$, encontrando seus $3$ pesos.
+        <hint><title>Ver dica</title>Escreva $z^{(1)}[i] = x[i] + x[i+1]$ e $z^{(1)}[i+1] = x[i+1] + x[i+2]$, e substitua em $y[i] = z^{(1)}[i] - z^{(1)}[i+1]$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Na primeira camada, $z^{(1)}[i] = x[i] + x[i+1]$ e $z^{(1)}[i+1] = x[i+1] + x[i+2]$. Aplicando a segunda camada $\mathbf{w}^{(2)} = [1, -1]$ sem não linearidade:
+          $$y[i] = 1 \cdot z^{(1)}[i] - 1 \cdot z^{(1)}[i+1] = (x[i] + x[i+1]) - (x[i+1] + x[i+2]) = x[i] - x[i+2].$$
+          Isso equivale a uma única correlação cruzada com $\mathbf{w}_{\text{eq}} = [1,\; 0,\; -1]$. Sem não linearidade como $\mathrm{ReLU}$, empilhar convoluções colapsa em um operador linear único.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-2-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>CNNs como modelos do córtex visual</title>
+      <intro>
+        Mais do que classificar dígitos ou objetos, CNNs treinadas para enxergar o mundo tornaram-se o principal modelo quantitativo para prever a atividade de neurônios biológicos em V1, V4 e IT — com êxitos impressionantes e limites claros.
+      </intro>
+
+      Como não faz sentido parear diretamente o "neurônio 42" da CNN com um neurônio específico do macaco, a neurociência computacional usa <strong>modelos de codificação</strong> (<em>encoding models</em>): apresentamos as mesmas $n$ imagens naturais ao cérebro (registrando taxas de disparo por eletrofisiologia ou sinal BOLD em fMRI) e à CNN previamente treinada (com pesos congelados). Para cada imagem $\mathbf{X}_i$, extraímos as ativações $\mathbf{a}_i^{(l)} \in \mathbb{R}^d$ da camada $l$ e ajustamos uma combinação linear para prever a resposta biológica $y_i$:
+      <equation id="eq:9-2-encoding">\hat{y}_i = \mathbf{w}^\top \mathbf{a}_i^{(l)} + b</equation>
+      Como uma camada de CNN tem muitas unidades ($d$ grande, frequentemente $d > n$), uma regressão linear comum sofreria sobreajuste severo. Recorremos à <strong>regressão <em>ridge</em></strong> (Módulo 8, <mark>Regularização</mark>), que penaliza pesos grandes com um termo $L_2$ de intensidade $\alpha > 0$:
+      <equation id="eq:9-2-ridge">\min_{\mathbf{w},\, b} \sum_{i=1}^{n} \left(y_i - \mathbf{w}^\top \mathbf{a}_i^{(l)} - b\right)^2 + \alpha \|\mathbf{w}\|_2^2</equation>
+      Avaliamos a generalização em <strong>imagens de teste inéditas</strong> usando o coeficiente de determinação $R^2$ (Módulo 8, <mark>Métricas estatísticas</mark>):
+      <equation id="eq:9-2-r2">R^2 = 1 - \frac{\sum_{i=1}^{m} (y_i - \hat{y}_i)^2}{\sum_{i=1}^{m} (y_i - \bar{y})^2}</equation>
+      Como neurônios apresentam variabilidade espontânea entre repetições do mesmo estímulo, existe um <strong>teto de ruído</strong> (<em>noise ceiling</em>) abaixo de $100\%$.
+
+      Um marco dessa abordagem foi o estudo de Daniel Yamins e colaboradores (2014, <em>PNAS</em>): otimizando CNNs exclusivamente para reconhecer objetos (<em>task-driven modeling</em>), eles observaram que:
+      <list marker="number">
+        <item>As ativações da CNN previram neurônios de <strong>V4</strong> e <strong>IT</strong> de macacos bem melhor do que filtros manuais clássicos.</item>
+        <item>Surgiu uma <strong>tendência hierárquica</strong>: camadas iniciais alinham-se melhor a V1, intermediárias preveem melhor V4 e finais preveem melhor IT.</item>
+      </list>
+
+      Essa correspondência deve ser vista como tendência estatística macroscópica, nunca igualdade literal. Três limitações importantes separam CNNs padrão do córtex biológico:
+      <list marker="dash">
+        <item><strong>Fragilidade adversarial:</strong> pequenas perturbações de pixels quase imperceptíveis a humanos enganam a CNN com alta confiança.</item>
+        <item><strong>Ausência de recorrência e atenção:</strong> CNNs são puramente <em>feedforward</em>, enquanto o córtex possui conexões horizontais e densa retroalimentação (<em>feedback</em>) de IT para V4 e V1.</item>
+        <item><strong>Regime de aprendizado distinto:</strong> CNNs supervisionadas usam milhões de imagens estáticas rotuladas via retropropagação, longe do aprendizado contínuo com poucos rótulos em animais.</item>
+      </list>
+
+      <example id="exm:9-2-r2-voxel">
+        <title>Calculando o R² de teste de um voxel de fMRI</title>
+        Um modelo de codificação prevê o sinal BOLD de um voxel ventral em $m = 5$ imagens de teste inéditas: $\mathbf{y} = [0{,}4;\; 0{,}8;\; 1{,}2;\; 1{,}0;\; 1{,}6]$ e $\hat{\mathbf{y}} = [0{,}5;\; 0{,}7;\; 1{,}1;\; 1{,}1;\; 1{,}6]$. Calcule o $R^2$ de teste.
+
+        <strong>Solução.</strong> A média medida é $\bar{y} = (0{,}4 + 0{,}8 + 1{,}2 + 1{,}0 + 1{,}6)/5 = 1{,}0$. Calculando $\text{SS}_{\text{tot}}$ e $\text{SS}_{\text{res}}$ (resíduos $[-0{,}1;\; 0{,}1;\; 0{,}1;\; -0{,}1;\; 0]$):
+        $$\text{SS}_{\text{tot}} = (-0{,}6)^2 + (-0{,}2)^2 + (0{,}2)^2 + 0^2 + (0{,}6)^2 = 0{,}36 + 0{,}04 + 0{,}04 + 0 + 0{,}36 = 0{,}80,$$
+        $$\text{SS}_{\text{res}} = (-0{,}1)^2 + (0{,}1)^2 + (0{,}1)^2 + (-0{,}1)^2 + 0^2 = 0{,}04.$$
+        Pela <ref to="eq:9-2-r2"/>, $R^2 = 1 - 0{,}04/0{,}80 = 0{,}95$ ($95\%$ da variância explicada). Se um modelo ruim desse $\text{SS}_{\text{res}} > \text{SS}_{\text{tot}}$ (por exemplo $\hat{\mathbf{y}}_B = [1{,}5;\; 1{,}4;\; 0{,}6;\; 0{,}8;\; 0{,}7]$, $\text{SS}_{\text{res}} = 2{,}78$), teríamos $R^2 = 1 - 2{,}78/0{,}80 = -2{,}475 < 0$, pior do que prever apenas a média $\bar{y}$.
+      </example>
+
+      <example id="exm:9-2-ridge-1d">
+        <title>Como a penalidade ridge encolhe o peso de codificação</title>
+        Suponha $a_1 = 1, a_2 = 2$ com respostas $y_1 = 20\text{ Hz}$ e $y_2 = 40\text{ Hz}$. Calcule $w^*$ minimizando $J(w) = (20 - w)^2 + (40 - 2w)^2 + \alpha w^2$ para $\alpha \in \{0, 5, 15\}$.
+
+        <strong>Solução.</strong> Derivando e igualando a zero:
+        $$\frac{dJ}{dw} = -2(20 - w) - 4(40 - 2w) + 2\alpha w = 0 \implies -100 + (5 + \alpha) w = 0 \implies w^* = \frac{100}{5 + \alpha}.$$
+        Logo, para $\alpha = 0$, $w^* = 20$; para $\alpha = 5$, $w^* = 10$; para $\alpha = 15$, $w^* = 5$. Aumentar $\alpha$ encolhe os pesos para zero e contém o ruído.
+      </example>
+
+      O código abaixo extrai $192$ ativações convolucionais de <c>load_digits</c>, simula $5$ neurônios com ruído e compara <c>LinearRegression</c> e <c>RidgeCV</c> usando $n = 150$ imagens de treino ($d = 192 > n = 150$): sem regularização o $R^2$ de teste cai para $\approx -3{,}2$ por sobreajuste, enquanto o <em>ridge</em> ($\alpha = 10$) recupera $\approx 0{,}49$ de um teto de ruído empírico de $\approx 0{,}61$.
+
+      <code lang="python" id="cod:9-2-encoding">
+import numpy as np
+import torch
+import torch.nn.functional as F
+from sklearn.datasets import load_digits
+from sklearn.linear_model import LinearRegression, RidgeCV
+from sklearn.metrics import r2_score
+from sklearn.model_selection import train_test_split
+
+rng = np.random.default_rng(0)
+torch.manual_seed(0)
+
+# 1. Extrai características convolucionais (12 filtros 3x3 + ReLU + MaxPool 2x2)
+digitos = load_digits()
+X_img = torch.from_numpy((digitos.images / 16.0).astype(np.float32)).unsqueeze(1)
+filtros = torch.randn(12, 1, 3, 3) * 0.3
+
+with torch.no_grad():
+    ativacoes = F.max_pool2d(F.relu(F.conv2d(X_img, filtros, padding=1)), kernel_size=2)
+    A = ativacoes.flatten(start_dim=1).numpy()  # (1797, 192)
+
+print("Formato da matriz de ativações:", A.shape)  # (1797, 192)
+
+# 2. Simula 5 neurônios corticais com ruído biológico
+n_neuronios = 5
+W_verdadeiro = rng.normal(0.0, 0.2, size=(A.shape[1], n_neuronios))
+Y_limpo = 10.0 + A @ W_verdadeiro
+Y_observado = Y_limpo + rng.normal(0.0, 0.4, size=Y_limpo.shape)
+
+# 3. Divide em treino e teste; simula experimento real com poucos estímulos (n=150 < d=192)
+A_tr, A_te, Y_tr, Y_te, _, Y_te_limpo = train_test_split(
+    A, Y_observado, Y_limpo, test_size=0.2, random_state=0
+)
+A_fit, Y_fit = A_tr[:150], Y_tr[:150]
+
+# Sem regularização: sobreajuste severo quando n < d
+ols = LinearRegression().fit(A_fit, Y_fit)
+r2_ols = r2_score(Y_te, ols.predict(A_te), multioutput="raw_values")
+
+# Com regressão ridge e escolha de alpha por validação cruzada
+ridge = RidgeCV(alphas=[0.1, 1.0, 10.0, 50.0, 100.0]).fit(A_fit, Y_fit)
+r2_ridge = r2_score(Y_te, ridge.predict(A_te), multioutput="raw_values")
+teto_ruido = r2_score(Y_te, Y_te_limpo, multioutput="raw_values")
+
+print(f"R² médio de teste (LinearRegression): {r2_ols.mean():.3f}")
+print(f"R² médio de teste (RidgeCV, alpha={ridge.alpha_}): {r2_ridge.mean():.3f}")
+print(f"Teto de ruído empírico médio: {teto_ruido.mean():.3f}")
+# Saída esperada aproximada:
+# Formato da matriz de ativações: (1797, 192)
+# R² médio de teste (LinearRegression) ≈ -3.2 (sobreajuste severo com n < d)
+# R² médio de teste (RidgeCV, alpha=10.0) ≈ 0.49 (recupera boa parte do teto ≈ 0.61)
+      </code>
+
+      <remark id="rem:9-2-armadilha-cortex">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Achar que a CNN "é" o córtex visual:</strong> um $R^2$ alto indica alinhamento linear entre representações, não que o cérebro use pesos compartilhados ou retropropagação supervisionada.</item>
+          <item><strong>Ajustar sem regularização ou medir $R^2$ no treino:</strong> com $d$ grande, uma regressão comum memoriza ruído ($R^2_{\text{treino}} \approx 1$) e fracassa no teste; avalie sempre em imagens inéditas usando <em>ridge</em>.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:9-2-4-1">
+        <title>Básico — R² de teste de um neurônio de IT</title>
+        Um neurônio de IT respondeu a $4$ imagens de teste inéditas com $\mathbf{y} = [10, 30, 20, 60]\text{ Hz}$, e uma CNN previu $\hat{\mathbf{y}} = [14, 28, 22, 56]\text{ Hz}$.
+        <list marker="a">
+          <item>Calcule $\text{SS}_{\text{tot}}$, $\text{SS}_{\text{res}}$ e o coeficiente $R^2$ de teste.</item>
+          <item>Explique por que essa avaliação precisa ser feita em imagens fora do ajuste da regressão <em>ridge</em>.</item>
+        </list>
+        <hint><title>Ver dica</title>Comece pela média $\bar{y} = 30\text{ Hz}$ e substitua na <ref to="eq:9-2-r2"/>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>A média é $\bar{y} = (10+30+20+60)/4 = 30\text{ Hz}$. Logo $\text{SS}_{\text{tot}} = (-20)^2 + 0^2 + (-10)^2 + 30^2 = 1\,400$. Os resíduos $[-4, +2, -2, +4]$ dão $\text{SS}_{\text{res}} = 16+4+4+16 = 40$, donde $R^2 = 1 - 40/1\,400 = 34/35 \approx 0{,}9714$.</item>
+            <item>Com muitas unidades na camada ($d \ge n$), o ajuste linear pode decorar tanto o sinal quanto o ruído do treino; apenas imagens inéditas medem generalização real.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-2-4-2">
+        <title>Intermediário — Regressão ridge com duas características idênticas</title>
+        Duas características idênticas de uma CNN geram $a_{1,1} = a_{1,2} = 1$ e $a_{2,1} = a_{2,2} = 2$ para $y_1 = 3$ e $y_2 = 6$.
+        <list marker="a">
+          <item>Mostre que, sem regularização ($\alpha = 0$), qualquer par $(w_1, w_2)$ com $w_1 + w_2 = 3$ zera o erro de treino.</item>
+          <item>Minimize $J(w_1, w_2) = (w_1+w_2-3)^2 + (2w_1+2w_2-6)^2 + \alpha(w_1^2+w_2^2)$ para $\alpha > 0$ e calcule para $\alpha = 5$.</item>
+        </list>
+        <hint><title>Ver dica</title>Simplifique $J = 5(w_1+w_2-3)^2 + \alpha(w_1^2+w_2^2)$, derive em $w_1$ e $w_2$ e subtraia as equações.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como $\hat{y}_1 = w_1+w_2 = 3$ e $\hat{y}_2 = 2(w_1+w_2) = 6$, infinitos pares sobre a reta $w_1 + w_2 = 3$ (inclusive $(100, -97)$) zeram o erro.</item>
+            <item>Igualando as derivadas parciais a zero: $\partial J/\partial w_1 = 10(w_1+w_2-3) + 2\alpha w_1 = 0$ e $\partial J/\partial w_2 = 10(w_1+w_2-3) + 2\alpha w_2 = 0$. Subtraindo-as, $2\alpha(w_1-w_2) = 0 \implies w_1 = w_2 = w$. Substituindo na primeira (dividida por $2$): $5(2w-3) + \alpha w = 0 \implies w_1^* = w_2^* = \frac{15}{10+\alpha}$. Para $\alpha = 5$, obtemos a solução única $w_1^* = w_2^* = 1$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-2-4-3">
+        <title>Avançado — Testando a correspondência hierárquica em código</title>
+        Adapte <ref to="cod:9-2-encoding"/> para uma mini-CNN fixa de duas camadas (<c>conv1</c> + ReLU + pool $\to$ <c>conv2</c> + ReLU + pool), simule um "neurônio V1" gerado de <c>conv1</c> e um "neurônio IT" gerado de <c>conv2</c> (ambos com ruído), e verifique com <c>RidgeCV</c> qual camada prevê melhor cada área.
+        <hint><title>Ver dica</title>Extraia <c>A1</c> e <c>A2</c> achatando cada mapa após o respectivo <c>max_pool2d</c> e compare os quatro valores de $R^2$ de teste.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+import torch
+import torch.nn.functional as F
+from sklearn.datasets import load_digits
+from sklearn.linear_model import RidgeCV
+from sklearn.metrics import r2_score
+from sklearn.model_selection import train_test_split
+
+rng = np.random.default_rng(0)
+torch.manual_seed(0)
+
+X_img = torch.from_numpy((load_digits().images / 16.0).astype(np.float32)).unsqueeze(1)
+w1 = torch.randn(8, 1, 3, 3) * 0.4
+w2 = torch.randn(16, 8, 3, 3) * 0.3
+
+with torch.no_grad():
+    h1 = F.max_pool2d(F.relu(F.conv2d(X_img, w1, padding=1)), 2)  # (N, 8, 4, 4)
+    h2 = F.max_pool2d(F.relu(F.conv2d(h1, w2, padding=1)), 2)     # (N, 16, 2, 2)
+    A1 = h1.flatten(start_dim=1).numpy()  # 128 características iniciais
+    A2 = h2.flatten(start_dim=1).numpy()  # 64 características profundas
+
+y_v1 = A1 @ rng.normal(0.0, 0.25, size=A1.shape[1]) + rng.normal(0.0, 0.3, size=len(A1))
+y_it = A2 @ rng.normal(0.0, 0.35, size=A2.shape[1]) + rng.normal(0.0, 0.25, size=len(A2))
+
+idx = np.arange(len(A1))
+idx_tr, idx_te = train_test_split(idx, test_size=0.2, random_state=0)
+alphas = [0.1, 1.0, 10.0, 50.0]
+
+for nome_neuronio, y_alvo in [("V1 simulado", y_v1), ("IT simulado", y_it)]:
+    for nome_camada, A in [("conv1", A1), ("conv2", A2)]:
+        reg = RidgeCV(alphas=alphas).fit(A[idx_tr[:200]], y_alvo[idx_tr[:200]])
+        r2 = r2_score(y_alvo[idx_te], reg.predict(A[idx_te]))
+        print(f"{nome_neuronio} <- {nome_camada}: R² = {r2:.3f}")
+
+# Saída esperada aproximada:
+# V1 simulado <- conv1: R² ≈ 0.839
+# V1 simulado <- conv2: R² ≈ 0.642
+# IT simulado <- conv1: R² ≈ 0.664
+# IT simulado <- conv2: R² ≈ 0.885
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-2-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Convolução versus correlação cruzada:</strong> <c>nn.Conv1d</c> e <c>nn.Conv2d</c> calculam correlação cruzada (sem espelhar); como os pesos são aprendidos pelo gradiente, isso equivale na prática à convolução.</item>
+        <item><strong>Tamanho da saída espacial:</strong> para entrada $n$, filtro $k$, preenchimento $p$ e passo $s$, $n_{\text{out}} = \left\lfloor \frac{n + 2p - k}{s} \right\rfloor + 1$ ($n - k + 1$ quando $p = 0, s = 1$).</item>
+        <item><strong>Contagem de parâmetros:</strong> uma camada 2D tem $k^2 \cdot C_{\text{in}} \cdot C_{\text{out}} + C_{\text{out}}$ parâmetros, independentemente de altura e largura.</item>
+        <item><strong>Campos receptivos e Gabor:</strong> células simples de V1 (Hubel e Wiesel, 1959, 1962) são modeladas por filtros de Gabor (gaussiana $\times$ cosseno).</item>
+        <item><strong>Equivariância, pooling e profundidade:</strong> pesos compartilhados conferem equivariância; <em>pooling</em> ($0$ parâmetros) gera invariância local à maneira de células complexas; $L$ camadas $k \times k$ ($s=1$) alcançam $r_L = 1 + L(k - 1)$.</item>
+        <item><strong>Fluxo em PyTorch:</strong> imagens entram como $(N, C, H, W)$; a <c>PequenaCNN</c> atinge em dígitos $8 \times 8$ acurácia equivalente à do MLP ($\approx 96\%$) com menos da metade dos parâmetros ($3\,818$).</item>
+        <item><strong>Codificação cortical:</strong> regressão <em>ridge</em> ($\min \sum (y_i - \mathbf{w}^\top \mathbf{a}_i^{(l)} - b)^2 + \alpha\|\mathbf{w}\|_2^2$) alinha camadas iniciais a V1 e finais a IT (Yamins et al., 2014), com limites como fragilidade adversarial e falta de recorrência.</item>
+      </list>
+    </section>
+
+    <section id="sec:9-2-alem">
+      <title>Para ir além</title>
+      Para consolidar camadas convolucionais e implementação em PyTorch antes do <strong>Tema 9.3 — RNN</strong>, explore as referências recomendadas do módulo e a documentação oficial:
+      <list marker="dash">
+        <item><strong>Referência teórica do módulo:</strong> <em>Deep Learning Book — Ian Goodfellow</em> (capítulo de redes convolucionais: compartilhamento de pesos, equivariância e variantes de convolução).</item>
+        <item><strong>Aulas recomendadas do módulo:</strong> <em>Andrej Karpathy — aulas de LLM e backprop no YouTube</em> (intuição de gradientes e tensores por trás das camadas em PyTorch).</item>
+        <item><strong>Documentação oficial:</strong> consulte <c>torch.nn.Conv2d</c> e <c>MaxPool2d</c> na <link to="https://pytorch.org/docs/stable/index.html">documentação do PyTorch</link> e <c>RidgeCV</c> na <link to="https://scikit-learn.org/stable/">documentação do scikit-learn</link>.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 9 · Deep Learning — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

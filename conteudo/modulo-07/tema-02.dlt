@@ -1,0 +1,1113 @@
+<document>
+  <title>Módulo 7 · Estatística e Probabilidade</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-7-2">Voltar ao guia (Tema 7.2)</link></meta-item>
+    <meta-item key="Módulo">Módulo 7 · Estatística e Probabilidade — Encontrando Certezas no Caos Experimental</meta-item>
+    <meta-item key="Nível">Básico</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-7-2">
+    <title>Variável aleatória</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Modelar o acaso: distribuições que descrevem experimentos e medidas ruidosas.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Em qualquer bancada ou equipamento de neuroimagem, repetir exatamente o mesmo protocolo raramente produz exatamente o mesmo número. Se você estimular um neurônio com o mesmo pulso de corrente dez vezes seguidas, a contagem de potenciais de ação oscila entre ensaios; se medir o potencial de repouso com um microeletrodo, o traçado treme em torno de $-70\text{ mV}$ por causa do ruído térmico e biológico; e em experimentos de ressonância magnética funcional (fMRI), o sinal de cada <em>voxel</em> mistura resposta hemodinâmica com flutuações aleatórias. A neuroimagem vive — bem ou mal — de estatística: p-valores, comparações múltiplas em dezenas de milhares de voxels e controle de incerteza em medidas ruidosas. Além disso, modelos Bayesianos baseados em distribuições de probabilidade dominam as teorias modernas de percepção e tomada de decisão no cérebro.
+
+    No tema anterior (<mark>Combinatória</mark>), você deu o primeiro passo contando possibilidades em espaços equiprováveis. Só que a natureza quase nunca dá o mesmo peso a todos os resultados: uma vesícula sináptica não é liberada com chance $1/2$, nem o ruído elétrico de um amplificador se comporta como um dado de seis faces. Para lidar com medidas reais, precisamos transformar resultados experimentais em números e descrever quanto peso probabilístico cabe a cada valor — é exatamente isso que uma <strong>variável aleatória</strong> e sua distribuição fazem.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>definir espaço amostral, eventos e probabilidade usando os axiomas de Kolmogorov, incluindo independência e probabilidade condicional;</item>
+      <item>diferenciar variáveis aleatórias discretas e contínuas por meio de função de massa de probabilidade (pmf), função densidade de probabilidade (pdf) e função de distribuição acumulada (cdf);</item>
+      <item>calcular esperança matemática, variância e desvio-padrão, aplicando suas propriedades em transformações lineares e somas;</item>
+      <item>reconhecer e aplicar as distribuições Bernoulli, binomial, Poisson, uniforme, exponencial e normal a fenômenos neurobiológicos como liberação quântica, contagem de spikes, intervalos entre disparos e ruído de membrana;</item>
+      <item>simular experimentos aleatórios com <c>numpy</c> e calcular probabilidades teóricas com <c>scipy.stats</c>, conferindo os resultados.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Tema 7.1 (<mark>Combinatória</mark>: contagem, $\binom{n}{k}$ e probabilidade clássica), Módulo 2 (<mark>Cálculo Real</mark>: limite e integral de Riemann como área sob a curva) e Módulo 6 (<mark>Programação em Python</mark>: <c>numpy</c> e <c>matplotlib</c>). Este tema fornece toda a base matemática para o próximo passo: <mark>Introdução à inferência</mark>.
+
+    <section id="sec:7-2-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Espaço amostral, eventos e variáveis aleatórias</title>
+      <intro>
+        Antes de escolher um teste estatístico ou ajustar um modelo, você precisa traduzir um experimento ruidoso em um objeto matemático: o conjunto de desfechos possíveis, a regra de pesos sobre eles e o número que queremos medir.
+      </intro>
+
+      Imagine registrar uma sinapse química em laboratório. Você dispara um potencial de ação pré-sináptico e observa quantas vesículas de neurotransmissor são liberadas na fenda sináptica. Antes de medir, você não sabe qual número exato vai sair, embora conheça os valores possíveis e possa repetir o ensaio nas mesmas condições. Um processo assim é um <strong>experimento aleatório</strong> (<em>random experiment</em>): o resultado individual é imprevisível, mas a frequência relativa dos desfechos estabiliza quando repetimos o experimento muitas vezes.
+
+      Para falar de acaso com precisão, agrupamos todos os desfechos elementares possíveis em um único conjunto e chamamos qualquer subconjunto de interesse de evento.
+
+      <definition id="def:7-2-espaco-eventos">
+        <title>Espaço amostral e evento</title>
+        Dado um experimento aleatório:
+        <list marker="dash">
+          <item>o <strong>espaço amostral</strong> (<em>sample space</em>), denotado por $\Omega$, é o conjunto de todos os resultados elementares possíveis do experimento;</item>
+          <item>um <strong>evento</strong> (<em>event</em>) é qualquer subconjunto $A \subseteq \Omega$ ao qual atribuímos uma probabilidade.</item>
+        </list>
+        Dizemos que dois eventos $A$ e $B$ são <strong>disjuntos</strong> (ou mutuamente exclusivos) quando $A \cap B = \emptyset$, isto é, não podem ocorrer simultaneamente. O evento <strong>complementar</strong> de $A$ é $A^c = \Omega \setminus A$ (ocorre quando $A$ não ocorre).
+      </definition>
+
+      Em 1933, o matemático Andrei Kolmogorov mostrou que toda a teoria da probabilidade pode ser construída a partir de apenas três regras básicas, conhecidas como axiomas de Kolmogorov. Elas não dizem qual número atribuir a cada experimento — isso depende da física ou da biologia do problema —, mas garantem que as probabilidades atribuídas sejam internamente coerentes.
+
+      <definition id="def:7-2-axiomas">
+        <title>Axiomas de Kolmogorov</title>
+        Uma função $P$ que associa um número real $P(A)$ a cada evento $A \subseteq \Omega$ é uma <strong>probabilidade</strong> se satisfizer:
+        <list marker="number">
+          <item><strong>Não negatividade:</strong> $P(A) \ge 0$ para todo evento $A$;</item>
+          <item><strong>Normalização:</strong> $P(\Omega) = 1$ (algum resultado de $\Omega$ certamente ocorre);</item>
+          <item><strong>Aditividade:</strong> se $A$ e $B$ são eventos disjuntos ($A \cap B = \emptyset$), então $P(A \cup B) = P(A) + P(B)$. (Mais geralmente, para uma sequência infinita enumerável $A_1, A_2, \dots$ de eventos dois a dois disjuntos, $P(\bigcup_{i=1}^\infty A_i) = \sum_{i=1}^\infty P(A_i)$.)</item>
+        </list>
+        <intuition>
+          Pense na probabilidade total igual a $1$ como $100\%$ de uma massa unitária distribuída pelo espaço amostral. Cada pedaço tem massa não negativa, e a massa da reunião de pedaços que não se sobrepõem é simplesmente a soma das massas individuais.
+        </intuition>
+      </definition>
+
+      Dessas três regras nascem imediatamente as fórmulas que você usa o tempo todo em laboratório e na análise de dados.
+
+      <proposition id="prop:7-2-conseq-prob">
+        <title>Consequências imediatas dos axiomas</title>
+        Para quaisquer eventos $A, B \subseteq \Omega$:
+        <list marker="number">
+          <item><strong>Regra do complemento:</strong> $P(A^c) = 1 - P(A)$, e em particular $P(\emptyset) = 0$;</item>
+          <item><strong>Cota superior:</strong> $0 \le P(A) \le 1$;</item>
+          <item><strong>Regra da união (inclusão-exclusão):</strong> $P(A \cup B) = P(A) + P(B) - P(A \cap B)$.</item>
+        </list>
+      </proposition>
+      <proof of="prop:7-2-conseq-prob" collapsible="true" collapsed="true">
+        Para o item 1, note que $A$ e $A^c$ são disjuntos e $A \cup A^c = \Omega$. Pelos axiomas 2 e 3:
+        $$1 = P(\Omega) = P(A \cup A^c) = P(A) + P(A^c) \implies P(A^c) = 1 - P(A).$$
+        Como $\emptyset = \Omega^c$, segue que $P(\emptyset) = 1 - P(\Omega) = 1 - 1 = 0$. Para o item 2, pelo axioma 1 temos $P(A) \ge 0$ e $P(A^c) \ge 0$, logo $1 - P(A) \ge 0 \implies P(A) \le 1$.
+
+        Para o item 3, dividimos $A \cup B$ em três pedaços disjuntos: $A \setminus B$, $A \cap B$ e $B \setminus A$. Pelo axioma 3:
+        $$P(A \cup B) = P(A \setminus B) + P(A \cap B) + P(B \setminus A).$$
+        Como $A = (A \setminus B) \cup (A \cap B)$ e $B = (B \setminus A) \cup (A \cap B)$ são uniões disjuntas, temos $P(A) = P(A \setminus B) + P(A \cap B)$ e $P(B) = P(B \setminus A) + P(A \cap B)$. Somando essas duas igualdades e subtraindo $P(A \cap B)$ uma vez para não contá-lo em duplicidade, obtemos $P(A \cup B) = P(A) + P(B) - P(A \cap B)$.
+      </proof>
+
+      Outro conceito central é o de <strong>independência</strong> (<em>independence</em>). Intuitivamente, saber que o evento $B$ aconteceu não altera a chance de o evento $A$ acontecer — por exemplo, a liberação de uma vesícula em um sítio sináptico não influencia a abertura de um canal distante em outra célula isolada.
+
+      <definition id="def:7-2-independencia">
+        <title>Eventos independentes</title>
+        Dois eventos $A$ e $B$ são <strong>independentes</strong> quando a probabilidade de ambos ocorrerem simultaneamente é o produto das probabilidades individuais:
+        $$P(A \cap B) = P(A)\,P(B).$$
+      </definition>
+
+      Agora damos o passo decisivo deste tema. Em vez de lidar com descrições textuais de desfechos ("cara", "coroa", "neurônio disparou duas vezes", "canal abriu"), associamos um número real a cada resultado de $\Omega$. Esse tradutor numérico é a variável aleatória. Por convenção adotada em todo este módulo, usamos letras <strong>maiúsculas</strong> ($X, Y$) para a variável aleatória e letras <strong>minúsculas</strong> ($x, y$) para os valores numéricos que ela pode assumir.
+
+      <definition id="def:7-2-va-discreta-continua">
+        <title>Variável aleatória, pmf, pdf e cdf</title>
+        Uma <strong>variável aleatória</strong> (<em>random variable</em>) é uma função $X : \Omega \to \mathbb{R}$ que associa um número real $X(\omega)$ a cada resultado elementar $\omega \in \Omega$.
+        <list marker="number">
+          <item><strong>Variável aleatória discreta:</strong> assume apenas um conjunto finito ou enumerável de valores (por exemplo, $0, 1, 2, \dots$). Sua distribuição é descrita pela <strong>função de massa de probabilidade</strong> (<em>probability mass function</em>, pmf):
+            $$p(x) = P(X = x),$$
+            satisfazendo $p(x) \ge 0$ para todo $x$ e $\displaystyle\sum_x p(x) = 1$.</item>
+          <item><strong>Variável aleatória contínua:</strong> pode assumir qualquer valor em um intervalo de $\mathbb{R}$. Sua distribuição é descrita por uma <strong>função densidade de probabilidade</strong> (<em>probability density function</em>, pdf) $f(x) \ge 0$ tal que $\displaystyle\int_{-\infty}^{+\infty} f(x)\,dx = 1$, e a probabilidade de cair no intervalo $[a, b]$ é a área sob a curva:
+            $$P(a \le X \le b) = \int_a^b f(x)\,dx.$$
+          </item>
+          <item><strong>Função de distribuição acumulada</strong> (<em>cumulative distribution function</em>, cdf): definida igualmente para qualquer variável aleatória como a probabilidade de $X$ não ultrapassar $x$:
+            $$F(x) = P(X \le x) = \begin{cases} \displaystyle\sum_{t \le x} p(t), & \text{se } X \text{ é discreta,} \\[8pt] \displaystyle\int_{-\infty}^{x} f(t)\,dt, & \text{se } X \text{ é contínua.} \end{cases}$$
+          </item>
+        </list>
+        <intuition>
+          Pense na pmf como barras verticais com alturas que somam $1$, e na pdf como o perfil contínuo de uma colina cuja área total vale $1$. A cdf $F(x)$ acumula toda a probabilidade à esquerda de $x$, crescendo de $0$ até $1$.
+        </intuition>
+      </definition>
+
+      <remark id="rem:7-2-densidade-nao-prob">
+        <title>Armadilha comum</title>
+        Em variáveis aleatórias contínuas, o valor $f(x)$ da densidade <strong>não</strong> é uma probabilidade — ele é uma probabilidade <em>por unidade de medida</em> (assim como densidade demográfica é habitantes por $\text{km}^2$, e não número de habitantes). Por isso:
+        <list marker="dash">
+          <item>$f(x)$ pode ser perfeitamente maior que $1$! Por exemplo, se uma latência está espalhada uniformemente no curto intervalo $[0;\; 0{,}2]\text{ s}$, sua densidade constante precisa valer $f(x) = 5\text{ s}^{-1}$ para que a área total $5 \cdot 0{,}2 = 1$ se mantenha;</item>
+          <item>para qualquer ponto exato $x_0$, a área de um segmento de largura zero é nula: $P(X = x_0) = \int_{x_0}^{x_0} f(x)\,dx = 0$. Consequentemente, no caso contínuo $P(a \le X \le b) = P(a < X < b)$, ao passo que no caso discreto incluir ou excluir os extremos faz diferença!</item>
+        </list>
+      </remark>
+
+      <example id="exm:7-2-spikes-potencial">
+        <title>Discreta versus contínua em eletrofisiologia</title>
+        Considere duas medidas realizadas no mesmo neurônio durante um protocolo de estimulação:
+        <list marker="a">
+          <item>O número $X$ de potenciais de ação (<em>spikes</em>) disparados numa janela de $100\text{ ms}$, com função de probabilidade empírica dada por $p(0) = 0{,}50$, $p(1) = 0{,}30$, $p(2) = 0{,}15$ e $p(3) = 0{,}05$. Calcule $P(X \ge 1)$ e a acumulada $F(1)$.</item>
+          <item>Suponha agora que a latência $T$ (em segundos) entre o estímulo e o primeiro pico de corrente esteja espalhada uniformemente em $[0;\; 0{,}2]\text{ s}$, com densidade $f(t) = 5$ para $0 \le t \le 0{,}2$ (e $f(t) = 0$ fora desse intervalo). Verifique que $\int_{-\infty}^{+\infty} f(t)\,dt = 1$, calcule $P(0{,}05 \le T \le 0{,}15)$ e encontre $F(0{,}12)$. (Já o potencial de membrana $V$, medido em torno de $-70\text{ mV}$, também é uma variável contínua, cuja distribuição em sino estudaremos na Seção 4.)</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Primeiro conferimos que as probabilidades somam $1$: $0{,}50 + 0{,}30 + 0{,}15 + 0{,}05 = 1{,}00$. Pelo evento complementar:
+            $$P(X \ge 1) = 1 - P(X = 0) = 1 - 0{,}50 = 0{,}50.$$
+            A função acumulada em $x = 1$ soma as probabilidades até $1$ (inclusive):
+            $$F(1) = P(X \le 1) = p(0) + p(1) = 0{,}50 + 0{,}30 = 0{,}80.$$
+            Note que, como $X$ é discreta, $P(X < 1) = p(0) = 0{,}50 \ne F(1)$.
+          </item>
+          <item>A integral total sobre toda a reta reduz-se ao intervalo onde $f(t) > 0$:
+            $$\int_{-\infty}^{+\infty} f(t)\,dt = \int_{0}^{0{,}2} 5\,dt = \bigl[5t\bigr]_{0}^{0{,}2} = 5 \cdot 0{,}2 - 0 = 1.$$
+            Mesmo com $f(t) = 5 > 1$, todas as probabilidades são no máximo $1$:
+            $$P(0{,}05 \le T \le 0{,}15) = \int_{0{,}05}^{0{,}15} 5\,dt = 5 \cdot (0{,}15 - 0{,}05) = 0{,}50.$$
+            Para $F(0{,}12) = P(T \le 0{,}12)$, integramos de $0$ até $0{,}12$:
+            $$F(0{,}12) = \int_{0}^{0{,}12} 5\,dt = 5 \cdot 0{,}12 = 0{,}60.$$
+            Além disso, $P(T = 0{,}10) = 0$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:7-2-soma-dados">
+        <title>Variável aleatória a partir de um espaço equiprovável: soma de dois dados</title>
+        Ao lançar dois dados justos de $6$ faces, o espaço amostral tem $|\Omega| = 6 \cdot 6 = 36$ pares ordenados $(d_1, d_2)$ equiprováveis. Seja $X = d_1 + d_2$ a variável aleatória que registra a soma das faces. Determine a pmf $p(x)$ de $X$, calcule $F(4) = P(X \le 4)$ e calcule $P(X \ge 10)$.
+
+        <strong>Solução.</strong> Os valores possíveis da soma vão de $2$ a $12$. Contando quantos pares $(d_1, d_2)$ produzem cada soma:
+        <list marker="dash">
+          <item>$x = 2$: $(1,1) \implies p(2) = 1/36$;</item>
+          <item>$x = 3$: $(1,2), (2,1) \implies p(3) = 2/36$;</item>
+          <item>$x = 4$: $(1,3), (2,2), (3,1) \implies p(4) = 3/36$;</item>
+          <item>$x = 5$: $4$ pares $\implies p(5) = 4/36$;</item>
+          <item>$x = 6$: $5$ pares $\implies p(6) = 5/36$;</item>
+          <item>$x = 7$: $(1,6), (2,5), (3,4), (4,3), (5,2), (6,1) \implies p(7) = 6/36 = 1/6$;</item>
+          <item>por simetria, $p(8) = 5/36$, $p(9) = 4/36$, $p(10) = 3/36$, $p(11) = 2/36$ e $p(12) = 1/36$.</item>
+        </list>
+        Conferindo a soma total: $\frac{1+2+3+4+5+6+5+4+3+2+1}{36} = \frac{36}{36} = 1$. Agora calculamos:
+        $$F(4) = P(X \le 4) = p(2) + p(3) + p(4) = \frac{1 + 2 + 3}{36} = \frac{6}{36} = \frac{1}{6} \approx 0{,}1667,$$
+        $$P(X \ge 10) = p(10) + p(11) + p(12) = \frac{3 + 2 + 1}{36} = \frac{6}{36} = \frac{1}{6} \approx 0{,}1667.$$
+        Veja como um espaço equiprovável ($\Omega$) gera naturalmente uma variável aleatória ($X$) com distribuição <em>não</em> uniforme!
+      </example>
+
+      Vamos conferir as contas do <ref to="exm:7-2-soma-dados"/> simulando $100\,000$ lançamentos de dois dados no <c>numpy</c>.
+
+      <code lang="python" id="cod:7-2-sim-dados">
+import numpy as np
+
+rng = np.random.default_rng(42)
+n_ensaios = 100_000
+
+d1 = rng.integers(1, 7, size=n_ensaios)
+d2 = rng.integers(1, 7, size=n_ensaios)
+soma = d1 + d2
+
+p7_sim = (soma == 7).mean()
+f4_sim = (soma <= 4).mean()
+p10_sim = (soma >= 10).mean()
+
+print(f"Simulado P(X = 7): {p7_sim:.4f}")   # aprox. 0.1667 (teórico: 1/6 ≈ 0.1667)
+print(f"Simulado F(4):     {f4_sim:.4f}")   # aprox. 0.1667 (teórico: 1/6 ≈ 0.1667)
+print(f"Simulado P(X>=10): {p10_sim:.4f}")  # aprox. 0.1667 (teórico: 1/6 ≈ 0.1667)
+      </code>
+
+      <exercise id="exr:7-2-1-1">
+        <title>Básico — Axiomas e independência na expressão gênica</title>
+        Em uma linhagem celular, dois genes $A$ e $B$ são ativados de maneira independente, com probabilidades $P(A) = 0{,}4$ e $P(B) = 0{,}3$ em cada célula sorteada ao acaso. Calcule:
+        <list marker="a">
+          <item>$P(A^c)$ (o gene $A$ não estar ativo);</item>
+          <item>$P(A \cap B)$ (ambos os genes ativos);</item>
+          <item>$P(A \cup B)$ (pelo menos um dos dois genes ativo);</item>
+          <item>a probabilidade de <em>nenhum</em> dos dois genes estar ativo.</item>
+        </list>
+        <hint><title>Ver dica</title>Use $P(A^c) = 1 - P(A)$, a definição de independência $P(A \cap B) = P(A)P(B)$ e a regra da união $P(A \cup B) = P(A) + P(B) - P(A \cap B)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pela regra do complemento: $P(A^c) = 1 - P(A) = 1 - 0{,}4 = 0{,}6$.</item>
+            <item>Como $A$ e $B$ são independentes: $P(A \cap B) = P(A)\,P(B) = 0{,}4 \cdot 0{,}3 = 0{,}12$.</item>
+            <item>Pela regra da união:
+              $$P(A \cup B) = P(A) + P(B) - P(A \cap B) = 0{,}4 + 0{,}3 - 0{,}12 = 0{,}58.$$
+            </item>
+            <item>"Nenhum dos dois ativo" é o complemento de "pelo menos um ativo":
+              $$P\bigl((A \cup B)^c\bigr) = 1 - P(A \cup B) = 1 - 0{,}58 = 0{,}42.$$
+              (Conferindo pela independência de $A^c$ e $B^c$: $0{,}6 \cdot 0{,}7 = 0{,}42$.)
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-2-1-2">
+        <title>Básico — Constante de normalização de uma pmf e função acumulada</title>
+        Uma variável aleatória discreta $X$ assume valores em $\{0, 1, 2, 3\}$ com função de probabilidade $p(0) = c$, $p(1) = 2c$, $p(2) = 2c$ e $p(3) = c$, em que $c$ é uma constante positiva.
+        <list marker="a">
+          <item>Encontre o valor de $c$ que torna $p$ uma pmf válida.</item>
+          <item>Calcule $F(1) = P(X \le 1)$ e $P(X \ge 2)$.</item>
+        </list>
+        <hint><title>Ver dica</title>Exija $\sum_{x=0}^3 p(x) = 1$ para determinar $c$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>A soma de todas as massas de probabilidade deve ser $1$:
+              $$p(0) + p(1) + p(2) + p(3) = c + 2c + 2c + c = 6c = 1 \implies c = \frac{1}{6}.$$
+              Logo, $p(0) = 1/6$, $p(1) = 2/6$, $p(2) = 2/6$ e $p(3) = 1/6$.
+            </item>
+            <item>Somando as probabilidades até $x = 1$:
+              $$F(1) = P(X \le 1) = p(0) + p(1) = \frac{1}{6} + \frac{2}{6} = \frac{3}{6} = 0{,}5.$$
+              Pelo complemento, $P(X \ge 2) = 1 - P(X \le 1) = 1 - 0{,}5 = 0{,}5$ (que também bate com $p(2) + p(3) = 2/6 + 1/6 = 0{,}5$).
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-2-1-3">
+        <title>Intermediário — Densidade contínua de latência pós-sináptica</title>
+        Suponha que a latência $T$ (em segundos) de abertura de um receptor pós-sináptico seja modelada no intervalo $[0;\; 0{,}5]\text{ s}$ pela função densidade:
+        $$f(t) = \begin{cases} k\,t, & 0 \le t \le 0{,}5, \\ 0, & \text{caso contrário.} \end{cases}$$
+        <list marker="a">
+          <item>Determine a constante $k$ para que $\int_{-\infty}^{+\infty} f(t)\,dt = 1$.</item>
+          <item>Obtenha a função de distribuição acumulada $F(t)$ para $0 \le t \le 0{,}5$.</item>
+          <item>Calcule $P(0{,}1 \le T \le 0{,}3)$ e $P(T = 0{,}25)$.</item>
+        </list>
+        <hint><title>Ver dica</title>Lembre da integral de Riemann $\int_0^t u\,du = t^2/2$. No item (c), você pode usar $F(0{,}3) - F(0{,}1)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Integrando $f(t)$ no suporte $[0;\; 0{,}5]$:
+              $$\int_{0}^{0{,}5} k\,t\,dt = k\left[\frac{t^2}{2}\right]_{0}^{0{,}5} = k\,\frac{0{,}25}{2} = 0{,}125\,k.$$
+              Igualando a $1$, obtemos $k = \frac{1}{0{,}125} = 8$. Note que em $t = 0{,}5$, $f(0{,}5) = 8 \cdot 0{,}5 = 4 > 1$, o que é perfeitamente válido para uma densidade!
+            </item>
+            <item>Para $0 \le t \le 0{,}5$:
+              $$F(t) = \int_{0}^{t} 8u\,du = \bigl[4u^2\bigr]_{0}^{t} = 4t^2.$$
+              (Para $t < 0$, $F(t) = 0$; para $t > 0{,}5$, $F(t) = 1$.)
+            </item>
+            <item>Pela definição da cdf:
+              $$P(0{,}1 \le T \le 0{,}3) = F(0{,}3) - F(0{,}1) = 4(0{,}3)^2 - 4(0{,}1)^2 = 4(0{,}09 - 0{,}01) = 0{,}32.$$
+              Como $T$ é contínua, a probabilidade pontual é $P(T = 0{,}25) = 0$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-2-1-4">
+        <title>Avançado — Simulação de dois canais iônicos independentes em Python</title>
+        Considere um pequeno trecho de membrana com dois canais iônicos independentes: o canal $1$ abre com probabilidade $p_1 = 0{,}3$ e o canal $2$ abre com probabilidade $p_2 = 0{,}5$. Seja $X \in \{0, 1, 2\}$ o número de canais abertos num instante sorteado.
+        <list marker="a">
+          <item>Calcule à mão a pmf exata $p(0)$, $p(1)$ e $p(2)$, além de $P(X \ge 1)$.</item>
+          <item>Escreva um código em Python usando <c>rng = np.random.default_rng(42)</c> para simular $100\,000$ observações independentes dos dois canais e conferir as quatro probabilidades.</item>
+        </list>
+        <hint><title>Ver dica</title>Para $X = 1$, existem dois casos disjuntos: "canal 1 aberto e canal 2 fechado" ou "canal 1 fechado e canal 2 aberto". No código, <c>rng.random(n) &lt; p</c> gera booleanos com probabilidade <c>p</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pela independência dos canais:
+              <list marker="dash">
+                <item>$p(0) = (1 - 0{,}3)(1 - 0{,}5) = 0{,}7 \cdot 0{,}5 = 0{,}35$;</item>
+                <item>$p(1) = 0{,}3 \cdot (1 - 0{,}5) + (1 - 0{,}3) \cdot 0{,}5 = 0{,}15 + 0{,}35 = 0{,}50$;</item>
+                <item>$p(2) = 0{,}3 \cdot 0{,}5 = 0{,}15$.</item>
+              </list>
+              Conferindo a soma: $0{,}35 + 0{,}50 + 0{,}15 = 1{,}00$. Pelo complemento, $P(X \ge 1) = 1 - p(0) = 0{,}65$.
+            </item>
+            <item>Código de simulação e conferência:
+              <code lang="python" numbered="false">
+import numpy as np
+
+rng = np.random.default_rng(42)
+n = 100_000
+
+canal_1 = (rng.random(n) < 0.3).astype(int)
+canal_2 = (rng.random(n) < 0.5).astype(int)
+x = canal_1 + canal_2
+
+print(f"p(0) sim: {(x == 0).mean():.4f}")      # aprox. 0.3500 (teórico: 0.35)
+print(f"p(1) sim: {(x == 1).mean():.4f}")      # aprox. 0.5000 (teórico: 0.50)
+print(f"p(2) sim: {(x == 2).mean():.4f}")      # aprox. 0.1500 (teórico: 0.15)
+print(f"P(X>=1):  {(x >= 1).mean():.4f}")      # aprox. 0.6500 (teórico: 0.65)
+              </code>
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:7-2-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Esperança e variância</title>
+      <intro>
+        Uma distribuição inteira traz muita informação, mas quase sempre queremos resumi-la em dois números: onde os valores se concentram em média e o quanto eles oscilam ao redor desse centro.
+      </intro>
+
+      Imagine colocar pesos proporcionais às probabilidades $p(x)$ sobre uma régua graduada nos valores $x$. O ponto exato onde você precisa apoiar o dedo para a régua ficar equilibrada na horizontal é a <strong>esperança matemática</strong> (<em>expected value</em>) $\mathbb{E}[X]$ — o centro de massa da distribuição. Ela também tem uma leitura temporal direta: se você repetir o experimento milhares de vezes de forma independente e tirar a média aritmética dos resultados, essa média amostral se aproxima de $\mathbb{E}[X]$ (fato que formalizaremos no tema de <mark>Convergências</mark>).
+
+      Mas dois neurônios podem disparar em média $20\text{ spikes/s}$ e ter comportamentos completamente opostos: um bate quase como um relógio entre $19$ e $21\text{ spikes/s}$, enquanto outro alterna rajadas de $40$ com silêncios de $0$. Para capturar esse espalhamento, medimos a média dos desvios ao quadrado em relação ao centro — a <strong>variância</strong>.
+
+      <definition id="def:7-2-esperanca">
+        <title>Esperança matemática</title>
+        Seja $X$ uma variável aleatória. Sua <strong>esperança</strong> (ou valor esperado, ou média populacional $\mu$) é definida por:
+        $$\mathbb{E}[X] = \begin{cases} \displaystyle\sum_{x} x \, p(x), & \text{se } X \text{ é discreta com pmf } p(x), \\[10pt] \displaystyle\int_{-\infty}^{+\infty} x \, f(x)\,dx, & \text{se } X \text{ é contínua com pdf } f(x), \end{cases}$$
+        desde que a soma ou integral dos valores absolutos seja finita. Mais geralmente, para qualquer função $g(X)$ (como $g(X) = X^2$), temos:
+        $$\mathbb{E}[g(X)] = \sum_x g(x)\,p(x) \qquad \text{ou} \qquad \mathbb{E}[g(X)] = \int_{-\infty}^{+\infty} g(x)\,f(x)\,dx.$$
+      </definition>
+
+      Por que elevamos os desvios $X - \mu$ ao quadrado na variância, em vez de apenas calcular $\mathbb{E}[X - \mu]$? Porque os desvios positivos e negativos se cancelam exatamente: $\mathbb{E}[X - \mu] = \mathbb{E}[X] - \mu = 0$ sempre! Elevar ao quadrado torna todos os desvios não negativos e penaliza desvios grandes.
+
+      <definition id="def:7-2-variancia">
+        <title>Variância e desvio-padrão</title>
+        Seja $X$ uma variável aleatória com esperança $\mu = \mathbb{E}[X]$. A <strong>variância</strong> de $X$ é:
+        $$\operatorname{Var}(X) = \sigma^2 = \mathbb{E}\bigl[(X - \mu)^2\bigr].$$
+        O <strong>desvio-padrão</strong> (<em>standard deviation</em>) é a raiz quadrada não negativa da variância:
+        $$\sigma = \sqrt{\operatorname{Var}(X)}.$$
+        <intuition>
+          A variância sai sempre na unidade original <em>ao quadrado</em> (por exemplo, $\text{mV}^2$ ou $\text{spikes}^2$). Tirar a raiz quadrada devolve o desvio-padrão $\sigma$ para a unidade original da medida ($\text{mV}$ ou $\text{spikes}$), permitindo compará-lo diretamente com $\mu$.
+        </intuition>
+      </definition>
+
+      Na prática, calcular $\mathbb{E}[(X - \mu)^2]$ diretamente dá trabalho quando $\mu$ é uma fração chata. Uma identidade algébrica simples transforma essa conta em algo bem mais rápido.
+
+      <proposition id="prop:7-2-var-atalho">
+        <title>Fórmula prática da variância</title>
+        Para toda variável aleatória $X$ com segundo momento finito, vale:
+        $$\operatorname{Var}(X) = \mathbb{E}[X^2] - \bigl(\mathbb{E}[X]\bigr)^2.$$
+      </proposition>
+      <proof of="prop:7-2-var-atalho" collapsible="true" collapsed="true">
+        Seja $\mu = \mathbb{E}[X]$. Expandindo o quadrado dentro da esperança e usando o fato de que somas e integrais distribuem sobre combinações lineares:
+        $$\begin{aligned} \operatorname{Var}(X) &= \mathbb{E}\bigl[(X - \mu)^2\bigr] = \mathbb{E}[X^2 - 2\mu X + \mu^2] \\ &= \mathbb{E}[X^2] - 2\mu\,\mathbb{E}[X] + \mu^2 \\ &= \mathbb{E}[X^2] - 2\mu^2 + \mu^2 = \mathbb{E}[X^2] - \mu^2 = \mathbb{E}[X^2] - \bigl(\mathbb{E}[X]\bigr)^2. \end{aligned}$$
+        Note que $\operatorname{Var}(X) \ge 0$ por definição, o que garante sempre $\mathbb{E}[X^2] \ge (\mathbb{E}[X])^2$.
+      </proof>
+
+      Um dos superpoderes da esperança é a <strong>linearidade</strong>: ela funciona até quando as variáveis são dependentes entre si. Já a variância exige cuidado redobrado com constantes multiplicativas e com independência.
+
+      <proposition id="prop:7-2-propriedades-esp-var">
+        <title>Propriedades da esperança e da variância</title>
+        Sejam $X$ e $Y$ variáveis aleatórias e $a, b \in \mathbb{R}$ constantes. Valem:
+        <list marker="number">
+          <item><strong>Transformação afim da esperança:</strong> $\mathbb{E}[aX + b] = a\,\mathbb{E}[X] + b$;</item>
+          <item><strong>Transformação afim da variância:</strong> $\operatorname{Var}(aX + b) = a^2 \operatorname{Var}(X)$; em particular, o desvio-padrão escala por $|a|$ ($\sigma_{aX+b} = |a|\sigma_X$);</item>
+          <item><strong>Linearidade da esperança (sempre válida):</strong> $\mathbb{E}[X + Y] = \mathbb{E}[X] + \mathbb{E}[Y]$;</item>
+          <item><strong>Aditividade da variância (sob independência):</strong> se $X$ e $Y$ são independentes (ou seja, $P(X \in A, Y \in B) = P(X \in A)P(Y \in B)$, o que implica $\mathbb{E}[XY] = \mathbb{E}[X]\mathbb{E}[Y]$), então:
+            $$\operatorname{Var}(X + Y) = \operatorname{Var}(X) + \operatorname{Var}(Y).$$
+          </item>
+        </list>
+      </proposition>
+      <proof of="prop:7-2-propriedades-esp-var" collapsible="true" collapsed="true">
+        Para o item 1, no caso discreto (o contínuo é idêntico trocando $\sum$ por $\int$):
+        $$\mathbb{E}[aX + b] = \sum_x (ax + b)\,p(x) = a\sum_x x\,p(x) + b\sum_x p(x) = a\,\mathbb{E}[X] + b \cdot 1.$$
+        Para o item 2, seja $\mu = \mathbb{E}[X]$. Pelo item 1, a média de $Y = aX + b$ é $\mu_Y = a\mu + b$. Logo:
+        $$\operatorname{Var}(aX + b) = \mathbb{E}\bigl[((aX + b) - (a\mu + b))^2\bigr] = \mathbb{E}\bigl[a^2(X - \mu)^2\bigr] = a^2\operatorname{Var}(X).$$
+        Para o item 3, $\mathbb{E}[X + Y] = \sum_x \sum_y (x+y)p(x,y) = \sum_x x \sum_y p(x,y) + \sum_y y \sum_x p(x,y) = \mathbb{E}[X] + \mathbb{E}[Y]$, decorrendo da distributividade da soma sem exigir independência.
+        Para o item 4, supondo $X$ e $Y$ independentes com médias $\mu_X$ e $\mu_Y$, escrevemos $\tilde{X} = X - \mu_X$ e $\tilde{Y} = Y - \mu_Y$ (ambas de média zero). Como $\tilde{X}$ e $\tilde{Y}$ também são independentes, $\mathbb{E}[\tilde{X}\tilde{Y}] = \mathbb{E}[\tilde{X}]\mathbb{E}[\tilde{Y}] = 0$. Assim:
+        $$\operatorname{Var}(X + Y) = \mathbb{E}\bigl[(\tilde{X} + \tilde{Y})^2\bigr] = \mathbb{E}[\tilde{X}^2] + 2\mathbb{E}[\tilde{X}\tilde{Y}] + \mathbb{E}[\tilde{Y}^2] = \operatorname{Var}(X) + 0 + \operatorname{Var}(Y).$$
+      </proof>
+
+      <remark id="rem:7-2-armadilha-var">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Esquecer de elevar $a$ ao quadrado na variância:</strong> $\operatorname{Var}(2X) = 4\operatorname{Var}(X)$, e não $2\operatorname{Var}(X)$. Além disso, somar uma constante $b$ desloca toda a distribuição junto com a média, sem espalhá-la nem um milímetro: $\operatorname{Var}(X + b) = \operatorname{Var}(X)$.</item>
+          <item><strong>Subtrair variâncias em $X - Y$:</strong> se $X$ e $Y$ são independentes, qual é $\operatorname{Var}(X - Y)$? Escreva $X - Y = X + (-1)Y$ e aplique as propriedades 2 e 4 da <ref to="prop:7-2-propriedades-esp-var"/>:
+            $$\operatorname{Var}(X - Y) = \operatorname{Var}(X) + (-1)^2 \operatorname{Var}(Y) = \operatorname{Var}(X) + \operatorname{Var}(Y).$$
+            Subtrair duas medidas independentes ruidosas <em>soma</em> as variâncias — o ruído nunca cancela por si só!</item>
+        </list>
+      </remark>
+
+      <example id="exm:7-2-dado-esperanca-var">
+        <title>Esperança e variância de um dado justo</title>
+        Seja $X \in \{1, 2, 3, 4, 5, 6\}$ o resultado do lançamento de um dado justo ($p(x) = 1/6$ para todo $x$). Calcule $\mathbb{E}[X]$, $\operatorname{Var}(X)$ e o desvio-padrão $\sigma$.
+
+        <strong>Solução.</strong> Pela definição de esperança:
+        $$\mathbb{E}[X] = \sum_{x=1}^6 x \cdot \frac{1}{6} = \frac{1 + 2 + 3 + 4 + 5 + 6}{6} = \frac{21}{6} = \frac{7}{2} = 3{,}5.$$
+        Observe que $3{,}5$ nem sequer é um valor possível do dado — a esperança é o centro de equilíbrio, não necessariamente um resultado observável. Agora calculamos $\mathbb{E}[X^2]$:
+        $$\mathbb{E}[X^2] = \sum_{x=1}^6 x^2 \cdot \frac{1}{6} = \frac{1 + 4 + 9 + 16 + 25 + 36}{6} = \frac{91}{6}.$$
+        Aplicando a <ref to="prop:7-2-var-atalho"/>:
+        $$\operatorname{Var}(X) = \mathbb{E}[X^2] - \bigl(\mathbb{E}[X]\bigr)^2 = \frac{91}{6} - \left(\frac{7}{2}\right)^2 = \frac{91}{6} - \frac{49}{4} = \frac{182 - 147}{12} = \frac{35}{12} \approx 2{,}9167.$$
+        Logo, o desvio-padrão vale $\sigma = \sqrt{35/12} \approx 1{,}7078$.
+      </example>
+
+      <example id="exm:7-2-conversao-mv-v">
+        <title>Mudança de unidade no potencial de membrana: de $\text{mV}^2$ para $\text{V}^2$</title>
+        Ao registrar o potencial de membrana $V_{\text{mV}}$ de um neurônio em repouso, obtemos $\mathbb{E}[V_{\text{mV}}] = -70\text{ mV}$ e $\operatorname{Var}(V_{\text{mV}}) = 4\text{ mV}^2$ (logo $\sigma_{\text{mV}} = 2\text{ mV}$).
+        <list marker="a">
+          <item>Converta a esperança, a variância e o desvio-padrão para volts ($\text{V}$), usando $V_{\text{V}} = 10^{-3}\,V_{\text{mV}}$.</item>
+          <item>Se definirmos o desvio em relação ao repouso nominal como $D = V_{\text{mV}} + 70$ (em $\text{mV}$), quais são $\mathbb{E}[D]$ e $\operatorname{Var}(D)$?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Aqui $V_{\text{V}} = a V_{\text{mV}} + b$ com $a = 10^{-3}$ e $b = 0$. Pela <ref to="prop:7-2-propriedades-esp-var"/>:
+            $$\mathbb{E}[V_{\text{V}}] = 10^{-3} \cdot (-70) = -0{,}070\text{ V},$$
+            $$\operatorname{Var}(V_{\text{V}}) = (10^{-3})^2 \cdot 4 = 10^{-6} \cdot 4 = 4 \times 10^{-6}\text{ V}^2.$$
+            Tirando a raiz quadrada, o desvio-padrão fica $\sigma_{\text{V}} = \sqrt{4 \times 10^{-6}} = 2 \times 10^{-3}\text{ V} = 0{,}002\text{ V}$, que corresponde exatamente a $2\text{ mV}$.
+          </item>
+          <item>Para $D = 1 \cdot V_{\text{mV}} + 70$ ($a = 1, b = 70$):
+            $$\mathbb{E}[D] = -70 + 70 = 0\text{ mV}, \qquad \operatorname{Var}(D) = 1^2 \cdot \operatorname{Var}(V_{\text{mV}}) = 4\text{ mV}^2.$$
+            Mudar a referência zero centraliza a média, mas mantém intacta a variabilidade do registro.
+          </item>
+        </list>
+      </example>
+
+      No bloco abaixo, simulamos $100\,000$ lançamentos do dado e $100\,000$ medidas ruidosas de potencial de membrana para conferir $\mathbb{E}[X]$, $\operatorname{Var}(X)$ e a conversão $\text{mV}^2 \to \text{V}^2$.
+
+      <code lang="python" id="cod:7-2-sim-esperanca">
+import numpy as np
+
+rng = np.random.default_rng(42)
+n = 100_000
+
+# 1. Conferência do dado justo
+dados = rng.integers(1, 7, size=n)
+print(f"Dado — E[X] sim:   {dados.mean():.4f}")  # aprox. 3.5000 (teórico: 3.5)
+print(f"Dado — Var(X) sim: {dados.var():.4f}")   # aprox. 2.9167 (teórico: 35/12 ≈ 2.9167)
+
+# 2. Conversão de mV para V em medidas de potencial de membrana
+v_mv = rng.normal(loc=-70.0, scale=2.0, size=n)
+v_volts = 1e-3 * v_mv
+
+print(f"V (mV) — média: {v_mv.mean():.4f}, var: {v_mv.var():.4f}")      # aprox. -70.0000, aprox. 4.0000
+print(f"V (V)  — média: {v_volts.mean():.4f}, var: {v_volts.var():.2e}")  # aprox. -0.0700, aprox. 4.00e-06
+      </code>
+
+      <exercise id="exr:7-2-2-1">
+        <title>Básico — Esperança e variância de contagem discreta de vesículas</title>
+        Numa sinapse pequena com no máximo $2$ vesículas liberadas por estímulo, seja $X \in \{0, 1, 2\}$ a contagem observada, com $p(0) = 0{,}5$, $p(1) = 0{,}3$ e $p(2) = 0{,}2$. Calcule $\mathbb{E}[X]$, $\mathbb{E}[X^2]$, $\operatorname{Var}(X)$ e $\sigma$.
+        <hint><title>Ver dica</title>Calcule primeiro $\mathbb{E}[X] = \sum x p(x)$ e $\mathbb{E}[X^2] = \sum x^2 p(x)$, depois aplique $\operatorname{Var}(X) = \mathbb{E}[X^2] - (\mathbb{E}[X])^2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Calculamos a esperança e o segundo momento:
+          $$\mathbb{E}[X] = 0(0{,}5) + 1(0{,}3) + 2(0{,}2) = 0{,}3 + 0{,}4 = 0{,}7\text{ vesículas},$$
+          $$\mathbb{E}[X^2] = 0^2(0{,}5) + 1^2(0{,}3) + 2^2(0{,}2) = 0{,}3 + 0{,}8 = 1{,}1.$$
+          Pela fórmula prática da variância:
+          $$\operatorname{Var}(X) = 1{,}1 - (0{,}7)^2 = 1{,}1 - 0{,}49 = 0{,}61\text{ vesículas}^2.$$
+          Logo, o desvio-padrão é $\sigma = \sqrt{0{,}61} \approx 0{,}781\text{ vesículas}$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-2-2-2">
+        <title>Intermediário — Montagem bipolar de EEG e mudança de unidade</title>
+        Em um registro de eletroencefalograma (EEG), dois eletrodos independentes $E_1$ e $E_2$ medem potenciais (em $\mu\text{V}$) com $\mathbb{E}[E_1] = 10\,\mu\text{V}$, $\operatorname{Var}(E_1) = 9\,\mu\text{V}^2$, $\mathbb{E}[E_2] = 4\,\mu\text{V}$ e $\operatorname{Var}(E_2) = 16\,\mu\text{V}^2$.
+        <list marker="a">
+          <item>Para o sinal bipolar $D = E_1 - E_2$, calcule $\mathbb{E}[D]$, $\operatorname{Var}(D)$ e $\sigma_D$.</item>
+          <item>Converta $\mathbb{E}[D]$, $\operatorname{Var}(D)$ e $\sigma_D$ para milivolts ($D_{\text{mV}} = 10^{-3} D$).</item>
+        </list>
+        <hint><title>Ver dica</title>Use $D = E_1 + (-1)E_2$ e lembre que $(-1)^2 = +1$ ao aplicar a aditividade da variância para variáveis independentes.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pela linearidade da esperança:
+              $$\mathbb{E}[D] = \mathbb{E}[E_1] - \mathbb{E}[E_2] = 10 - 4 = 6\,\mu\text{V}.$$
+              Como $E_1$ e $E_2$ são independentes:
+              $$\operatorname{Var}(D) = \operatorname{Var}(E_1) + (-1)^2\operatorname{Var}(E_2) = 9 + 16 = 25\,\mu\text{V}^2.$$
+              Portanto, $\sigma_D = \sqrt{25} = 5\,\mu\text{V}$.
+            </item>
+            <item>Multiplicando por $a = 10^{-3}$:
+              $$\mathbb{E}[D_{\text{mV}}] = 10^{-3} \cdot 6 = 0{,}006\text{ mV},$$
+              $$\operatorname{Var}(D_{\text{mV}}) = (10^{-3})^2 \cdot 25 = 25 \times 10^{-6} = 2{,}5 \times 10^{-5}\text{ mV}^2,$$
+              $$\sigma_{D,\text{mV}} = 10^{-3} \cdot 5 = 0{,}005\text{ mV}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-2-2-3">
+        <title>Intermediário — Esperança e variância por integral</title>
+        Uma variável aleatória contínua $X$ tem densidade $f(x) = \dfrac{x}{2}$ para $0 \le x \le 2$ e $f(x) = 0$ fora desse intervalo.
+        <list marker="a">
+          <item>Verifique que $\int_0^2 f(x)\,dx = 1$.</item>
+          <item>Calcule $\mathbb{E}[X]$, $\mathbb{E}[X^2]$ e $\operatorname{Var}(X)$.</item>
+        </list>
+        <hint><title>Ver dica</title>Integre $\int_0^2 x \cdot (x/2)\,dx$ para $\mathbb{E}[X]$ e $\int_0^2 x^2 \cdot (x/2)\,dx$ para $\mathbb{E}[X^2]$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Integrando no intervalo $[0, 2]$:
+              $$\int_0^2 \frac{x}{2}\,dx = \left[\frac{x^2}{4}\right]_0^2 = \frac{4}{4} - 0 = 1.$$
+            </item>
+            <item>Calculamos os dois primeiros momentos:
+              $$\mathbb{E}[X] = \int_0^2 x \cdot \frac{x}{2}\,dx = \int_0^2 \frac{x^2}{2}\,dx = \left[\frac{x^3}{6}\right]_0^2 = \frac{8}{6} = \frac{4}{3} \approx 1{,}3333,$$
+              $$\mathbb{E}[X^2] = \int_0^2 x^2 \cdot \frac{x}{2}\,dx = \int_0^2 \frac{x^3}{2}\,dx = \left[\frac{x^4}{8}\right]_0^2 = \frac{16}{8} = 2.$$
+              Logo, pela fórmula prática da variância:
+              $$\operatorname{Var}(X) = 2 - \left(\frac{4}{3}\right)^2 = 2 - \frac{16}{9} = \frac{2}{9} \approx 0{,}2222.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-2-2-4">
+        <title>Avançado — Conferindo a variância da diferença em Python</title>
+        Retome os eletrodos independentes do <ref to="exr:7-2-2-2"/>: $E_1$ com média $10\,\mu\text{V}$ e desvio-padrão $3\,\mu\text{V}$ ($\operatorname{Var} = 9$), e $E_2$ com média $4\,\mu\text{V}$ e desvio-padrão $4\,\mu\text{V}$ ($\operatorname{Var} = 16$). Escreva um script com <c>rng = np.random.default_rng(42)</c> que gere $100\,000$ amostras normais de $E_1$ e $E_2$, calcule $D = E_1 - E_2$ e $D_{\text{mV}} = 10^{-3} D$, e verifique numericamente que $\operatorname{Var}(E_1 - E_2) \approx 9 + 16 = 25\,\mu\text{V}^2$ e $\operatorname{Var}(D_{\text{mV}}) \approx 2{,}5 \times 10^{-5}\text{ mV}^2$.
+        <hint><title>Ver dica</title>Use <c>rng.normal(loc=..., scale=..., size=100_000)</c> passando os desvios-padrão ($3$ e $4$), e lembre de usar <c>.mean()</c> e <c>.var()</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+
+rng = np.random.default_rng(42)
+n = 100_000
+
+e1 = rng.normal(loc=10.0, scale=3.0, size=n)
+e2 = rng.normal(loc=4.0, scale=4.0, size=n)
+
+d_uv = e1 - e2
+d_mv = 1e-3 * d_uv
+
+print(f"E[D] (uV):    {d_uv.mean():.4f}")   # aprox. 6.0000 (teórico: 6.0)
+print(f"Var(D) (uV2): {d_uv.var():.4f}")    # aprox. 25.0000 (teórico: 9 + 16 = 25.0)
+print(f"Var(D) (mV2): {d_mv.var():.2e}")    # aprox. 2.50e-05 (teórico: 2.50e-05)
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:7-2-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Distribuições discretas: Bernoulli, binomial e Poisson</title>
+      <intro>
+        Na natureza, três padrões de contagem aparecem sem parar: um evento binário do tipo "sim ou não", o número de sucessos em $n$ tentativas repetidas e o número de eventos raros acumulados numa janela de tempo.
+      </intro>
+
+      Em vez de deduzir uma pmf do zero para cada experimento novo, a estatística catalogou famílias de distribuições que modelam mecanismos físicos e biológicos universais. Começamos pelo tijolo mais simples de todos: um único teste binário ("disparou" ou "não disparou", "vesícula liberada" ou "falhou", "canal aberto" ou "fechado").
+
+      <definition id="def:7-2-bernoulli">
+        <title>Distribuição de Bernoulli</title>
+        Dizemos que $X$ segue uma <strong>distribuição de Bernoulli</strong> com parâmetro $p \in [0, 1]$, e escrevemos $X \sim \text{Bernoulli}(p)$, quando $X$ assume apenas os valores $1$ ("sucesso") e $0$ ("fracasso") com probabilidades:
+        $$p(1) = P(X = 1) = p \qquad \text{e} \qquad p(0) = P(X = 0) = 1 - p.$$
+        Sua esperança e variância valem:
+        $$\mathbb{E}[X] = p \qquad \text{e} \qquad \operatorname{Var}(X) = p(1 - p).$$
+      </definition>
+
+      Confira rapidinho a esperança e a variância da Bernoulli: $\mathbb{E}[X] = 1 \cdot p + 0 \cdot (1 - p) = p$, e como $X^2 = X$ para $X \in \{0, 1\}$, temos $\mathbb{E}[X^2] = p$, logo $\operatorname{Var}(X) = p - p^2 = p(1 - p)$. Note que a variância é zero quando $p = 0$ ou $p = 1$ (certeza absoluta) e atinge seu máximo em $p = 0{,}5$ (incerteza máxima).
+
+      Agora repita esse mesmo ensaio de Bernoulli $n$ vezes de forma <strong>independente</strong>, sempre com a mesma probabilidade $p$ de sucesso, e conte o total de sucessos $X$. Como vimos na fórmula binomial antecipada no tema anterior (<mark>Combinatória</mark>), há $\binom{n}{k}$ sequências com exatamente $k$ sucessos e $n - k$ fracassos, cada qual com probabilidade $p^k (1 - p)^{n-k}$.
+
+      <definition id="def:7-2-binomial">
+        <title>Distribuição binomial</title>
+        Dizemos que $X$ segue uma <strong>distribuição binomial</strong> com parâmetros $n \in \{1, 2, \dots\}$ e $p \in [0, 1]$, e escrevemos $X \sim \text{Binomial}(n, p)$, quando $X \in \{0, 1, \dots, n\}$ tem pmf:
+        $$P(X = k) = \binom{n}{k} p^k (1 - p)^{n - k}, \qquad k = 0, 1, \dots, n.$$
+      </definition>
+
+      <proposition id="prop:7-2-esp-var-binomial">
+        <title>Esperança e variância da binomial</title>
+        Se $X \sim \text{Binomial}(n, p)$, então:
+        $$\mathbb{E}[X] = np \qquad \text{e} \qquad \operatorname{Var}(X) = np(1 - p).$$
+      </proposition>
+      <proof of="prop:7-2-esp-var-binomial" collapsible="true" collapsed="true">
+        Escreva $X$ como a soma de $n$ variáveis de Bernoulli independentes e identicamente distribuídas:
+        $$X = X_1 + X_2 + \dots + X_n, \qquad X_i \sim \text{Bernoulli}(p).$$
+        Pela linearidade da esperança e pela aditividade da variância para variáveis independentes (<ref to="prop:7-2-propriedades-esp-var"/>):
+        $$\mathbb{E}[X] = \sum_{i=1}^n \mathbb{E}[X_i] = \sum_{i=1}^n p = np,$$
+        $$\operatorname{Var}(X) = \sum_{i=1}^n \operatorname{Var}(X_i) = \sum_{i=1}^n p(1 - p) = np(1 - p).$$
+        Perceba como usar a soma de Bernoullis evita qualquer somatório pesado com fatoriais!
+      </proof>
+
+      O que acontece se dividirmos uma janela contínua de tempo (digamos, $200\text{ ms}$ de registro cortical) em $n$ fatias minúsculas de $0{,}1\text{ ms}$, de modo que em cada fatia o neurônio dispare no máximo $1$ spike com probabilidade $p$ minúscula, mas a média esperada de spikes na janela inteira permaneça fixa em $\lambda = np$?
+
+      Quando $n \to \infty$ e $p = \lambda/n \to 0$, o termo de fracassos consecutivos $(1 - p)^n = (1 - \lambda/n)^n$ converge para $e^{-\lambda}$ — exatamente o limite exponencial fundamental que você viu no Módulo 2 (<mark>Cálculo Real</mark>)! Fazendo a mesma passagem ao limite para qualquer número $k$ de eventos, a binomial transforma-se na <strong>distribuição de Poisson</strong>, o modelo padrão para contagens de eventos discretos ocorrendo a uma taxa média constante e independente ao longo do tempo ou do espaço.
+
+      <definition id="def:7-2-poisson">
+        <title>Distribuição de Poisson</title>
+        Dizemos que $X$ segue uma <strong>distribuição de Poisson</strong> com parâmetro de taxa média $\lambda > 0$, e escrevemos $X \sim \text{Poisson}(\lambda)$, quando $X \in \{0, 1, 2, \dots\}$ tem pmf:
+        $$P(X = k) = \frac{e^{-\lambda} \lambda^k}{k!}, \qquad k = 0, 1, 2, \dots$$
+      </definition>
+
+      <proposition id="prop:7-2-esp-var-poisson">
+        <title>Esperança, variância e fator de Fano da Poisson</title>
+        Para $X \sim \text{Poisson}(\lambda)$, a esperança e a variância coincidem numericamente:
+        $$\mathbb{E}[X] = \lambda \qquad \text{e} \qquad \operatorname{Var}(X) = \lambda.$$
+        Por isso, a razão adimensional chamada <strong>fator de Fano</strong> (<em>Fano factor</em>), definida por $\mathrm{FF} = \dfrac{\operatorname{Var}(X)}{\mathbb{E}[X]}$, vale exatamente $1$ para um processo de Poisson puro.
+      </proposition>
+      <proof of="prop:7-2-esp-var-poisson" collapsible="true" collapsed="true">
+        Para verificar $\mathbb{E}[X] = \lambda$, partimos da definição de esperança e descartamos o termo $k = 0$ (que vale zero):
+        $$\mathbb{E}[X] = \sum_{k=0}^{\infty} k \, \frac{e^{-\lambda}\lambda^k}{k!} = \sum_{k=1}^{\infty} \frac{e^{-\lambda}\lambda^k}{(k - 1)!} = \lambda e^{-\lambda} \sum_{k=1}^{\infty} \frac{\lambda^{k-1}}{(k - 1)!}.$$
+        Mudando o índice para $j = k - 1$, reconhecemos a série de Taylor da exponencial $e^{\lambda} = \sum_{j=0}^{\infty} \frac{\lambda^j}{j!}$:
+        $$\mathbb{E}[X] = \lambda e^{-\lambda} \cdot e^{\lambda} = \lambda.$$
+        De modo análogo, calculando $\mathbb{E}[X(X - 1)] = \lambda^2$, segue que $\mathbb{E}[X^2] = \lambda^2 + \lambda$ e $\operatorname{Var}(X) = (\lambda^2 + \lambda) - \lambda^2 = \lambda$.
+      </proof>
+
+      Em neurociência computacional (Dayan &amp; Abbott, 2001), o fator de Fano é a régua clássica para avaliar a regularidade de trens de potenciais de ação entre ensaios idênticos: um neurônio com $\mathrm{FF} \approx 1$ comporta-se como um gerador de Poisson; $\mathrm{FF} < 1$ indica disparos mais regulares que o acaso (por exemplo, por influência do período refratário); e $\mathrm{FF} > 1$ sugere rajadas (<em>bursts</em>) ou flutuações lentas de excitabilidade da rede.
+
+      A <ref to="fig:7-2-distribuicoes"/> reúne lado a lado as duas distribuições discretas desta seção (nos painéis superiores) e duas distribuições contínuas que veremos na seção seguinte (nos painéis inferiores), todas aplicadas a parâmetros neurobiológicos realistas.
+
+      <figure src="fig/distribuicoes.svg" alt="Grade 2 por 2 mostrando: no alto à esquerda, pmf da Binomial(10; 0,3); no alto à direita, pmf da Poisson(4); embaixo à esquerda, pdf da Exponencial com taxa 20 Hz em ms; embaixo à direita, pdf da Normal N(-70, 2 ao quadrado) em mV" id="fig:7-2-distribuicoes">
+        <caption>Quatro distribuições centrais em neurociência computacional. Em cima: modelos discretos para liberação quântica sináptica (Binomial) e contagem de spikes (Poisson). Embaixo: modelos contínuos para intervalos entre spikes (Exponencial) e ruído de potencial de membrana (Normal), analisados na Seção 4.</caption>
+      </figure>
+
+      <example id="exm:7-2-katz">
+        <title>Liberação quântica de neurotransmissor (hipótese de Katz)</title>
+        Segundo a hipótese quântica de Bernard Katz (Katz, 1969), um terminal pré-sináptico possui $n$ sítios ativos de liberação que respondem de maneira independente à chegada de um potencial de ação. Suponha uma sinapse com $n = 10$ sítios, onde cada sítio libera uma vesícula (um "quantum") com probabilidade $p = 0{,}3$. Seja $X$ o número total de vesículas liberadas em um disparo pré-sináptico.
+        <list marker="a">
+          <item>Calcule o número médio esperado de vesículas liberadas $\mathbb{E}[X]$ e a variância $\operatorname{Var}(X)$.</item>
+          <item>Qual é a probabilidade de falha sináptica total ($X = 0$, nenhuma vesícula liberada)?</item>
+          <item>Qual é a probabilidade de liberar exatamente a média ($X = 3$ vesículas)?</item>
+        </list>
+
+        <strong>Solução.</strong> Como temos $n = 10$ sítios independentes com probabilidade fixa $p = 0{,}3$, vale $X \sim \text{Binomial}(10;\; 0{,}3)$ (painel superior esquerdo da <ref to="fig:7-2-distribuicoes"/>).
+        <list marker="a">
+          <item>Pela <ref to="prop:7-2-esp-var-binomial"/>:
+            $$\mathbb{E}[X] = np = 10 \cdot 0{,}3 = 3\text{ vesículas},$$
+            $$\operatorname{Var}(X) = np(1 - p) = 10 \cdot 0{,}3 \cdot 0{,}7 = 2{,}1\text{ vesículas}^2 \quad (\sigma = \sqrt{2{,}1} \approx 1{,}45).$$
+          </item>
+          <item>Para $X = 0$, todos os $10$ sítios precisam falhar simultaneamente ($1 - p = 0{,}7$):
+            $$P(X = 0) = \binom{10}{0}(0{,}3)^0 (0{,}7)^{10} = 1 \cdot 1 \cdot 0{,}7^{10} \approx 0{,}0282 \quad (2{,}82\%).$$
+          </item>
+          <item>Para $X = 3$, temos $\binom{10}{3} = \frac{10 \cdot 9 \cdot 8}{3 \cdot 2 \cdot 1} = 120$:
+            $$P(X = 3) = 120 \cdot (0{,}3)^3 \cdot (0{,}7)^7 = 120 \cdot 0{,}027 \cdot 0{,}0823543 \approx 0{,}2668 \quad (26{,}68\%).$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:7-2-poisson-spikes">
+        <title>Contagem de spikes de um neurônio a $20\text{ Hz}$ numa janela de $200\text{ ms}$</title>
+        Um neurônio cortical dispara como um processo de Poisson com taxa média constante $r = 20\text{ Hz}$ ($20$ potenciais de ação por segundo). Observamos sua atividade numa janela de $\Delta t = 200\text{ ms}$.
+        <list marker="a">
+          <item>Qual é a distribuição do número $X$ de spikes nessa janela?</item>
+          <item>Calcule $P(X = 0)$, $P(X = 4)$ e o fator de Fano de $X$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Primeiro convertemos a janela para segundos: $\Delta t = 200\text{ ms} = 0{,}2\text{ s}$. A taxa média esperada na janela é:
+            $$\lambda = r \cdot \Delta t = 20\text{ spikes/s} \cdot 0{,}2\text{ s} = 4\text{ spikes}.$$
+            Portanto, $X \sim \text{Poisson}(4)$ (painel superior direito da <ref to="fig:7-2-distribuicoes"/>).
+          </item>
+          <item>Aplicando a pmf da Poisson com $e^{-4} \approx 0{,}018316$:
+            $$P(X = 0) = \frac{e^{-4} \cdot 4^0}{0!} = e^{-4} \approx 0{,}0183 \quad (1{,}83\%),$$
+            $$P(X = 4) = \frac{e^{-4} \cdot 4^4}{4!} = \frac{256}{24}\,e^{-4} = \frac{32}{3}\,e^{-4} \approx 10{,}6667 \cdot 0{,}018316 \approx 0{,}195 \quad (19{,}5\%).$$
+            Como $\mathbb{E}[X] = 4$ e $\operatorname{Var}(X) = 4$, o fator de Fano é $\mathrm{FF} = 4/4 = 1$.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:7-2-armadilha-discretas">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Misturar milissegundos com hertz ao calcular $\lambda$:</strong> se a taxa $r$ está em $\text{Hz}$ ($\text{s}^{-1}$) e a janela está em $\text{ms}$, converta sempre $\text{ms}$ para $\text{s}$ antes de multiplicar! Para $20\text{ Hz}$ em $200\text{ ms}$, $\lambda = 20 \cdot 0{,}2 = 4$, nunca $20 \cdot 200 = 4\,000$.</item>
+          <item><strong>Usar Poisson quando $p$ não é pequeno:</strong> a Poisson aproxima bem a Binomial($n, p$) apenas quando $n$ é grande e $p$ é pequeno. Na sinapse de Katz ($n = 10, p = 0{,}3$), $\lambda = np = 3$, mas $p = 0{,}3$ não é pequeno: a Poisson($3$) daria $P(X = 0) = e^{-3} \approx 0{,}0498$ e $\operatorname{Var} = 3$, bem longe dos valores reais da Binomial ($0{,}0282$ e $2{,}1$).</item>
+        </list>
+      </remark>
+
+      Vamos usar <c>scipy.stats.binom</c> e <c>scipy.stats.poisson</c> para calcular exatamente pmf, cdf, média e variância dos dois exemplos anteriores, e conferir tudo com $100\,000$ simulações em <c>numpy</c>.
+
+      <code lang="python" id="cod:7-2-discretas">
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(42)
+n_ensaios = 100_000
+
+# 1. Binomial(n=10, p=0.3) — Liberação quântica de Katz
+print("Binomial P(X=0) teórico:", f"{stats.binom.pmf(0, n=10, p=0.3):.4f}")  # 0.0282
+print("Binomial P(X=3) teórico:", f"{stats.binom.pmf(3, n=10, p=0.3):.4f}")  # 0.2668
+print("Binomial P(X<=3) teor.:", f"{stats.binom.cdf(3, n=10, p=0.3):.4f}")   # 0.6496
+print("Binomial média/var:", stats.binom.mean(10, 0.3), stats.binom.var(10, 0.3))  # 3.0 2.1
+
+am_bin = rng.binomial(n=10, p=0.3, size=n_ensaios)
+print(f"Sim Binomial P(X=0): {(am_bin == 0).mean():.4f}")  # aprox. 0.0282
+print(f"Sim Binomial média:  {am_bin.mean():.4f}")         # aprox. 3.0000
+
+# 2. Poisson(lambda=4) — Spikes a 20 Hz em 200 ms
+print("Poisson P(X=0) teórico:", f"{stats.poisson.pmf(0, mu=4):.4f}")  # 0.0183
+print("Poisson P(X=4) teórico:", f"{stats.poisson.pmf(4, mu=4):.4f}")  # 0.1954
+print("Poisson média/var:", stats.poisson.mean(4), stats.poisson.var(4))  # 4.0 4.0
+
+am_pois = rng.poisson(lam=4, size=n_ensaios)
+print(f"Sim Poisson P(X=4): {(am_pois == 4).mean():.4f}")                 # aprox. 0.1954
+print(f"Sim Fator de Fano:  {am_pois.var() / am_pois.mean():.4f}")       # aprox. 1.0000
+      </code>
+
+      <exercise id="exr:7-2-3-1">
+        <title>Básico — Liberação sináptica em meio com baixo cálcio</title>
+        Reduzindo a concentração extracelular de $\text{Ca}^{2+}$, a probabilidade de liberação em uma sinapse com $n = 8$ sítios cai para $p = 0{,}2$. Seja $X \sim \text{Binomial}(8;\; 0{,}2)$ o número de vesículas liberadas por estímulo. Calcule:
+        <list marker="a">
+          <item>$\mathbb{E}[X]$ e $\operatorname{Var}(X)$; </item>
+          <item>$P(X = 0)$ e $P(X \le 1)$.</item>
+        </list>
+        <hint><title>Ver dica</title>Para $P(X \le 1)$, some $P(X = 0)$ e $P(X = 1)$ usando $\binom{8}{0} = 1$ e $\binom{8}{1} = 8$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pela <ref to="prop:7-2-esp-var-binomial"/>:
+              $$\mathbb{E}[X] = 8 \cdot 0{,}2 = 1{,}6\text{ vesículas}, \qquad \operatorname{Var}(X) = 8 \cdot 0{,}2 \cdot 0{,}8 = 1{,}28\text{ vesículas}^2.$$
+            </item>
+            <item>Calculando os dois primeiros termos da pmf:
+              $$P(X = 0) = \binom{8}{0}(0{,}2)^0 (0{,}8)^8 = 0{,}8^8 \approx 0{,}1678,$$
+              $$P(X = 1) = \binom{8}{1}(0{,}2)^1 (0{,}8)^7 = 8 \cdot 0{,}2 \cdot 0{,}2097152 \approx 0{,}3355.$$
+              Somando, $P(X \le 1) = 0{,}1678 + 0{,}3355 = 0{,}5033$ ($50{,}33\%$).
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-2-3-2">
+        <title>Intermediário — Contagem de spikes em janela de $500\text{ ms}$</title>
+        Um neurônio de Poisson dispara à taxa média de $10\text{ Hz}$. Observando um intervalo de $500\text{ ms}$, calcule:
+        <list marker="a">
+          <item>a média $\lambda$ e o desvio-padrão $\sigma$ da contagem $X$;</item>
+          <item>$P(X = 0)$ e $P(X = 5)$ (dado $e^{-5} \approx 0{,}006738$);</item>
+          <item>$P(X \ge 2)$.</item>
+        </list>
+        <hint><title>Ver dica</title>Converta $500\text{ ms} = 0{,}5\text{ s}$ para achar $\lambda$. No item (c), use o complemento $1 - P(X = 0) - P(X = 1)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Em $\Delta t = 0{,}5\text{ s}$, temos $\lambda = 10 \cdot 0{,}5 = 5$ spikes. Como $\operatorname{Var}(X) = \lambda = 5$, o desvio-padrão é $\sigma = \sqrt{5} \approx 2{,}236$ spikes.</item>
+            <item>Substituindo $\lambda = 5$ na pmf da Poisson:
+              $$P(X = 0) = e^{-5} \approx 0{,}0067,$$
+              $$P(X = 5) = \frac{e^{-5} \cdot 5^5}{5!} = \frac{3\,125}{120}\,e^{-5} \approx 26{,}0417 \cdot 0{,}006738 \approx 0{,}1755.$$
+            </item>
+            <item>Como $P(X = 1) = 5 e^{-5} \approx 0{,}0337$:
+              $$P(X \ge 2) = 1 - P(X = 0) - P(X = 1) \approx 1 - 0{,}0067 - 0{,}0337 = 0{,}9596 \quad (95{,}96\%).$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-2-3-3">
+        <title>Intermediário — Aproximação de Poisson e fator de Fano em mutações</title>
+        Durante a replicação de um fragmento de DNA com $n = 2\,000$ pares de bases, cada base sofre um erro de cópia de forma independente com probabilidade $p = 0{,}001$.
+        <list marker="a">
+          <item>Calcule o fator de Fano exato $\mathrm{FF} = \operatorname{Var}(X)/\mathbb{E}[X]$ da binomial correspondente e diga por que a Poisson é uma excelente aproximação aqui.</item>
+          <item>Usando a aproximação de Poisson ($\lambda = np$), estime $P(X = 0)$ e $P(X = 2)$ (dado $e^{-2} \approx 0{,}1353$).</item>
+        </list>
+        <hint><title>Ver dica</title>Na binomial, $\frac{np(1-p)}{np} = 1 - p$. Aqui $n$ é grande ($2\,000$) e $p$ é minúsculo ($0{,}001$).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Para $X \sim \text{Binomial}(2\,000;\; 0{,}001)$, $\mathbb{E}[X] = np = 2$ e $\operatorname{Var}(X) = np(1 - p) = 2 \cdot 0{,}999 = 1{,}998$. Logo:
+              $$\mathrm{FF} = \frac{np(1 - p)}{np} = 1 - p = 0{,}999,$$
+              praticamente igual a $1$. Como $n$ é grande e $p$ é muito pequeno com $\lambda = np = 2$ moderado, a Poisson($2$) aproxima a binomial com precisão altíssima.
+            </item>
+            <item>Com $X \approx \text{Poisson}(2)$:
+              $$P(X = 0) \approx \frac{e^{-2}\cdot 2^0}{0!} = e^{-2} \approx 0{,}1353, \qquad P(X = 2) \approx \frac{e^{-2}\cdot 2^2}{2!} = 2 e^{-2} \approx 0{,}2707.$$
+              (A propósito, o valor binomial exato de $P(X = 0) = 0{,}999^{2\,000}$ vale aproximadamente $0{,}1352$ — diferença de apenas $0{,}0001$!)
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-2-3-4">
+        <title>Avançado — Comparando a aproximação Binomial–Poisson em Python</title>
+        Escreva um código em Python com <c>rng = np.random.default_rng(42)</c> para comparar a Binomial($n, p$) e a Poisson($\lambda = 4$) em dois regimes com a mesma média $\lambda = 4$:
+        <list marker="dash">
+          <item><strong>Regime A (raro):</strong> $n = 1\,000$, $p = 0{,}004$;</item>
+          <item><strong>Regime B (frequente):</strong> $n = 10$, $p = 0{,}4$.</item>
+        </list>
+        Use <c>scipy.stats</c> para comparar $P(X = 0)$ teórico nos dois regimes com <c>stats.poisson.pmf(0, mu=4)</c> e simule $100\,000$ amostras de cada regime para conferir seus fatores de Fano empíricos contra o valor teórico $1 - p$.
+        <hint><title>Ver dica</title>Gere amostras com <c>rng.binomial(n, p, size=100_000)</c> e calcule <c>x.var() / x.mean()</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(42)
+n_sim = 100_000
+
+p0_pois = stats.poisson.pmf(0, mu=4)
+print(f"Poisson(4) P(X=0): {p0_pois:.4f}")  # 0.0183
+
+for nome, n, p in [("Regime A (n=1000, p=0.004)", 1000, 0.004),
+                   ("Regime B (n=10, p=0.4)", 10, 0.4)]:
+    p0_bin = stats.binom.pmf(0, n=n, p=p)
+    am = rng.binomial(n=n, p=p, size=n_sim)
+    ff_sim = am.var() / am.mean()
+    print(f"{nome} -> P(X=0)={p0_bin:.4f}, FF sim={ff_sim:.4f} (teórico: {1-p:.3f})")
+# Regime A -> P(X=0)=0.0182, FF sim aprox. 0.9960 (teórico: 0.996)
+# Regime B -> P(X=0)=0.0060, FF sim aprox. 0.6000 (teórico: 0.600)
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:7-2-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Distribuições contínuas: uniforme, exponencial e normal</title>
+      <intro>
+        Tempos de espera, erros de digitalização e potenciais elétricos variam de forma contínua; três famílias de densidades — uniforme, exponencial e normal — modelam a imensa maioria dessas medidas experimentais.
+      </intro>
+
+      Quando passamos para grandezas contínuas, saímos das somas discretas e entramos nas áreas sob curvas. Cada uma das três distribuições desta seção responde a uma pergunta física diferente:
+      <list marker="dash">
+        <item><strong>Uniforme:</strong> não há nenhum valor preferido dentro de um intervalo $[a, b]$ (por exemplo, o erro de arredondamento de um conversor analógico-digital);</item>
+        <item><strong>Exponencial:</strong> quanto tempo se passa entre dois eventos sucessivos num processo de Poisson (como o intervalo entre spikes consecutivos);</item>
+        <item><strong>Normal (Gaussiana):</strong> o resultado líquido da soma de muitas pequenas fontes de ruído independentes (como o ruído térmico e sináptico no potencial de repouso).</item>
+      </list>
+
+      <definition id="def:7-2-uniforme">
+        <title>Distribuição uniforme contínua</title>
+        Dizemos que $X \sim \text{Uniforme}(a, b)$, com $a < b$, quando sua densidade é constante no intervalo $[a, b]$:
+        $$f(x) = \begin{cases} \dfrac{1}{b - a}, & a \le x \le b, \\[6pt] 0, & \text{caso contrário.} \end{cases}$$
+        Sua função acumulada cresce linearmente de $0$ a $1$ entre $a$ e $b$: $F(x) = \dfrac{x - a}{b - a}$ para $a \le x \le b$.
+      </definition>
+
+      <proposition id="prop:7-2-esp-var-uniforme">
+        <title>Esperança e variância da uniforme</title>
+        Se $X \sim \text{Uniforme}(a, b)$, então:
+        $$\mathbb{E}[X] = \frac{a + b}{2} \qquad \text{e} \qquad \operatorname{Var}(X) = \frac{(b - a)^2}{12}.$$
+      </proposition>
+      <proof of="prop:7-2-esp-var-uniforme" collapsible="true" collapsed="true">
+        Considere primeiro $U \sim \text{Uniforme}(0, 1)$, com $f(u) = 1$ em $[0, 1]$. Por integração direta:
+        $$\mathbb{E}[U] = \int_0^1 u\,du = \frac{1}{2}, \qquad \mathbb{E}[U^2] = \int_0^1 u^2\,du = \frac{1}{3},$$
+        $$\operatorname{Var}(U) = \frac{1}{3} - \left(\frac{1}{2}\right)^2 = \frac{1}{3} - \frac{1}{4} = \frac{1}{12}.$$
+        Qualquer $X \sim \text{Uniforme}(a, b)$ escreve-se como $X = a + (b - a)U$. Aplicando a <ref to="prop:7-2-propriedades-esp-var"/>:
+        $$\mathbb{E}[X] = a + \frac{b - a}{2} = \frac{a + b}{2}, \qquad \operatorname{Var}(X) = (b - a)^2 \operatorname{Var}(U) = \frac{(b - a)^2}{12}.$$
+      </proof>
+
+      Antes de apresentar a distribuição exponencial, precisamos de uma ferramenta fundamental que aparecerá ao longo de todo o restante do Módulo 7: a <strong>probabilidade condicional</strong> — como atualizar a probabilidade de um evento $A$ quando já sabemos que um evento $B$ aconteceu.
+
+      <definition id="def:7-2-prob-condicional">
+        <title>Probabilidade condicional</title>
+        Sejam $A$ e $B$ eventos de $\Omega$ com $P(B) > 0$. A <strong>probabilidade condicional</strong> de $A$ dado $B$ é definida por:
+        $$P(A \mid B) = \frac{P(A \cap B)}{P(B)}.$$
+        <intuition>
+          Saber que $B$ ocorreu restringe o universo de possibilidades de $\Omega$ para $B$. Dividir $P(A \cap B)$ por $P(B)$ renormaliza as chances dentro desse novo universo para que $P(B \mid B) = 1$.
+        </intuition>
+      </definition>
+
+      Agora considere um neurônio disparando segundo um processo de Poisson à taxa média constante $\lambda > 0$ spikes por segundo. O intervalo de tempo $X$ entre um spike e o próximo — o <strong>intervalo entre spikes</strong> (<em>interspike interval</em>, ISI) — só é maior que um tempo $t$ se <em>zero</em> spikes ocorrerem na janela de duração $t$. Como o número de spikes em $[0, t]$ segue $\text{Poisson}(\lambda t)$, a chance de zero spikes é $e^{-\lambda t}$. Logo $P(X > t) = e^{-\lambda t}$, o que dá imediatamente a acumulada $F(t) = 1 - e^{-\lambda t}$ e, derivando em $t$, a densidade exponencial $\lambda e^{-\lambda t}$!
+
+      <definition id="def:7-2-exponencial">
+        <title>Distribuição exponencial</title>
+        Dizemos que $X \sim \text{Exponencial}(\lambda)$, com parâmetro de taxa $\lambda > 0$, quando $X \ge 0$ tem densidade e função acumulada:
+        $$f(x) = \begin{cases} \lambda e^{-\lambda x}, & x \ge 0, \\ 0, & x < 0, \end{cases} \qquad F(x) = P(X \le x) = \begin{cases} 1 - e^{-\lambda x}, & x \ge 0, \\ 0, & x < 0. \end{cases}$$
+        Em particular, a probabilidade de sobrevivência além de $x \ge 0$ é $P(X > x) = 1 - F(x) = e^{-\lambda x}$. Sua esperança e variância são:
+        $$\mathbb{E}[X] = \frac{1}{\lambda} \qquad \text{e} \qquad \operatorname{Var}(X) = \frac{1}{\lambda^2} \quad \left(\sigma = \frac{1}{\lambda}\right).$$
+      </definition>
+
+      Uma propriedade espantosa da exponencial é a <strong>falta de memória</strong> (<em>memorylessness</em>): se você está esperando pelo próximo spike e já esperou $s$ milissegundos sem nada acontecer, a distribuição do tempo <em>adicional</em> de espera continua idêntica à de quem começou a esperar agora.
+
+      <proposition id="prop:7-2-falta-memoria">
+        <title>Propriedade da falta de memória</title>
+        Se $X \sim \text{Exponencial}(\lambda)$, então para quaisquer $s \ge 0$ e $t \ge 0$:
+        $$P(X > s + t \mid X > s) = P(X > t) = e^{-\lambda t}.$$
+      </proposition>
+      <proof of="prop:7-2-falta-memoria" collapsible="true" collapsed="true">
+        Observe que todo número maior que $s + t$ também é maior que $s$; portanto, $\{X > s + t\} \subseteq \{X > s\}$, de modo que $\{X > s + t\} \cap \{X > s\} = \{X > s + t\}$. Aplicando a definição de probabilidade condicional (<ref to="def:7-2-prob-condicional"/>):
+        $$P(X > s + t \mid X > s) = \frac{P(X > s + t)}{P(X > s)} = \frac{e^{-\lambda(s + t)}}{e^{-\lambda s}} = \frac{e^{-\lambda s} e^{-\lambda t}}{e^{-\lambda s}} = e^{-\lambda t} = P(X > t).$$
+      </proof>
+
+      Por fim, chegamos à distribuição mais célebre da estatística: a <strong>distribuição normal</strong> (ou Gaussiana). Ela domina medidas ruidosas porque, como veremos formalmente no tema de <mark>Convergências</mark> (Teorema Central do Limite), somar muitos fatores aleatórios independentes — correntes de milhares de canais iônicos, centenas de sinapses de fundo, ruído eletrônico — produz inevitavelmente uma curva em forma de sino simétrico.
+
+      <definition id="def:7-2-normal">
+        <title>Distribuição normal e padronização</title>
+        Dizemos que $X$ segue uma <strong>distribuição normal</strong> com média $\mu \in \mathbb{R}$ e variância $\sigma^2 > 0$, escrevendo $X \sim \mathcal{N}(\mu, \sigma^2)$, quando sua densidade é dada para todo $x \in \mathbb{R}$ por:
+        $$f(x) = \frac{1}{\sigma\sqrt{2\pi}}\,\exp\!\left(-\frac{(x - \mu)^2}{2\sigma^2}\right).$$
+        Temos $\mathbb{E}[X] = \mu$ e $\operatorname{Var}(X) = \sigma^2$. Quando $\mu = 0$ e $\sigma = 1$, obtemos a <strong>normal padrão</strong> $Z \sim \mathcal{N}(0, 1)$, cuja função acumulada é denotada por $\Phi(z) = P(Z \le z)$.
+
+        Para qualquer $X \sim \mathcal{N}(\mu, \sigma^2)$, a transformação linear chamada <strong>padronização</strong> (<em>standardization</em> ou <em>z-score</em>):
+        $$Z = \frac{X - \mu}{\sigma}$$
+        produz uma normal padrão $Z \sim \mathcal{N}(0, 1)$, medindo a quantos desvios-padrão $X$ está acima ou abaixo da média $\mu$.
+      </definition>
+
+      De fato, usando a <ref to="prop:7-2-propriedades-esp-var"/> com $Z = \frac{1}{\sigma}X - \frac{\mu}{\sigma}$, conferimos na hora:
+      $$\mathbb{E}[Z] = \frac{\mathbb{E}[X] - \mu}{\sigma} = 0 \qquad \text{e} \qquad \operatorname{Var}(Z) = \frac{1}{\sigma^2}\operatorname{Var}(X) = 1.$$
+      Como a pdf normal não tem primitiva elementar fechada, calculamos suas probabilidades numericamente ou por tabelas de $\Phi(z)$. Para estimativas rápidas de cabeça, basta guardar a <strong>regra empírica 68–95–99,7</strong>: numa distribuição normal $\mathcal{N}(\mu, \sigma^2)$, aproximadamente:
+      <list marker="dash">
+        <item>$68{,}3\%$ da massa cai dentro de $1$ desvio-padrão da média: $[\mu - \sigma,\; \mu + \sigma]$;</item>
+        <item>$95{,}4\%$ da massa cai dentro de $2$ desvios-padrão: $[\mu - 2\sigma,\; \mu + 2\sigma]$;</item>
+        <item>$99{,}7\%$ da massa cai dentro de $3$ desvios-padrão: $[\mu - 3\sigma,\; \mu + 3\sigma]$.</item>
+      </list>
+
+      Os dois painéis inferiores da <ref to="fig:7-2-distribuicoes"/> ilustram exatamente os dois exemplos biológicos a seguir, destacando em área sombreada as probabilidades calculadas.
+
+      <example id="exm:7-2-isi-exponencial">
+        <title>Intervalos entre spikes de um neurônio de Poisson a $20\text{ Hz}$</title>
+        Retome o neurônio de Poisson disparando a $r = 20\text{ Hz}$ ($\lambda = 20\text{ s}^{-1}$). Seja $\mathrm{ISI}$ o tempo (em segundos) entre dois potenciais de ação consecutivos, modelado por $\mathrm{ISI} \sim \text{Exponencial}(20)$.
+        <list marker="a">
+          <item>Qual é o intervalo médio entre spikes, em segundos e em milissegundos?</item>
+          <item>Qual é a probabilidade de um intervalo durar mais de $100\text{ ms}$ ($0{,}1\text{ s}$)?</item>
+          <item>Se já se passaram $50\text{ ms}$ desde o último spike sem novo disparo, qual a probabilidade de o intervalo total ultrapassar $150\text{ ms}$?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>A esperança da exponencial é $\mathbb{E}[\mathrm{ISI}] = \frac{1}{\lambda} = \frac{1}{20}\text{ s} = 0{,}05\text{ s} = 50\text{ ms}$ (e o desvio-padrão também é $50\text{ ms}$).</item>
+          <item>Convertendo $100\text{ ms} = 0{,}1\text{ s}$ (painel inferior esquerdo da <ref to="fig:7-2-distribuicoes"/>):
+            $$P(\mathrm{ISI} > 0{,}1\text{ s}) = e^{-20 \cdot 0{,}1} = e^{-2} \approx 0{,}1353 \quad (13{,}5\%).$$
+          </item>
+          <item>Pela propriedade da falta de memória (<ref to="prop:7-2-falta-memoria"/>), com $s = 50\text{ ms}$ e $t = 100\text{ ms}$:
+            $$P(\mathrm{ISI} > 150\text{ ms} \mid \mathrm{ISI} > 50\text{ ms}) = P(\mathrm{ISI} > 100\text{ ms}) = e^{-2} \approx 0{,}1353.$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:7-2-potencial-normal">
+        <title>Ruído de medida no potencial de repouso</title>
+        Suponha que medidas repetidas do potencial de repouso de um neurônio sigam $V \sim \mathcal{N}(-70,\; 2^2)$ em $\text{mV}$, ou seja, $\mu = -70\text{ mV}$ e $\sigma = 2\text{ mV}$.
+        <list marker="a">
+          <item>Em que intervalo central esperamos encontrar cerca de $95{,}4\%$ das medidas?</item>
+          <item>Qual é a probabilidade de uma medida registrar $V > -67\text{ mV}$ (sabendo que $\Phi(1{,}5) \approx 0{,}9332$)?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Pela regra 68–95–99,7, aproximadamente $95{,}4\%$ dos valores caem em $\mu \pm 2\sigma$:
+            $$[-70 - 2 \cdot 2,\; -70 + 2 \cdot 2] = [-74,\; -66]\text{ mV}.$$
+          </item>
+          <item>Padronizamos $v = -67\text{ mV}$ para a escala da normal padrão:
+            $$z = \frac{-67 - (-70)}{2} = \frac{3}{2} = 1{,}5.$$
+            Isso significa que $-67\text{ mV}$ está $1{,}5$ desvios-padrão acima da média. Logo (painel inferior direito da <ref to="fig:7-2-distribuicoes"/>):
+            $$P(V > -67) = P(Z > 1{,}5) = 1 - P(Z \le 1{,}5) = 1 - \Phi(1{,}5) \approx 1 - 0{,}9332 = 0{,}0668 \quad (6{,}68\%).$$
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:7-2-armadilha-continuas">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Período refratário versus exponencial idealizada:</strong> modelar ISIs com uma distribuição exponencial é uma <em>idealização</em>. Um neurônio biológico real possui um <strong>período refratário</strong> absoluto de cerca de $1$ a $2\text{ ms}$ logo após cada potencial de ação (e um período refratário relativo em seguida), durante o qual os canais de $\text{Na}^+$ dependentes de voltagem estão inativados. Na natureza, portanto, a densidade real de ISIs cai para zero perto de $0\text{ ms}$, enquanto a exponencial atinge ali seu pico máximo.</item>
+          <item><strong>Parametrização do <c>scipy.stats.expon</c>:</strong> diferentemente da notação $\text{Exponencial}(\lambda)$ que usa a taxa $\lambda$, o <c>scipy.stats.expon</c> e o <c>rng.exponential</c> recebem o parâmetro <c>scale = 1 / lambda</c> (a média!). Passar <c>scale=20</c> em vez de <c>scale=1/20</c> inverteria completamente a unidade de tempo.</item>
+          <item><strong>Variância versus desvio-padrão na normal:</strong> escrevemos $\mathcal{N}(-70,\; 2^2)$ com a <em>variância</em> $\sigma^2 = 4$ no segundo argumento, mas <c>scipy.stats.norm</c> e <c>rng.normal</c> pedem <c>scale = 2</c> (o <em>desvio-padrão</em> $\sigma$).</item>
+        </list>
+      </remark>
+
+      No código a seguir, conferimos os valores teóricos dos dois exemplos com <c>scipy.stats.expon</c> e <c>scipy.stats.norm</c>, simulamos $100\,000$ observações de cada distribuição e traçamos o histograma do potencial de membrana simulado com a pdf teórica da Normal sobreposta.
+
+      <code lang="python" id="cod:7-2-continuas">
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(42)
+n = 100_000
+
+# 1. Exponencial com lambda = 20 Hz -> scale = 1/20 = 0.05 s
+p_isi_teor = stats.expon.sf(0.1, scale=1 / 20)
+isis_s = rng.exponential(scale=1 / 20, size=n)
+print(f"ISI > 100 ms teórico:  {p_isi_teor:.4f}")            # 0.1353
+print(f"ISI > 100 ms simulado: {(isis_s > 0.1).mean():.4f}")  # aprox. 0.1353
+
+# 2. Normal N(-70, 2^2) em mV -> scale = 2.0
+p_v_teor = stats.norm.sf(-67.0, loc=-70.0, scale=2.0)
+v_mv = rng.normal(loc=-70.0, scale=2.0, size=n)
+print(f"V > -67 mV teórico:  {p_v_teor:.4f}")               # 0.0668
+print(f"V > -67 mV simulado: {(v_mv > -67.0).mean():.4f}")    # aprox. 0.0668
+
+# 3. Histograma das amostras simuladas de V com a pdf teórica sobreposta
+fig, ax = plt.subplots()
+ax.hist(v_mv, bins=60, density=True, alpha=0.55, color="#4F46E5", label="Simulação (100 mil amostras)")
+eixo_v = np.linspace(-78, -62, 300)
+ax.plot(eixo_v, stats.norm.pdf(eixo_v, loc=-70.0, scale=2.0), color="#E11D48", linewidth=2.2, label="PDF teórica N(-70, 2²)")
+ax.set_xlabel("Potencial de membrana V (mV)")
+ax.set_ylabel("Densidade de probabilidade (mV⁻¹)")
+ax.set_title("Ruído no potencial de repouso: simulação vs. teoria")
+ax.legend()
+plt.show()
+      </code>
+
+      <exercise id="exr:7-2-4-1">
+        <title>Básico — Erro de quantização uniforme na aquisição digital</title>
+        Um conversor analógico-digital arredonda leituras de potencial para o inteiro mais próximo em $\text{mV}$, gerando um erro de arredondamento $E \sim \text{Uniforme}(-0{,}5;\; 0{,}5)\text{ mV}$.
+        <list marker="a">
+          <item>Escreva a densidade $f(e)$ no intervalo $[-0{,}5;\; 0{,}5]$.</item>
+          <item>Calcule $\mathbb{E}[E]$, $\operatorname{Var}(E)$ e o desvio-padrão $\sigma_E$.</item>
+          <item>Determine a probabilidade de o erro não ultrapassar $0{,}2\text{ mV}$ em módulo, isto é, $P(|E| \le 0{,}2)$.</item>
+        </list>
+        <hint><title>Ver dica</title>Use $a = -0{,}5$ e $b = 0{,}5$ na <ref to="def:7-2-uniforme"/>. Lembre que $|E| \le 0{,}2$ equivale a $-0{,}2 \le E \le 0{,}2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como $b - a = 0{,}5 - (-0{,}5) = 1$, a densidade vale $f(e) = \dfrac{1}{1} = 1\text{ mV}^{-1}$ para $-0{,}5 \le e \le 0{,}5$ (e $0$ fora).</item>
+            <item>Aplicando as fórmulas da uniforme:
+              $$\mathbb{E}[E] = \frac{-0{,}5 + 0{,}5}{2} = 0\text{ mV}, \qquad \operatorname{Var}(E) = \frac{(0{,}5 - (-0{,}5))^2}{12} = \frac{1}{12} \approx 0{,}0833\text{ mV}^2.$$
+              Logo, $\sigma_E = \sqrt{1/12} \approx 0{,}2887\text{ mV}$.
+            </item>
+            <item>Integrando a densidade constante $1$ de $-0{,}2$ a $0{,}2$:
+              $$P(-0{,}2 \le E \le 0{,}2) = \int_{-0{,}2}^{0{,}2} 1\,de = 0{,}2 - (-0{,}2) = 0{,}4 \quad (40\%).$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-2-4-2">
+        <title>Básico — Intervalos entre spikes a $50\text{ Hz}$</title>
+        Um interneurônio de disparo rápido comporta-se (idealmente) como um processo de Poisson com taxa média $50\text{ Hz}$.
+        <list marker="a">
+          <item>Qual é o intervalo médio entre spikes ($\mathbb{E}[\mathrm{ISI}]$) em segundos e em milissegundos?</item>
+          <item>Calcule $P(\mathrm{ISI} > 40\text{ ms})$.</item>
+          <item>Calcule $P(\mathrm{ISI} > 60\text{ ms} \mid \mathrm{ISI} > 20\text{ ms})$.</item>
+        </list>
+        <hint><title>Ver dica</title>Converta $40\text{ ms} = 0{,}04\text{ s}$ antes de multiplicar por $\lambda = 50\text{ s}^{-1}$. No item (c), aplique a falta de memória (<ref to="prop:7-2-falta-memoria"/>).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>A média é $\mathbb{E}[\mathrm{ISI}] = \frac{1}{50}\text{ s} = 0{,}02\text{ s} = 20\text{ ms}$.</item>
+            <item>Com $40\text{ ms} = 0{,}04\text{ s}$:
+              $$P(\mathrm{ISI} > 0{,}04\text{ s}) = e^{-50 \cdot 0{,}04} = e^{-2} \approx 0{,}1353 \quad (13{,}53\%).$$
+            </item>
+            <item>Pela falta de memória com $s = 20\text{ ms}$ e $t = 60 - 20 = 40\text{ ms}$:
+              $$P(\mathrm{ISI} > 60\text{ ms} \mid \mathrm{ISI} > 20\text{ ms}) = P(\mathrm{ISI} > 40\text{ ms}) = e^{-2} \approx 0{,}1353.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-2-4-3">
+        <title>Intermediário — Padronização e regra empírica no potencial de membrana</title>
+        Em um registro intracelular com ruído gaussiano, o potencial de membrana segue $V \sim \mathcal{N}(-68,\; 3^2)\text{ mV}$.
+        <list marker="a">
+          <item>Qual intervalo simétrico em torno da média concentra cerca de $95{,}4\%$ das observações?</item>
+          <item>Padronize $v_1 = -62\text{ mV}$ e $v_2 = -72{,}5\text{ mV}$ para valores $z_1$ e $z_2$ da normal padrão e interprete o significado de cada um.</item>
+          <item>Sabendo que $\Phi(1{,}5) \approx 0{,}9332$ e $\Phi(2{,}0) \approx 0{,}9772$, calcule $P(-72{,}5 \le V \le -62)$.</item>
+        </list>
+        <hint><title>Ver dica</title>Pela simetria da normal padrão em torno de zero, $\Phi(-z) = P(Z \le -z) = P(Z \ge z) = 1 - \Phi(z)$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Temos $\mu = -68\text{ mV}$ e $\sigma = 3\text{ mV}$. O intervalo de $\mu \pm 2\sigma$ é:
+              $$[-68 - 2(3),\; -68 + 2(3)] = [-74,\; -62]\text{ mV}.$$
+            </item>
+            <item>Aplicando $z = (v - \mu)/\sigma$:
+              $$z_1 = \frac{-62 - (-68)}{3} = \frac{6}{3} = +2{,}0 \quad (2{,}0\text{ desvios-padrão acima da média}),$$
+              $$z_2 = \frac{-72{,}5 - (-68)}{3} = \frac{-4{,}5}{3} = -1{,}5 \quad (1{,}5\text{ desvios-padrão abaixo da média}).$$
+            </item>
+            <item>Pela simetria da normal padrão, $\Phi(-1{,}5) = 1 - \Phi(1{,}5) \approx 1 - 0{,}9332 = 0{,}0668$. Logo:
+              $$P(-72{,}5 \le V \le -62) = P(-1{,}5 \le Z \le 2{,}0) = \Phi(2{,}0) - \Phi(-1{,}5) \approx 0{,}9772 - 0{,}0668 = 0{,}9104 \quad (91{,}04\%).$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:7-2-4-4">
+        <title>Avançado — Falta de memória e histograma exponencial em Python</title>
+        Escreva um código em Python com <c>rng = np.random.default_rng(42)</c> que gere $100\,000$ ISIs (em milissegundos) de um neurônio de Poisson a $20\text{ Hz}$ (média $50\text{ ms}$). Em seguida:
+        <list marker="a">
+          <item>filtre apenas os intervalos com $\mathrm{ISI} > 50\text{ ms}$ e estime a probabilidade condicional $P(\mathrm{ISI} > 150\text{ ms} \mid \mathrm{ISI} > 50\text{ ms})$, comparando com o valor teórico $e^{-2} \approx 0{,}1353$;</item>
+          <item>trace com <c>matplotlib</c> o histograma normalizado (<c>density=True</c>) dos ISIs simulados com a pdf teórica de <c>scipy.stats.expon.pdf</c> sobreposta.</item>
+        </list>
+        <hint><title>Ver dica</title>Em milissegundos, passe <c>scale=50.0</c> tanto em <c>rng.exponential</c> quanto em <c>stats.expon.pdf</c>. Para a probabilidade condicional, faça <c>filtrados = isis[isis &gt; 50.0]</c> e calcule <c>(filtrados &gt; 150.0).mean()</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(42)
+n = 100_000
+
+# Lambda = 20 Hz = 0.02 ms^-1 -> scale = 1 / lambda = 50.0 ms
+isis_ms = rng.exponential(scale=50.0, size=n)
+
+filtrados = isis_ms[isis_ms > 50.0]
+p_cond_sim = (filtrados > 150.0).mean()
+p_cond_teor = np.exp(-2.0)
+
+print(f"P(ISI > 150 | ISI > 50) sim:  {p_cond_sim:.4f}")   # aprox. 0.1353
+print(f"P(ISI > 150 | ISI > 50) teor: {p_cond_teor:.4f}")  # 0.1353
+
+fig, ax = plt.subplots()
+ax.hist(isis_ms, bins=80, range=(0, 300), density=True, alpha=0.55, color="#0D9488", label="Simulação (100 mil ISIs)")
+t = np.linspace(0, 300, 400)
+ax.plot(t, stats.expon.pdf(t, scale=50.0), color="#D97706", linewidth=2.2, label="PDF teórica Exponencial(scale=50 ms)")
+ax.set_xlabel("Intervalo entre spikes, ISI (ms)")
+ax.set_ylabel("Densidade de probabilidade (ms⁻¹)")
+ax.set_title("ISIs de um neurônio de Poisson a 20 Hz")
+ax.legend()
+plt.show()
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:7-2-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Axiomas e regras de probabilidade:</strong> $P(A) \ge 0$, $P(\Omega) = 1$, aditividade disjunta, complemento $P(A^c) = 1 - P(A)$, união $P(A \cup B) = P(A) + P(B) - P(A \cap B)$, independência $P(A \cap B) = P(A)P(B)$ e condicional $P(A \mid B) = \dfrac{P(A \cap B)}{P(B)}$.</item>
+        <item><strong>Variável aleatória discreta versus contínua:</strong> discretas usam pmf $p(x) = P(X = x)$ com $\sum_x p(x) = 1$; contínuas usam pdf $f(x) \ge 0$ com $\int_{-\infty}^{+\infty} f(x)\,dx = 1$, $P(a \le X \le b) = \int_a^b f(x)\,dx$ e $P(X = x_0) = 0$. Em ambas, $F(x) = P(X \le x)$.</item>
+        <item><strong>Esperança e linearidade:</strong> $\mathbb{E}[X] = \sum_x x\,p(x)$ (ou $\int_{-\infty}^{+\infty} x\,f(x)\,dx$), com $\mathbb{E}[aX + b] = a\mathbb{E}[X] + b$ e $\mathbb{E}[X + Y] = \mathbb{E}[X] + \mathbb{E}[Y]$ sempre.</item>
+        <item><strong>Variância e desvio-padrão:</strong> $\operatorname{Var}(X) = \mathbb{E}[(X - \mu)^2] = \mathbb{E}[X^2] - (\mathbb{E}[X])^2$, $\sigma = \sqrt{\operatorname{Var}(X)}$, $\operatorname{Var}(aX + b) = a^2\operatorname{Var}(X)$ e, quando $X$ e $Y$ são independentes, $\operatorname{Var}(X \pm Y) = \operatorname{Var}(X) + \operatorname{Var}(Y)$.</item>
+        <item><strong>Bernoulli e Binomial:</strong> para $X \sim \text{Bernoulli}(p)$, $\mathbb{E}[X] = p$ e $\operatorname{Var}(X) = p(1 - p)$. Para $X \sim \text{Binomial}(n, p)$, $P(X = k) = \binom{n}{k}p^k(1 - p)^{n - k}$, $\mathbb{E}[X] = np$ e $\operatorname{Var}(X) = np(1 - p)$.</item>
+        <item><strong>Poisson e fator de Fano:</strong> para $X \sim \text{Poisson}(\lambda)$, $P(X = k) = \dfrac{e^{-\lambda}\lambda^k}{k!}$, $\mathbb{E}[X] = \operatorname{Var}(X) = \lambda$ e $\mathrm{FF} = \dfrac{\operatorname{Var}(X)}{\mathbb{E}[X]} = 1$; aproxima a binomial quando $n$ é grande, $p$ é pequeno e $np = \lambda$.</item>
+        <item><strong>Uniforme e Exponencial:</strong> para $\text{Uniforme}(a, b)$, $f(x) = \dfrac{1}{b - a}$, $\mathbb{E}[X] = \dfrac{a + b}{2}$ e $\operatorname{Var}(X) = \dfrac{(b - a)^2}{12}$. Para $\text{Exponencial}(\lambda)$, $f(x) = \lambda e^{-\lambda x}$ ($x \ge 0$), $F(x) = 1 - e^{-\lambda x}$, $\mathbb{E}[X] = \dfrac{1}{\lambda}$, $\operatorname{Var}(X) = \dfrac{1}{\lambda^2}$ e vale a falta de memória $P(X > s + t \mid X > s) = P(X > t)$.</item>
+        <item><strong>Normal e padronização:</strong> para $X \sim \mathcal{N}(\mu, \sigma^2)$, $f(x) = \dfrac{1}{\sigma\sqrt{2\pi}}\exp\!\left(-\dfrac{(x - \mu)^2}{2\sigma^2}\right)$, aproximadamente $68{,}3\%$–$95{,}4\%$–$99{,}7\%$ da massa está a $1, 2, 3$ desvios-padrão da média, e $Z = \dfrac{X - \mu}{\sigma} \sim \mathcal{N}(0, 1)$.</item>
+      </list>
+    </section>
+
+    <section id="sec:7-2-alem">
+      <title>Para ir além</title>
+      Agora que você sabe modelar o acaso com variáveis aleatórias e suas distribuições teóricas, o próximo passo no Módulo 7 é <strong>Introdução à inferência</strong>: lá você aprenderá a inverter a direção do problema — saindo de uma amostra finita de dados experimentais para estimar parâmetros desconhecidos ($\mu$, $\sigma^2$, $p$, $\lambda$) —, caminhando rumo ao projeto final do módulo: montar o design estatístico completo de um experimento de neuroimagem, especificando testes de hipóteses com correção para comparações múltiplas e rodando-os numa simulação no Python.
+
+      Para consolidar os conceitos deste tema, utilize os materiais recomendados do Módulo 7:
+      <list marker="dash">
+        <item><strong>Livro-texto:</strong> <em>Tertuliano — Princípios de Probabilidade</em>. Acompanhe os exercícios do livro: o tema é muito complexo à primeira vista, mas se desmistifica com o tempo e a repetição.</item>
+        <item><strong>Apoio em vídeo:</strong> aulas pontuais no YouTube para desmistificar os temas espinhosos à primeira vista (ex.: <em>StatQuest</em>).</item>
+        <item><strong>Documentação oficial:</strong> <link to="https://docs.scipy.org/doc/scipy/reference/stats.html">SciPy — Módulo <c>scipy.stats</c></link>, para consultar os métodos <c>pmf</c>, <c>pdf</c>, <c>cdf</c>, <c>sf</c>, <c>mean</c> e <c>var</c> de todas as distribuições vistas nesta aula.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 7 · Estatística e Probabilidade — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

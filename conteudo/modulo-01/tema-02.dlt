@@ -1,0 +1,764 @@
+<document>
+  <title>Módulo 1 · Pré-Cálculo</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-1-2">Voltar ao guia (Tema 1.2)</link></meta-item>
+    <meta-item key="Módulo">Módulo 1 · Pré-Cálculo — O Alicerce Matemático</meta-item>
+    <meta-item key="Nível">Básico</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-1-2">
+    <title>Geometria</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Áreas, ângulos e relações básicas — a intuição espacial que sustenta a geometria analítica.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> A biologia tem forma, tamanho e orientação no espaço. Quando você mede uma célula no microscópio, converte milímetros de fotografia em micrômetros reais usando semelhança de figuras — e descobre que ampliar um comprimento por $1\,000$ multiplica a área da imagem por $1\,000\,000$. Quando estima a área de uma monocamada epitelial ou compara por que a razão superfície/volume restringe o crescimento celular, está usando áreas e escalas geométricas.
+
+    Na neurociência, ângulos e áreas aparecem a todo momento. Neurônios do córtex visual primário (V1) respondem seletivamente à orientação de bordas e barras no campo visual, e a geometria das ramificações dendríticas e dos cortes histológicos depende de decompor regiões e somar ângulos com precisão. Retomando as potências de $10$, as equações e a álgebra do Tema 1.1 (<strong>Álgebra</strong>), vamos construir aqui a base espacial que prepara você para <strong>Funções</strong> (Tema 1.3), <strong>Trigonometria</strong> (Tema 1.4) e <strong>Geometria Analítica</strong> (Tema 1.5), onde o Teorema de Pitágoras dará a fórmula da distância entre pontos e abrirá caminho para curvas de resposta e o cálculo de áreas sob gráficos no Módulo 2 (<strong>Cálculo Real</strong>).
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>identificar elementos geométricos básicos, classificar ângulos e polígonos e calcular perímetros;</item>
+      <item>converter unidades de comprimento e de área na escala biológica ($\text{cm}$, $\text{mm}$, $\mu\text{m}$, $\text{nm}$) e aplicar fatores de escala $k$ e $k^2$ em microscopia e biologia celular;</item>
+      <item>calcular áreas de figuras planas clássicas, aplicar o Teorema de Pitágoras e decompor regiões irregulares como cortes histológicos;</item>
+      <item>determinar ângulos internos de polígonos convexos e regulares e explicar geometricamente o empacotamento hexagonal em tecidos;</item>
+      <item>usar relações entre ângulos (complementares, suplementares, opostos pelo vértice, paralelas com transversal e soma dos ângulos do triângulo), inclusive para calcular diferenças de orientação em V1.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Tema 1.1 (<strong>Álgebra</strong>): propriedades de potências de $10$, notação científica, resolução de equações do 1º grau e manipulação básica de raízes quadradas.
+
+    <section id="sec:1-2-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Introdução</title>
+      <intro>
+        Antes de medir células ou calcular áreas de tecidos, precisamos de um vocabulário preciso para falar de pontos, retas, aberturas angulares, contornos e escalas.
+      </intro>
+
+      Olhe para a lâmina de um microscópio: nela você vê fronteiras entre células, fibras alongadas, cantos onde três membranas se encontram e contornos fechados. A geometria plana organiza todas essas formas a partir de poucos blocos fundamentais, chamados <strong>elementos primitivos</strong> porque representam ideias tão simples que os descrevemos pela intuição em vez de defini-los a partir de objetos ainda menores.
+
+      <definition id="def:1-2-primitivos">
+        <title>Elementos primitivos e partes da reta</title>
+        <list marker="dash">
+          <item><strong>Ponto:</strong> indica uma posição exata no espaço, sem comprimento, largura nem espessura (representado por letras maiúsculas: $A, B, P$).</item>
+          <item><strong>Reta:</strong> linha perfeitamente reta e infinita nos dois sentidos, sem espessura (representada por letras minúsculas: $r, s, t$).</item>
+          <item><strong>Plano:</strong> superfície plana infinita em todas as direções, sem espessura (como uma lâmina idealizada estendida sem fim).</item>
+          <item><strong>Semirreta:</strong> parte de uma reta que começa em um ponto de origem $O$ e segue infinitamente em um único sentido.</item>
+          <item><strong>Segmento de reta:</strong> trecho finito da reta compreendido entre dois pontos extremos $A$ e $B$, indicado por $\overline{AB}$, cujo comprimento indicamos por $AB$.</item>
+        </list>
+        <intuition>
+          Pense em um feixe de laser disparado de uma fonte $O$: o ponto de emissão é a origem, o trajeto infinito do feixe é uma semirreta e o trecho entre duas lentes é um segmento de reta de comprimento mensurável.
+        </intuition>
+      </definition>
+
+      Quando duas semirretas partem do mesmo ponto de origem, elas formam uma abertura entre si — um <strong>ângulo</strong>. Medimos essa abertura em <strong>graus</strong> ($^\circ$), dividindo uma volta completa em $360$ partes iguais.
+
+      <definition id="def:1-2-angulos-basicos">
+        <title>Ângulo e sua classificação em graus</title>
+        Um <strong>ângulo</strong> é a região (ou abertura) determinada por duas semirretas (seus <em>lados</em>) com a mesma origem (o <em>vértice</em>). Na unidade grau, uma volta completa mede $360^\circ$. Conforme a medida $\theta$, classificamos o ângulo em:
+        <list marker="dash">
+          <item><strong>Nulo:</strong> $\theta = 0^\circ$ (os dois lados coincidem no mesmo sentido);</item>
+          <item><strong>Agudo:</strong> $0^\circ < \theta < 90^\circ$ (abertura menor que um quarto de volta);</item>
+          <item><strong>Reto:</strong> $\theta = 90^\circ$ (um quarto de volta; retas perpendiculares);</item>
+          <item><strong>Obtuso:</strong> $90^\circ < \theta < 180^\circ$ (entre um quarto e meia volta);</item>
+          <item><strong>Raso:</strong> $\theta = 180^\circ$ (meia volta; os dois lados formam uma reta).</item>
+        </list>
+        <intuition>
+          Imagine o ponteiro dos minutos de um relógio partindo das 12 horas: às 12h15 ele girou $90^\circ$ (ângulo reto, um quarto de volta); às 12h30 girou $180^\circ$ (ângulo raso, meia volta); e às 13h00 completou $360^\circ$.
+        </intuition>
+      </definition>
+
+      Se ligarmos segmentos de reta ponta a ponta até fechar um circuito que não se cruza, obtemos um <strong>polígono</strong>. O contorno total desse polígono é o seu <strong>perímetro</strong>.
+
+      <definition id="def:1-2-poligonos">
+        <title>Polígono, convexidade e perímetro</title>
+        Um <strong>polígono</strong> é uma figura plana limitada por uma sequência fechada de segmentos de reta (os <strong>lados</strong>) que só se encontram nas extremidades (os <strong>vértices</strong>), sem cruzamentos. Um segmento que liga dois vértices não consecutivos é uma <strong>diagonal</strong>.
+        <list marker="dash">
+          <item>Um polígono é <strong>convexo</strong> quando qualquer segmento ligando dois pontos do seu interior fica inteiramente dentro dele (nenhum "afundamento" para dentro). Caso contrário, é <strong>não convexo</strong> (ou côncavo).</item>
+          <item>Um polígono convexo é <strong>regular</strong> quando todos os seus lados têm o mesmo comprimento e todos os seus ângulos internos têm a mesma medida.</item>
+          <item>O <strong>perímetro</strong> $P$ de um polígono é a soma dos comprimentos de todos os seus lados.</item>
+        </list>
+      </definition>
+
+      Na prática biológica, quase nunca trabalhamos em metros puros: lidamos com milímetros ($\text{mm}$), micrômetros ($\mu\text{m}$) e nanômetros ($\text{nm}$). Retomando as potências de $10$ do Tema 1.1 (<strong>Álgebra</strong>), vale a cadeia de comprimentos:
+      $$1\text{ cm} = 10^{-2}\text{ m} = 10\text{ mm}, \qquad 1\text{ mm} = 10^{-3}\text{ m} = 10^3\;\mu\text{m}, \qquad 1\;\mu\text{m} = 10^{-6}\text{ m} = 10^3\text{ nm}.$$
+      Logo, de $\text{mm}$ para $\mu\text{m}$ multiplicamos por $10^3 = 1\,000$, e de $\mu\text{m}$ para $\text{nm}$ multiplicamos por mais $10^3 = 1\,000$.
+
+      Agora vem o salto conceitual que mais causa erro em laboratório: <strong>como se converte área?</strong> Um quadrado de lado $1\text{ mm}$ mede $1\,000\;\mu\text{m}$ de largura <em>e</em> $1\,000\;\mu\text{m}$ de altura. Portanto, sua área em $\mu\text{m}^2$ é:
+      $$1\text{ mm}^2 = (1\text{ mm}) \cdot (1\text{ mm}) = (10^3\;\mu\text{m}) \cdot (10^3\;\mu\text{m}) = 10^6\;\mu\text{m}^2.$$
+      Da mesma forma, $1\text{ cm}^2 = (10\text{ mm})^2 = 100\text{ mm}^2 = 10^2\text{ mm}^2$. Sempre que você converte uma unidade de área, o fator de conversão linear vai ao <strong>quadrado</strong>.
+
+      Esse mesmo princípio governa a <strong>semelhança geométrica</strong> e o uso de escalas em microscopia.
+
+      <proposition id="prop:1-2-semelhanca">
+        <title>Semelhança e lei de escala para comprimentos e áreas</title>
+        Duas figuras são <strong>semelhantes</strong> quando têm a mesma forma — isto é, seus ângulos correspondentes são iguais e todos os comprimentos correspondentes guardam uma mesma razão constante $k > 0$, chamada <strong>razão de semelhança</strong> (ou fator de escala linear). Se uma figura ampliada ou reduzida tem comprimentos multiplicados por $k$ em relação à original, então:
+        <list marker="number">
+          <item>todo <strong>comprimento</strong> (lado, diâmetro, altura, perímetro) escala pelo fator $k$;</item>
+          <item>toda <strong>área</strong> escala pelo fator $k^2$.</item>
+        </list>
+        <intuition>
+          Se você amplia uma fotografia em $2\times$ na largura e $2\times$ na altura, cabem $2 \times 2 = 4$ cópias da foto original dentro da foto ampliada. Ampliar por $k$ multiplica cada dimensão por $k$, logo multiplica a área por $k \cdot k = k^2$. (Em três dimensões, o mesmo raciocínio mostra que volumes escalam por $k^3$.)
+        </intuition>
+      </proposition>
+      <proof of="prop:1-2-semelhanca" collapsible="true" collapsed="true">
+        Considere inicialmente um retângulo de lados $b$ e $h$, cujo perímetro é $P = 2(b + h)$ e cuja área é $A = b \cdot h$. Ao aplicar um fator de escala $k > 0$, os novos lados passam a ser $b' = kb$ e $h' = kh$. O novo perímetro é:
+        $$P' = 2(kb + kh) = k \cdot 2(b + h) = kP,$$
+        escalando por $k$. Já a nova área é:
+        $$A' = (kb) \cdot (kh) = k^2 (b \cdot h) = k^2 A,$$
+        escalando por $k^2$. Como qualquer região plana pode ser aproximada tão bem quanto se queira por quadradinhos (ideia que formalizaremos no Módulo 2 com a integral de Riemann) e cada quadradinho de lado $d$ passa a ter área $(kd)^2 = k^2 d^2$, a razão $k^2$ vale para qualquer figura semelhante.
+      </proof>
+
+      <example id="exm:1-2-microscopia">
+        <title>Barra de escala e aumento em microscopia óptica</title>
+        Em uma micrografia impressa com aumento linear de $1\,000\times$, uma célula aparece com diâmetro aparente de $3\text{ cm}$.
+        <list marker="a">
+          <item>Qual é o diâmetro real dessa célula em micrômetros ($\mu\text{m}$)?</item>
+          <item>Quantas vezes a área da célula na fotografia é maior que a área real da célula?</item>
+          <item>Se o autor da figura desenhou uma barra de escala representando $10\;\mu\text{m}$ reais, qual deve ser o comprimento dessa barra na fotografia (em $\text{mm}$ e em $\text{cm}$)?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Primeiro convertemos o tamanho aparente para micrômetros:
+            $$3\text{ cm} = 30\text{ mm} = 30 \times 10^3\;\mu\text{m} = 30\,000\;\mu\text{m}.$$
+            Como o aumento linear é $k = 1\,000$, dividimos o tamanho aparente por $1\,000$:
+            $$d_{\text{real}} = \frac{30\,000\;\mu\text{m}}{1\,000} = 30\;\mu\text{m}.$$
+          </item>
+          <item>Pela <ref to="prop:1-2-semelhanca"/>, se os comprimentos escalam por $k = 1\,000 = 10^3$, as áreas escalam por $k^2$:
+            $$k^2 = (10^3)^2 = 10^6.$$
+            Portanto, a área da imagem da célula na foto é $1\,000\,000$ de vezes maior que a área real da célula.
+          </item>
+          <item>Para obter o comprimento da barra na foto, multiplicamos o tamanho real ($10\;\mu\text{m}$) pelo fator de aumento linear $k = 1\,000$:
+            $$L_{\text{barra}} = 10\;\mu\text{m} \cdot 1\,000 = 10\,000\;\mu\text{m} = 10\text{ mm} = 1\text{ cm}.$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:1-2-neubauer">
+        <title>Perímetro e conversão de área em câmara de contagem</title>
+        Um retículo quadrado utilizado na contagem de células em microscopia tem lado $l = 0{,}25\text{ mm}$.
+        <list marker="a">
+          <item>Calcule o perímetro desse quadrado em milímetros ($\text{mm}$) e em micrômetros ($\mu\text{m}$).</item>
+          <item>Calcule a área desse quadrado em $\text{mm}^2$ e converta o resultado para $\mu\text{m}^2$, conferindo pela conversão direta do lado para $\mu\text{m}$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>O perímetro do quadrado é a soma dos quatro lados iguais:
+            $$P = 4 \cdot 0{,}25\text{ mm} = 1{,}0\text{ mm}.$$
+            Como $1\text{ mm} = 10^3\;\mu\text{m}$, temos $P = 1\,000\;\mu\text{m}$.
+          </item>
+          <item>Em milímetros quadrados, a área vale:
+            $$A = (0{,}25\text{ mm})^2 = 0{,}0625\text{ mm}^2 = 6{,}25 \times 10^{-2}\text{ mm}^2.$$
+            Sabendo que $1\text{ mm}^2 = 10^6\;\mu\text{m}^2$, multiplicamos por $10^6$:
+            $$A = (6{,}25 \times 10^{-2}) \cdot 10^6\;\mu\text{m}^2 = 6{,}25 \times 10^4\;\mu\text{m}^2 = 62\,500\;\mu\text{m}^2.$$
+            <em>Conferência direta:</em> convertendo o lado primeiro, $l = 0{,}25\text{ mm} = 250\;\mu\text{m}$, de onde $A = (250\;\mu\text{m})^2 = 62\,500\;\mu\text{m}^2$. Os dois caminhos coincidem.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:1-2-armadilha-escala">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Converter área usando o fator linear:</strong> como $1\text{ cm} = 10\text{ mm}$, é tentador escrever $1\text{ cm}^2 = 10\text{ mm}^2$ — erro fatal! Em área, o fator vai ao quadrado: $1\text{ cm}^2 = 10^2\text{ mm}^2 = 100\text{ mm}^2$. Da mesma forma, $1\text{ mm} = 10^3\;\mu\text{m}$, mas $1\text{ mm}^2 = 10^6\;\mu\text{m}^2$.</item>
+          <item><strong>Confundir perímetro com área:</strong> perímetro mede o contorno (unidade linear, como $\mu\text{m}$), enquanto área mede a superfície ocupada (unidade quadrada, como $\mu\text{m}^2$). Nunca some nem compare um perímetro com uma área.</item>
+          <item><strong>Achar que dobrar o lado dobra a área:</strong> se você dobra as dimensões de uma placa ou de um corte ($k = 2$), a área é multiplicada por $k^2 = 2^2 = 4$ (quadruplica), e não por $2$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:1-2-1-1">
+        <title>Básico — Classificação de ângulos e perímetro</title>
+        <list marker="a">
+          <item>Classifique os ângulos de medidas $35^\circ$, $90^\circ$, $128^\circ$ e $180^\circ$ como agudo, reto, obtuso ou raso.</item>
+          <item>Um polígono de cinco lados (pentágono) tem lados medindo $3\text{ cm}$, $4\text{ cm}$, $5\text{ cm}$, $4\text{ cm}$ e $2\text{ cm}$. Calcule seu perímetro em centímetros e em milímetros.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), compare cada medida com os marcos $90^\circ$ e $180^\circ$. Em (b), some todos os lados e depois multiplique por $10$ para passar de $\text{cm}$ a $\text{mm}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pela <ref to="def:1-2-angulos-basicos"/>: $35^\circ$ é <strong>agudo</strong> ($0^\circ < 35^\circ < 90^\circ$); $90^\circ$ é <strong>reto</strong>; $128^\circ$ é <strong>obtuso</strong> ($90^\circ < 128^\circ < 180^\circ$); $180^\circ$ é <strong>raso</strong>.</item>
+            <item>Somando os cinco lados:
+              $$P = 3 + 4 + 5 + 4 + 2 = 18\text{ cm}.$$
+              Como $1\text{ cm} = 10\text{ mm}$, temos $P = 18 \cdot 10 = 180\text{ mm}$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-2-1-2">
+        <title>Básico — Conversão de áreas em campo microscópico</title>
+        O campo retangular capturado por uma câmera acoplada ao microscópio mede $2{,}0\text{ mm}$ por $1{,}5\text{ mm}$ na amostra real. Calcule a área desse campo em $\text{mm}^2$ e converta o valor para $\mu\text{m}^2$ e para $\text{cm}^2$.
+        <hint><title>Ver dica</title>Lembre-se de elevar os fatores lineares ao quadrado: $1\text{ mm}^2 = 10^6\;\mu\text{m}^2$ e $1\text{ cm}^2 = 100\text{ mm}^2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          A área do retângulo em $\text{mm}^2$ é:
+          $$A = 2{,}0\text{ mm} \cdot 1{,}5\text{ mm} = 3{,}0\text{ mm}^2.$$
+          Para converter para $\mu\text{m}^2$, multiplicamos por $(10^3)^2 = 10^6$:
+          $$A = 3{,}0 \times 10^6\;\mu\text{m}^2.$$
+          Para converter para $\text{cm}^2$, dividimos por $10^2 = 100$ (pois $1\text{ cm}^2 = 100\text{ mm}^2$):
+          $$A = \frac{3{,}0}{100}\text{ cm}^2 = 0{,}03\text{ cm}^2 = 3{,}0 \times 10^{-2}\text{ cm}^2.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-2-1-3">
+        <title>Intermediário — Barra de escala na microscopia eletrônica</title>
+        Em uma micrografia eletrônica de uma sinapse química, a barra de escala impressa mede $2{,}0\text{ cm}$ e indica $100\text{ nm}$ reais. Na mesma imagem, a fenda sináptica aparece com largura aparente de $4{,}0\text{ mm}$.
+        <list marker="a">
+          <item>Determine o fator de aumento linear $k$ da micrografia.</item>
+          <item>Calcule a largura real da fenda sináptica em nanômetros ($\text{nm}$).</item>
+          <item>Quantas vezes a área aparente de uma vesícula sináptica nessa imagem é maior que sua área real?</item>
+        </list>
+        <hint><title>Ver dica</title>Converta tudo para nanômetros usando $1\text{ mm} = 10^6\text{ nm}$ e $1\text{ cm} = 10^7\text{ nm}$. Depois divida o tamanho aparente da barra pelo tamanho real indicado para achar $k$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Convertendo o comprimento impresso da barra para nanômetros ($1\text{ cm} = 10\text{ mm} = 10 \cdot 10^6\text{ nm} = 10^7\text{ nm}$):
+              $$2{,}0\text{ cm} = 2{,}0 \times 10^7\text{ nm}.$$
+              O fator de aumento linear $k$ é a razão entre o tamanho na imagem e o tamanho real:
+              $$k = \frac{2{,}0 \times 10^7\text{ nm}}{100\text{ nm}} = \frac{2{,}0 \times 10^7}{1{,}0 \times 10^2} = 2{,}0 \times 10^5 = 200\,000\times.$$
+            </item>
+            <item>Convertendo a largura aparente da fenda ($4{,}0\text{ mm} = 4{,}0 \times 10^6\text{ nm}$) e dividindo por $k$:
+              $$d_{\text{real}} = \frac{4{,}0 \times 10^6\text{ nm}}{2{,}0 \times 10^5} = 2{,}0 \times 10^1\text{ nm} = 20\text{ nm}.$$
+              Esse valor ($\approx 20\text{ nm}$) é exatamente a ordem de grandeza clássica de uma fenda sináptica química.
+            </item>
+            <item>A área escala com $k^2$:
+              $$k^2 = (2{,}0 \times 10^5)^2 = 4{,}0 \times 10^{10}.$$
+              A área da vesícula na imagem é $4{,}0 \times 10^{10}$ vezes ($40$ bilhões de vezes) maior que sua área real.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-2-1-4">
+        <title>Avançado — Razão superfície/volume e o limite de tamanho celular</title>
+        Considere uma célula modelada como uma esfera de raio $r$. Sua área superficial é dada por $A = 4\pi r^2$ e seu volume por $V = \frac{4}{3}\pi r^3$.
+        <list marker="a">
+          <item>Mostre algebricamente que a razão superfície/volume vale $\dfrac{A}{V} = \dfrac{3}{r}$.</item>
+          <item>Compare uma bactéria esférica de raio $r_1 = 1\;\mu\text{m}$ com uma célula eucariótica esférica de raio $r_2 = 10\;\mu\text{m}$: qual é o fator de escala linear $k = r_2 / r_1$? Por quais fatores aumentam a área $A$ e o volume $V$, e o que acontece com a razão $A/V$?</item>
+          <item>Com base no resultado anterior, explique por que células que dependem apenas de difusão através da membrana plasmática não podem crescer indefinidamente.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), escreva a fração $\frac{4\pi r^2}{\frac{4}{3}\pi r^3}$ e simplifique os fatores comuns $4$, $\pi$ e $r^2$. Em (b), use as potências de $k = 10$ ($k^2$ para área e $k^3$ para volume).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Dividindo a área pelo volume:
+              $$\frac{A}{V} = \frac{4\pi r^2}{\frac{4}{3}\pi r^3} = \frac{4\pi r^2}{1} \cdot \frac{3}{4\pi r^3} = \frac{3 r^2}{r^3} = \frac{3}{r}.$$
+            </item>
+            <item>O fator de escala linear é $k = \frac{r_2}{r_1} = \frac{10\;\mu\text{m}}{1\;\mu\text{m}} = 10$.
+              <list marker="dash">
+                <item>A área escala por $k^2 = 10^2 = 100$ (fica $100$ vezes maior).</item>
+                <item>O volume escala por $k^3 = 10^3 = 1\,000$ (fica $1\,000$ vezes maior).</item>
+                <item>A razão superfície/volume cai por um fator de $10$: passa de $\frac{3}{1\;\mu\text{m}} = 3\;\mu\text{m}^{-1}$ na bactéria para $\frac{3}{10\;\mu\text{m}} = 0{,}3\;\mu\text{m}^{-1}$ na célula eucariótica (isto é, $3\;\mu\text{m}^2$ de membrana para cada $1\;\mu\text{m}^3$ de volume na bactéria, contra $0{,}3\;\mu\text{m}^2$ por $\mu\text{m}^3$ na célula eucariótica).</item>
+              </list>
+            </item>
+            <item>A demanda metabólica (consumo de nutrientes e produção de resíduos) cresce com o volume ($r^3$), mas a troca com o meio ocorre através da membrana, cuja área cresce apenas com $r^2$. Quando o raio cresce muito, a razão $A/V = 3/r$ torna-se pequena demais e a superfície deixa de dar conta de abastecer o interior por difusão simples — razão pela qual células grandes desenvolvem dobras de membrana, organelas especializadas ou formas alongadas (como os axônios dos neurônios).
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:1-2-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Áreas e ângulos de figuras planas clássicas</title>
+      <intro>
+        Qualquer forma complicada — de uma fatia de tecido cerebral a uma monocamada epitelial — pode ser medida quebrando-a em triângulos, retângulos, trapézios, círculos e hexágonos cujas fórmulas você domina.
+      </intro>
+
+      O que significa medir uma área? Significa contar quantos quadrados de lado unitário ($1\text{ mm} \times 1\text{ mm}$, por exemplo) cabem dentro da figura. Em um retângulo de $4\text{ mm}$ por $3\text{ mm}$, formamos $3$ fileiras com $4$ quadradinhos cada, totalizando $4 \cdot 3 = 12\text{ mm}^2$. Quase todas as fórmulas da geometria plana nascem desse retângulo básico: recortando um pedaço de um lado e encaixando no outro, ou dividindo a figura ao meio.
+
+      <definition id="def:1-2-areas-classicas">
+        <title>Áreas e perímetros de figuras planas clássicas</title>
+        Sejam $b$ (base), $B$ (base maior), $h$ (altura perpendicular à base), $l$ (lado) e $r$ (raio) medidas positivas na mesma unidade de comprimento:
+        <list marker="dash">
+          <item><strong>Quadrado</strong> (lado $l$): área $A = l^2$ e perímetro $P = 4l$.</item>
+          <item><strong>Retângulo</strong> (base $b$, altura $h$): área $A = b \cdot h$ e perímetro $P = 2(b + h)$.</item>
+          <item><strong>Paralelogramo</strong> (base $b$, altura $h$ perpendicular à base): área $A = b \cdot h$.</item>
+          <item><strong>Triângulo</strong> (base $b$, altura $h$ perpendicular à base): área $A = \dfrac{b \cdot h}{2}$.</item>
+          <item><strong>Trapézio</strong> (bases paralelas $B$ e $b$, altura $h$ entre elas): área $A = \dfrac{(B + b) \cdot h}{2}$.</item>
+          <item><strong>Círculo</strong> (raio $r$): área $A = \pi r^2$ e comprimento da circunferência $C = 2\pi r$ (com $\pi \approx 3{,}1416$).</item>
+        </list>
+        <intuition>
+          Em um paralelogramo, se você corta um triângulo retângulo de uma ponta e o desliza para a outra ponta, transforma a figura em um retângulo de mesma base $b$ e mesma altura $h$ — por isso a área continua $b \cdot h$. Já dois triângulos idênticos encaixados lado a lado formam um paralelogramo, então cada triângulo fica com a metade da área: $\frac{b \cdot h}{2}$. E dois trapézios idênticos (um normal e um invertido) encaixados formam um paralelogramo de base $(B + b)$ e altura $h$, dando $\frac{(B + b) \cdot h}{2}$.
+        </intuition>
+      </definition>
+
+      Muitas vezes conhecemos dois lados de um triângulo retângulo (o que tem um ângulo de $90^\circ$), mas precisamos descobrir o terceiro lado ou uma altura inclinada. A ponte entre lados perpendiculares e diagonais é um dos teoremas mais usados de toda a matemática.
+
+      <theorem id="thm:1-2-pitagoras">
+        <title>Teorema de Pitágoras</title>
+        Em todo triângulo retângulo, se os dois lados que formam o ângulo reto (os <strong>catetos</strong>) têm comprimentos $a$ e $b$, e o lado oposto ao ângulo reto (a <strong>hipotenusa</strong>) tem comprimento $c$, então:
+        $$a^2 + b^2 = c^2.$$
+        <intuition>
+          Geometricamente, a área do quadrado construído sobre a hipotenusa é exatamente igual à soma das áreas dos quadrados construídos sobre os dois catetos.
+        </intuition>
+      </theorem>
+      <proof of="thm:1-2-pitagoras" collapsible="true" collapsed="true">
+        Construa um quadrado grande de lado $a + b$. Sua área total é $(a + b)^2$. Dentro dele, posicione quatro cópias idênticas do triângulo retângulo de catetos $a, b$ e hipotenusa $c$, uma em cada canto, de modo que os catetos formem os quatro lados do quadrado grande (cada lado tem um trecho $a$ e um trecho $b$).
+
+        No centro sobra um quadrilátero cujos quatro lados medem $c$. Como os dois ângulos agudos de um triângulo retângulo somam $90^\circ$ (veremos formalmente no Subtema 3), cada ângulo interno desse quadrilátero central mede $180^\circ - 90^\circ = 90^\circ$; logo, ele é um quadrado de área $c^2$.
+
+        Igualando a área total do quadrado grande à soma das áreas dos quatro triângulos e do quadrado central (e usando a identidade $(a+b)^2 = a^2 + 2ab + b^2$ vista no Tema 1.1):
+        $$(a + b)^2 = 4 \cdot \frac{ab}{2} + c^2 \implies a^2 + 2ab + b^2 = 2ab + c^2.$$
+        Subtraindo $2ab$ dos dois lados, obtemos $a^2 + b^2 = c^2$.
+      </proof>
+
+      Guarde bem o <ref to="thm:1-2-pitagoras"/>: mais adiante neste módulo, no Tema 1.5 (<strong>Geometria Analítica</strong>), é exatamente ele que vai gerar a fórmula da distância entre dois pontos no plano cartesiano.
+
+      Aqui mesmo, o Teorema de Pitágoras já nos permite calcular a altura e a área de um triângulo equilátero (três lados iguais a $l$) e, com isso, obter a área do hexágono regular — forma geométrica onipresente em tecidos epiteliais, favos de mel e omatídeos de olhos compostos.
+
+      <proposition id="prop:1-2-equilatero-hexagono">
+        <title>Triângulo equilátero e hexágono regular</title>
+        Seja $l > 0$ o comprimento do lado:
+        <list marker="number">
+          <item>Um <strong>triângulo equilátero</strong> de lado $l$ tem altura $h = \dfrac{l\sqrt{3}}{2}$ e área $A_{\triangle} = \dfrac{l^2\sqrt{3}}{4}$.</item>
+          <item>Um <strong>hexágono regular</strong> de lado $l$ decompõe-se em $6$ triângulos equiláteros de lado $l$, tendo área:
+            $$A_{\text{hex}} = 6 \cdot \frac{l^2\sqrt{3}}{4} = \frac{3\sqrt{3}}{2}\,l^2.$$
+          </item>
+        </list>
+        <intuition>
+          Ao traçar as três diagonais que ligam vértices opostos de um hexágono regular, você o fatia como uma pizza em $6$ fatias idênticas, e cada fatia é um triângulo equilátero de lado $l$.
+        </intuition>
+      </proposition>
+      <proof of="prop:1-2-equilatero-hexagono" collapsible="true" collapsed="true">
+        No triângulo equilátero de lado $l$, a altura $h$ traçada de um vértice até o lado oposto divide esse lado ao meio, formando dois triângulos retângulos de catetos $h$ e $\frac{l}{2}$ e hipotenusa $l$. Pelo Teorema de Pitágoras:
+        $$h^2 + \left(\frac{l}{2}\right)^2 = l^2 \implies h^2 = l^2 - \frac{l^2}{4} = \frac{3l^2}{4}.$$
+        Como $h > 0$ e $l > 0$, extraindo a raiz quadrada obtemos $h = \frac{l\sqrt{3}}{2}$. Substituindo na fórmula da área do triângulo:
+        $$A_{\triangle} = \frac{b \cdot h}{2} = \frac{1}{2} \cdot l \cdot \frac{l\sqrt{3}}{2} = \frac{l^2\sqrt{3}}{4}.$$
+        Multiplicando por $6$ triângulos equiláteros no hexágono regular, resulta $A_{\text{hex}} = \frac{6 l^2 \sqrt{3}}{4} = \frac{3\sqrt{3}}{2}\,l^2$.
+      </proof>
+
+      Além de áreas, precisamos saber quanto medem os ângulos internos de um polígono. Para isso, basta fatiá-lo em triângulos a partir de um único vértice. Como veremos no Subtema 3 (<ref to="thm:1-2-triangulo-angulos"/>), a soma dos três ângulos internos de qualquer triângulo é sempre $180^\circ$.
+
+      <proposition id="prop:1-2-soma-angulos-poligono">
+        <title>Soma dos ângulos internos de um polígono convexo</title>
+        Em todo polígono convexo de $n \ge 3$ lados, a soma $S_i$ das medidas de seus ângulos internos é:
+        $$S_i = (n - 2) \cdot 180^\circ.$$
+        Em particular, se o polígono for <strong>regular</strong> (todos os $n$ ângulos internos têm a mesma medida $\alpha_n$), cada ângulo interno mede:
+        $$\alpha_n = \frac{(n - 2) \cdot 180^\circ}{n}.$$
+        <intuition>
+          Partindo de um único vértice de um polígono convexo de $n$ lados, traçamos diagonais para todos os outros vértices não adjacentes (são $n - 3$ diagonais). Isso divide o polígono em exatamente $n - 2$ triângulos sem sobreposição, e cada triângulo contribui com $180^\circ$ para a soma total.
+        </intuition>
+      </proposition>
+
+      Testando a fórmula em casos conhecidos: para $n = 3$ (triângulo), $S_i = (3 - 2)\cdot 180^\circ = 180^\circ$; para $n = 4$ (quadrilátero), $S_i = (4 - 2)\cdot 180^\circ = 360^\circ$; para $n = 6$ (hexágono), $S_i = (6 - 2)\cdot 180^\circ = 720^\circ$.
+
+      <example id="exm:1-2-tecido">
+        <title>Decomposição de um corte histológico para medir área e contorno</title>
+        Suponha que um corte histológico plano de uma amostra de tecido seja aproximado por uma figura apoiada sobre uma base horizontal reta, dividida da esquerda para a direita em três regiões contíguas:
+        <list marker="dash">
+          <item>à esquerda, um triângulo retângulo de base $3\text{ mm}$ e altura vertical $4\text{ mm}$;</item>
+          <item>no centro, um quadrado de lado $4\text{ mm}$;</item>
+          <item>à direita, um trapézio retângulo de largura horizontal (altura do trapézio) $4\text{ mm}$, cuja borda esquerda tem $4\text{ mm}$ (encostada no quadrado) e a borda vertical direita mede $1\text{ mm}$.</item>
+        </list>
+        Calcule a área total e o perímetro externo dessa peça de tecido.
+
+        <strong>Solução.</strong> Calculamos a área de cada sub-região usando a <ref to="def:1-2-areas-classicas"/>:
+        <list marker="number">
+          <item><strong>Triângulo esquerdo:</strong> $A_1 = \dfrac{3 \cdot 4}{2} = 6\text{ mm}^2$.</item>
+          <item><strong>Quadrado central:</strong> $A_2 = 4 \cdot 4 = 16\text{ mm}^2$.</item>
+          <item><strong>Trapézio direito</strong> (bases paralelas verticais $B = 4\text{ mm}$ e $b = 1\text{ mm}$, com altura horizontal $h = 4\text{ mm}$):
+            $$A_3 = \frac{(4 + 1) \cdot 4}{2} = \frac{20}{2} = 10\text{ mm}^2.$$
+          </item>
+        </list>
+        Somando as três áreas:
+        $$A_{\text{total}} = 6 + 16 + 10 = 32\text{ mm}^2.$$
+
+        Para o perímetro externo, precisamos das duas bordas inclinadas (no triângulo e no trapézio), que obtemos pelo Teorema de Pitágoras (<ref to="thm:1-2-pitagoras"/>):
+        <list marker="dash">
+          <item>A hipotenusa do triângulo esquerdo tem catetos $3\text{ mm}$ e $4\text{ mm}$:
+            $$c_{\text{esq}} = \sqrt{3^2 + 4^2} = \sqrt{9 + 16} = \sqrt{25} = 5\text{ mm}.$$
+          </item>
+          <item>No trapézio direito, o topo desce de $4\text{ mm}$ para $1\text{ mm}$ (um desnível vertical de $4 - 1 = 3\text{ mm}$) ao longo de $4\text{ mm}$ na horizontal, formando outro triângulo retângulo de catetos $3\text{ mm}$ e $4\text{ mm}$:
+            $$c_{\text{dir}} = \sqrt{4^2 + 3^2} = \sqrt{25} = 5\text{ mm}.$$
+          </item>
+        </list>
+        Contornando toda a borda externa da peça (sem incluir as linhas internas de divisão): base inferior ($3 + 4 + 4 = 11\text{ mm}$), borda direita ($1\text{ mm}$), topo inclinado direito ($5\text{ mm}$), topo do quadrado ($4\text{ mm}$) e topo inclinado esquerdo ($5\text{ mm}$):
+        $$P = 11 + 1 + 5 + 4 + 5 = 26\text{ mm}.$$
+      </example>
+
+      <example id="exm:1-2-epitelio">
+        <title>Monocamada epitelial e empacotamento hexagonal</title>
+        Em tecidos epiteliais (assim como em favos de mel e nos omatídeos do olho composto de artrópodes), as células vistas de topo frequentemente formam um mosaico de hexágonos regulares justapostos.
+        <list marker="a">
+          <item>Calcule o ângulo interno de um hexágono regular e verifique por que $3$ hexágonos se encaixam perfeitamente ao redor de um mesmo vértice.</item>
+          <item>Se cada célula epitelial desse mosaico tem lado $l = 8\;\mu\text{m}$, estime a área de uma célula (usando $\sqrt{3} \approx 1{,}732$) e a área total aproximada de uma monocamada com $500$ células.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Pela <ref to="prop:1-2-soma-angulos-poligono"/> com $n = 6$:
+            $$\alpha_6 = \frac{(6 - 2) \cdot 180^\circ}{6} = \frac{4 \cdot 180^\circ}{6} = \frac{720^\circ}{6} = 120^\circ.$$
+            Como três ângulos de $120^\circ$ somam exatamente uma volta completa ($3 \cdot 120^\circ = 360^\circ$), três células encontram-se em cada vértice sem deixar frestas nem se sobrepor, pavimentando o plano inteiro.
+          </item>
+          <item>Pela <ref to="prop:1-2-equilatero-hexagono"/> com $l = 8\;\mu\text{m}$:
+            $$A_{\text{célula}} = \frac{3\sqrt{3}}{2} \cdot 8^2 = \frac{3\sqrt{3}}{2} \cdot 64 = 96\sqrt{3}\;\mu\text{m}^2.$$
+            Usando $\sqrt{3} \approx 1{,}732$:
+            $$A_{\text{célula}} \approx 96 \cdot 1{,}732 = 166{,}272\;\mu\text{m}^2 \approx 166{,}3\;\mu\text{m}^2.$$
+            Para $500$ células justapostas sem frestas:
+            $$A_{\text{total}} = 500 \cdot 96\sqrt{3} = 48\,000\sqrt{3}\;\mu\text{m}^2 \approx 48\,000 \cdot 1{,}732 = 83\,136\;\mu\text{m}^2 \approx 8{,}31 \times 10^4\;\mu\text{m}^2.$$
+            Em milímetros quadrados ($1\text{ mm}^2 = 10^6\;\mu\text{m}^2$), isso equivale a cerca de $0{,}083\text{ mm}^2$.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:1-2-armadilha-areas">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Usar o lado inclinado como altura:</strong> nas fórmulas de triângulo, paralelogramo e trapézio, $h$ é sempre a distância <em>perpendicular</em> ($90^\circ$) entre a base e o vértice ou base oposta — nunca o comprimento de um lado inclinado.</item>
+          <item><strong>Tirar raiz quadrada termo a termo em Pitágoras:</strong> de $c^2 = a^2 + b^2$, não conclua que $c = a + b$! A raiz da soma não é a soma das raízes: para $a = 3$ e $b = 4$, temos $\sqrt{3^2 + 4^2} = \sqrt{25} = 5$, e não $3 + 4 = 7$.</item>
+          <item><strong>Aplicar as fórmulas de ângulos sem checar convexidade ou regularidade:</strong> a expressão $\alpha_n = \frac{(n - 2)\cdot 180^\circ}{n}$ só dá o ângulo individual quando o polígono é <em>regular</em> (ângulos todos iguais); além disso, em polígonos não convexos ou com auto-interseções, a triangulação simples da <ref to="prop:1-2-soma-angulos-poligono"/> precisa de cuidado extra porque alguns ângulos internos ultrapassam $180^\circ$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:1-2-2-1">
+        <title>Básico — Círculo e octógono regular</title>
+        <list marker="a">
+          <item>Uma placa de Petri circular tem raio interno $r = 5\text{ cm}$. Calcule o comprimento da borda circular e a área do fundo da placa (deixe a resposta exata em função de $\pi$ e dê também a aproximação usando $\pi \approx 3{,}14$).</item>
+          <item>Calcule a soma dos ângulos internos e a medida de cada ângulo interno de um octógono regular ($n = 8$).</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), aplique $C = 2\pi r$ e $A = \pi r^2$. Em (b), use $S_i = (n - 2)\cdot 180^\circ$ e divida por $n = 8$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Para $r = 5\text{ cm}$:
+              $$C = 2\pi(5) = 10\pi\text{ cm} \approx 10 \cdot 3{,}14 = 31{,}4\text{ cm},$$
+              $$A = \pi(5)^2 = 25\pi\text{ cm}^2 \approx 25 \cdot 3{,}14 = 78{,}5\text{ cm}^2.$$
+            </item>
+            <item>Para $n = 8$:
+              $$S_i = (8 - 2) \cdot 180^\circ = 6 \cdot 180^\circ = 1\,080^\circ.$$
+              Como o octógono é regular, seus $8$ ângulos internos são iguais:
+              $$\alpha_8 = \frac{1\,080^\circ}{8} = 135^\circ.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-2-2-2">
+        <title>Básico — Distância em linha reta de um microeletrodo</title>
+        Em um registro eletrofisiológico, um neurônio alvo encontra-se $60\;\mu\text{m}$ abaixo da superfície do corte cerebral e deslocado $80\;\mu\text{m}$ horizontalmente em relação ao ponto de referência na superfície. Qual é a distância em linha reta entre o ponto de referência e o neurônio?
+        <hint><title>Ver dica</title>O deslocamento horizontal e a profundidade vertical são perpendiculares ($90^\circ$), formando os catetos de um triângulo retângulo.</hint>
+        <solution collapsible="true" collapsed="true">
+          Pelo Teorema de Pitágoras (<ref to="thm:1-2-pitagoras"/>), a distância em linha reta é a hipotenusa $d$ do triângulo retângulo de catetos $a = 80\;\mu\text{m}$ e $b = 60\;\mu\text{m}$:
+          $$d^2 = 80^2 + 60^2 = 6\,400 + 3\,600 = 10\,000.$$
+          Extraindo a raiz quadrada positiva:
+          $$d = \sqrt{10\,000} = 100\;\mu\text{m}.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-2-2-3">
+        <title>Intermediário — Triângulo equilátero versus quadrado de mesmo perímetro</title>
+        Um triângulo equilátero tem lado $l = 6\text{ cm}$.
+        <list marker="a">
+          <item>Calcule sua altura e sua área (na forma exata com $\sqrt{3}$ e aproximada com $\sqrt{3} \approx 1{,}732$).</item>
+          <item>Qual é o lado e a área de um quadrado que possui o mesmo perímetro desse triângulo? Qual das duas figuras encerra maior área com o mesmo contorno?</item>
+        </list>
+        <hint><title>Ver dica</title>Use a <ref to="prop:1-2-equilatero-hexagono"/> para o triângulo. Para o quadrado, iguale $4l_q$ ao perímetro total do triângulo.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Para $l = 6\text{ cm}$:
+              $$h = \frac{6\sqrt{3}}{2} = 3\sqrt{3}\text{ cm} \approx 3 \cdot 1{,}732 = 5{,}196\text{ cm} \approx 5{,}20\text{ cm},$$
+              $$A_{\triangle} = \frac{6^2\sqrt{3}}{4} = \frac{36\sqrt{3}}{4} = 9\sqrt{3}\text{ cm}^2 \approx 9 \cdot 1{,}732 = 15{,}588\text{ cm}^2 \approx 15{,}59\text{ cm}^2.$$
+            </item>
+            <item>O perímetro do triângulo é $P = 3 \cdot 6 = 18\text{ cm}$. Um quadrado com esse mesmo perímetro tem lado:
+              $$l_q = \frac{18}{4} = 4{,}5\text{ cm},$$
+              e área:
+              $$A_q = (4{,}5)^2 = 20{,}25\text{ cm}^2.$$
+              Portanto, para o mesmo perímetro de $18\text{ cm}$, o quadrado ($20{,}25\text{ cm}^2$) encerra maior área que o triângulo equilátero ($\approx 15{,}59\text{ cm}^2$).
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-2-2-4">
+        <title>Avançado — Por que epitélios preferem hexágonos a quadrados ou triângulos?</title>
+        <list marker="a">
+          <item>Mostre que, dentre todos os polígonos regulares, apenas o triângulo equilátero ($n = 3$), o quadrado ($n = 4$) e o hexágono regular ($n = 6$) conseguem pavimentar o plano sem deixar frestas (verifique também $n = 5$ e explique o que ocorre para $n \ge 7$).</item>
+          <item>Suponha que uma célula bidimensional disponha de um mesmo perímetro fixo de membrana $P = 24\;\mu\text{m}$. Calcule a área encerrada por essa membrana quando ela assume a forma de triângulo equilátero ($n = 3$), quadrado ($n = 4$) e hexágono regular ($n = 6$), usando $\sqrt{3} \approx 1{,}732$. Qual deles maximiza a área interna para o mesmo gasto de perímetro?</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), para pavimentar sem frestas em torno de um vértice, um número inteiro $m \ge 3$ de ângulos internos $\alpha_n$ precisa somar $360^\circ$, ou seja, $\frac{360^\circ}{\alpha_n}$ deve ser inteiro. Em (b), divida $P = 24\;\mu\text{m}$ por $n$ para achar o lado de cada polígono antes de calcular a área.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Um polígono regular de $n$ lados tem ângulo interno $\alpha_n = \frac{(n - 2)\cdot 180^\circ}{n}$. Para $m$ polígonos se juntarem perfeitamente ao redor de um vértice, precisamos de $m \cdot \alpha_n = 360^\circ$, com $m$ inteiro e $m \ge 3$:
+              <list marker="dash">
+                <item>$n = 3$: $\alpha_3 = 60^\circ$ e $360^\circ / 60^\circ = 6$ (inteiro: $6$ triângulos encaixam).</item>
+                <item>$n = 4$: $\alpha_4 = 90^\circ$ e $360^\circ / 90^\circ = 4$ (inteiro: $4$ quadrados encaixam).</item>
+                <item>$n = 5$: $\alpha_5 = \frac{3 \cdot 180^\circ}{5} = 108^\circ$, mas $3 \cdot 108^\circ = 324^\circ < 360^\circ$ e $4 \cdot 108^\circ = 432^\circ > 360^\circ$ (sobra fresta ou há sobreposição).</item>
+                <item>$n = 6$: $\alpha_6 = 120^\circ$ e $360^\circ / 120^\circ = 3$ (inteiro: $3$ hexágonos encaixam).</item>
+                <item>$n \ge 7$: como $\alpha_n = 180^\circ - \frac{360^\circ}{n} > 180^\circ - \frac{360^\circ}{6} = 120^\circ$, já $3$ polígonos somariam mais que $3 \cdot 120^\circ = 360^\circ$ (não cabem nem $3$ no vértice, e $2$ dão menos que $360^\circ$). Logo, apenas $n = 3, 4, 6$ pavimentam o plano.</item>
+              </list>
+            </item>
+            <item>Com perímetro $P = 24\;\mu\text{m}$:
+              <list marker="dash">
+                <item><strong>Triângulo equilátero ($n = 3$):</strong> lado $l_3 = \frac{24}{3} = 8\;\mu\text{m}$. Área:
+                  $$A_3 = \frac{8^2\sqrt{3}}{4} = 16\sqrt{3} \approx 16 \cdot 1{,}732 = 27{,}71\;\mu\text{m}^2.$$
+                </item>
+                <item><strong>Quadrado ($n = 4$):</strong> lado $l_4 = \frac{24}{4} = 6\;\mu\text{m}$. Área:
+                  $$A_4 = 6^2 = 36\;\mu\text{m}^2.$$
+                </item>
+                <item><strong>Hexágono regular ($n = 6$):</strong> lado $l_6 = \frac{24}{6} = 4\;\mu\text{m}$. Área:
+                  $$A_6 = \frac{3\sqrt{3}}{2} \cdot 4^2 = 24\sqrt{3} \approx 24 \cdot 1{,}732 = 41{,}57\;\mu\text{m}^2.$$
+                </item>
+              </list>
+              Entre os três polígonos capazes de pavimentar o plano, o hexágono regular é o que encerra a maior área ($41{,}57\;\mu\text{m}^2$) para o mesmo perímetro de membrana — por isso mosaicos hexagonais minimizam o custo de parede ou membrana por área útil.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:1-2-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Relações básicas de ângulos</title>
+      <intro>
+        Ângulos não vivem isolados: quando retas se cruzam ou correm paralelas, conhecer um único ângulo revela todos os outros — ferramenta essencial da geometria de triângulos à seletividade de orientação no córtex visual.
+      </intro>
+
+      Sempre que duas retas se interceptam ou quando um ângulo é dividido em duas partes, surgem pares de ângulos cuja soma é fixa ou cujas medidas são obrigatoriamente iguais. Dominar essas relações elimina contas desnecessárias e revela simetrias imediatas.
+
+      <definition id="def:1-2-pares-angulos">
+        <title>Pares notáveis de ângulos e opostos pelo vértice</title>
+        Sejam $\alpha$ e $\beta$ as medidas de dois ângulos:
+        <list marker="dash">
+          <item><strong>Complementares:</strong> $\alpha + \beta = 90^\circ$ (juntos formam um ângulo reto).</item>
+          <item><strong>Suplementares:</strong> $\alpha + \beta = 180^\circ$ (juntos formam um ângulo raso).</item>
+          <item><strong>Replementares:</strong> $\alpha + \beta = 360^\circ$ (juntos completam uma volta inteira).</item>
+          <item><strong>Opostos pelo vértice (OPV):</strong> quando duas retas se cruzam em um ponto, os pares de ângulos em lados contrários do vértice (cujos lados são semirretas opostas) são chamados opostos pelo vértice.</item>
+        </list>
+      </definition>
+
+      <proposition id="prop:1-2-opv">
+        <title>Igualdade de ângulos opostos pelo vértice</title>
+        Dois ângulos opostos pelo vértice têm sempre a mesma medida.
+      </proposition>
+      <proof of="prop:1-2-opv" collapsible="true" collapsed="true">
+        Sejam $\alpha$ e $\beta$ dois ângulos opostos pelo vértice formados por duas retas que se cruzam, e seja $\gamma$ um dos dois ângulos adjacentes a ambos sobre uma mesma reta. Como $\alpha$ com $\gamma$ formam meia volta e $\beta$ com $\gamma$ também formam meia volta, temos:
+        $$\alpha + \gamma = 180^\circ \qquad \text{e} \qquad \beta + \gamma = 180^\circ.$$
+        Subtraindo $\gamma$ de ambos os lados nas duas equações, concluímos $\alpha = 180^\circ - \gamma = \beta$.
+      </proof>
+
+      Agora imagine duas retas paralelas $r$ e $s$ (retas no mesmo plano que nunca se encontram) atravessadas por uma terceira reta $t$, chamada <strong>transversal</strong>. Essa configuração cria oito ângulos (quatro em cada cruzamento), mas na verdade existem apenas duas medidas possíveis — uma aguda $\alpha$ e seu suplemento obtuso $\beta = 180^\circ - \alpha$ (ou ambas iguais a $90^\circ$ se $t$ for perpendicular).
+
+      <proposition id="prop:1-2-paralelas">
+        <title>Retas paralelas cortadas por uma transversal</title>
+        Quando duas retas paralelas $r$ e $s$ são cortadas por uma transversal $t$:
+        <list marker="number">
+          <item><strong>Ângulos correspondentes</strong> (ocupam a mesma posição relativa nos dois cruzamentos) são <strong>iguais</strong>.</item>
+          <item><strong>Ângulos alternos internos</strong> (entre $r$ e $s$, em lados opostos de $t$) e <strong>alternos externos</strong> (fora da faixa entre $r$ e $s$, em lados opostos de $t$) são <strong>iguais</strong>.</item>
+          <item><strong>Ângulos colaterais internos</strong> (entre $r$ e $s$, do mesmo lado de $t$) e <strong>colaterais externos</strong> (fora da faixa, do mesmo lado de $t$) são <strong>suplementares</strong> (somam $180^\circ$).</item>
+        </list>
+        <intuition>
+          Se você deslizar o cruzamento de baixo ao longo da transversal $t$ até sobrepor-se ao cruzamento de cima, como $r$ e $s$ têm exatamente a mesma inclinação, os dois cruzamentos se encaixam perfeitamente: os ângulos nas posições correspondentes coincidem. Combinando isso com os opostos pelo vértice e os suplementares da mesma reta, saem todas as relações.
+        </intuition>
+      </proposition>
+
+      Com essa propriedade das paralelas, podemos finalmente provar o resultado que usamos no Subtema 2 para polígonos e descobrir uma relação muito prática envolvendo o ângulo externo de um triângulo.
+
+      <theorem id="thm:1-2-triangulo-angulos">
+        <title>Soma dos ângulos internos e teorema do ângulo externo</title>
+        Em todo triângulo de ângulos internos $\alpha$, $\beta$ e $\gamma$:
+        <list marker="number">
+          <item><strong>Soma dos ângulos internos:</strong> $\alpha + \beta + \gamma = 180^\circ$.</item>
+          <item><strong>Teorema do ângulo externo:</strong> o ângulo externo formado pelo prolongamento de um lado em um vértice (por exemplo, $e_\gamma = 180^\circ - \gamma$) é igual à soma dos dois ângulos internos não adjacentes a ele:
+            $$e_\gamma = \alpha + \beta.$$
+          </item>
+        </list>
+      </theorem>
+      <proof of="thm:1-2-triangulo-angulos" collapsible="true" collapsed="true">
+        Considere um triângulo $ABC$ com ângulos internos $\alpha$ (em $A$), $\beta$ (em $B$) e $\gamma$ (em $C$). Trace pelo vértice $A$ uma reta $r$ paralela ao lado oposto $BC$.
+
+        Como $r$ é paralela à reta suporte de $BC$:
+        <list marker="dash">
+          <item>tomando o lado $AB$ como transversal, o ângulo entre $r$ e $AB$ de um lado de $A$ é alterno interno a $\beta$, logo mede $\beta$;</item>
+          <item>tomando o lado $AC$ como transversal, o ângulo entre $r$ e $AC$ do outro lado de $A$ é alterno interno a $\gamma$, logo mede $\gamma$.</item>
+        </list>
+        Esses três ângulos junto ao vértice $A$ ($\beta$, $\alpha$ e $\gamma$) formam juntos um ângulo raso sobre a reta $r$, portanto:
+        $$\alpha + \beta + \gamma = 180^\circ.$$
+        Para o item 2, prolongando o lado $BC$ após $C$, o ângulo externo $e_\gamma$ é suplementar a $\gamma$, isto é, $e_\gamma + \gamma = 180^\circ$. Como também $\alpha + \beta + \gamma = 180^\circ$, segue imediatamente $e_\gamma = \alpha + \beta$.
+      </proof>
+
+      Vamos agora aplicar relações angulares a uma das descobertas mais famosas da neurociência de sistemas. Nas décadas de 1950 e 1960 (trabalhos clássicos de 1959 e 1962, que lhes renderam o Prêmio Nobel em 1981), David Hubel e Torsten Wiesel mostraram que células simples do <strong>córtex visual primário (V1)</strong> não respondem melhor a pontos isolados de luz, e sim a <strong>barras ou bordas luminosas alongadas com uma orientação específica</strong> no seu campo receptivo (<em>receptive field</em>).
+
+      Aqui mora uma distinção geométrica fundamental entre <strong>direção</strong> (<em>direction</em>) e <strong>orientação</strong> (<em>orientation</em>):
+      <list marker="dash">
+        <item>Uma <strong>direção</strong> (como uma seta que se move) varia de $0^\circ$ a $360^\circ$: apontar para $30^\circ$ é o oposto de apontar para $210^\circ$ (diferença de $180^\circ$).</item>
+        <item>Uma <strong>orientação</strong> (a inclinação de uma barra estática sem ponta de seta) varia apenas no intervalo $[0^\circ, 180^\circ)$: se você girar uma barra de $30^\circ$ por meia volta ($180^\circ$), chegando a $210^\circ$, obtém exatamente a mesma barra sobre a mesma reta! Da mesma forma, $0^\circ$ e $180^\circ$ representam a mesma orientação horizontal.</item>
+      </list>
+
+      Por causa dessa simetria de $180^\circ$, a <strong>diferença de orientação</strong> $\Delta\theta$ entre duas barras de ângulos $\theta_1, \theta_2 \in [0^\circ, 180^\circ)$ é sempre o menor ângulo agudo ou reto formado entre suas retas suporte — portanto, um valor entre $0^\circ$ e $90^\circ$. Quando $|\theta_1 - \theta_2| \le 90^\circ$, a diferença é $|\theta_1 - \theta_2|$; quando $|\theta_1 - \theta_2| > 90^\circ$, tomamos o seu ângulo suplementar $180^\circ - |\theta_1 - \theta_2|$:
+      $$\Delta\theta = \min\bigl(|\theta_1 - \theta_2|,\; 180^\circ - |\theta_1 - \theta_2|\bigr).$$
+      Barras perpendiculares têm diferença máxima de orientação: $\Delta\theta = 90^\circ$. A <ref to="fig:1-2-barras"/> ilustra esse conceito para uma célula simples de V1 cuja orientação preferida é $45^\circ$.
+
+      <figure src="fig/barras-orientadas.svg" alt="Quatro campos receptivos de uma célula simples de V1 com orientação preferida de 45° e barras de teste a 45°, 90°, 135° e 0°" id="fig:1-2-barras">
+        <caption>Seletividade de orientação em uma célula simples de V1 (orientação preferida de $45^\circ$). A diferença de orientação $\Delta\theta$ mede o menor ângulo entre a barra de teste e o eixo preferido, ficando sempre entre $0^\circ$ e $90^\circ$: tanto a barra vertical ($90^\circ$) quanto a horizontal ($0^\circ$) desviam $45^\circ$ da preferida, enquanto a barra a $135^\circ$ é perpendicular ($\Delta\theta = 90^\circ$).</caption>
+      </figure>
+
+      <example id="exm:1-2-v1">
+        <title>Diferença de orientação em uma célula simples de V1</title>
+        Considere a célula simples de V1 ilustrada na <ref to="fig:1-2-barras"/>, cuja orientação preferida é $\theta_{\text{pref}} = 45^\circ$. Calcule a diferença de orientação $\Delta\theta$ para quatro barras de teste apresentadas nos ângulos $45^\circ$, $90^\circ$, $135^\circ$ e $0^\circ$, e identifique qual estímulo provoca resposta máxima e qual é perpendicular à orientação preferida.
+
+        <strong>Solução.</strong> Aplicamos $\Delta\theta = \min\bigl(|\theta - 45^\circ|,\; 180^\circ - |\theta - 45^\circ|\bigr)$ para cada barra:
+        <list marker="dash">
+          <item><strong>Barra a $45^\circ$:</strong> $|45^\circ - 45^\circ| = 0^\circ \implies \Delta\theta = 0^\circ$. Coincide com a orientação preferida (pico da curva de sintonia, ou <em>tuning curve</em>, de resposta).</item>
+          <item><strong>Barra a $90^\circ$:</strong> $|90^\circ - 45^\circ| = 45^\circ \le 90^\circ \implies \Delta\theta = 45^\circ$.</item>
+          <item><strong>Barra a $135^\circ$:</strong> $|135^\circ - 45^\circ| = 90^\circ \implies \Delta\theta = 90^\circ$. Essa barra é perpendicular à orientação preferida (em geral, resposta mínima da célula simples).</item>
+          <item><strong>Barra a $0^\circ$:</strong> $|0^\circ - 45^\circ| = 45^\circ \le 90^\circ \implies \Delta\theta = 45^\circ$.</item>
+        </list>
+        Repare que as barras a $0^\circ$ (horizontal) e a $90^\circ$ (vertical) são simétricas em relação à diagonal de $45^\circ$: ambas têm exatamente a mesma diferença de orientação $\Delta\theta = 45^\circ$.
+      </example>
+
+      <example id="exm:1-2-tratos-paralelos">
+        <title>Feixes paralelos, transversal e ângulos em um triângulo</title>
+        Em um corte bidimensional esquemático, dois feixes paralelos de fibras nervosas $r$ e $s$ são cruzados por uma fibra transversal $t$ que forma um ângulo agudo de $62^\circ$ com $r$. Uma segunda fibra $u$ parte de $r$ formando um ângulo interno de $48^\circ$ com $r$ e encontra $t$ abaixo de $r$, formando um triângulo com vértices em $r \cap t$, $r \cap u$ e $t \cap u$ (onde o ângulo interno em $r \cap t$ mede $62^\circ$).
+        <list marker="a">
+          <item>Quanto mede o ângulo obtuso colateral interno junto ao feixe $s$ formado pela transversal $t$?</item>
+          <item>Determine a medida do terceiro ângulo interno do triângulo (no vértice $t \cap u$) e a medida do ângulo externo do triângulo nesse mesmo vértice.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Pela <ref to="prop:1-2-paralelas"/>, ângulos colaterais internos entre paralelas são suplementares (somam $180^\circ$). Portanto, o ângulo obtuso junto a $s$ mede:
+            $$180^\circ - 62^\circ = 118^\circ.$$
+          </item>
+          <item>Pelo <ref to="thm:1-2-triangulo-angulos"/>, a soma dos três ângulos internos do triângulo é $180^\circ$. Chamando o terceiro ângulo interno de $\gamma$:
+            $$62^\circ + 48^\circ + \gamma = 180^\circ \implies 110^\circ + \gamma = 180^\circ \implies \gamma = 70^\circ.$$
+            Pelo teorema do ângulo externo, o ângulo externo nesse vértice é a soma dos dois internos não adjacentes:
+            $$e_\gamma = 62^\circ + 48^\circ = 110^\circ.$$
+            <em>Conferência:</em> $\gamma + e_\gamma = 70^\circ + 110^\circ = 180^\circ$.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:1-2-armadilha-angulos">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Confundir orientação ($0^\circ$–$180^\circ$) com direção ($0^\circ$–$360^\circ$):</strong> entre uma barra a $20^\circ$ e outra a $160^\circ$, a diferença de orientação <em>não</em> é $160^\circ - 20^\circ = 140^\circ$! Como orientações se repetem a cada $180^\circ$, o menor ângulo entre as duas barras é o suplementar: $180^\circ - 140^\circ = 40^\circ$. Lembre: diferença de orientação nunca passa de $90^\circ$.</item>
+          <item><strong>Trocar complementar por suplementar:</strong> <em>c</em>omplementar soma $90^\circ$ e <em>s</em>uplementar soma $180^\circ$.</item>
+          <item><strong>Igualar alternos ou correspondentes sem paralelismo:</strong> ângulos correspondentes e alternos internos só são iguais quando as duas retas cortadas pela transversal são de fato <em>paralelas</em>. Se as retas se cruzam em algum ponto, essa igualdade deixa de valer.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:1-2-3-1">
+        <title>Básico — Complementares, suplementares e opostos pelo vértice</title>
+        <list marker="a">
+          <item>Encontre o complemento e o suplemento de um ângulo que mede $37^\circ$.</item>
+          <item>Duas retas se cruzam em um ponto formando quatro ângulos. Se um deles mede $124^\circ$, determine as medidas dos outros três.</item>
+        </list>
+        <hint><title>Ver dica</title>Subtraia $37^\circ$ de $90^\circ$ (complemento) e de $180^\circ$ (suplemento). No cruzamento de duas retas, use opostos pelo vértice e suplementares.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>O complemento é $90^\circ - 37^\circ = 53^\circ$. O suplemento é $180^\circ - 37^\circ = 143^\circ$.</item>
+            <item>O ângulo oposto pelo vértice ao de $124^\circ$ também mede $124^\circ$ (<ref to="prop:1-2-opv"/>). Cada um dos outros dois ângulos é suplementar ao de $124^\circ$, medindo:
+              $$180^\circ - 124^\circ = 56^\circ.$$
+              <em>Conferência:</em> $124^\circ + 56^\circ + 124^\circ + 56^\circ = 360^\circ$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-2-3-2">
+        <title>Básico — Diferença de orientação em V1 com ângulos suplementares</title>
+        Uma célula simples do córtex visual primário (V1) tem orientação preferida de $20^\circ$. Durante o registro da sua taxa de disparo, são apresentadas duas barras de teste: uma orientada a $160^\circ$ e outra a $110^\circ$.
+        <list marker="a">
+          <item>Calcule a diferença de orientação $\Delta\theta$ entre a barra de $160^\circ$ e a orientação preferida de $20^\circ$.</item>
+          <item>Calcule a diferença de orientação $\Delta\theta$ para a barra de $110^\circ$. O que essa relação geométrica significa para a barra em relação à orientação preferida?</item>
+        </list>
+        <hint><title>Ver dica</title>Lembre que $\Delta\theta$ fica sempre entre $0^\circ$ e $90^\circ$. Se $|\theta_1 - \theta_2| > 90^\circ$, use o ângulo suplementar $180^\circ - |\theta_1 - \theta_2|$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>A diferença bruta é $|160^\circ - 20^\circ| = 140^\circ$. Como $140^\circ > 90^\circ$, tomamos o suplementar:
+              $$\Delta\theta = 180^\circ - 140^\circ = 40^\circ.$$
+              (Você também pode pensar que girar a barra de $20^\circ$ para trás — no sentido horário — passando por $0^\circ \equiv 180^\circ$ até $160^\circ$ percorre $20^\circ + 20^\circ = 40^\circ$.)
+            </item>
+            <item>Para a barra de $110^\circ$, a diferença bruta já é $|110^\circ - 20^\circ| = 90^\circ$, logo $\Delta\theta = 90^\circ$. Isso significa que a barra a $110^\circ$ é perpendicular (ortogonal) à orientação preferida de $20^\circ$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-2-3-3">
+        <title>Intermediário — Paralelas, transversal e triângulo</title>
+        Duas retas paralelas $r$ e $s$ são cortadas por uma transversal $t$. Um ângulo agudo formado entre $r$ e $t$ mede $3x + 15^\circ$, enquanto seu ângulo colateral interno junto à reta $s$ mede $7x + 15^\circ$.
+        <list marker="a">
+          <item>Encontre o valor de $x$ e as medidas desses dois ângulos.</item>
+          <item>Uma segunda reta $u$ cruza $r$ formando um ângulo interno de $45^\circ$ e encontra $t$, fechando um triângulo com $r$ e $t$ cujo ângulo interno no encontro $r \cap t$ é o ângulo agudo obtido em (a). Calcule o ângulo interno e o ângulo externo do triângulo no vértice $t \cap u$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), ângulos colaterais internos são suplementares (somam $180^\circ$). Em (b), use o <ref to="thm:1-2-triangulo-angulos"/>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como os colaterais internos são suplementares (<ref to="prop:1-2-paralelas"/>), temos:
+              $$(3x + 15^\circ) + (7x + 15^\circ) = 180^\circ \implies 10x + 30^\circ = 180^\circ \implies 10x = 150^\circ \implies x = 15^\circ.$$
+              Substituindo $x = 15^\circ$, o ângulo agudo mede $3(15^\circ) + 15^\circ = 60^\circ$ e o ângulo colateral interno obtuso mede $7(15^\circ) + 15^\circ = 120^\circ$. (<em>Conferência:</em> $60^\circ + 120^\circ = 180^\circ$.)
+            </item>
+            <item>No triângulo formado por $r$, $t$ e $u$, dois ângulos internos medem $60^\circ$ e $45^\circ$. O terceiro ângulo interno, em $t \cap u$, mede:
+              $$\gamma = 180^\circ - (60^\circ + 45^\circ) = 180^\circ - 105^\circ = 75^\circ.$$
+              O ângulo externo em $t \cap u$ é igual à soma dos dois internos não adjacentes:
+              $$e_\gamma = 60^\circ + 45^\circ = 105^\circ$$
+              (o que confere com $180^\circ - 75^\circ = 105^\circ$).
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-2-3-4">
+        <title>Avançado — Soma dos ângulos externos ao contornar uma célula poligonal</title>
+        Imagine que você percorre o contorno de uma célula modelada como um polígono convexo no sentido anti-horário, completando uma volta inteira. Em cada vértice, sua trajetória desvia de um ângulo externo $e_k$ (suplementar ao ângulo interno $\alpha_k$ daquele vértice).
+        <list marker="a">
+          <item>Para um triângulo qualquer de ângulos internos $\alpha, \beta, \gamma$ e ângulos externos correspondentes $e_1, e_2, e_3$ (um por vértice), prove algebricamente que $e_1 + e_2 + e_3 = 360^\circ$.</item>
+          <item>Generalize a prova para qualquer polígono convexo de $n$ lados usando a fórmula da <ref to="prop:1-2-soma-angulos-poligono"/> e mostre que a soma dos ângulos externos é sempre $360^\circ$, independentemente de $n$.</item>
+          <item>Aplique o resultado a uma célula epitelial hexagonal regular ($n = 6$): de quantos graus você gira em cada um dos $6$ vértices? Confira esse valor a partir do ângulo interno de $120^\circ$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a) e (b), escreva cada ângulo externo como $e_k = 180^\circ - \alpha_k$ e some de $k = 1$ até $n$ (ou some o teorema do ângulo externo nos três vértices do triângulo).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Pelo teorema do ângulo externo (<ref to="thm:1-2-triangulo-angulos"/>), em cada vértice temos $e_1 = \beta + \gamma$, $e_2 = \alpha + \gamma$ e $e_3 = \alpha + \beta$. Somando as três equações:
+              $$e_1 + e_2 + e_3 = 2(\alpha + \beta + \gamma) = 2 \cdot 180^\circ = 360^\circ.$$
+              (Equivalentemente, $e_1 + e_2 + e_3 = (180^\circ - \alpha) + (180^\circ - \beta) + (180^\circ - \gamma) = 540^\circ - 180^\circ = 360^\circ$.)
+            </item>
+            <item>Para um polígono convexo de $n$ lados, cada ângulo externo satisfaz $e_k = 180^\circ - \alpha_k$. Somando nos $n$ vértices e substituindo $\alpha_1 + \cdots + \alpha_n = (n - 2)\cdot 180^\circ$:
+              $$e_1 + \cdots + e_n = n \cdot 180^\circ - (n - 2) \cdot 180^\circ = \bigl(n - (n - 2)\bigr) \cdot 180^\circ = 2 \cdot 180^\circ = 360^\circ.$$
+              Isso faz todo sentido intuitivo: ao dar uma volta completa pelo contorno fechado de qualquer polígono convexo, sua direção total gira exatamente uma volta ($360^\circ$).
+            </item>
+            <item>No hexágono regular ($n = 6$), os $6$ ângulos externos são iguais, logo cada giro mede:
+              $$e = \frac{360^\circ}{6} = 60^\circ.$$
+              Conferindo pelo ângulo interno de $120^\circ$: $e = 180^\circ - 120^\circ = 60^\circ$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:1-2-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Ângulos básicos e perímetro:</strong> volta completa $= 360^\circ$; raso $= 180^\circ$; reto $= 90^\circ$; agudo em $(0^\circ, 90^\circ)$; obtuso em $(90^\circ, 180^\circ)$. O perímetro é a soma dos comprimentos dos lados.</item>
+        <item><strong>Conversões biológicas de comprimento e área:</strong> $1\text{ cm} = 10\text{ mm}$, $1\text{ mm} = 10^3\;\mu\text{m}$, $1\;\mu\text{m} = 10^3\text{ nm}$. Para área, eleve o fator ao quadrado: $1\text{ cm}^2 = 100\text{ mm}^2$ e $1\text{ mm}^2 = 10^6\;\mu\text{m}^2$.</item>
+        <item><strong>Semelhança e escala:</strong> com razão de semelhança linear $k$, comprimentos escalam por $k$, áreas escalam por $k^2$ (e volumes por $k^3$). Para uma célula esférica de raio $r$, a razão superfície/volume é $A/V = 3/r$.</item>
+        <item><strong>Áreas clássicas:</strong> quadrado $l^2$; retângulo $b \cdot h$; paralelogramo $b \cdot h$; triângulo $\dfrac{b \cdot h}{2}$; trapézio $\dfrac{(B+b)\cdot h}{2}$; círculo $\pi r^2$ (circunferência $2\pi r$).</item>
+        <item><strong>Teorema de Pitágoras:</strong> em todo triângulo retângulo de catetos $a, b$ e hipotenusa $c$, vale $a^2 + b^2 = c^2$.</item>
+        <item><strong>Triângulo equilátero e hexágono regular (lado $l$):</strong> altura do equilátero $h = \dfrac{l\sqrt{3}}{2}$, área $A_{\triangle} = \dfrac{l^2\sqrt{3}}{4}$; área do hexágono regular $A_{\text{hex}} = \dfrac{3\sqrt{3}}{2}\,l^2$.</item>
+        <item><strong>Ângulos de polígonos convexos ($n$ lados):</strong> soma dos internos $S_i = (n - 2)\cdot 180^\circ$; no regular, cada interno vale $\alpha_n = \dfrac{(n-2)\cdot 180^\circ}{n}$ (no hexágono, $120^\circ$, permitindo pavimentar com $3 \cdot 120^\circ = 360^\circ$); soma dos externos $= 360^\circ$.</item>
+        <item><strong>Relações de ângulos e triângulos:</strong> complementares somam $90^\circ$, suplementares $180^\circ$, opostos pelo vértice são iguais. Em paralelas cortadas por transversal, correspondentes e alternos são iguais, e colaterais somam $180^\circ$. Em todo triângulo, os ângulos internos somam $180^\circ$ e cada ângulo externo é a soma dos dois internos não adjacentes.</item>
+        <item><strong>Orientação em V1:</strong> orientação de barras varia em $[0^\circ, 180^\circ)$ (diferente de direção em $[0^\circ, 360^\circ)$), e a diferença de orientação é $\Delta\theta = \min\bigl(|\theta_1 - \theta_2|,\; 180^\circ - |\theta_1 - \theta_2|\bigr) \in [0^\circ, 90^\circ]$.</item>
+      </list>
+    </section>
+
+    <section id="sec:1-2-alem">
+      <title>Para ir além</title>
+      Com a geometria básica consolidada, você está pronto para avançar ao próximo tema do módulo — <strong>Funções</strong> (Tema 1.3), onde vamos transformar relações como a taxa de disparo de um neurônio em função do estímulo em curvas analíticas (o projeto final deste Módulo 1). Para praticar e revisar:
+      <list marker="dash">
+        <item><strong>Material essencial:</strong> <link to="https://pt.khanacademy.org/math/precalculus">Khan Academy — Pré-Cálculo</link>, para revisar bases algébricas e espaciais com exercícios interativos.</item>
+        <item><strong>Aprofundamento em vídeo:</strong> <link to="https://www.youtube.com/playlist?list=PL83s8LGM84J62ahewE-sVGbnJdOqGp8lJ">Playlist YouTube — Base Matemática</link>, ótima para consolidar áreas, Pitágoras e relações angulares em ritmo de aula.</item>
+        <item><strong>Treino ativo sugerido no guia:</strong> após cada subtema desta aula, peça a uma IA para criar $3$ questões de geometria aplicadas à neurociência (microscopia de tecido neural, área de campos receptivos, orientação em V1) para você resolver passo a passo antes de conferir o gabarito.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 1 · Pré-Cálculo — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

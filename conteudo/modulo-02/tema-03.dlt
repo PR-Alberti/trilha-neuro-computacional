@@ -1,0 +1,949 @@
+<document>
+  <title>Módulo 2 · Cálculo Real</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-2-3">Voltar ao guia (Tema 2.3)</link></meta-item>
+    <meta-item key="Módulo">Módulo 2 · Cálculo Real — Taxas de Variação e Acúmulo</meta-item>
+    <meta-item key="Nível">Avançado</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-2-3">
+    <title>Integral de Riemann</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      O acúmulo: somar correntes, áreas sob curvas de resposta, energia de um sinal.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> No tema anterior, a derivada mostrou como medir a <em>taxa instantânea</em> com que uma grandeza muda — por exemplo, a velocidade $\dfrac{dV}{dt}$ com que o potencial de membrana varia em um modelo neuronal. Mas a natureza também funciona por <em>acúmulo</em>. Quando canais sinápticos se abrem durante alguns milissegundos, a corrente iônica $I(t)$ sobe e depois decai; o que determina o quanto a membrana vai despolarizar é a <strong>carga elétrica total</strong> $Q$ que entrou somada ao longo da janela de tempo. Em farmacologia, saber a concentração máxima de um medicamento no sangue não basta: a exposição total do organismo é medida pela <strong>área sob a curva</strong> de concentração. Em neuroimagem por fMRI, a resposta hemodinâmica medida pelo sinal BOLD a cada tempo de repetição ($\text{TR} \approx 2\text{ s}$) acumula a resposta metabólica local associada à atividade neural.
+
+    A <strong>integral de Riemann</strong> é a ferramenta matemática que transforma taxas variáveis em totais acumulados. Ao mesmo tempo, ela fecha o círculo do Cálculo Real: o <strong>Teorema Fundamental do Cálculo</strong> revela que acumular (integrar) e medir taxas instantâneas (derivar) são operações inversas uma da outra. Esse mesmo alicerce reaparece quando estendermos integrais para várias dimensões no Módulo 3 (<mark>Cálculo Multivariável</mark>) e quando calcularmos probabilidades em distribuições contínuas no Módulo 7 (em que a probabilidade será exatamente a área sob uma curva de densidade).
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>construir e calcular somas de Riemann (à esquerda, à direita e no ponto médio) para aproximar áreas e acúmulos biológicos a partir de funções ou dados tabelados;</item>
+      <item>interpretar a integral definida $\int_a^b f(x)\,dx$ como limite de somas de Riemann e como área líquida com sinal;</item>
+      <item>aplicar as propriedades operatórias da integral (linearidade, aditividade, inversão de limites, comparação e valor médio de uma função);</item>
+      <item>encontrar primitivas imediatas e aplicar o Teorema Fundamental do Cálculo (Partes 1 e 2) para avaliar integrais definidas e interpretar taxas de acúmulo;</item>
+      <item>calcular áreas entre curvas, áreas com mudança de sinal, áreas sob curvas farmacocinéticas (AUC) e integrais por mudança de variável (substituição).</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Este tema depende de <strong>Limite</strong> (Tema 2.1, incluindo limites no infinito e o Teorema do Sanduíche) e de <strong>Derivada</strong> (Tema 2.2: regras de derivação, regra da cadeia, derivadas de $e^x$, $\ln x$, $\operatorname{sen} x$, $\cos x$ e da sigmoide, além da interpretação da taxa $\frac{dV}{dt}$). Também retomamos gráficos de <strong>Funções</strong> (Tema 1.3) e oscilações senoidais de <strong>Trigonometria</strong> (Tema 1.4).
+
+    <section id="sec:2-3-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Introdução</title>
+      <intro>
+        Quando uma taxa varia a cada instante, não podemos simplesmente multiplicá-la pelo tempo total — dividimos o intervalo em fatias curtas, tratamos a taxa como quase constante em cada fatia, somamos os retângulos e refinamos a divisão até o limite.
+      </intro>
+
+      Se uma corrente iônica constante de $50\text{ pA}$ entra em um neurônio durante $4\text{ ms}$, a carga acumulada é imediata: $Q = I \cdot \Delta t = 50 \cdot 4 = 200\text{ fC}$. Mas uma corrente sináptica real sobe rapidamente e decai em seguida; não existe um único valor de $I$ para multiplicar por $\Delta t$. A saída é fatiar o intervalo de tempo $[a, b]$ em $n$ pedaços pequenos, aproximar a curva por degraus retangulares em cada pedaço e somar suas áreas. Quanto menor a largura $\Delta x$ de cada fatia, mais fiel fica a soma.
+
+      <definition id="def:2-3-soma-riemann">
+        <title>Partição regular e soma de Riemann</title>
+        Seja $f$ uma função definida e limitada no intervalo fechado $[a, b]$ ($a < b$). Para um inteiro $n \ge 1$, dividimos $[a, b]$ em $n$ subintervalos iguais de largura:
+        $$\Delta x = \frac{b - a}{n}.$$
+        Os pontos da partição são $x_i = a + i\,\Delta x$ para $i = 0, 1, \dots, n$ (com $x_0 = a$ e $x_n = b$). Em cada subintervalo $[x_{i-1}, x_i]$, escolhemos um <strong>ponto amostral</strong> $x_i^* \in [x_{i-1}, x_i]$ e formamos a <strong>soma de Riemann</strong>:
+        <equation id="eq:2-3-soma-riemann">S_n = \sum_{i=1}^{n} f(x_i^*)\,\Delta x.</equation>
+        Três escolhas usuais de $x_i^*$ dão nomes específicos à soma:
+        <list marker="dash">
+          <item><strong>Soma à esquerda ($E_n$):</strong> $x_i^* = x_{i-1}$ (extremo esquerdo de cada subintervalo);</item>
+          <item><strong>Soma à direita ($D_n$):</strong> $x_i^* = x_i$ (extremo direito de cada subintervalo);</item>
+          <item><strong>Soma no ponto médio ($M_n$):</strong> $x_i^* = \dfrac{x_{i-1} + x_i}{2}$ (centro de cada subintervalo).</item>
+        </list>
+        <intuition>
+          Cada parcela $f(x_i^*)\,\Delta x$ representa a área (com sinal) de um retângulo de base $\Delta x$ e altura $f(x_i^*)$. A soma à esquerda usa a altura no início de cada fatia; a soma à direita usa a altura no final; e o ponto médio usa a altura no meio, equilibrando melhor subidas e descidas.
+        </intuition>
+      </definition>
+
+      <figure src="fig/somas-riemann.svg" alt="Dois painéis mostrando o gráfico de f(x) = x ao quadrado em [0, 2] com 4 retângulos: soma à esquerda com área 1,75 à esquerda e soma à direita com área 3,75 à direita" id="fig:2-3-somas-riemann">
+        <caption>Aproximação de $\int_0^2 x^2\,dx$ com $n = 4$ subintervalos ($\Delta x = 0{,}5$). Como $x^2$ é crescente em $[0, 2]$, a soma à esquerda ($E_4 = 1{,}75$) subestima a área exata ($8/3 \approx 2{,}67$) e a soma à direita ($D_4 = 3{,}75$) a superestima.</caption>
+      </figure>
+
+      À medida que $n$ cresce ($\Delta x \to 0$), os retângulos ficam cada vez mais estreitos e a soma de Riemann converge para um único número — exatamente como ilustra a <ref to="fig:2-3-somas-riemann"/> quando refinamos a malha.
+
+      <definition id="def:2-3-integral-definida">
+        <title>Integral definida de Riemann</title>
+        Seja $f$ uma função limitada em $[a, b]$. Dizemos que $f$ é <strong>integrável em $[a, b]$</strong> se o limite das somas de Riemann existir e for o mesmo para qualquer escolha dos pontos amostrais $x_i^*$. Nesse caso, definimos a <strong>integral definida</strong> de $f$ de $a$ até $b$ por:
+        <equation id="eq:2-3-integral-definida">\int_a^b f(x)\,dx = \lim_{n \to \infty} \sum_{i=1}^{n} f(x_i^*)\,\Delta x.</equation>
+        Aqui, $\int$ é o sinal de integração (um S estilizado de "soma"), $a$ e $b$ são os <strong>limites de integração</strong> (inferior e superior), $f(x)$ é o <strong>integrando</strong> e $dx$ indica a variável de integração.
+      </definition>
+
+      Quando uma função garante que esse limite existe? O resultado a seguir assegura que praticamente todas as funções contínuas ou com saltos isolados que aparecem em modelos biológicos são integráveis.
+
+      <theorem id="thm:2-3-integrabilidade">
+        <title>Existência da integral definida</title>
+        Se $f$ é contínua em $[a, b]$, ou se $f$ é limitada em $[a, b]$ e possui apenas um número finito de descontinuidades de salto (como a função degrau do disparo neuronal), então $f$ é integrável em $[a, b]$.
+      </theorem>
+
+      Geometricamente, se $f(x) \ge 0$ em $[a, b]$, cada parcela $f(x_i^*)\,\Delta x \ge 0$ e $\int_a^b f(x)\,dx$ mede exatamente a área sob o gráfico de $f$ acima do eixo $x$. Mas quando $f(x) < 0$, a altura $f(x_i^*)$ é negativa e o produto $f(x_i^*)\,\Delta x$ entra com sinal negativo na soma. Assim, a integral definida calcula a <strong>área líquida com sinal</strong>:
+      $$\int_a^b f(x)\,dx = (\text{área acima do eixo } x) - (\text{área abaixo do eixo } x).$$
+
+      <example id="exm:2-3-riemann-x2">
+        <title>Somas de Riemann e limite exato de $\int_0^2 x^2\,dx$</title>
+        Considere $f(x) = x^2$ no intervalo $[0, 2]$.
+        <list marker="a">
+          <item>Calcule as somas de Riemann à esquerda ($E_4$), à direita ($D_4$) e no ponto médio ($M_4$) para $n = 4$.</item>
+          <item>Use o limite com $n \to \infty$ e a identidade $1^2 + 2^2 + \cdots + n^2 = \dfrac{n(n+1)(2n+1)}{6}$ para obter o valor exato de $\int_0^2 x^2\,dx$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Com $n = 4$, a largura de cada subintervalo é $\Delta x = \dfrac{2 - 0}{4} = 0{,}5$, e os pontos da partição são $x_0 = 0$, $x_1 = 0{,}5$, $x_2 = 1{,}0$, $x_3 = 1{,}5$ e $x_4 = 2{,}0$.
+            <list marker="dash">
+              <item><strong>À esquerda ($E_4$):</strong> avaliamos nos quatro extremos esquerdos $\{0;\; 0{,}5;\; 1{,}0;\; 1{,}5\}$:
+                $$E_4 = \big[0^2 + (0{,}5)^2 + (1{,}0)^2 + (1{,}5)^2\big]\cdot 0{,}5 = (0 + 0{,}25 + 1 + 2{,}25)\cdot 0{,}5 = 3{,}5 \cdot 0{,}5 = 1{,}75.$$
+              </item>
+              <item><strong>À direita ($D_4$):</strong> avaliamos nos quatro extremos direitos $\{0{,}5;\; 1{,}0;\; 1{,}5;\; 2{,}0\}$:
+                $$D_4 = \big[(0{,}5)^2 + (1{,}0)^2 + (1{,}5)^2 + (2{,}0)^2\big]\cdot 0{,}5 = (0{,}25 + 1 + 2{,}25 + 4)\cdot 0{,}5 = 7{,}5 \cdot 0{,}5 = 3{,}75.$$
+              </item>
+              <item><strong>No ponto médio ($M_4$):</strong> os centros dos quatro subintervalos são $0{,}25$, $0{,}75$, $1{,}25$ e $1{,}75$:
+                $$M_4 = \big[(0{,}25)^2 + (0{,}75)^2 + (1{,}25)^2 + (1{,}75)^2\big]\cdot 0{,}5 = (0{,}0625 + 0{,}5625 + 1{,}5625 + 3{,}0625)\cdot 0{,}5 = 5{,}25 \cdot 0{,}5 = 2{,}625.$$
+              </item>
+            </list>
+          </item>
+          <item>Para um $n$ qualquer usando extremos direitos, temos $\Delta x = \dfrac{2}{n}$ e $x_i = \dfrac{2i}{n}$ ($i = 1, \dots, n$). A soma à direita vale:
+            $$D_n = \sum_{i=1}^{n} \left(\frac{2i}{n}\right)^2 \frac{2}{n} = \frac{8}{n^3}\sum_{i=1}^{n} i^2 = \frac{8}{n^3} \cdot \frac{n(n+1)(2n+1)}{6} = \frac{4}{3}\cdot\frac{n+1}{n}\cdot\frac{2n+1}{n} = \frac{4}{3}\left(1 + \frac{1}{n}\right)\left(2 + \frac{1}{n}\right).$$
+            Tomando o limite $n \to \infty$ (Tema 2.1), como $\frac{1}{n} \to 0$, obtemos:
+            $$\int_0^2 x^2\,dx = \lim_{n \to \infty} D_n = \frac{4}{3}(1 + 0)(2 + 0) = \frac{8}{3} \approx 2{,}667.$$
+            Note como $M_4 = 2{,}625$ já chegou muito mais perto de $8/3 \approx 2{,}667$ do que $E_4 = 1{,}75$ e $D_4 = 3{,}75$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:2-3-carga-bold">
+        <title>Carga sináptica e área sob o sinal BOLD no fMRI</title>
+        <list marker="a">
+          <item>Se uma corrente sináptica constante $I = 50\text{ pA}$ atua por $\Delta t = 4\text{ ms}$, qual é a carga $Q$ transferida? Em seguida, estime $Q = \int_0^{10} I(t)\,dt$ para uma corrente variável medida a cada $\Delta t = 2\text{ ms}$: $I(0)=0$, $I(2)=80$, $I(4)=60$, $I(6)=35$, $I(8)=15$ e $I(10)=5$ (em $\text{pA}$).</item>
+          <item>Em um experimento de fMRI com $\text{TR} = 2\text{ s}$, a variação percentual do sinal BOLD $S(t)$ (em $\%$) foi amostrada em $t = 0, 2, 4, 6, 8, 10, 12\text{ s}$ obtendo os valores $0{,}0$; $0{,}4$; $1{,}2$; $1{,}5$; $0{,}8$; $0{,}1$; $-0{,}2$. Estime a área líquida $\int_0^{12} S(t)\,dt$ pelas somas à esquerda e à direita.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Para corrente constante, $Q = I \cdot \Delta t = 50\text{ pA} \cdot 4\text{ ms} = 200\text{ pA}\cdot\text{ms}$. Como $1\text{ pA} = 10^{-12}\text{ A}$ e $1\text{ ms} = 10^{-3}\text{ s}$, vale a equivalência $1\text{ pA}\cdot\text{ms} = 10^{-15}\text{ C} = 1\text{ fC}$ (femtocoulomb), e analogamente $1\text{ nA}\cdot\text{ms} = 1\text{ pC}$ (picocoulomb); logo, $Q = 200\text{ fC}$.
+          Para a corrente variável em $[0, 10]\text{ ms}$ com $n = 5$ subintervalos de largura $\Delta t = 2\text{ ms}$:
+          $$E_5 = (0 + 80 + 60 + 35 + 15)\cdot 2 = 190 \cdot 2 = 380\text{ fC},$$
+          $$D_5 = (80 + 60 + 35 + 15 + 5)\cdot 2 = 195 \cdot 2 = 390\text{ fC}.$$
+          </item>
+          <item>Com $n = 6$ intervalos de largura $\Delta t = \text{TR} = 2\text{ s}$:
+          $$E_6 = (0{,}0 + 0{,}4 + 1{,}2 + 1{,}5 + 0{,}8 + 0{,}1)\cdot 2 = 4{,}0 \cdot 2 = 8{,}0\text{ \%}\cdot\text{s},$$
+          $$D_6 = (0{,}4 + 1{,}2 + 1{,}5 + 0{,}8 + 0{,}1 - 0{,}2)\cdot 2 = 3{,}8 \cdot 2 = 7{,}6\text{ \%}\cdot\text{s}.$$
+          Observe que o valor negativo $S(12) = -0{,}2\%$ (o vale pós-estímulo) reduz a soma à direita porque entra com sinal negativo na integral.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:2-3-area-sinal">
+        <title>Armadilha comum</title>
+        A integral definida <strong>não</strong> é sinônimo de área geométrica quando o integrando muda de sinal. Se $f(x) < 0$ em parte do intervalo, essa parte contribui negativamente para $\int_a^b f(x)\,dx$. Por exemplo, uma oscilação simétrica tem integral líquida nula em um ciclo completo, embora a área total entre a curva e o eixo horizontal seja positiva.
+      </remark>
+
+      O bloco de código a seguir é <strong>opcional</strong> (programação em Python será ensinada do zero no Módulo 6): ele mostra como o NumPy calcula as somas do <ref to="exm:2-3-riemann-x2"/> para valores crescentes de $n$, confirmando a convergência para $8/3 \approx 2{,}666667$.
+
+      <code lang="python" id="cod:2-3-riemann">
+import numpy as np
+
+def f(x):
+    return x ** 2
+
+a, b = 0.0, 2.0
+exato = 8.0 / 3.0
+
+for n in [4, 10, 100, 1000]:
+    dx = (b - a) / n
+    xs = np.linspace(a, b, n + 1)
+    esq = np.sum(f(xs[:-1])) * dx
+    dir_ = np.sum(f(xs[1:])) * dx
+    mids = 0.5 * (xs[:-1] + xs[1:])
+    med = np.sum(f(mids)) * dx
+    print(f"n={n:4d} | Esq={esq:.6f} | Dir={dir_:.6f} | Med={med:.6f}")
+
+print(f"Exato = {exato:.6f}")
+# Saída esperada:
+# n=   4 | Esq=1.750000 | Dir=3.750000 | Med=2.625000
+# n=  10 | Esq=2.280000 | Dir=3.080000 | Med=2.660000
+# n= 100 | Esq=2.626800 | Dir=2.706800 | Med=2.666600
+# n=1000 | Esq=2.662668 | Dir=2.670668 | Med=2.666666
+# Exato = 2.666667
+      </code>
+
+      <exercise id="exr:2-3-1-1">
+        <title>Básico — Somas de Riemann para uma reta</title>
+        Considere $f(x) = 2x + 1$ no intervalo $[1, 3]$. Calcule $E_4$, $D_4$ e $M_4$ (com $n = 4$) e compare os três resultados com a área exata do trapézio sob a reta.
+        <hint><title>Ver dica</title>A largura de cada subintervalo é $\Delta x = \frac{3 - 1}{4} = 0{,}5$. Liste os pontos $1$; $1{,}5$; $2$; $2{,}5$; $3$ e os pontos médios $1{,}25$; $1{,}75$; $2{,}25$; $2{,}75$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Temos $\Delta x = 0{,}5$ e valores nos extremos $f(1) = 3$, $f(1{,}5) = 4$, $f(2) = 5$, $f(2{,}5) = 6$, $f(3) = 7$:
+          <list marker="dash">
+            <item>$E_4 = (3 + 4 + 5 + 6) \cdot 0{,}5 = 18 \cdot 0{,}5 = 9$;</item>
+            <item>$D_4 = (4 + 5 + 6 + 7) \cdot 0{,}5 = 22 \cdot 0{,}5 = 11$;</item>
+            <item>nos pontos médios, $f(1{,}25) = 3{,}5$, $f(1{,}75) = 4{,}5$, $f(2{,}25) = 5{,}5$ e $f(2{,}75) = 6{,}5$, logo $M_4 = (3{,}5 + 4{,}5 + 5{,}5 + 6{,}5) \cdot 0{,}5 = 20 \cdot 0{,}5 = 10$.</item>
+          </list>
+          A área exata do trapézio de bases $f(1) = 3$ e $f(3) = 7$ e altura $3 - 1 = 2$ é $\dfrac{3 + 7}{2}\cdot 2 = 10$. Como $f$ é linear, o ponto médio $M_4$ acerta o valor exato!
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-3-1-2">
+        <title>Intermediário — Integral definida pelo limite da soma</title>
+        Calcule $\int_0^3 x\,dx$ diretamente pela definição como limite da soma à direita $D_n$, usando a fórmula $1 + 2 + \cdots + n = \dfrac{n(n+1)}{2}$. Confira o resultado pela geometria.
+        <hint><title>Ver dica</title>Em $[0, 3]$, tome $\Delta x = \frac{3}{n}$ e $x_i = \frac{3i}{n}$. Fatore $\frac{9}{n^2}$ para fora do somatório antes de fazer $n \to \infty$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Com $\Delta x = \dfrac{3}{n}$ e $x_i^* = x_i = \dfrac{3i}{n}$ ($i = 1, \dots, n$), a soma à direita é:
+          $$D_n = \sum_{i=1}^{n} \left(\frac{3i}{n}\right)\frac{3}{n} = \frac{9}{n^2}\sum_{i=1}^{n} i = \frac{9}{n^2}\cdot\frac{n(n+1)}{2} = \frac{9}{2}\left(1 + \frac{1}{n}\right).$$
+          Fazendo $n \to \infty$, $\frac{1}{n} \to 0$, logo:
+          $$\int_0^3 x\,dx = \lim_{n \to \infty} D_n = \frac{9}{2} = 4{,}5.$$
+          Geometricamente, a região sob $y = x$ em $[0, 3]$ é um triângulo retângulo de base $3$ e altura $3$, cuja área é $\dfrac{3 \cdot 3}{2} = 4{,}5$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-3-1-3">
+        <title>Avançado — Corrente sináptica bifásica</title>
+        Em um registro eletrofisiológico de $8\text{ ms}$, uma corrente de membrana $I(t)$ (em $\text{pA}$) passa de excitatória (positiva) para inibitória (negativa), sendo amostrada a cada $\Delta t = 2\text{ ms}$: $I(0) = 0$, $I(2) = 60$, $I(4) = 20$, $I(6) = -30$ e $I(8) = -10$.
+        <list marker="a">
+          <item>Estime a carga líquida acumulada $\int_0^8 I(t)\,dt$ (em $\text{fC}$) usando a soma à esquerda $E_4$ e a soma à direita $D_4$.</item>
+          <item>Explique por que a carga líquida é menor do que a quantidade total de carga que cruzou a membrana nos dois sentidos.</item>
+        </list>
+        <hint><title>Ver dica</title>Use $n = 4$ subintervalos de largura $\Delta t = 2\text{ ms}$. Mantenha os sinais negativos de $I(6)$ e $I(8)$ nas somas.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Com $\Delta t = 2\text{ ms}$:
+              $$E_4 = [I(0) + I(2) + I(4) + I(6)]\cdot 2 = (0 + 60 + 20 - 30)\cdot 2 = 50 \cdot 2 = 100\text{ fC},$$
+              $$D_4 = [I(2) + I(4) + I(6) + I(8)]\cdot 2 = (60 + 20 - 30 - 10)\cdot 2 = 40 \cdot 2 = 80\text{ fC}.$$
+            </item>
+            <item>Na primeira metade da janela a corrente é positiva (fluxo líquido despolarizante) e na segunda metade torna-se negativa (fluxo em sentido oposto). Como a integral definida soma valores com sinal, o acúmulo negativo cancela parcialmente o acúmulo positivo anterior, fazendo a carga líquida final ser menor que a soma das magnitudes dos dois pulsos.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:2-3-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Propriedades</title>
+      <intro>
+        Assim como limites e derivadas, a integral definida respeita regras algébricas simples que permitem decompor sinais compostos, juntar janelas de tempo consecutivas e estimar valores médios mesmo sem calcular primitivas.
+      </intro>
+
+      Na neurofisiologia, um neurônio recebe simultaneamente correntes excitatórias e inibitórias; além disso, frequentemente queremos somar o que aconteceu nos primeiros $20\text{ ms}$ com o que aconteceu nos $30\text{ ms}$ seguintes, ou saber qual foi a taxa de disparo <em>média</em> dentro de uma janela de estímulo. Todas essas operações traduzem-se diretamente em propriedades estruturais da integral de Riemann.
+
+      <proposition id="prop:2-3-propriedades">
+        <title>Propriedades algébricas e de ordem da integral definida</title>
+        Sejam $f$ e $g$ funções integráveis nos intervalos considerados e $c, d \in \mathbb{R}$ constantes. Valem:
+        <list marker="number">
+          <item><strong>Linearidade:</strong> $\displaystyle \int_a^b [c\,f(x) + d\,g(x)]\,dx = c\int_a^b f(x)\,dx + d\int_a^b g(x)\,dx$.</item>
+          <item><strong>Intervalo nulo:</strong> $\displaystyle \int_a^a f(x)\,dx = 0$.</item>
+          <item><strong>Inversão dos limites:</strong> $\displaystyle \int_b^a f(x)\,dx = -\int_a^b f(x)\,dx$.</item>
+          <item><strong>Aditividade em intervalos:</strong> para qualquer $c$ tal que as integrais existam, $\displaystyle \int_a^b f(x)\,dx + \int_b^c f(x)\,dx = \int_a^c f(x)\,dx$.</item>
+          <item><strong>Monotonicidade:</strong> se $f(x) \le g(x)$ para todo $x \in [a, b]$ ($a \le b$), então $\displaystyle \int_a^b f(x)\,dx \le \int_a^b g(x)\,dx$. Em particular, se $m \le f(x) \le M$ em $[a, b]$, então:
+            <equation id="eq:2-3-estimativa">m(b - a) \le \int_a^b f(x)\,dx \le M(b - a).</equation>
+          </item>
+        </list>
+        <intuition>
+          Todas essas regras herdam-se diretamente das somas de Riemann: somar retângulos é linear, trocar o sentido de percurso de $b$ para $a$ inverte o sinal de $\Delta x$, e retângulos mais altos sempre geram soma maior ou igual.
+        </intuition>
+      </proposition>
+      <proof of="prop:2-3-propriedades" collapsible="true" collapsed="true">
+        Para a linearidade, como o somatório finito é linear, $\sum_{i=1}^n [c f(x_i^*) + d g(x_i^*)]\Delta x = c\sum_{i=1}^n f(x_i^*)\Delta x + d\sum_{i=1}^n g(x_i^*)\Delta x$; passando ao limite $n \to \infty$ pelas propriedades de limites (Tema 2.1), segue o item 1. Os itens 2 e 3 são convenções compatíveis com $\Delta x = (b - a)/n$: quando $b = a$, $\Delta x = 0$; ao inverter $a$ e $b$, $\Delta x$ troca de sinal. Para a monotonicidade, se $f(x) \le g(x)$ e $a \le b$, então $f(x_i^*)\Delta x \le g(x_i^*)\Delta x$ para todo $i$; somando e tomando o limite, preserva-se a desigualdade ($\le$). A estimativa com $m$ e $M$ segue integrando as funções constantes $m$ e $M$, pois $\int_a^b c\,dx = c(b - a)$.
+      </proof>
+
+      Dividindo a desigualdade <eqref>eq:2-3-estimativa</eqref> por $b - a > 0$, obtemos que o número $\frac{1}{b - a}\int_a^b f(x)\,dx$ fica sempre entre o mínimo $m$ e o máximo $M$ de $f$. Isso motiva a definição contínua de média.
+
+      <definition id="def:2-3-valor-medio">
+        <title>Valor médio de uma função</title>
+        Seja $f$ integrável em $[a, b]$ com $a < b$. O <strong>valor médio</strong> de $f$ em $[a, b]$ é:
+        <equation id="eq:2-3-valor-medio">f_{\text{méd}} = \frac{1}{b - a}\int_a^b f(x)\,dx.</equation>
+        Geometricamente, se $f \ge 0$, $f_{\text{méd}}$ é a altura do retângulo de base $b - a$ cuja área $f_{\text{méd}}\cdot(b - a)$ é exatamente igual à área sob o gráfico de $f$. Além disso, pelo <em>Teorema do Valor Médio para Integrais</em>, se $f$ é contínua em $[a, b]$, existe ao menos um ponto $c \in [a, b]$ tal que $f(c) = f_{\text{méd}}$.
+      </definition>
+
+      <example id="exm:2-3-prop-correntes">
+        <title>Corrente total e carga em intervalos consecutivos</title>
+        Em uma sinapse excitatória, abrem-se canais AMPA e NMDA cujas correntes produzem, no intervalo $[0, 20]\text{ ms}$, cargas $\int_0^{20} I_{\text{AMPA}}(t)\,dt = 120\text{ fC}$ e $\int_0^{20} I_{\text{NMDA}}(t)\,dt = 80\text{ fC}$.
+        <list marker="a">
+          <item>Se a condutância AMPA for dobrada (formando $I_{\text{tot}}(t) = 2\,I_{\text{AMPA}}(t) + I_{\text{NMDA}}(t)$), qual será a carga acumulada em $[0, 20]\text{ ms}$?</item>
+          <item>Se a carga acumulada por $I_{\text{tot}}(t)$ em todo o intervalo $[0, 50]\text{ ms}$ for $410\text{ fC}$, quanto foi acumulado apenas no trecho $[20, 50]\text{ ms}$?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Aplicando a propriedade de linearidade da integral definida:
+            $$\int_0^{20} \big[2\,I_{\text{AMPA}}(t) + I_{\text{NMDA}}(t)\big]\,dt = 2\int_0^{20} I_{\text{AMPA}}(t)\,dt + \int_0^{20} I_{\text{NMDA}}(t)\,dt = 2(120) + 80 = 320\text{ fC}.$$
+          </item>
+          <item>Pela aditividade em intervalos, $\int_0^{50} I_{\text{tot}}(t)\,dt = \int_0^{20} I_{\text{tot}}(t)\,dt + \int_{20}^{50} I_{\text{tot}}(t)\,dt$. Isolando o segundo trecho:
+            $$\int_{20}^{50} I_{\text{tot}}(t)\,dt = 410 - 320 = 90\text{ fC}.$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:2-3-prop-taxa-media">
+        <title>Taxa de disparo média e cota de disparos</title>
+        Durante um estímulo visual entre $t = 0$ e $t = 0{,}5\text{ s}$, a taxa de disparo instantânea $r(t)$ (em $\text{Hz}$) de um neurônio cortical satisfaz $\int_0^{0{,}5} r(t)\,dt = 30$ (valor adimensional que representa o número esperado de disparos na janela, pois $\text{Hz}\cdot\text{s} = 1$).
+        <list marker="a">
+          <item>Calcule a taxa de disparo média $r_{\text{méd}}$ em $[0;\; 0{,}5]\text{ s}$.</item>
+          <item>Na janela seguinte $[0{,}5;\; 1{,}5]\text{ s}$, sabe-se apenas que $20\text{ Hz} \le r(t) \le 45\text{ Hz}$ em todo o intervalo. Entre quais valores fica o número esperado de disparos $\int_{0{,}5}^{1{,}5} r(t)\,dt$?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Pela definição de valor médio:
+            $$r_{\text{méd}} = \frac{1}{0{,}5 - 0}\int_0^{0{,}5} r(t)\,dt = \frac{30}{0{,}5} = 60\text{ Hz}.$$
+          </item>
+          <item>Aplicando a estimativa de monotonicidade com $m = 20$, $M = 45$ e largura $1{,}5 - 0{,}5 = 1{,}0\text{ s}$:
+            $$20 \cdot 1{,}0 \le \int_{0{,}5}^{1{,}5} r(t)\,dt \le 45 \cdot 1{,}0 \implies 20 \le \int_{0{,}5}^{1{,}5} r(t)\,dt \le 45\text{ disparos.}$$
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:2-3-produto">
+        <title>Armadilha comum</title>
+        A integral de um produto <strong>não</strong> é o produto das integrais:
+        $$\int_a^b f(x)\,g(x)\,dx \ne \left(\int_a^b f(x)\,dx\right)\left(\int_a^b g(x)\,dx\right).$$
+        A linearidade vale apenas para somas e multiplicação por constantes. Por exemplo, no intervalo $[0, 1]$, temos $\int_0^1 x\,dx = \frac{1}{2}$ (área do triângulo de base $1$ e altura $1$), mas $\int_0^1 x \cdot x\,dx = \int_0^1 x^2\,dx = \frac{1}{3}$ (pelo mesmo cálculo de soma de Riemann da seção anterior com $\Delta x = 1/n$), que é diferente de $\frac{1}{2}\cdot\frac{1}{2} = \frac{1}{4}$.
+      </remark>
+
+      <exercise id="exr:2-3-2-1">
+        <title>Básico — Combinando integrais por linearidade e aditividade</title>
+        Sabendo que $\int_1^4 f(x)\,dx = 6$, $\int_4^7 f(x)\,dx = -2$ e $\int_1^4 g(x)\,dx = 5$, calcule:
+        <list marker="a">
+          <item>$\int_1^4 [3f(x) - 2g(x)]\,dx$</item>
+          <item>$\int_1^7 f(x)\,dx$</item>
+          <item>$\int_7^1 f(x)\,dx$</item>
+        </list>
+        <hint><title>Ver dica</title>Use linearidade em (a), aditividade em $[1, 4]$ e $[4, 7]$ em (b), e inversão dos limites em (c).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$\int_1^4 [3f(x) - 2g(x)]\,dx = 3\int_1^4 f(x)\,dx - 2\int_1^4 g(x)\,dx = 3(6) - 2(5) = 18 - 10 = 8$.</item>
+            <item>$\int_1^7 f(x)\,dx = \int_1^4 f(x)\,dx + \int_4^7 f(x)\,dx = 6 + (-2) = 4$.</item>
+            <item>$\int_7^1 f(x)\,dx = -\int_1^7 f(x)\,dx = -4$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-3-2-2">
+        <title>Intermediário — Estimativa sem calcular primitivas</title>
+        Sem tentar calcular uma primitiva, use a propriedade de monotonicidade para mostrar que:
+        $$1 \le \int_0^1 \sqrt{1 + x^3}\,dx \le \sqrt{2},$$
+        e indique o intervalo onde está o valor médio de $f(x) = \sqrt{1 + x^3}$ em $[0, 1]$.
+        <hint><title>Ver dica</title>Para $x \in [0, 1]$, vale $0 \le x^3 \le 1$. Some $1$ e aplique a raiz quadrada (que é função crescente) para achar $m$ e $M$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Quando $0 \le x \le 1$, temos $0 \le x^3 \le 1$, logo $1 \le 1 + x^3 \le 2$. Como $\sqrt{\cdot}$ é crescente, segue:
+          $$1 = \sqrt{1} \le \sqrt{1 + x^3} \le \sqrt{2}.$$
+          Aplicando a estimativa de monotonicidade em $[0, 1]$ (onde $b - a = 1 - 0 = 1$):
+          $$1\cdot(1 - 0) \le \int_0^1 \sqrt{1 + x^3}\,dx \le \sqrt{2}\cdot(1 - 0) \implies 1 \le \int_0^1 \sqrt{1 + x^3}\,dx \le \sqrt{2}.$$
+          Como $f_{\text{méd}} = \frac{1}{1 - 0}\int_0^1 \sqrt{1 + x^3}\,dx$, o valor médio também pertence ao intervalo $[1, \sqrt{2}]$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-3-2-3">
+        <title>Avançado — Taxa de disparo média em janela composta</title>
+        Durante um experimento de $2\text{ s}$, a taxa de disparo instantânea $r(t)$ (em $\text{Hz}$) teve valor médio igual a $80\text{ Hz}$ no primeiro trecho $[0;\; 0{,}5]\text{ s}$. No segundo trecho $[0{,}5;\; 2{,}0]\text{ s}$, registrou-se $\int_{0{,}5}^{2{,}0} r(t)\,dt = 35$ disparos esperados. Calcule o número total esperado de disparos em $[0;\; 2{,}0]\text{ s}$ e a taxa de disparo média em toda a janela de $2\text{ s}$.
+        <hint><title>Ver dica</title>Atenção: a média global <em>não</em> é a média aritmética simples das taxas de cada trecho porque os intervalos têm durações diferentes! Converta primeiro a média do primeiro trecho em integral usando $\int_0^{0{,}5} r(t)\,dt = r_{\text{méd}} \cdot 0{,}5$.</hint>
+        <solution collapsible="true" collapsed="true">
+          No primeiro intervalo $[0;\; 0{,}5]\text{ s}$, pela definição de valor médio:
+          $$\int_0^{0{,}5} r(t)\,dt = 80 \cdot (0{,}5 - 0) = 40\text{ disparos.}$$
+          Pela aditividade em intervalos, o total esperado em $[0;\; 2{,}0]\text{ s}$ é:
+          $$\int_0^{2{,}0} r(t)\,dt = \int_0^{0{,}5} r(t)\,dt + \int_{0{,}5}^{2{,}0} r(t)\,dt = 40 + 35 = 75\text{ disparos.}$$
+          Dividindo pela duração total $2{,}0 - 0 = 2{,}0\text{ s}$, a taxa de disparo média na janela inteira é:
+          $$r_{\text{méd, total}} = \frac{75}{2{,}0} = 37{,}5\text{ Hz}.$$
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:2-3-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Primitiva</title>
+      <intro>
+        Se derivar transforma uma função na sua taxa instantânea de variação, encontrar uma primitiva percorre o caminho inverso: dada a taxa instantânea, reconstituir a função original a menos de uma constante inicial.
+      </intro>
+
+      Imagine que você monitora uma cultura bacteriana e só conhece a taxa de crescimento $\dfrac{dN}{dt}$ a cada hora. Saber quão rápido a população cresce permite reconstruir quanto ela aumentou, mas não diz quantas células havia na placa no instante $t = 0$ — para isso precisamos da condição inicial. Essa constante inicial desconhecida é exatamente a constante $+C$ que aparece ao buscar a função cuja derivada é conhecida.
+
+      <definition id="def:2-3-primitiva">
+        <title>Primitiva e integral indefinida</title>
+        Uma função $F$ é chamada de <strong>primitiva</strong> (ou <strong>antiderivada</strong>) de $f$ em um intervalo $I$ se $F'(x) = f(x)$ para todo $x \in I$.
+
+        A coleção de todas as primitivas de $f$ é chamada de <strong>integral indefinida</strong> e denotada sem limites de integração:
+        $$\int f(x)\,dx = F(x) + C,$$
+        onde $F$ é uma primitiva particular de $f$ e $C \in \mathbb{R}$ é uma constante arbitrária.
+      </definition>
+
+      Por que acrescentar apenas uma constante $C$ já captura <em>todas</em> as primitivas possíveis em um intervalo? Porque duas funções com a mesma derivada em um intervalo só podem diferir por um deslocamento vertical constante.
+
+      <proposition id="prop:2-3-constante">
+        <title>Unicidade a menos de constante</title>
+        Se $F'(x) = G'(x)$ para todo $x$ em um intervalo $I$, então existe uma constante $C \in \mathbb{R}$ tal que $F(x) = G(x) + C$ para todo $x \in I$.
+        <intuition>
+          Considere $H(x) = F(x) - G(x)$. Como $H'(x) = F'(x) - G'(x) = 0$ em todo o intervalo, a taxa de variação de $H$ é nula em todos os pontos: a função não sobe nem desce, permanecendo constante (em rigor, essa conclusão decorre do Teorema do Valor Médio para derivadas).
+        </intuition>
+      </proposition>
+
+      A linearidade das derivadas garante imediatamente a linearidade da integral indefinida:
+      $$\int [c\,f(x) + d\,g(x)]\,dx = c\int f(x)\,dx + d\int g(x)\,dx \qquad (c, d \in \mathbb{R}).$$
+      Além disso, toda regra de derivação estudada no Tema 2.2 (<mark>Derivada</mark>) transforma-se em uma fórmula de primitiva que você pode — e deve — conferir derivando de volta.
+
+      <proposition id="prop:2-3-tabela-primitivas">
+        <title>Tabela básica de primitivas imediatas</title>
+        Em cada intervalo onde as funções estão definidas (com $C \in \mathbb{R}$):
+        <list marker="number">
+          <item><strong>Potência ($n \ne -1$):</strong> $\displaystyle \int x^n\,dx = \frac{x^{n+1}}{n+1} + C$.</item>
+          <item><strong>Caso $n = -1$ ($x \ne 0$):</strong> $\displaystyle \int \frac{1}{x}\,dx = \ln|x| + C$.</item>
+          <item><strong>Exponencial ($k \ne 0$):</strong> $\displaystyle \int e^{kx}\,dx = \frac{e^{kx}}{k} + C$ (em particular, $\int e^x\,dx = e^x + C$).</item>
+          <item><strong>Seno e cosseno:</strong> $\displaystyle \int \operatorname{sen} x\,dx = -\cos x + C \quad \text{e} \quad \int \cos x\,dx = \operatorname{sen} x + C$.</item>
+        </list>
+      </proposition>
+      <proof of="prop:2-3-tabela-primitivas" collapsible="true" collapsed="true">
+        Basta derivar o lado direito de cada item pelas regras do Tema 2.2:
+        <list marker="number">
+          <item>$\dfrac{d}{dx}\left(\dfrac{x^{n+1}}{n+1}\right) = \dfrac{(n+1)x^n}{n+1} = x^n$ (para $n \ne -1$).</item>
+          <item>Para $x > 0$, $(\ln x)' = \dfrac{1}{x}$. Para $x < 0$, $|x| = -x$, e pela regra da cadeia $(\ln(-x))' = \dfrac{1}{-x}\cdot(-1) = \dfrac{1}{x}$. Assim, $(\ln|x|)' = \dfrac{1}{x}$ para todo $x \ne 0$.</item>
+          <item>Pela regra da cadeia, $\dfrac{d}{dx}\left(\dfrac{e^{kx}}{k}\right) = \dfrac{1}{k}\cdot e^{kx}\cdot k = e^{kx}$.</item>
+          <item>$(-\cos x)' = -(-\operatorname{sen} x) = \operatorname{sen} x$ e $(\operatorname{sen} x)' = \cos x$.</item>
+        </list>
+      </proof>
+
+      <example id="exm:2-3-primitiva-tabela">
+        <title>Integrais indefinidas pela tabela e conferência</title>
+        Calcule e confira por derivação:
+        <list marker="a">
+          <item>$\displaystyle \int \left(6x^2 - 4\sqrt{x} + \frac{3}{x}\right)dx$ (para $x > 0$);</item>
+          <item>$\displaystyle \int \left(5e^{-2t} + 4\cos t\right)dt$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Escrevemos $\sqrt{x} = x^{1/2}$ e aplicamos a linearidade e os itens 1 e 2 da tabela:
+            $$\int \left(6x^2 - 4x^{1/2} + \frac{3}{x}\right)dx = 6\cdot\frac{x^3}{3} - 4\cdot\frac{x^{3/2}}{3/2} + 3\ln|x| + C = 2x^3 - \frac{8}{3}x^{3/2} + 3\ln x + C.$$
+            <em>Conferência:</em> derivando termo a termo, $(2x^3)' = 6x^2$, $\left(-\frac{8}{3}x^{3/2}\right)' = -\frac{8}{3}\cdot\frac{3}{2}x^{1/2} = -4\sqrt{x}$ e $(3\ln x)' = \frac{3}{x}$. Bate exatamente!
+          </item>
+          <item>Usando o item 3 com $k = -2$ e o item 4:
+            $$\int \left(5e^{-2t} + 4\cos t\right)dt = 5\cdot\frac{e^{-2t}}{-2} + 4\operatorname{sen} t + C = -\frac{5}{2}e^{-2t} + 4\operatorname{sen} t + C.$$
+            <em>Conferência:</em> $\left(-\frac{5}{2}e^{-2t}\right)' = -\frac{5}{2}(-2)e^{-2t} = 5e^{-2t}$ e $(4\operatorname{sen} t)' = 4\cos t$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:2-3-crescimento-populacao">
+        <title>Recuperando população e massa a partir da taxa e da condição inicial</title>
+        <list marker="a">
+          <item>Uma cultura cresce à taxa $\dfrac{dN}{dt} = 100\,e^{0{,}2t}$ células por hora. Se em $t = 0\text{ h}$ havia $N(0) = 700$ células, encontre $N(t)$.</item>
+          <item>Durante uma infusão intravenosa de um anestésico (nos primeiros $10\text{ min}$), a taxa de entrada líquida na corrente sanguínea é $\dfrac{dm}{dt} = 12 - 0{,}6t$ (em $\text{mg/min}$). Sabendo que no início havia $m(0) = 5\text{ mg}$ residuais, determine $m(t)$ e a massa presente em $t = 10\text{ min}$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Integramos a taxa usando $\int e^{kt}\,dt = \frac{e^{kt}}{k} + C$ com $k = 0{,}2$:
+            $$N(t) = \int 100\,e^{0{,}2t}\,dt = 100\cdot\frac{e^{0{,}2t}}{0{,}2} + C = 500\,e^{0{,}2t} + C.$$
+            Usando a condição inicial $N(0) = 700$:
+            $$500\,e^0 + C = 700 \implies 500 + C = 700 \implies C = 200.$$
+            Portanto, $N(t) = 500\,e^{0{,}2t} + 200$ células. (<em>Conferência:</em> $N'(t) = 500(0{,}2)e^{0{,}2t} = 100\,e^{0{,}2t}$ e $N(0) = 500 + 200 = 700$.)
+          </item>
+          <item>Integramos $\dfrac{dm}{dt} = 12 - 0{,}6t$:
+            $$m(t) = \int (12 - 0{,}6t)\,dt = 12t - 0{,}6\cdot\frac{t^2}{2} + C = 12t - 0{,}3t^2 + C.$$
+            Como $m(0) = 5$, temos $0 - 0 + C = 5 \implies C = 5$, logo $m(t) = 5 + 12t - 0{,}3t^2\text{ mg}$. Em $t = 10\text{ min}$:
+            $$m(10) = 5 + 12(10) - 0{,}3(10)^2 = 5 + 120 - 30 = 95\text{ mg}.$$
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:2-3-primitiva">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Esquecer o $+C$ na integral indefinida:</strong> sem $+C$, você perde todas as outras soluções deslocadas verticalmente — e, em problemas com condição inicial, acaba assumindo sem querer que $C = 0$.</item>
+          <item><strong>Aplicar a regra da potência para $n = -1$:</strong> tentar escrever $\int x^{-1}\,dx = \frac{x^0}{0}$ gera divisão por zero indefinida! Sempre que o expoente for $-1$ ($\frac{1}{x}$), a primitiva é $\ln|x| + C$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:2-3-3-1">
+        <title>Básico — Primitivas imediatas e conferência</title>
+        Calcule as integrais indefinidas e confira cada resultado por derivação:
+        <list marker="a">
+          <item>$\displaystyle \int (4x^3 - 6x + 5)\,dx$</item>
+          <item>$\displaystyle \int \left(3e^{4x} - \frac{2}{x} + \operatorname{sen} x\right)dx$ (para $x > 0$)</item>
+        </list>
+        <hint><title>Ver dica</title>Aplique a tabela básica termo a termo e não esqueça do $+C$. Lembre que $\int \operatorname{sen} x\,dx = -\cos x + C$ (sinal negativo!).</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$\displaystyle \int (4x^3 - 6x + 5)\,dx = 4\cdot\frac{x^4}{4} - 6\cdot\frac{x^2}{2} + 5x + C = x^4 - 3x^2 + 5x + C$. <em>Conferência:</em> $(x^4 - 3x^2 + 5x + C)' = 4x^3 - 6x + 5$.</item>
+            <item>Para $x > 0$, $|x| = x$, logo:
+              $$\int \left(3e^{4x} - \frac{2}{x} + \operatorname{sen} x\right)dx = \frac{3}{4}e^{4x} - 2\ln x - \cos x + C.$$
+              <em>Conferência:</em> $\left(\frac{3}{4}e^{4x}\right)' = 3e^{4x}$, $(-2\ln x)' = -\frac{2}{x}$ e $(-\cos x)' = \operatorname{sen} x$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-3-3-2">
+        <title>Intermediário — Reescrita algébrica e condição inicial</title>
+        Determine a função $f(x)$ para $x > 0$ sabendo que $f'(x) = \dfrac{x^2 + 1}{\sqrt{x}}$ e que $f(1) = 4$.
+        <hint><title>Ver dica</title>Antes de integrar, separe a fração como $\frac{x^2}{x^{1/2}} + \frac{1}{x^{1/2}} = x^{3/2} + x^{-1/2}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Reescrevendo $f'(x)$ como soma de potências de $x$:
+          $$f'(x) = \frac{x^2}{x^{1/2}} + \frac{1}{x^{1/2}} = x^{3/2} + x^{-1/2}.$$
+          Integrando termo a termo:
+          $$f(x) = \frac{x^{5/2}}{5/2} + \frac{x^{1/2}}{1/2} + C = \frac{2}{5}x^{5/2} + 2\sqrt{x} + C.$$
+          Aplicando $f(1) = 4$:
+          $$\frac{2}{5}(1) + 2(1) + C = 4 \implies \frac{12}{5} + C = 4 \implies C = 4 - \frac{12}{5} = \frac{8}{5}.$$
+          Logo, $f(x) = \dfrac{2}{5}x^{5/2} + 2\sqrt{x} + \dfrac{8}{5}$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-3-3-3">
+        <title>Avançado — Deslocamento de um peixe após estímulo de fuga</title>
+        Após um estímulo de fuga, um peixe nada em linha reta com velocidade $v(t) = \dfrac{ds}{dt} = 6e^{-0{,}5t} + 2$ (em $\text{cm/s}$), partindo da posição $s(0) = 0\text{ cm}$. Encontre a função posição $s(t)$ e calcule a distância percorrida nos primeiros $4\text{ s}$ (dê a expressão exata e o valor aproximado usando $e^{-2} \approx 0{,}135$).
+        <hint><title>Ver dica</title>Integre $v(t)$ usando $k = -0{,}5$ na exponencial e substitua $s(0) = 0$ para achar $C$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Integrando a velocidade em relação a $t$:
+          $$s(t) = \int (6e^{-0{,}5t} + 2)\,dt = 6\cdot\frac{e^{-0{,}5t}}{-0{,}5} + 2t + C = -12e^{-0{,}5t} + 2t + C.$$
+          Como $s(0) = 0$:
+          $$-12e^0 + 0 + C = 0 \implies -12 + C = 0 \implies C = 12.$$
+          Portanto, $s(t) = 12(1 - e^{-0{,}5t}) + 2t\text{ cm}$. Conferindo: $s'(t) = 12(0{,}5e^{-0{,}5t}) + 2 = 6e^{-0{,}5t} + 2$. Em $t = 4\text{ s}$:
+          $$s(4) = 12(1 - e^{-2}) + 8 = 20 - 12e^{-2} \approx 20 - 12(0{,}135) = 20 - 1{,}62 = 18{,}38\text{ cm}.$$
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:2-3-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Teorema Fundamental do Cálculo</title>
+      <intro>
+        O Teorema Fundamental do Cálculo fecha a ponte entre os dois ramos do Cálculo: ele mostra que a taxa de variação de uma integral acumulada é o próprio integrando, e permite calcular integrais definidas sem enfrentar somatórios infinitos.
+      </intro>
+
+      Na Seção 1, calcular $\int_0^2 x^2\,dx$ exigiu conhecer uma fórmula fechada para $1^2 + 2^2 + \cdots + n^2$ e passar ao limite. Para funções como $e^{-t/\tau}$ ou $\cos(x)$, somas diretas seriam ainda mais trabalhosas. O <strong>Teorema Fundamental do Cálculo (TFC)</strong> resolve esse problema de uma só vez ao ligar a função de acúmulo $F(x) = \int_a^x f(t)\,dt$ diretamente às primitivas de $f$.
+
+      <theorem id="thm:2-3-tfc1">
+        <title>Teorema Fundamental do Cálculo — Parte 1</title>
+        Seja $f$ uma função contínua no intervalo fechado $[a, b]$. Definindo a função de acúmulo $F$ em $[a, b]$ por
+        $$F(x) = \int_a^x f(t)\,dt,$$
+        então $F$ é contínua em $[a, b]$, derivável em $(a, b)$ e sua derivada é o próprio integrando:
+        <equation id="eq:2-3-tfc1">F'(x) = \frac{d}{dx}\int_a^x f(t)\,dt = f(x).</equation>
+        <intuition>
+          Se $Q(t) = \int_0^t I(s)\,ds$ mede quanta carga sináptica entrou na membrana desde $0$ até o instante $t$, quão rápido $Q(t)$ está crescendo exatamente no instante $t$? À taxa $I(t)$, que é a corrente atravessando a membrana naquele exato momento: $\frac{dQ}{dt} = I(t)$.
+        </intuition>
+      </theorem>
+      <proof of="thm:2-3-tfc1" collapsible="true" collapsed="true">
+        Seja $x \in (a, b)$ e tome $h > 0$ suficientemente pequeno para que $x + h \in [a, b]$. Pela aditividade em intervalos,
+        $$F(x + h) - F(x) = \int_a^{x+h} f(t)\,dt - \int_a^x f(t)\,dt = \int_x^{x+h} f(t)\,dt.$$
+        Como $f$ é contínua no intervalo fechado $[x, x + h]$, ela atinge um valor mínimo $m_h$ e um valor máximo $M_h$ nesse intervalo. Pela estimativa de monotonicidade (<ref to="eq:2-3-estimativa"/>):
+        $$m_h \cdot h \le \int_x^{x+h} f(t)\,dt \le M_h \cdot h \implies m_h \le \frac{F(x + h) - F(x)}{h} \le M_h.$$
+        (Para $h < 0$, obtém-se a mesma desigualdade invertendo os extremos da integral.) Quando $h \to 0$, a continuidade de $f$ em $x$ garante que $m_h \to f(x)$ e $M_h \to f(x)$. Pelo Teorema do Sanduíche (Tema 2.1), concluímos que $F'(x) = \lim_{h \to 0} \frac{F(x+h) - F(x)}{h} = f(x)$.
+      </proof>
+
+      <theorem id="thm:2-3-tfc2">
+        <title>Teorema Fundamental do Cálculo — Parte 2</title>
+        Se $f$ é contínua em $[a, b]$ e $G$ é <em>qualquer</em> primitiva de $f$ em $[a, b]$ (isto é, $G'(x) = f(x)$), então:
+        <equation id="eq:2-3-tfc2">\int_a^b f(x)\,dx = G(b) - G(a) = \Big[G(x)\Big]_a^b.</equation>
+      </theorem>
+      <proof of="thm:2-3-tfc2" collapsible="true" collapsed="true">
+        Pela Parte 1 (<ref to="thm:2-3-tfc1"/>), $F(x) = \int_a^x f(t)\,dt$ também é uma primitiva de $f$ em $[a, b]$. Pela <ref to="prop:2-3-constante"/>, existe uma constante $C$ tal que $F(x) = G(x) + C$ para todo $x \in [a, b]$. Avaliando em $x = a$, temos $0 = \int_a^a f(t)\,dt = F(a) = G(a) + C$, logo $C = -G(a)$. Substituindo em $x = b$:
+        $$\int_a^b f(x)\,dx = F(b) = G(b) - G(a).$$
+      </proof>
+
+      Veja como o cálculo de $\int_0^2 x^2\,dx$ fica instantâneo com a Parte 2: uma primitiva de $x^2$ é $G(x) = \frac{x^3}{3}$, logo:
+      $$\int_0^2 x^2\,dx = \left[\frac{x^3}{3}\right]_0^2 = \frac{2^3}{3} - \frac{0^3}{3} = \frac{8}{3},$$
+      exatamente o mesmo resultado obtido pelo limite da soma de Riemann na Seção 1!
+
+      <example id="exm:2-3-tfc-basico">
+        <title>Avaliando integrais e derivando limites variáveis</title>
+        <list marker="a">
+          <item>Calcule $\displaystyle \int_0^{\pi} \operatorname{sen} x\,dx$ pelo TFC Parte 2.</item>
+          <item>Se $F(x) = \displaystyle \int_1^{x^2} \ln(t + 1)\,dt$ (para $x > 0$), encontre $F'(x)$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Uma primitiva de $\operatorname{sen} x$ é $G(x) = -\cos x$. Aplicando o TFC Parte 2:
+            $$\int_0^{\pi} \operatorname{sen} x\,dx = \Big[-\cos x\Big]_0^{\pi} = (-\cos \pi) - (-\cos 0) = -(-1) - (-1) = 1 + 1 = 2.$$
+          </item>
+          <item>Escrevemos $H(u) = \int_1^u \ln(t + 1)\,dt$, de modo que $F(x) = H(x^2)$ com $u = g(x) = x^2$. Pela Parte 1, $H'(u) = \ln(u + 1)$. Aplicando a regra da cadeia (Tema 2.2):
+            $$F'(x) = H'(x^2) \cdot (x^2)' = \ln(x^2 + 1) \cdot 2x = 2x\ln(x^2 + 1).$$
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:2-3-corrente-sinaptica-tfc">
+        <title>Carga de uma corrente sináptica exponencial</title>
+        Uma corrente sináptica excitatória decai exponencialmente após a abertura dos canais segundo $I(t) = I_0\,e^{-t/\tau}$ ($t \ge 0$), com amplitude inicial $I_0 = 100\text{ pA}$ e constante de tempo $\tau = 5\text{ ms}$.
+        <list marker="a">
+          <item>Encontre a carga $Q(T) = \int_0^T I(t)\,dt$ acumulada até o instante $T > 0$ e avalie $Q(5\text{ ms})$ (use $e^{-1} \approx 0{,}368$).</item>
+          <item>Determine a carga total entregue pela sinapse quando $T \to \infty$ e interprete $\dfrac{dQ}{dT}$ pelo TFC Parte 1.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Como $\frac{d}{dt}\big(-I_0\,\tau\,e^{-t/\tau}\big) = -I_0\,\tau\left(-\frac{1}{\tau}\right)e^{-t/\tau} = I_0\,e^{-t/\tau}$, aplicamos o TFC Parte 2:
+            $$Q(T) = \int_0^T I_0\,e^{-t/\tau}\,dt = \Big[-I_0\,\tau\,e^{-t/\tau}\Big]_0^T = \big(-I_0\,\tau\,e^{-T/\tau}\big) - \big(-I_0\,\tau\,e^0\big) = I_0\,\tau\,(1 - e^{-T/\tau}).$$
+            Com $I_0 = 100\text{ pA}$ e $\tau = 5\text{ ms}$, o fator vale $I_0\,\tau = 100\text{ pA}\cdot 5\text{ ms} = 500\text{ fC}$. Em $T = 5\text{ ms}$ ($T = \tau$):
+            $$Q(5) = 500(1 - e^{-1}) \approx 500(1 - 0{,}368) = 500 \cdot 0{,}632 = 316\text{ fC}.$$
+          </item>
+          <item>Tomando o limite $T \to \infty$ (Tema 2.1), como $\tau > 0$, temos $e^{-T/\tau} \to 0$, logo:
+            $$Q_{\text{total}} = \lim_{T \to \infty} Q(T) = I_0\,\tau = 500\text{ fC} = 0{,}5\text{ pC}.$$
+            Pelo TFC Parte 1, $\dfrac{dQ}{dT} = I(T) = I_0\,e^{-T/\tau}$: a taxa instantânea de acúmulo de carga elétrica no instante $T$ é exatamente a corrente sináptica $I(T)$ que entra na membrana naquele instante.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:2-3-tfc">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Trocar a ordem em $G(b) - G(a)$:</strong> calcular $G(a) - G(b)$ inverte o sinal da integral. Sempre avalie primeiro no limite <em>superior</em> $b$ e depois subtraia o valor no limite <em>inferior</em> $a$.</item>
+          <item><strong>Achar que o limite inferior $0$ sempre zera a primitiva:</strong> em polinômios isso costuma acontecer, mas para $e^0 = 1$ ou $\cos 0 = 1$, não zera! Por exemplo, $\int_0^2 e^x\,dx = e^2 - e^0 = e^2 - 1$, e <em>não</em> $e^2$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:2-3-4-1">
+        <title>Básico — Integrais definidas pelo TFC</title>
+        Calcule usando o Teorema Fundamental do Cálculo (Parte 2):
+        <list marker="a">
+          <item>$\displaystyle \int_1^3 (3x^2 - 2x + 1)\,dx$</item>
+          <item>$\displaystyle \int_0^{\ln 3} e^x\,dx$</item>
+        </list>
+        <hint><title>Ver dica</title>Encontre uma primitiva $G(x)$ para cada integrando e calcule $G(b) - G(a)$. Em (b), lembre que $e^{\ln 3} = 3$ e $e^0 = 1$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Uma primitiva é $G(x) = x^3 - x^2 + x$. Logo:
+              $$\int_1^3 (3x^2 - 2x + 1)\,dx = \Big[x^3 - x^2 + x\Big]_1^3 = (27 - 9 + 3) - (1 - 1 + 1) = 21 - 1 = 20.$$
+            </item>
+            <item>Uma primitiva de $e^x$ é $e^x$:
+              $$\int_0^{\ln 3} e^x\,dx = \Big[e^x\Big]_0^{\ln 3} = e^{\ln 3} - e^0 = 3 - 1 = 2.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-3-4-2">
+        <title>Intermediário — Derivando uma função definida por integral</title>
+        Dada $g(x) = \displaystyle \int_0^{3x} \frac{1}{1 + t^2}\,dt$, encontre $g'(x)$ usando o TFC Parte 1 e a regra da cadeia, e calcule $g'(1)$.
+        <hint><title>Ver dica</title>Escreva $g(x) = H(3x)$ onde $H(u) = \int_0^u \frac{1}{1+t^2}\,dt$. Pela Parte 1, $H'(u) = \frac{1}{1+u^2}$; depois multiplique por $(3x)'$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Seja $H(u) = \int_0^u \frac{1}{1 + t^2}\,dt$, de forma que $g(x) = H(3x)$. Pelo TFC Parte 1, $H'(u) = \dfrac{1}{1 + u^2}$. Pela regra da cadeia:
+          $$g'(x) = H'(3x)\cdot(3x)' = \frac{1}{1 + (3x)^2}\cdot 3 = \frac{3}{1 + 9x^2}.$$
+          Avaliando em $x = 1$: $g'(1) = \dfrac{3}{1 + 9(1)^2} = \dfrac{3}{10} = 0{,}3$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-3-4-3">
+        <title>Avançado — Corrente sináptica inibitória e tempo de meia-carga</title>
+        Uma corrente sináptica inibitória (hiperpolarizante, logo negativa) segue $I(t) = -80\,e^{-t/10}\text{ pA}$ para $t \ge 0$ ($\tau = 10\text{ ms}$).
+        <list marker="a">
+          <item>Calcule a carga acumulada $Q(T) = \int_0^T I(t)\,dt$ e avalie $Q(10\text{ ms})$ (use $e^{-1} \approx 0{,}368$).</item>
+          <item>Determine o limite $Q_{\text{total}} = \lim_{T \to \infty} Q(T)$ e o instante $T$ em que metade dessa carga total já foi transferida (use $\ln 2 \approx 0{,}693$).</item>
+        </list>
+        <hint><title>Ver dica</title>Observe que $\big(800\,e^{-t/10}\big)' = -80\,e^{-t/10}$. Para achar a meia-carga, resolva $Q(T) = \frac{1}{2}Q_{\text{total}}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Como $\frac{d}{dt}\big(800\,e^{-t/10}\big) = 800\left(-\frac{1}{10}\right)e^{-t/10} = -80\,e^{-t/10}$:
+              $$Q(T) = \int_0^T -80\,e^{-t/10}\,dt = \Big[800\,e^{-t/10}\Big]_0^T = 800(e^{-T/10} - 1) = -800(1 - e^{-T/10})\text{ fC}.$$
+              Em $T = 10\text{ ms}$: $Q(10) = -800(1 - e^{-1}) \approx -800(1 - 0{,}368) = -800 \cdot 0{,}632 = -505{,}6\text{ fC}$.
+            </item>
+            <item>Quando $T \to \infty$, $e^{-T/10} \to 0$, logo $Q_{\text{total}} = -800\text{ fC}$. Metade dessa carga corresponde a $Q(T) = -400\text{ fC}$:
+              $$-800(1 - e^{-T/10}) = -400 \implies 1 - e^{-T/10} = 0{,}5 \implies e^{-T/10} = 0{,}5.$$
+              Aplicando $\ln$ nos dois lados:
+              $$-\frac{T}{10} = \ln(0{,}5) = -\ln 2 \implies T = 10\ln 2 \approx 6{,}93\text{ ms}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:2-3-5">
+      <eyebrow>Subtema 5</eyebrow>
+      <title>Cálculo de áreas</title>
+      <intro>
+        Para transformar a integral definida em área geométrica sem cancelamentos indevidos — seja entre uma curva que cruza o eixo e o próprio eixo, seja entre duas curvas que delimitam uma região —, basta respeitar quem está por cima.
+      </intro>
+
+      Como vimos na Seção 1, a integral definida desconta as regiões em que o gráfico fica abaixo do eixo horizontal. Se queremos a <strong>área total</strong> (sempre positiva) ou a área delimitada entre duas curvas $f$ e $g$ (por exemplo, o espaço entre duas curvas de concentração ou de resposta), precisamos garantir que o integrando represente uma altura não negativa em cada ponto.
+
+      <definition id="def:2-3-areas">
+        <title>Área sob uma curva e área entre duas curvas</title>
+        Sejam $f$ e $g$ funções contínuas em $[a, b]$:
+        <list marker="number">
+          <item><strong>Área entre o gráfico de $f$ e o eixo $x$:</strong>
+            $$A = \int_a^b |f(x)|\,dx.$$
+            Na prática, encontramos todas as raízes de $f(x) = 0$ dentro de $(a, b)$, dividimos $[a, b]$ nessas raízes e somamos o valor absoluto das integrais em cada subintervalo (ou integramos $-f(x)$ onde $f(x) < 0$).
+          </item>
+          <item><strong>Área entre os gráficos de $f$ e $g$:</strong>
+            <equation id="eq:2-3-area-curvas">A = \int_a^b |f(x) - g(x)|\,dx.</equation>
+            Se $f(x) \ge g(x)$ em todo o intervalo $[a, b]$, a área é simplesmente $\int_a^b [f(x) - g(x)]\,dx$. Quando os limites $a$ e $b$ não são fornecidos, encontramo-los resolvendo $f(x) = g(x)$ (os pontos de interseção).
+          </item>
+        </list>
+        <intuition>
+          Imagine medir a área fatiando a região em tiras verticais finas de largura $dx$. Em cada posição $x$, o comprimento da tira vertical entre a curva superior $y_{\text{sup}}$ e a curva inferior $y_{\text{inf}}$ é $y_{\text{sup}} - y_{\text{inf}} = |f(x) - g(x)| \ge 0$. Integrar soma todas essas tiras.
+        </intuition>
+      </definition>
+
+      <figure src="fig/auc-farmaco.svg" alt="Curva exponencial decrescente C(t) = 10 vezes e elevado a menos 0,2t de 0 a 20 horas com a área sombreada sob a curva" id="fig:2-3-auc-farmaco">
+        <caption>Perfil farmacocinético $C(t) = 10\,e^{-0{,}2t}$. A área sombreada até $t = 10\text{ h}$ vale $\text{AUC}(0, 10) \approx 43{,}23\text{ mg}\cdot\text{h/L}$, e a área total até $T \to \infty$ converge para $\text{AUC}_{\text{total}} = 50\text{ mg}\cdot\text{h/L}$.</caption>
+      </figure>
+
+      <example id="exm:2-3-auc-farmacocinetica">
+        <title>Área sob a curva (AUC) em farmacocinética</title>
+        Após uma dose intravenosa em bolo, a concentração plasmática de um fármaco decai segundo $C(t) = C_0\,e^{-kt}$ ($t \ge 0$), com $C_0 = 10\text{ mg/L}$ e constante de eliminação $k = 0{,}2\text{ h}^{-1}$. Em farmacologia, a <strong>área sob a curva</strong> (<em>area under the curve</em>, AUC) mede a exposição total do organismo ao fármaco.
+        <list marker="a">
+          <item>Calcule a fórmula de $\text{AUC}(0, T) = \int_0^T C_0\,e^{-kt}\,dt$ e avalie para $T = 10\text{ h}$ (use $e^{-2} \approx 0{,}13534$).</item>
+          <item>Calcule a exposição total $\text{AUC}_{\text{total}} = \lim_{T \to \infty} \text{AUC}(0, T)$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Como $C(t) > 0$ para todo $t$, a área coincide com a integral definida:
+            $$\text{AUC}(0, T) = \int_0^T C_0\,e^{-kt}\,dt = \left[-\frac{C_0}{k}\,e^{-kt}\right]_0^T = \frac{C_0}{k}\big(1 - e^{-kT}\big).$$
+            Substituindo $C_0 = 10\text{ mg/L}$ e $k = 0{,}2\text{ h}^{-1}$, temos $\dfrac{C_0}{k} = \dfrac{10}{0{,}2} = 50\text{ mg}\cdot\text{h/L}$. Para $T = 10\text{ h}$, $kT = 0{,}2 \cdot 10 = 2$, logo:
+            $$\text{AUC}(0, 10) = 50(1 - e^{-2}) \approx 50(1 - 0{,}13534) = 50 \cdot 0{,}86466 \approx 43{,}23\text{ mg}\cdot\text{h/L}.$$
+          </item>
+          <item>Fazendo $T \to \infty$, como $k > 0$, temos $e^{-kT} \to 0$, e portanto:
+            $$\text{AUC}_{\text{total}} = \lim_{T \to \infty} \frac{C_0}{k}\big(1 - e^{-kT}\big) = \frac{C_0}{k} = 50\text{ mg}\cdot\text{h/L},$$
+            como ilustra a <ref to="fig:2-3-auc-farmaco"/>. Já nos primeiros $10\text{ h}$, o organismo recebeu cerca de $86{,}5\%$ da exposição total.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:2-3-hrf-bold">
+        <title>Área sob uma resposta hemodinâmica simplificada e amostragem por TR</title>
+        Em análises de fMRI, um breve estímulo neural provoca uma resposta hemodinâmica lenta medida pelo sinal BOLD. A resposta hemodinâmica canônica real tem forma assimétrica (pico por volta de $5\text{–}6\text{ s}$ seguido de um pequeno vale negativo pós-estímulo antes de retornar ao repouso). Para modelar apenas o pulso positivo principal de forma analítica simples, considere a aproximação parabólica:
+        $$h(t) = \frac{t(12 - t)}{36} = \frac{t}{3} - \frac{t^2}{36}, \qquad 0 \le t \le 12\text{ s}.$$
+        <list marker="a">
+          <item>Verifique o pico em $t = 6\text{ s}$ e calcule a área exata $A = \int_0^{12} h(t)\,dt$.</item>
+          <item>Compare a área exata com a aproximação por soma de Riemann usando amostras adquiridas a cada $\text{TR} = 2\text{ s}$ ($n = 6$ subintervalos).</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Em $t = 6\text{ s}$, temos $h(6) = \frac{6(12 - 6)}{36} = 1$ (pico normalizado; como $h'(t) = \frac{1}{3} - \frac{t}{18} = 0$ em $t = 6$ e $h''(t) = -\frac{1}{18} < 0$, trata-se de máximo). Como $h(t) \ge 0$ em $[0, 12]$, a área exata é:
+            $$A = \int_0^{12} \left(\frac{t}{3} - \frac{t^2}{36}\right)dt = \left[\frac{t^2}{6} - \frac{t^3}{108}\right]_0^{12} = \frac{144}{6} - \frac{1\,728}{108} = 24 - 16 = 8.$$
+          </item>
+          <item>Amostrando a cada $\Delta t = \text{TR} = 2\text{ s}$, os valores nos instantes $t = 0, 2, 4, 6, 8, 10, 12\text{ s}$ são:
+            $$h(0) = 0, \quad h(2) = \frac{20}{36} = \frac{5}{9}, \quad h(4) = \frac{32}{36} = \frac{8}{9}, \quad h(6) = 1, \quad h(8) = \frac{8}{9}, \quad h(10) = \frac{5}{9}, \quad h(12) = 0.$$
+            Pela simetria ($h(0) = h(12) = 0$), a soma à esquerda e a soma à direita dão exatamente o mesmo valor:
+            $$E_6 = D_6 = \left(0 + \frac{5}{9} + \frac{8}{9} + 1 + \frac{8}{9} + \frac{5}{9}\right)\cdot 2 = \left(1 + \frac{26}{9}\right)\cdot 2 = \frac{35}{9}\cdot 2 = \frac{70}{9} \approx 7{,}78.$$
+            Mesmo com um passo relativamente grosso de $\text{TR} = 2\text{ s}$, a soma de Riemann aproxima a área exata $8$ com erro inferior a $3\%$ ($\frac{8 - 70/9}{8} = \frac{2/9}{8} = \frac{1}{36} \approx 2{,}8\%$).
+          </item>
+        </list>
+      </example>
+
+      <exercise id="exr:2-3-5-1">
+        <title>Básico — Área com mudança de sinal</title>
+        Calcule a área total entre o gráfico de $f(x) = x^2 - 4$ e o eixo $x$ no intervalo $[0, 3]$, e compare com a integral definida $\int_0^3 (x^2 - 4)\,dx$.
+        <hint><title>Ver dica</title>Encontre onde $x^2 - 4 = 0$ dentro de $[0, 3]$ para separar o trecho negativo $[0, 2]$ do trecho positivo $[2, 3]$.</hint>
+        <solution collapsible="true" collapsed="true">
+          A raiz de $x^2 - 4 = 0$ em $[0, 3]$ é $x = 2$. Em $[0, 2)$, $f(x) < 0$; em $(2, 3]$, $f(x) > 0$. Calculamos cada integral separadamente:
+          $$\int_0^2 (x^2 - 4)\,dx = \left[\frac{x^3}{3} - 4x\right]_0^2 = \left(\frac{8}{3} - 8\right) - 0 = -\frac{16}{3},$$
+          $$\int_2^3 (x^2 - 4)\,dx = \left[\frac{x^3}{3} - 4x\right]_2^3 = \left(\frac{27}{3} - 12\right) - \left(-\frac{16}{3}\right) = -3 + \frac{16}{3} = \frac{7}{3}.$$
+          Somando os módulos, a área total é:
+          $$A = \left|-\frac{16}{3}\right| + \frac{7}{3} = \frac{23}{3} \approx 7{,}67.$$
+          Já a integral líquida vale $\int_0^3 (x^2 - 4)\,dx = -\frac{16}{3} + \frac{7}{3} = -\frac{9}{3} = -3$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-3-5-2">
+        <title>Intermediário — Área delimitada por duas curvas</title>
+        Calcule a área da região fechada delimitada pelas curvas $f(x) = 4 - x^2$ e $g(x) = x + 2$.
+        <hint><title>Ver dica</title>Iguale $4 - x^2 = x + 2$ para achar as interseções $a$ e $b$; depois teste um ponto entre eles (como $x = 0$) para saber qual curva fica por cima.</hint>
+        <solution collapsible="true" collapsed="true">
+          Igualando as duas funções:
+          $$4 - x^2 = x + 2 \implies x^2 + x - 2 = 0 \implies (x + 2)(x - 1) = 0 \implies x = -2 \text{ ou } x = 1.$$
+          Em $[-2, 1]$, testando $x = 0$, temos $f(0) = 4 > g(0) = 2$, logo $f(x) \ge g(x)$ em todo o intervalo. Assim:
+          $$A = \int_{-2}^{1} \big[(4 - x^2) - (x + 2)\big]\,dx = \int_{-2}^{1} (2 - x - x^2)\,dx = \left[2x - \frac{x^2}{2} - \frac{x^3}{3}\right]_{-2}^{1}.$$
+          Avaliando nos extremos:
+          $$G(1) = 2 - \frac{1}{2} - \frac{1}{3} = \frac{12 - 3 - 2}{6} = \frac{7}{6},$$
+          $$G(-2) = -4 - \frac{4}{2} - \frac{-8}{3} = -6 + \frac{8}{3} = -\frac{10}{3} = -\frac{20}{6}.$$
+          Portanto, a área é $A = \dfrac{7}{6} - \left(-\dfrac{20}{6}\right) = \dfrac{27}{6} = \dfrac{9}{2} = 4{,}5$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-3-5-3">
+        <title>Avançado — Comparando duas formulações farmacocinéticas pela AUC</title>
+        Duas formulações de um mesmo fármaco produzem concentrações plasmáticas (em $\text{mg/L}$, para $t \ge 0$ em horas) dadas por $C_A(t) = 12\,e^{-0{,}3t}$ e $C_B(t) = 8\,e^{-0{,}2t}$.
+        <list marker="a">
+          <item>Calcule a $\text{AUC}_{\text{total}}$ de cada formulação e compare as exposições totais.</item>
+          <item>Determine o instante $t^*$ em que as duas concentrações se igualam ($C_A(t^*) = C_B(t^*)$), usando $\ln(1{,}5) \approx 0{,}405$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), use $\text{AUC}_{\text{total}} = C_0/k$. Em (b), divida ambos os lados por $8\,e^{-0{,}3t}$ antes de aplicar $\ln$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Para a formulação A: $\text{AUC}_A = \dfrac{12}{0{,}3} = 40\text{ mg}\cdot\text{h/L}$. Para a formulação B: $\text{AUC}_B = \dfrac{8}{0{,}2} = 40\text{ mg}\cdot\text{h/L}$. As duas formulações produzem exatamente a <strong>mesma exposição total</strong> ao organismo (mesma AUC), embora A atinja pico inicial maior e seja eliminada mais depressa.
+            </item>
+            <item>Igualando $C_A(t^*) = C_B(t^*)$:
+              $$12\,e^{-0{,}3t^*} = 8\,e^{-0{,}2t^*} \implies \frac{12}{8} = \frac{e^{-0{,}2t^*}}{e^{-0{,}3t^*}} \implies 1{,}5 = e^{0{,}1t^*}.$$
+              Aplicando o logaritmo natural:
+              $$0{,}1t^* = \ln(1{,}5) \implies t^* = 10\ln(1{,}5) \approx 4{,}05\text{ h}.$$
+              Antes de $4{,}05\text{ h}$, predomina $C_A > C_B$; depois desse instante, $C_B > C_A$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:2-3-6">
+      <eyebrow>Subtema 6</eyebrow>
+      <title>Mudança de variável</title>
+      <intro>
+        Muitas integrais biológicas — como oscilações de EEG em $2\pi f t$, decaimentos em $t/\tau$ ou a primitiva da sigmoide — trazem funções compostas; a mudança de variável (substituição) desfaz a regra da cadeia para reduzi-las à tabela básica.
+      </intro>
+
+      No Tema 2.2 (<mark>Derivada</mark>), vimos que a regra da cadeia deriva uma composição multiplicando pela derivada da função interna: $\frac{d}{dx} F(g(x)) = F'(g(x)) \cdot g'(x)$. Lendo essa igualdade da direita para a esquerda, sempre que reconhecermos no integrando uma expressão na forma $f(g(x)) \cdot g'(x)$, podemos chamar a função interna de $u = g(x)$ e simplificar a integral inteira para a variável $u$.
+
+      <theorem id="thm:2-3-substituicao">
+        <title>Regra da substituição (mudança de variável)</title>
+        <list marker="number">
+          <item><strong>Integral indefinida:</strong> se $u = g(x)$ é derivável com imagem em um intervalo $I$ e $f$ é contínua em $I$, então:
+            <equation id="eq:2-3-subst-indef">\int f(g(x))\,g'(x)\,dx = \int f(u)\,du.</equation>
+          </item>
+          <item><strong>Integral definida:</strong> se $g'$ é contínua em $[a, b]$ e $f$ é contínua na imagem de $g$, então trocamos também os limites de integração de $x$ para $u$:
+            <equation id="eq:2-3-subst-def">\int_a^b f(g(x))\,g'(x)\,dx = \int_{g(a)}^{g(b)} f(u)\,du.</equation>
+          </item>
+        </list>
+        <intuition>
+          Com $u = g(x)$, a notação diferencial $du = g'(x)\,dx$ funciona como um fator de conversão de escala entre a variável original $x$ e a nova variável $u$: se $u$ anda $k$ vezes mais depressa que $x$ ($u = kx$), cada passo $dx$ equivale a $\frac{1}{k}du$.
+        </intuition>
+      </theorem>
+      <proof of="thm:2-3-substituicao" collapsible="true" collapsed="true">
+        Seja $F$ uma primitiva de $f$ em $I$ (isto é, $F' = f$). Pela regra da cadeia, $\dfrac{d}{dx}[F(g(x))] = F'(g(x))\,g'(x) = f(g(x))\,g'(x)$. Logo $F(g(x))$ é primitiva de $f(g(x))\,g'(x)$, o que prova o item 1. Para o item 2, pelo TFC Parte 2 aplicado nos dois lados:
+        $$\int_a^b f(g(x))\,g'(x)\,dx = \Big[F(g(x))\Big]_a^b = F(g(b)) - F(g(a)) = \Big[F(u)\Big]_{g(a)}^{g(b)} = \int_{g(a)}^{g(b)} f(u)\,du.$$
+      </proof>
+
+      <strong>Como escolher $u$?</strong> Procure uma expressão "interna" $u = g(x)$ (dentro de uma potência, raiz, exponencial, seno, cosseno ou denominador) cuja derivada $g'(x)$ já apareça multiplicando o restante do integrando — a menos de uma constante multiplicativa, que você ajusta facilmente dividindo e multiplicando.
+
+      <example id="exm:2-3-subst-tecnica">
+        <title>Substituição em integrais indefinidas e definidas</title>
+        Calcule usando mudança de variável:
+        <list marker="a">
+          <item>$\displaystyle \int 2x\cos(x^2)\,dx$</item>
+          <item>$\displaystyle \int_0^1 \frac{x}{1 + x^2}\,dx$</item>
+          <item>$\displaystyle \int e^{-t/\tau}\,dt$ ($\tau > 0$)</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Escolhemos $u = x^2$, de modo que $du = 2x\,dx$ (aparece exatamente no integrando!):
+            $$\int 2x\cos(x^2)\,dx = \int \cos u\,du = \operatorname{sen} u + C = \operatorname{sen}(x^2) + C.$$
+            <em>Conferência:</em> $(\operatorname{sen}(x^2))' = \cos(x^2)\cdot 2x$.
+          </item>
+          <item>Escolhemos $u = 1 + x^2$, donde $du = 2x\,dx \implies x\,dx = \frac{1}{2}\,du$. Trocando os limites: quando $x = 0$, $u = 1 + 0^2 = 1$; quando $x = 1$, $u = 1 + 1^2 = 2$. Assim:
+            $$\int_0^1 \frac{x}{1 + x^2}\,dx = \int_1^2 \frac{1}{2u}\,du = \frac{1}{2}\Big[\ln|u|\Big]_1^2 = \frac{1}{2}(\ln 2 - \ln 1) = \frac{\ln 2}{2}.$$
+          </item>
+          <item>Fazendo $u = -\dfrac{t}{\tau}$, temos $du = -\dfrac{1}{\tau}\,dt \implies dt = -\tau\,du$:
+            $$\int e^{-t/\tau}\,dt = \int e^u(-\tau\,du) = -\tau\,e^u + C = -\tau\,e^{-t/\tau} + C,$$
+            justificando pela substituição a primitiva que usamos na corrente sináptica da <ref to="sec:2-3-4"/>.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:2-3-subst-ml-eeg">
+        <title>Ponte com Machine Learning (softplus) e oscilação de EEG</title>
+        <list marker="a">
+          <item><strong>Primitiva da sigmoide:</strong> mostre que a primitiva da função sigmoide $\sigma(x) = \dfrac{1}{1 + e^{-x}} = \dfrac{e^x}{1 + e^x}$ é a função $\operatorname{softplus}(x) = \ln(1 + e^x) + C$, e confira derivando.</item>
+          <item><strong>Ondas de EEG:</strong> um componente puro de EEG de amplitude $A > 0$ e frequência $f > 0$ (em $\text{Hz}$) é $s(t) = A\operatorname{sen}(2\pi f t)$, com período $T = \frac{1}{f}$. Calcule a integral de $s(t)$ em um ciclo completo $[0, 1/f]$ e em um meio ciclo positivo $[0, 1/(2f)]$.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Tomando $u = 1 + e^x$, temos $du = e^x\,dx$ e $u > 0$ para todo $x \in \mathbb{R}$:
+            $$\int \sigma(x)\,dx = \int \frac{e^x}{1 + e^x}\,dx = \int \frac{1}{u}\,du = \ln|u| + C = \ln(1 + e^x) + C.$$
+            Em redes neurais, $\operatorname{softplus}(x) = \ln(1 + e^x)$ funciona como uma versão suave da função de ativação ReLU. <em>Conferência:</em> pela regra da cadeia, $\dfrac{d}{dx}\ln(1 + e^x) = \dfrac{1}{1 + e^x}\cdot e^x = \dfrac{e^x}{1 + e^x} = \sigma(x)$.
+          </item>
+          <item>Fazemos $u = 2\pi f t$, donde $du = 2\pi f\,dt \implies dt = \dfrac{du}{2\pi f}$.
+            <list marker="dash">
+              <item><strong>Ciclo completo</strong> ($t \in [0, 1/f] \implies u \in [0, 2\pi]$):
+                $$\int_0^{1/f} A\operatorname{sen}(2\pi f t)\,dt = \frac{A}{2\pi f}\int_0^{2\pi} \operatorname{sen} u\,du = \frac{A}{2\pi f}\Big[-\cos u\Big]_0^{2\pi} = \frac{A}{2\pi f}(-\cos 2\pi + \cos 0) = \frac{A}{2\pi f}(-1 + 1) = 0.$$
+              </item>
+              <item><strong>Meio ciclo positivo</strong> ($t \in [0, 1/(2f)] \implies u \in [0, \pi]$):
+                $$\int_0^{1/(2f)} A\operatorname{sen}(2\pi f t)\,dt = \frac{A}{2\pi f}\int_0^{\pi} \operatorname{sen} u\,du = \frac{A}{2\pi f}\Big[-\cos u\Big]_0^{\pi} = \frac{A}{2\pi f}(-\cos\pi + \cos 0) = \frac{A}{2\pi f}(1 + 1) = \frac{A}{\pi f}.$$
+              </item>
+            </list>
+            Por exemplo, em uma onda alfa de $f = 10\text{ Hz}$ e amplitude $A = 50\;\mu\text{V}$, a integral sobre um ciclo inteiro anula-se, enquanto no primeiro meio ciclo ($50\text{ ms}$) vale $\dfrac{50}{10\pi} = \dfrac{5}{\pi} \approx 1{,}59\;\mu\text{V}\cdot\text{s}$.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:2-3-substituicao">
+        <title>Armadilha comum</title>
+        Ao usar substituição em uma <strong>integral definida</strong>, nunca mantenha os limites antigos $a$ e $b$ se você já trocou o integrando e $dx$ para a variável $u$! Ou troque imediatamente os limites para $g(a)$ e $g(b)$ (o caminho mais limpo e direto), ou resolva primeiro a integral indefinida, volte para a variável $x$ e só então avalie entre $a$ e $b$.
+      </remark>
+
+      <exercise id="exr:2-3-6-1">
+        <title>Básico — Substituições diretas</title>
+        Calcule por mudança de variável:
+        <list marker="a">
+          <item>$\displaystyle \int 3x^2(x^3 + 1)^4\,dx$</item>
+          <item>$\displaystyle \int_0^{\pi/2} \cos(x)\operatorname{sen}^2(x)\,dx$</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), tente $u = x^3 + 1$. Em (b), tente $u = \operatorname{sen} x$ e lembre de trocar os limites $0$ e $\pi/2$ para valores de $u$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Com $u = x^3 + 1$, temos $du = 3x^2\,dx$:
+              $$\int 3x^2(x^3 + 1)^4\,dx = \int u^4\,du = \frac{u^5}{5} + C = \frac{(x^3 + 1)^5}{5} + C.$$
+            </item>
+            <item>Com $u = \operatorname{sen} x$, temos $du = \cos x\,dx$. Os limites tornam-se $u(0) = \operatorname{sen} 0 = 0$ e $u(\pi/2) = \operatorname{sen}(\pi/2) = 1$:
+              $$\int_0^{\pi/2} \cos(x)\operatorname{sen}^2(x)\,dx = \int_0^1 u^2\,du = \left[\frac{u^3}{3}\right]_0^1 = \frac{1}{3} - 0 = \frac{1}{3}.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-3-6-2">
+        <title>Intermediário — Integral definida com radical e troca de limites</title>
+        Calcule $\displaystyle \int_0^2 \frac{x}{\sqrt{x^2 + 5}}\,dx$ trocando os limites de integração na mudança de variável.
+        <hint><title>Ver dica</title>Faça $u = x^2 + 5$, ajuste $x\,dx = \frac{1}{2}\,du$ e encontre os novos limites em $x = 0$ e $x = 2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Fazemos $u = x^2 + 5$, logo $du = 2x\,dx \implies x\,dx = \frac{1}{2}\,du$. Trocando os limites: para $x = 0$, $u = 5$; para $x = 2$, $u = 2^2 + 5 = 9$. Assim:
+          $$\int_0^2 \frac{x}{\sqrt{x^2 + 5}}\,dx = \int_5^9 \frac{1}{2}\,u^{-1/2}\,du = \frac{1}{2}\left[\frac{u^{1/2}}{1/2}\right]_5^9 = \Big[\sqrt{u}\Big]_5^9 = \sqrt{9} - \sqrt{5} = 3 - \sqrt{5} \approx 0{,}764.$$
+        </solution>
+      </exercise>
+
+      <exercise id="exr:2-3-6-3">
+        <title>Avançado — Acúmulo da derivada da sigmoide</title>
+        Em um modelo de plasticidade sináptica, a taxa instantânea de mudança de um peso sináptico é dada pela derivada da sigmoide deslocada:
+        $$f(t) = \frac{e^{-(t - 3)}}{\big(1 + e^{-(t - 3)}\big)^2}, \qquad 0 \le t \le 6.$$
+        Calcule a variação total acumulada $\displaystyle \int_0^6 f(t)\,dt$ usando a substituição $u = 1 + e^{-(t - 3)}$ (dê o resultado exato em função de $e^3$ e o valor aproximado usando $e^3 \approx 20{,}09$).
+        <hint><title>Ver dica</title>Para $u = 1 + e^{-(t - 3)}$, calcule $du = -e^{-(t - 3)}\,dt$ e avalie os novos limites em $t = 0$ e $t = 6$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Com $u = 1 + e^{-(t - 3)}$, temos $du = -e^{-(t - 3)}\,dt \implies e^{-(t - 3)}\,dt = -du$. Os novos limites são:
+          <list marker="dash">
+            <item>em $t = 0$: $u(0) = 1 + e^{-(0 - 3)} = 1 + e^3$;</item>
+            <item>em $t = 6$: $u(6) = 1 + e^{-(6 - 3)} = 1 + e^{-3}$.</item>
+          </list>
+          Substituindo na integral definida:
+          $$\int_0^6 \frac{e^{-(t - 3)}}{\big(1 + e^{-(t - 3)}\big)^2}\,dt = \int_{1 + e^3}^{1 + e^{-3}} -u^{-2}\,du = \left[\frac{1}{u}\right]_{1 + e^3}^{1 + e^{-3}} = \frac{1}{1 + e^{-3}} - \frac{1}{1 + e^3}.$$
+          Multiplicando numerador e denominador da primeira fração por $e^3$:
+          $$\frac{e^3}{e^3 + 1} - \frac{1}{e^3 + 1} = \frac{e^3 - 1}{e^3 + 1} \approx \frac{20{,}09 - 1}{20{,}09 + 1} = \frac{19{,}09}{21{,}09} \approx 0{,}905.$$
+          (Note a conexão com o Tema 2.2: como $f(t) = \sigma'(t - 3)$, o resultado vale exatamente $\sigma(3) - \sigma(-3)$!)
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:2-3-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Somas de Riemann e integral definida:</strong> para $\Delta x = \dfrac{b - a}{n}$ e $x_i^* \in [x_{i-1}, x_i]$, $\displaystyle \int_a^b f(x)\,dx = \lim_{n \to \infty} \sum_{i=1}^n f(x_i^*)\,\Delta x$, existindo para toda função contínua (ou limitada com saltos finitos) em $[a, b]$ e medindo a <em>área líquida com sinal</em>.</item>
+        <item><strong>Propriedades essenciais:</strong> linearidade, $\int_a^a f(x)\,dx = 0$, $\int_b^a f(x)\,dx = -\int_a^b f(x)\,dx$, aditividade $\int_a^b f(x)\,dx + \int_b^c f(x)\,dx = \int_a^c f(x)\,dx$ e monotonicidade ($m \le f(x) \le M \implies m(b-a) \le \int_a^b f(x)\,dx \le M(b-a)$); atenção: $\int_a^b f(x)\,g(x)\,dx \ne \left(\int_a^b f(x)\,dx\right)\left(\int_a^b g(x)\,dx\right)$.</item>
+        <item><strong>Valor médio:</strong> $f_{\text{méd}} = \dfrac{1}{b - a}\displaystyle \int_a^b f(x)\,dx$ (ex.: taxa de disparo média em uma janela de tempo).</item>
+        <item><strong>Primitiva e tabela básica:</strong> $F'(x) = f(x) \implies \int f(x)\,dx = F(x) + C$; lembre de $\int x^n\,dx = \frac{x^{n+1}}{n+1} + C$ ($n \ne -1$), $\int \frac{1}{x}\,dx = \ln|x| + C$, $\int e^{kx}\,dx = \frac{e^{kx}}{k} + C$, $\int \operatorname{sen} x\,dx = -\cos x + C$ e $\int \cos x\,dx = \operatorname{sen} x + C$.</item>
+        <item><strong>Teorema Fundamental do Cálculo:</strong> Parte 1: $\dfrac{d}{dx}\displaystyle \int_a^x f(t)\,dt = f(x)$ (a taxa de acúmulo é o integrando); Parte 2: $\displaystyle \int_a^b f(x)\,dx = G(b) - G(a)$ para qualquer primitiva $G$ de $f$.</item>
+        <item><strong>Cálculo de áreas e AUC:</strong> com troca de sinal, integre $|f(x)|$ separando nas raízes; entre duas curvas, integre $|f(x) - g(x)|$ entre as interseções; em farmacocinética, $\text{AUC}_{\text{total}} = \int_0^\infty C_0 e^{-kt}\,dt = \frac{C_0}{k}$.</item>
+        <item><strong>Mudança de variável:</strong> com $u = g(x)$ e $du = g'(x)\,dx$, $\displaystyle \int_a^b f(g(x))\,g'(x)\,dx = \int_{g(a)}^{g(b)} f(u)\,du$ — sempre atualize os limites na integral definida (ex.: primitiva da sigmoide é a função <em>softplus</em> $\ln(1 + e^x)$).</item>
+      </list>
+    </section>
+
+    <section id="sec:2-3-alem">
+      <title>Para ir além</title>
+      Com a <strong>Integral de Riemann</strong>, concluímos o <strong>Módulo 2 · Cálculo Real</strong>. Você agora domina os dois movimentos centrais da análise em uma variável — taxas instantâneas (derivadas) e acúmulo (integrais) — que formam a base para o <strong>Módulo 3 (Cálculo Multivariável)</strong>, onde veremos gradientes e integrais duplas e triplas em várias dimensões, e para a probabilidade contínua no <strong>Módulo 7</strong> (áreas sob curvas de densidade). Para aprofundar e praticar os temas deste módulo, consulte a bibliografia recomendada:
+      <list marker="dash">
+        <item><strong>Livro base:</strong> Guidorizzi — <em>Um Curso de Cálculo</em>, vol. 1, para a construção rigorosa da integral de Riemann, demonstrações do TFC e propriedades.</item>
+        <item><strong>Livros complementares:</strong> Anton, Bivens e Davis — <em>Cálculo</em>, e James Stewart — <em>Cálculo</em>, ricos em interpretações visuais de somas de Riemann, áreas e aplicações.</item>
+        <item><strong>Prática recomendada (<em>drill</em>):</strong> em cada subseção, selecione exercícios de modelagem do Stewart focados em Biologia (geralmente ao final dos capítulos), incluindo problemas de fluxo sanguíneo, farmacocinética e crescimento populacional.</item>
+        <item><strong>Projeto final do Módulo 2:</strong> como síntese do módulo, retome o desafio de deduzir analiticamente a taxa instantânea de variação do potencial de membrana, dada uma função polinomial do tempo — e, com o que aprendeu aqui, você já pode também fazer o caminho de volta e calcular a variação total acumulada integrando a taxa no intervalo!</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 2 · Cálculo Real — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>

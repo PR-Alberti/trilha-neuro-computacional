@@ -1,0 +1,9 @@
+# Módulo 03 — Cálculo Multivariável. Compile com: node scripts/compilar-aulas.mjs --modulo 3
+inputs = ["tema-01.dlt", "tema-02.dlt", "tema-03.dlt"]
+out = "../../aulas/modulo-03"
+
+[document]
+lang         = "pt-BR"
+type         = "book"
+theme-accent = "indigo"
+theme-mode   = "auto"

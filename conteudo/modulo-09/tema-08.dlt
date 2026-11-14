@@ -1,0 +1,689 @@
+<document>
+  <title>Módulo 9 · Deep Learning</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-9-8">Voltar ao guia (Tema 9.8)</link></meta-item>
+    <meta-item key="Módulo">Módulo 9 · Deep Learning — O Estado da Arte da Neurociência Computacional</meta-item>
+    <meta-item key="Nível">Avançado</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-9-8">
+    <title>LLM</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Grandes modelos de linguagem e embeddings semânticos que preveem atividade cortical.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> Enquanto CNNs modelam o córtex visual (V1 a IT) e RNNs capturam dinâmicas temporais, os grandes modelos de linguagem, ou <strong>LLMs</strong> (<em>large language models</em>), dominam hoje a fronteira de codificação (<em>encoding</em>) e decodificação (<em>decoding</em>) da linguagem no cérebro humano. Como vimos no Tema 9.5, sistemas baseados em Transformers conseguem reconstruir o sentido de histórias contínuas a partir de ressonância magnética funcional (fMRI). Além disso, a mesma lógica de prever o próximo elemento de uma sequência ajuda a extrair representações de sequências de DNA e proteínas. Treinar um LLM em escala real exige instâncias de Cloud ou o Google Colab com GPU dedicada — seu computador vai ferver se não possuir placa de vídeo compatível —, mas a matemática central é simples, e todos os códigos desta aula foram dimensionados para rodar em CPU em poucos segundos.
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>explicar como a tokenização por subpalavras (BPE) converte texto em índices de uma matriz de <em>embeddings</em>;</item>
+      <item>formular o pré-treino autorregressivo por máxima verossimilhança, calcular perplexidade e amostrar com temperatura;</item>
+      <item>comparar ajuste fino completo, adaptadores LoRA e alinhamento (RLHF), além de extrair representações vetoriais;</item>
+      <item>construir um modelo de codificação com regressão <em>ridge</em> e atrasos hemodinâmicos para dados de fMRI sem vazamento temporal.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Retomaremos: <strong>Tema 9.1 — Fundamentos</strong> (<em>softmax</em> e entropia cruzada); <strong>Tema 9.4 — Representações</strong> (<em>embeddings</em> e similaridade por cosseno); <strong>Tema 9.5 — Transformers</strong> (autoatenção, máscara causal e bloco Transformer); <strong>Módulo 7 — Estatística e Probabilidade</strong> (probabilidade condicional e "Inferência não-Bayesiana (Frequentista)" — máxima verossimilhança); e <strong>Módulo 8 — Machine Learning</strong> ("Regularização" — <em>ridge</em> — e "Reamostragem" — validação cruzada).
+
+    <section id="sec:9-8-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Tokenização: do texto aos números</title>
+      <intro>
+        Redes neurais operam sobre vetores e matrizes numéricas, nunca diretamente sobre letras; a tokenização é a etapa que traduz sequências de texto em inteiros discretos.
+      </intro>
+
+      Um modelo de linguagem não "lê" letras nem palavras na tela: ele recebe uma sequência de índices inteiros, cada um apontando para uma linha da matriz de <em>embeddings</em> (Tema 9.4). A escolha da unidade básica dessa tradução — chamada de <strong>tokenização</strong> (<em>tokenization</em>) — define o tamanho do vocabulário e o comprimento das sequências que entram no Transformer.
+
+      Há três granularidades principais:
+      <list marker="number">
+        <item><strong>Caracteres</strong> (<em>characters</em>): o vocabulário é minúsculo (dezenas de símbolos) e não existem palavras desconhecidas, mas cada palavra vira muitos <em>tokens</em>, alongando a sequência e encarecendo a autoatenção quadrática (Tema 9.5).</item>
+        <item><strong>Palavras</strong> (<em>words</em>): cada palavra vira um <em>token</em>, encurtando a sequência, porém exige vocabulários gigantes e sofre com flexões verbais e <strong>tokens desconhecidos</strong> (<em>out-of-vocabulary</em>, mapeados para um símbolo genérico "&lt;UNK&gt;").</item>
+        <item><strong>Subpalavras</strong> (<em>subwords</em>): o meio-termo usado nos LLMs modernos. Palavras frequentes permanecem inteiras, enquanto palavras raras ou compostas são quebradas em pedaços recorrentes (raízes, prefixos e sufixos), evitando "&lt;UNK&gt;".</item>
+      </list>
+
+      O algoritmo mais famoso de subpalavras é o <strong>BPE</strong> (<em>byte-pair encoding</em>; Sennrich, Haddow &amp; Birch, 2016). A ideia é começar com caracteres individuais e fundir iterativamente o par adjacente mais frequente.
+
+      <definition id="def:9-8-bpe">
+        <title>Codificação por pares de bytes (BPE)</title>
+        Dado um conjunto de palavras com suas frequências no corpus de treino e um número desejado de fusões $K$:
+        <list marker="number">
+          <item>Represente cada palavra como a sequência de seus caracteres individuais; o vocabulário inicial $V$ contém todos os caracteres distintos.</item>
+          <item>Conte a frequência de cada par adjacente $(a, b)$ somando as ocorrências ponderadas pela frequência de cada palavra.</item>
+          <item>Escolha o par $(a^*, b^*)$ de maior frequência (adotando uma regra fixa de desempate, como a ordem alfabética do par), funda todas as ocorrências adjacentes desse par em um novo símbolo $a^*b^*$ e adicione-o a $V$.</item>
+          <item>Repita os passos 2 e 3 por $K$ iterações.</item>
+        </list>
+        <intuition>
+          O algoritmo descobre blocos construtivos frequentes de baixo para cima: primeiro junta pares de letras comuns, depois sílabas ou raízes morfológicas, exatamente como um leitor identifica o radical <c>neur</c> em várias palavras da neurobiologia.
+        </intuition>
+      </definition>
+
+      Após definir o vocabulário $V = \{t_0, t_1, \dots, t_{|V|-1}\}$, cada <em>token</em> recebe um índice inteiro $k \in \{0, \dots, |V|-1\}$. Na entrada do modelo, esse índice seleciona a $k$-ésima linha da matriz de <em>embeddings</em> $\mathbf{E} \in \mathbb{R}^{|V| \times d}$ (o equivalente a multiplicar $\mathbf{E}^\top$ pelo vetor <em>one-hot</em> $\mathbf{e}_k$, conforme visto no Tema 9.4).
+
+      <example id="exm:9-8-bpe-mao">
+        <title>Três primeiras fusões do BPE à mão</title>
+        Considere o minicorpus formado pelas palavras <c>neuronio</c> (frequência $4$), <c>neuronal</c> (frequência $3$) e <c>neural</c> (frequência $2$). Adote a seguinte regra explícita de desempate: em caso de empate na frequência máxima, vence o par $(a, b)$ menor em ordem alfabética (comparando primeiro $a$ e depois $b$). Encontre as três primeiras fusões.
+
+        <strong>Solução.</strong> Inicialmente, separamos as palavras em caracteres:
+        <c>n e u r o n i o</c> ($4$), <c>n e u r o n a l</c> ($3$) e <c>n e u r a l</c> ($2$).
+
+        <list marker="number">
+          <item><strong>Passo 1:</strong> Contamos todos os pares adjacentes ponderados pelas frequências:
+            <c>('n','e')</c>: $4+3+2 = 9$; <c>('e','u')</c>: $4+3+2 = 9$; <c>('u','r')</c>: $4+3+2 = 9$;
+            <c>('r','o')</c>: $4+3 = 7$; <c>('o','n')</c>: $4+3 = 7$; <c>('a','l')</c>: $3+2 = 5$;
+            <c>('n','i')</c>: $4$; <c>('i','o')</c>: $4$; <c>('n','a')</c>: $3$; <c>('r','a')</c>: $2$.
+            Há empate triplo com contagem $9$ entre <c>('e','u')</c>, <c>('n','e')</c> e <c>('u','r')</c>. Pela ordem alfabética, 'e' &lt; 'n' &lt; 'u', logo fundimos <strong><c>('e','u')</c> em <c>'eu'</c></strong>. As palavras viram: <c>n eu r o n i o</c> ($4$), <c>n eu r o n a l</c> ($3$), <c>n eu r a l</c> ($2$).
+          </item>
+          <item><strong>Passo 2:</strong> Recontando apenas os pares afetados e mantendo os demais:
+            <c>('n','eu')</c>: $9$; <c>('eu','r')</c>: $9$; <c>('r','o')</c>: $7$; <c>('o','n')</c>: $7$; <c>('a','l')</c>: $5$; <c>('n','i')</c>: $4$; <c>('i','o')</c>: $4$; <c>('n','a')</c>: $3$; <c>('r','a')</c>: $2$.
+            Empate com contagem $9$ entre <c>('eu','r')</c> e <c>('n','eu')</c>. Como 'eu' &lt; 'n', fundimos <strong><c>('eu','r')</c> em <c>'eur'</c></strong>. As palavras viram: <c>n eur o n i o</c> ($4$), <c>n eur o n a l</c> ($3$), <c>n eur a l</c> ($2$).
+          </item>
+          <item><strong>Passo 3:</strong> Os pares agora são:
+            <c>('n','eur')</c>: $9$; <c>('eur','o')</c>: $7$; <c>('o','n')</c>: $7$; <c>('a','l')</c>: $5$; <c>('n','i')</c>: $4$; <c>('i','o')</c>: $4$; <c>('n','a')</c>: $3$; <c>('eur','a')</c>: $2$.
+            O único máximo é <strong><c>('n','eur')</c> em <c>'neur'</c></strong> (contagem $9$). Resultado após 3 fusões: <c>['neur','o','n','i','o']</c>, <c>['neur','o','n','a','l']</c> e <c>['neur','a','l']</c>.
+          </item>
+        </list>
+      </example>
+
+      O código a seguir implementa exatamente esse algoritmo em Python puro e reproduz as três fusões calculadas acima.
+
+      <code lang="python" id="cod:9-8-bpe">
+from collections import Counter
+
+vocab = {
+    tuple("neuronio"): 4,
+    tuple("neuronal"): 3,
+    tuple("neural"): 2,
+}
+
+
+def contar_pares(v):
+    pares = Counter()
+    for tokens, freq in v.items():
+        for i in range(len(tokens) - 1):
+            pares[(tokens[i], tokens[i + 1])] += freq
+    return pares
+
+
+def fundir_par(v, par):
+    novo_vocab = {}
+    fusao = par[0] + par[1]
+    for tokens, freq in v.items():
+        novos = []
+        i = 0
+        while i < len(tokens):
+            if i < len(tokens) - 1 and (tokens[i], tokens[i + 1]) == par:
+                novos.append(fusao)
+                i += 2
+            else:
+                novos.append(tokens[i])
+                i += 1
+        novo_vocab[tuple(novos)] = freq
+    return novo_vocab
+
+
+for passo in range(1, 4):
+    pares = contar_pares(vocab)
+    # Desempate determinístico: maior frequência e menor par em ordem alfabética
+    melhor = min(pares, key=lambda p: (-pares[p], p))
+    print(f"Passo {passo}: {melhor} -> '{melhor[0] + melhor[1]}' (freq={pares[melhor]})")
+    vocab = fundir_par(vocab, melhor)
+
+print("Tokens finais:", [list(t) for t in vocab])
+# Saída exata:
+# Passo 1: ('e', 'u') -> 'eu' (freq=9)
+# Passo 2: ('eu', 'r') -> 'eur' (freq=9)
+# Passo 3: ('n', 'eur') -> 'neur' (freq=9)
+# Tokens finais: [['neur', 'o', 'n', 'i', 'o'], ['neur', 'o', 'n', 'a', 'l'], ['neur', 'a', 'l']]
+      </code>
+
+      Essa arquitetura de subpalavras gera consequências práticas importantes. Primeiro, um LLM não enxerga caracteres individuais: ele "conta <em>tokens</em>", motivo pelo qual costuma tropeçar ao soletrar palavras, contar letras ou fazer aritmética com números longos quebrados em blocos arbitrários. Segundo, como muitos tokenizadores comerciais são treinados majoritariamente em inglês, palavras em português (com acentos e flexões) tendem a ser partidas em mais <em>tokens</em> por palavra do que equivalentes em inglês, consumindo mais janela de contexto.
+
+      <example id="exm:9-8-kmer-dna">
+        <title>Tokenização em sequências genômicas</title>
+        Na bioinformática, um éxon de $600$ nucleotídeos (<c>A</c>, <c>C</c>, <c>G</c>, <c>T</c>) pode ser tokenizado base a base ($1$-meros, $n = 600$ <em>tokens</em>) ou em códons não sobrepostos ($3$-meros, $n = 200$ <em>tokens</em>). Como o custo da autoatenção escala como $O(n^2)$ (Tema 9.5), a razão de operações cai por um fator de $(600/200)^2 = 3^2 = 9$, ao preço de ampliar o vocabulário base de $|V| = 4$ para $|V| = 4^3 = 64$ símbolos. Algoritmos como o BPE também são usados em modelos de DNA para agrupar motivos regulatórios frequentes em um único <em>token</em>.
+      </example>
+
+      <remark id="rem:9-8-token-palavra">
+        <title>Armadilha comum</title>
+        Nunca confunda <strong><em>token</em> com palavra</strong>. Uma palavra curta e comum pode virar $1$ <em>token</em>, enquanto um termo técnico em português (como "neuroplasticidade") pode virar $3$ ou $4$ <em>tokens</em>, e espaços ou pontuação também contam como parte de <em>tokens</em>.
+      </remark>
+
+      <exercise id="exr:9-8-1-1">
+        <title>Básico — Quarta fusão do BPE à mão</title>
+        Continuando exatamente do estado final do <ref to="exm:9-8-bpe-mao"/> (<c>neur o n i o</c> com freq. $4$, <c>neur o n a l</c> com freq. $3$, <c>neur a l</c> com freq. $2$), determine o $4^\circ$ par fundido usando a mesma regra de desempate alfabético.
+        <hint><title>Ver dica</title>Liste as frequências de todos os pares adjacentes atuais e verifique qual par vence no empate em ordem alfabética.</hint>
+        <solution collapsible="true" collapsed="true">
+          Os pares atuais são: <c>('neur','o')</c>: $4+3=7$; <c>('o','n')</c>: $4+3=7$; <c>('a','l')</c>: $3+2=5$; <c>('n','i')</c>: $4$; <c>('i','o')</c>: $4$; <c>('n','a')</c>: $3$; <c>('neur','a')</c>: $2$. Há empate em $7$ entre <c>('neur','o')</c> e <c>('o','n')</c>. Como 'neur' &lt; 'o' na ordem alfabética, a $4^\text{a}$ fusão é <strong><c>('neur','o')</c> em <c>'neuro'</c></strong>, gerando <c>['neuro','n','i','o']</c>, <c>['neuro','n','a','l']</c> e <c>['neur','a','l']</c>.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-8-1-2">
+        <title>Intermediário — Vocabulário e tamanho de sequência no DNA</title>
+        Um trecho codificante tem $1\,200$ nucleotídeos (<c>A, C, G, T</c>). Compare: (a) $1$-meros; (b) $3$-meros não sobrepostos; (c) $6$-meros não sobrepostos. Para uma matriz de <em>embeddings</em> de dimensão $d = 128$, calcule em cada caso o tamanho do vocabulário $|V|$, o número de parâmetros da tabela de <em>embeddings</em> ($|V| \cdot d$) e o comprimento $n$ da sequência.
+        <hint><title>Ver dica</title>Para $k$-meros não sobrepostos no alfabeto de $4$ bases, $|V| = 4^k$ e $n = 1\,200 / k$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item><strong>$1$-meros:</strong> $|V| = 4^1 = 4$; parâmetros $= 4 \times 128 = 512$; $n = 1\,200$.</item>
+            <item><strong>$3$-meros:</strong> $|V| = 4^3 = 64$; parâmetros $= 64 \times 128 = 8\,192$; $n = 1\,200 / 3 = 400$.</item>
+            <item><strong>$6$-meros:</strong> $|V| = 4^6 = 4\,096$; parâmetros $= 4\,096 \times 128 = 524\,288$; $n = 1\,200 / 6 = 200$.</item>
+          </list>
+          Passar de $1$-meros para $3$-meros reduz $n^2$ por um fator de $9$, enquanto $6$-meros reduzem $n^2$ por $36$ às custas de uma tabela de <em>embeddings</em> cerca de mil vezes maior.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-8-1-3">
+        <title>Avançado — Codificando uma palavra nova com fusões aprendidas</title>
+        Suponha que o BPE aprendeu a lista ordenada de fusões <c>[('e','u'), ('eu','r'), ('n','eur'), ('neur','o')]</c>. Aplique essas fusões em ordem à palavra inédita <c>"neurose"</c> e escreva uma função Python <c>codificar(palavra, fusoes)</c> que generalize o procedimento.
+        <hint><title>Ver dica</title>Comece com <c>list(palavra)</c> e, para cada par na lista de fusões, varra os <em>tokens</em> substituindo ocorrências adjacentes desse par pela sua concatenação.</hint>
+        <solution collapsible="true" collapsed="true">
+          À mão: partindo de <c>['n','e','u','r','o','s','e']</c>, as fusões produzem sucessivamente <c>['n','eu','r','o','s','e']</c>, <c>['n','eur','o','s','e']</c>, <c>['neur','o','s','e']</c> e <strong><c>['neuro','s','e']</c></strong>. Em Python:
+          <code lang="python" numbered="false">
+def codificar(palavra, fusoes):
+    tokens = list(palavra)
+    for a, b in fusoes:
+        novos, i = [], 0
+        while i < len(tokens):
+            if i < len(tokens) - 1 and tokens[i] == a and tokens[i + 1] == b:
+                novos.append(a + b)
+                i += 2
+            else:
+                novos.append(tokens[i])
+                i += 1
+        tokens = novos
+    return tokens
+
+fusoes = [("e", "u"), ("eu", "r"), ("n", "eur"), ("neur", "o")]
+print(codificar("neurose", fusoes))  # ['neuro', 's', 'e']
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-8-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Pré-treino: prever o próximo token</title>
+      <intro>
+        Por trás da aparente fluência de um LLM existe um único objetivo estatístico: estimar a distribuição de probabilidade do próximo token dado tudo o que veio antes.
+      </intro>
+
+      Como ensinar um modelo a escrever sem rotular manualmente milhões de textos? Usando o próprio texto como supervisão. Pela regra da cadeia da probabilidade (Módulo 7), a probabilidade conjunta de uma sequência de <em>tokens</em> $(x_1, \dots, x_T)$ fatora-se exatamente no produto das probabilidades condicionais passo a passo:
+      <equation id="eq:9-8-autoregressivo">
+        p_{\boldsymbol{\theta}}(x_1, \dots, x_T) = \prod_{t=1}^{T} p_{\boldsymbol{\theta}}(x_t \mid x_{<t}),
+      </equation>
+      em que $x_{<t} = (x_1, \dots, x_{t-1})$ representa o contexto anterior (com $p_{\boldsymbol{\theta}}(x_1 \mid x_{<1}) = p_{\boldsymbol{\theta}}(x_1)$). Chamamos essa formulação de <strong>modelo autorregressivo</strong>.
+
+      <definition id="def:9-8-perda-perplexidade">
+        <title>Entropia cruzada e perplexidade</title>
+        Pelo princípio da máxima verossimilhança (Módulo 7), maximizar o produto na <ref to="eq:9-8-autoregressivo"/> equivale a minimizar a <strong>perda de entropia cruzada média</strong> (log-verossimilhança negativa):
+        <equation id="eq:9-8-loss-lm">
+          \mathcal{L}(\boldsymbol{\theta}) = -\frac{1}{T} \sum_{t=1}^{T} \ln p_{\boldsymbol{\theta}}(x_t \mid x_{<t}).
+        </equation>
+        A <strong>perplexidade</strong> (<em>perplexity</em>, $\mathrm{PPL}$) da sequência é a exponencial dessa perda:
+        <equation id="eq:9-8-ppl">
+          \mathrm{PPL} = \exp\bigl(\mathcal{L}(\boldsymbol{\theta})\bigr) = \left(\prod_{t=1}^{T} \frac{1}{p_{\boldsymbol{\theta}}(x_t \mid x_{<t})}\right)^{1/T}.
+        </equation>
+        <intuition>
+          A perplexidade mede o "número efetivo de escolhas" igualmente prováveis entre as quais o modelo está em dúvida a cada passo: quanto menor a $\mathrm{PPL}$, mais concentrada no <em>token</em> correto está a distribuição prevista.
+        </intuition>
+      </definition>
+
+      <proposition id="prop:9-8-ppl-uniforme">
+        <title>Perplexidade do modelo uniforme</title>
+        Se um modelo atribui probabilidade uniforme $p(x_t \mid x_{<t}) = 1/|V|$ a todos os $|V|$ <em>tokens</em> do vocabulário em todas as posições, sua perda é $\mathcal{L} = \ln |V|$ e sua perplexidade é exatamente $|V|$.
+      </proposition>
+      <proof of="prop:9-8-ppl-uniforme" collapsible="true" collapsed="true">
+        Substituindo $p(x_t \mid x_{<t}) = 1/|V|$ na <ref to="eq:9-8-loss-lm"/>, obtemos $\mathcal{L} = -\frac{1}{T}\sum_{t=1}^{T} \ln(1/|V|) = \ln |V|$; logo, $\mathrm{PPL} = \exp(\ln |V|) = |V|$.
+      </proof>
+
+      Um modelo GPT (Radford et al., 2018) implementa essa ideia com uma pilha de blocos Transformer <strong>só-decodificador</strong> (<em>decoder-only</em>). Durante o treino, a <strong>máscara causal</strong> do Tema 9.5 garante que a posição $t$ só enxergue $x_{\le t}$, permitindo calcular todas as $T$ previsões de uma sequência em paralelo em uma única passada. Na geração de texto, porém, geramos um <em>token</em> por vez a partir dos <em>logits</em> $\mathbf{z} \in \mathbb{R}^{|V|}$ da última posição:
+      <list marker="dash">
+        <item><strong>Decodificação gulosa</strong> (<em>greedy</em>): escolhe sempre $\arg\max_i z_i$, o que tende a produzir textos repetitivos.</item>
+        <item><strong>Amostragem com temperatura</strong> ($\tau > 0$): reescala os <em>logits</em> antes do <em>softmax</em> (Tema 9.1):
+          $$p_i = \frac{\exp(z_i / \tau)}{\sum_{j=1}^{|V|} \exp(z_j / \tau)}.$$
+          Valores $\tau < 1$ concentram a massa nos <em>tokens</em> mais prováveis; $\tau > 1$ achatam a distribuição e aumentam a aleatoriedade.</item>
+        <item><strong>Amostragem <em>top-k</em></strong>: restringe o sorteio apenas aos $k$ <em>tokens</em> de maior <em>logit</em>, zerando a probabilidade da cauda longa.</item>
+      </list>
+
+      Empiricamente, observaram-se <strong>leis de escala</strong> (<em>scaling laws</em>): aumentar de forma coordenada o número de parâmetros, a quantidade de dados de texto e a computação reduz a perda de pré-treino de maneira suave e regular. Em essência, um "LLM" é esse mesmo objetivo autorregressivo levado a escalas massivas.
+
+      <example id="exm:9-8-temperatura">
+        <title>Efeito da temperatura sobre três logits</title>
+        Para um próximo <em>token</em> com três candidatos e <em>logits</em> $\mathbf{z} = (2{,}0;\; 1{,}0;\; 0{,}0)$, calcule as probabilidades para $\tau = 1$, $\tau = 0{,}5$ e $\tau = 2$.
+
+        <strong>Solução.</strong>
+        <list marker="dash">
+          <item><strong>$\tau = 1$:</strong> $\mathbf{z}/1 = (2;\; 1;\; 0)$. Como $e^2 \approx 7{,}389$, $e^1 \approx 2{,}718$ e $e^0 = 1$, a soma é $11{,}107$, dando $\mathbf{p} \approx (0{,}665;\; 0{,}245;\; 0{,}090)$.</item>
+          <item><strong>$\tau = 0{,}5$:</strong> $\mathbf{z}/0{,}5 = (4;\; 2;\; 0)$. Como $e^4 \approx 54{,}598$, $e^2 \approx 7{,}389$ e $e^0 = 1$, a soma é $62{,}987$, dando $\mathbf{p} \approx (0{,}867;\; 0{,}117;\; 0{,}016)$ — o candidato líder salta de $66{,}5\%$ para $86{,}7\%$.</item>
+          <item><strong>$\tau = 2$:</strong> $\mathbf{z}/2 = (1;\; 0{,}5;\; 0)$. Como $e^1 \approx 2{,}718$, $e^{0{,}5} \approx 1{,}649$ e $e^0 = 1$, a soma é $5{,}367$, dando $\mathbf{p} \approx (0{,}506;\; 0{,}307;\; 0{,}186)$ — distribuição bem mais uniforme.</item>
+        </list>
+      </example>
+
+      <example id="exm:9-8-ppl-frase">
+        <title>Perda e perplexidade de uma frase neurobiológica</title>
+        Suponha que um modelo atribua às quatro palavras da sequência <c>["o", "axonio", "conduz", "sinais"]</c> as probabilidades condicionais $0{,}25$, $0{,}50$, $0{,}50$ e $0{,}25$. Calcule a probabilidade total, a perda $\mathcal{L}$ e a perplexidade.
+
+        <strong>Solução.</strong> A probabilidade conjunta é $0{,}25 \cdot 0{,}50 \cdot 0{,}50 \cdot 0{,}25 = \frac{1}{64}$. Usando $-\ln(0{,}25) = \ln 4 \approx 1{,}386$ e $-\ln(0{,}50) = \ln 2 \approx 0{,}693$:
+        $$\mathcal{L} = \frac{1}{4}(1{,}386 + 0{,}693 + 0{,}693 + 1{,}386) = \frac{4{,}159}{4} \approx 1{,}040\text{ nats}, \qquad \mathrm{PPL} = e^{1{,}040} = 64^{1/4} \approx 2{,}83.$$
+        Em média, o modelo comporta-se como se escolhesse entre cerca de $2{,}83$ opções equiprováveis por palavra.
+      </example>
+
+      No código a seguir, treinamos na CPU um modelo bigrama de caracteres com <c>nn.Embedding(V, V)</c> em PyTorch (iniciado em zero para partir exatamente do chute uniforme).
+
+      <code lang="python" id="cod:9-8-bigrama">
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+torch.manual_seed(0)
+
+texto = (
+    "o neuronio dispara sinais eletricos pelo axonio. "
+    "sinapses conectam neuronios no cortex cerebral. "
+) * 20
+
+chars = sorted(set(texto))
+V = len(chars)  # V = 18 caracteres
+c2i = {c: i for i, c in enumerate(chars)}
+i2c = {i: c for i, c in enumerate(chars)}
+
+dados = torch.tensor([c2i[c] for c in texto], dtype=torch.long)
+x_tr, y_tr = dados[:-1], dados[1:]
+
+modelo = nn.Embedding(V, V)
+nn.init.zeros_(modelo.weight)  # Começa uniforme: perda = ln(V), PPL = V
+otim = torch.optim.Adam(modelo.parameters(), lr=0.1)
+
+with torch.no_grad():
+    p0 = F.cross_entropy(modelo(x_tr), y_tr)
+print(f"Inicial -> perda: {p0.item():.2f} (ln V = {torch.log(torch.tensor(float(V))):.2f}), PPL: {torch.exp(p0):.2f}")
+
+for _ in range(300):
+    perda = F.cross_entropy(modelo(x_tr), y_tr)
+    otim.zero_grad()
+    perda.backward()
+    otim.step()
+
+print(f"Final   -> perda ≈ {perda.item():.2f}, PPL ≈ {torch.exp(perda):.2f}")
+
+# Amostragem com temperatura tau = 0.8 (a saída pode variar entre versões/máquinas)
+idx = torch.tensor([c2i["n"]])
+gerado = ["n"]
+tau = 0.8
+with torch.no_grad():
+    for _ in range(45):
+        probs = F.softmax(modelo(idx[-1]) / tau, dim=-1)
+        prox = torch.multinomial(probs, num_samples=1)
+        gerado.append(i2c[prox.item()])
+        idx = torch.cat([idx, prox])
+
+print("Amostra:", "".join(gerado))
+# Saída esperada:
+# Inicial -> perda: 2.89 (ln V = 2.89), PPL: 18.00
+# Final   -> perda ≈ 1.40, PPL ≈ 4.05 (valores aproximados; podem variar entre versões)
+# Amostra: nero no pa co alelel. co niorel. co nerelonebr (pode variar entre versões)
+      </code>
+
+      <remark id="rem:9-8-perplexidade-verdade">
+        <title>Armadilha comum</title>
+        Achar que <strong>perplexidade baixa significa "verdade"</strong>. A perplexidade mede apenas previsibilidade estatística em relação aos dados de treino: uma frase falsa mas repetitiva tem perplexidade menor que um resultado científico inédito e verdadeiro.
+      </remark>
+
+      <exercise id="exr:9-8-2-1">
+        <title>Básico — Verossimilhança, perda e perplexidade à mão</title>
+        Um modelo atribui as probabilidades condicionais $0{,}5$, $0{,}25$, $0{,}5$ e $0{,}5$ aos quatro <em>tokens</em> de uma sequência. Calcule: (a) a probabilidade total da sequência; (b) a perda média $\mathcal{L}$ (use $\ln 2 \approx 0{,}693$); (c) a perplexidade $\mathrm{PPL}$.
+        <hint><title>Ver dica</title>Note que $0{,}5 = 2^{-1}$ e $0{,}25 = 2^{-2}$, de modo que $-\ln(0{,}5) = \ln 2$ e $-\ln(0{,}25) = 2\ln 2$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$p = 0{,}5 \cdot 0{,}25 \cdot 0{,}5 \cdot 0{,}5 = \frac{1}{32} = 0{,}03125$.</item>
+            <item>$\mathcal{L} = \frac{1}{4}(\ln 2 + 2\ln 2 + \ln 2 + \ln 2) = \frac{5}{4}\ln 2 \approx 1{,}25 \cdot 0{,}693 \approx 0{,}866$.</item>
+            <item>$\mathrm{PPL} = \exp\bigl(\frac{5}{4}\ln 2\bigr) = 2^{5/4} \approx 2{,}38$.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-8-2-2">
+        <title>Intermediário — Temperatura na previsão lexical em contexto clínico</title>
+        Após o contexto <c>"O registro intracelular mediu um potencial de..."</c>, um modelo atribui os <em>logits</em> $z_1 = 3{,}0$ (<c>"acao"</c>), $z_2 = 1{,}0$ (<c>"repouso"</c>) e $z_3 = 0{,}0$ (<c>"ouro"</c>). Calcule as probabilidades para $\tau = 1{,}0$ e $\tau = 0{,}5$ e compare a chance do termo implausível <c>"ouro"</c>.
+        <hint><title>Ver dica</title>Use $e^3 \approx 20{,}086$ e $e^6 \approx 403{,}429$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Para $\tau = 1{,}0$: $e^3 \approx 20{,}086$, $e^1 \approx 2{,}718$, $e^0 = 1$, soma $= 23{,}804$; logo $\mathbf{p} \approx (0{,}844;\; 0{,}114;\; 0{,}042)$. Para $\tau = 0{,}5$, os <em>logits</em> dobram para $(6;\; 2;\; 0)$: $e^6 \approx 403{,}429$, $e^2 \approx 7{,}389$, $e^0 = 1$, soma $= 411{,}818$; logo $\mathbf{p} \approx (0{,}980;\; 0{,}018;\; 0{,}0024)$. A probabilidade de <c>"ouro"</c> cai de $4{,}2\%$ para $0{,}24\%$ (cerca de $17$ vezes menor).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-8-2-3">
+        <title>Avançado — Implementando amostragem top-k em NumPy</title>
+        Escreva uma função <c>amostrar_top_k(logits, k, temperatura, rng)</c> que divida os <em>logits</em> pela temperatura, mantenha apenas os $k$ maiores valores (substituindo os demais por <c>-np.inf</c>), aplique o <em>softmax</em> numericamente estável e sorteie um índice. Teste em <c>[2.0, 1.0, 0.5, -1.0]</c> com <c>k = 2</c>.
+        <hint><title>Ver dica</title>Use <c>np.argsort(z)[-k:]</c> para achar os $k$ maiores índices e subtraia <c>np.max(z_filt)</c> antes de <c>np.exp</c>.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+
+def amostrar_top_k(logits, k, temperatura=1.0, rng=None):
+    if rng is None:
+        rng = np.random.default_rng(0)
+    z = logits / temperatura
+    top_idx = np.argsort(z)[-k:]
+    mascara = np.full_like(z, -np.inf, dtype=float)
+    mascara[top_idx] = z[top_idx]
+    exp_z = np.exp(mascara - np.max(mascara))
+    probs = exp_z / np.sum(exp_z)
+    return int(rng.choice(len(logits), p=probs)), probs
+
+rng = np.random.default_rng(0)
+idx, p = amostrar_top_k(np.array([2.0, 1.0, 0.5, -1.0]), k=2, temperatura=1.0, rng=rng)
+print("Probs top-2:", np.round(p, 4), "| sorteado:", idx)
+# Probs top-2: [0.7311 0.2689 0.     0.    ] | sorteado: 0
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-8-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Ajuste fino e alinhamento</title>
+      <intro>
+        O pré-treino ensina a estrutura estatística do idioma, mas transformar um completador de texto em assistente útil — ou em extrator de características para biologia — exige adaptar o modelo a tarefas e preferências.
+      </intro>
+
+      Pelo princípio de <strong>aprendizado por transferência</strong> (<em>transfer learning</em>), um modelo pré-treinado já armazenou representações ricas nas suas camadas internas. Para adaptá-lo a um problema novo, existem duas estratégias principais:
+      <list marker="number">
+        <item><strong>Ajuste fino supervisionado</strong> (<em>supervised fine-tuning</em>, SFT): treinamos o modelo em pares <em>instrução $\to$ resposta</em> usando a mesma perda de próximo <em>token</em>, calculada sobre a resposta.</item>
+        <item><strong>Congelamento com cabeça nova</strong>: mantemos os pesos pré-treinados congelados (<c>requires_grad=False</c>) e treinamos apenas uma camada linear (a "cabeça") sobre a última representação oculta para classificar ou fazer regressão.</item>
+      </list>
+
+      Quando queremos adaptar as camadas internas de um LLM gigante sem atualizar bilhões de pesos na memória, usamos adaptadores de posto baixo como o <strong>LoRA</strong> (<em>Low-Rank Adaptation</em>; Hu et al., 2022). Em vez de modificar toda a matriz quadrada $\mathbf{W} \in \mathbb{R}^{d \times d}$, congelamos $\mathbf{W}$ e somamos o produto de duas matrizes estreitas (Módulo 5 — decomposições de posto baixo):
+      <equation id="eq:9-8-lora">
+        \mathbf{W}' = \mathbf{W} + \mathbf{B}\mathbf{A}, \qquad \mathbf{B} \in \mathbb{R}^{d \times r},\; \mathbf{A} \in \mathbb{R}^{r \times d},\; r \ll d.
+      </equation>
+
+      <example id="exm:9-8-lora-contagem">
+        <title>Economia de parâmetros no LoRA</title>
+        Considere uma matriz de projeção quadrada com $d = 4\,096$ e um adaptador LoRA de posto $r = 8$. Compare o número de parâmetros treináveis.
+
+        <strong>Solução.</strong> Na adaptação completa de $\mathbf{W}$, há $d^2 = 4\,096^2 = 16\,777\,216$ parâmetros. No LoRA, $\mathbf{B}$ tem $d \cdot r$ e $\mathbf{A}$ tem $r \cdot d$ parâmetros, somando:
+        $$2dr = 2 \cdot 4\,096 \cdot 8 = 65\,536\text{ parâmetros}.$$
+        A razão é $\frac{65\,536}{16\,777\,216} = \frac{1}{256} \approx 0{,}39\%$, uma economia de mais de $250$ vezes em parâmetros treináveis.
+      </example>
+
+      Mesmo após o SFT, um modelo ainda pode gerar respostas evasivas, prolixas ou inseguras. Para alinhar o comportamento a julgamentos humanos, aplica-se o <strong>RLHF</strong> (<em>Reinforcement Learning from Human Feedback</em>; Ouyang et al., 2022): humanos comparam pares de respostas indicando qual preferem; um <strong>modelo de recompensa</strong> aprende a atribuir notas mais altas às preferidas; e a política do LLM é otimizada por aprendizado por reforço para maximizar essa nota sem se afastar demais do modelo SFT. Veremos a matemática do aprendizado por reforço em detalhes no próximo tema (<strong>Tema 9.9</strong>).
+
+      Ainda assim, permanecem limitações estruturais: <strong>alucinações</strong> (<em>hallucinations</em> — afirmações fluentes e plausíveis, mas falsas), <strong>vieses dos dados</strong> absorvidos do corpus e um <strong>corte temporal</strong> (o modelo não conhece fatos ocorridos após o encerramento de sua base de treino). Por outro lado, quando usados não como geradores de texto, mas como <strong>extratores de características</strong> (<em>feature extractors</em>), os vetores ocultos $\mathbf{h}$ de suas camadas intermediárias formam representações geométricas valiosas para a ciência.
+
+      <example id="exm:9-8-bio-transfer">
+        <title>Transferência em modelos de linguagem biológicos</title>
+        Em biologia molecular, modelos de linguagem treinados em milhões de sequências de proteínas ou de DNA aprendem implicitamente restrições evolutivas de dobramento e motivos conservados ao prever aminoácidos ou nucleotídeos mascarados. Se um laboratório tem apenas $200$ ensaios experimentais medindo a termoestabilidade de variantes enzimáticas, ajustar todas as dezenas de milhões de pesos do modelo causaria sobreajuste severo (Módulo 8). Congelar o modelo pré-treinado como extrator de <em>embeddings</em> e treinar apenas uma cabeça linear regularizada sobre esses vetores aproveita o conhecimento evolutivo prévio com risco muito menor de decorar ruído experimental.
+      </example>
+
+      O bloco abaixo demonstra o congelamento de um extrator de características em PyTorch usando <c>requires_grad = False</c>, garantindo que apenas os pesos da cabeça sejam atualizados.
+
+      <code lang="python" id="cod:9-8-congelado">
+import torch
+import torch.nn as nn
+
+torch.manual_seed(0)
+
+# Simula um extrator pré-treinado (camadas congeladas)
+extrator = nn.Sequential(
+    nn.Linear(16, 32),
+    nn.ReLU(),
+    nn.Linear(32, 32),
+    nn.ReLU(),
+)
+for p in extrator.parameters():
+    p.requires_grad = False
+
+cabeca = nn.Linear(32, 2)  # Única parte treinável
+
+total = sum(p.numel() for p in extrator.parameters()) + sum(p.numel() for p in cabeca.parameters())
+treinaveis = sum(p.numel() for p in list(extrator.parameters()) + list(cabeca.parameters()) if p.requires_grad)
+print(f"Parâmetros totais: {total} | Treináveis: {treinaveis} ({100 * treinaveis / total:.2f}%)")
+
+# Tarefa sintética de classificação binária
+X = torch.randn(120, 16)
+y = (X[:, 0] + X[:, 1] > 0).long()
+
+with torch.no_grad():
+    H = extrator(X)  # Extrai embeddings sem acumular gradientes
+
+otim = torch.optim.Adam(cabeca.parameters(), lr=0.05)
+criterio = nn.CrossEntropyLoss()
+for _ in range(100):
+    perda = criterio(cabeca(H), y)
+    otim.zero_grad()
+    perda.backward()
+    otim.step()
+
+acc = (cabeca(H).argmax(dim=1) == y).float().mean().item()
+print(f"Acurácia no treino ≈ {acc:.2f}")
+# Saída esperada:
+# Parâmetros totais: 1666 | Treináveis: 66 (3.96%)
+# Acurácia no treino ≈ 0.88 (valor aproximado; pode variar entre versões)
+      </code>
+
+      <remark id="rem:9-8-consulta-bd">
+        <title>Armadilha comum</title>
+        Achar que o LLM <strong>"consulta" uma base de dados</strong> interna ao responder. Sem ferramentas externas de busca, todo o conhecimento está comprimido de forma distribuída nos pesos $\boldsymbol{\theta}$; é exatamente por reconstruir padrões probabilísticos — em vez de ler registros exatos — que o modelo consegue misturar fatos e alucinar referências bibliográficas inexistentes.
+      </remark>
+
+      <exercise id="exr:9-8-3-1">
+        <title>Básico — Contagem de parâmetros LoRA</title>
+        Uma camada Transformer tem uma matriz $\mathbf{W} \in \mathbb{R}^{1\,024 \times 1\,024}$ e recebe um adaptador LoRA com posto $r = 16$. Quantos parâmetros existem em $\mathbf{W}$, quantos existem no par $(\mathbf{A}, \mathbf{B})$ e qual fração (em porcentagem) de $\mathbf{W}$ é treinável?
+        <hint><title>Ver dica</title>Use $d^2$ para $\mathbf{W}$ e $2dr$ para $\mathbf{A}$ e $\mathbf{B}$ juntos.</hint>
+        <solution collapsible="true" collapsed="true">
+          A matriz $\mathbf{W}$ possui $1\,024^2 = 1\,048\,576$ parâmetros. Os adaptadores possuem $2dr = 2 \cdot 1\,024 \cdot 16 = 32\,768$ parâmetros. A fração treinável é $\frac{32\,768}{1\,048\,576} = \frac{1}{32} = 0{,}03125 = 3{,}125\%$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-8-3-2">
+        <title>Intermediário — Escolha de regime em dados escassos de expressão gênica</title>
+        Você dispõe de $150$ sequências promotoras rotuladas quanto à atividade transcricional e de um modelo de linguagem de DNA pré-treinado com $50$ milhões de parâmetros e dimensão oculta final $d = 512$. Compare o risco de sobreajuste (Módulo 8) entre: (a) ajustar todos os $50$ milhões de pesos; e (b) congelar a base e treinar uma cabeça logística ($513$ parâmetros com viés).
+        <hint><title>Ver dica</title>Compare a razão entre o número de parâmetros ajustáveis e o número de amostras de treino ($N = 150$).</hint>
+        <solution collapsible="true" collapsed="true">
+          Em (a), há cerca de $333\,000$ parâmetros por amostra ($5 \times 10^7 / 150$), permitindo que a rede memorize ruído específico das $150$ sequências e generalize mal. Em (b), ajustar apenas $513$ parâmetros (sobretudo com regularização L2) reduz drasticamente os graus de liberdade, preservando os padrões biológicos gerais já capturados pelo pré-treino.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-8-3-3">
+        <title>Avançado — Multiplicação fatorada no LoRA</title>
+        Sejam $\mathbf{W} = \begin{pmatrix} 1 & 0 \\ 0 & 2 \end{pmatrix}$, $\mathbf{B} = \begin{pmatrix} 1 \\ -1 \end{pmatrix}$, $\mathbf{A} = \begin{pmatrix} 2 & 1 \end{pmatrix}$ ($d=2, r=1$) e $\mathbf{x} = \begin{pmatrix} 1 \\ 3 \end{pmatrix}$. Calcule $\mathbf{y} = \mathbf{W}\mathbf{x} + \mathbf{B}(\mathbf{A}\mathbf{x})$ à mão, confira que coincide com $(\mathbf{W} + \mathbf{B}\mathbf{A})\mathbf{x}$ e explique a vantagem computacional da forma fatorada quando $d = 4\,096$ e $r = 8$.
+        <hint><title>Ver dica</title>Na forma fatorada, $\mathbf{A}\mathbf{x}$ gera primeiro um vetor pequeno em $\mathbb{R}^r$ antes de multiplicar por $\mathbf{B}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Pela forma fatorada: $\mathbf{W}\mathbf{x} = \begin{pmatrix} 1 \\ 6 \end{pmatrix}$, $\mathbf{A}\mathbf{x} = 2(1) + 1(3) = 5$ e $\mathbf{B}(\mathbf{A}\mathbf{x}) = \begin{pmatrix} 5 \\ -5 \end{pmatrix}$, dando $\mathbf{y} = \begin{pmatrix} 6 \\ 1 \end{pmatrix}$. Expandindo a matriz: $\mathbf{B}\mathbf{A} = \begin{pmatrix} 2 & 1 \\ -2 & -1 \end{pmatrix}$, logo $\mathbf{W} + \mathbf{B}\mathbf{A} = \begin{pmatrix} 3 & 1 \\ -2 & 1 \end{pmatrix}$ e $(\mathbf{W}+\mathbf{B}\mathbf{A})\mathbf{x} = \begin{pmatrix} 3+3 \\ -2+3 \end{pmatrix} = \begin{pmatrix} 6 \\ 1 \end{pmatrix}$. Para $d=4\,096$ e $r=8$, calcular $\mathbf{B}(\mathbf{A}\mathbf{x})$ faz $2dr = 65\,536$ multiplicações em vez de formar e multiplicar a matriz densa $\mathbf{B}\mathbf{A}$ de $d^2 \approx 16{,}8$ milhões de entradas durante o treino.
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-8-4">
+      <eyebrow>Subtema 4</eyebrow>
+      <title>Embeddings semânticos e o cérebro</title>
+      <intro>
+        Ao usar vetores semânticos como preditores da atividade cerebral medida por fMRI, os modelos de linguagem permitem mapear onde e como o córtex organiza significados durante a escuta natural.
+      </intro>
+
+      Na neurociência da linguagem, um <strong>modelo de codificação</strong> (<em>encoding model</em>) testa hipóteses sobre o cérebro tentando prever o sinal cerebral diretamente a partir de características do estímulo. Para cada palavra ou intervalo de aquisição da ressonância magnética funcional — o <strong>TR</strong> (<em>repetition time</em>, tipicamente $\text{TR} \approx 2\text{ s}$) —, extraímos um vetor semântico $\mathbf{x}_t \in \mathbb{R}^p$. Em seguida, ajustamos para cada <em>voxel</em> $v$ uma <strong>regressão <em>ridge</em></strong> (Módulo 8 — "Regularização"):
+      <equation id="eq:9-8-encoding">
+        \hat{\mathbf{w}}_v = \arg\min_{\mathbf{w}_v} \sum_{t} \bigl(y_{v,t} - \mathbf{w}_v^\top \mathbf{f}_t\bigr)^2 + \lambda_v \|\mathbf{w}_v\|_2^2,
+      </equation>
+      em que $y_{v,t}$ é o sinal BOLD medido no <em>voxel</em> $v$ no instante $t$, e $\lambda_v > 0$ controla a penalidade L2.
+
+      Há um detalhe fisiológico essencial na montagem de $\mathbf{f}_t$: o sinal BOLD (dependente do nível de oxigenação sanguínea) é lento em relação aos potenciais de ação e atinge seu pico cerca de $4$ a $6\text{ s}$ após o estímulo. Por isso, em vez de usar apenas $\mathbf{x}_t$, concatenamos versões atrasadas em $1$ a $4$ TRs ($\mathbf{f}_t = [\mathbf{x}_{t-1}^\top,\, \mathbf{x}_{t-2}^\top,\, \mathbf{x}_{t-3}^\top,\, \mathbf{x}_{t-4}^\top]^\top$), como ilustrado na <ref to="fig:9-8-hemodinamica"/>. O desempenho é avaliado pela correlação de Pearson entre o BOLD previsto $\hat{\mathbf{y}}_v$ e o medido $\mathbf{y}_v$ em histórias inteiras deixadas de fora do treino.
+
+      <figure src="fig/t08-atraso-hemodinamico.svg" alt="Curva da resposta hemodinâmica BOLD após uma palavra em t=0 s, atingindo pico entre 4 e 6 s, com pontos marcados em TR+1 a TR+4 para TR=2 s" id="fig:9-8-hemodinamica">
+        <caption>Resposta hemodinâmica típica (BOLD) a um evento linguístico em $t = 0\text{ s}$. Como o pico ocorre entre $4$ e $6\text{ s}$, concatenar características atrasadas de $1$ a $4$ TRs ($2$ a $8\text{ s}$) permite à regressão linear ajustar a forma da resposta de cada <em>voxel</em>.</caption>
+      </figure>
+
+      Em um marco dessa abordagem, Huth, de Heer, Griffiths, Theunissen &amp; Gallant (2016, <em>Nature</em>) registraram o fMRI de participantes ouvindo mais de duas horas de histórias narradas. Cada palavra foi representada por um <em>embedding</em> semântico de $985$ dimensões construído por coocorrência com palavras comuns (ainda não era um LLM baseado em Transformer). Ajustando modelos <em>voxel</em> a <em>voxel</em>, os autores revelaram mapas semânticos detalhados distribuídos por extensas regiões do córtex em <strong>ambos os hemisférios</strong> — muito além das áreas clássicas da linguagem restritas ao hemisfério esquerdo.
+
+      Estudos posteriores mostraram que as representações internas de modelos de linguagem baseados em Transformers preveem respostas corticais à linguagem ainda melhor que <em>embeddings</em> estáticos (por exemplo, Schrimpf et al., 2021, <em>PNAS</em>). E, como vimos no Tema 9.5, o decodificador semântico de Tang et al. (2023) inverte exatamente esse modelo de codificação para pontuar sequências candidatas geradas por um modelo tipo GPT contra o fMRI medido.
+
+      <example id="exm:9-8-parametros-encoding">
+        <title>Contagem de parâmetros em um modelo de codificação cortical</title>
+        Suponha um experimento no estilo de Huth et al. (2016) com $985$ características semânticas, $4$ atrasos hemodinâmicos por <em>voxel</em> e $50\,000$ <em>voxels</em> corticais. Quantos pesos são ajustados ao todo (sem contar interceptos)?
+
+        <strong>Solução.</strong> Para cada <em>voxel</em>, o vetor de características atrasadas tem dimensão $p = 985 \times 4 = 3\,940$. Multiplicando pelos $50\,000$ <em>voxels</em>:
+        $$3\,940 \times 50\,000 = 197\,000\,000\text{ pesos}\quad (1{,}97 \times 10^8).$$
+        Em $2$ horas de fMRI com $\text{TR} = 2\text{ s}$, há apenas $7\,200 / 2 = 3\,600$ TRs de dados. Como temos mais preditores por <em>voxel</em> ($3\,940$) do que amostras temporais ($3\,600$), a regressão comum sem penalidade L2 (Módulo 8) superajustaria; daí a necessidade da regressão <em>ridge</em>.
+      </example>
+
+      <example id="exm:9-8-atraso-mao">
+        <title>Construindo a matriz de atrasos em 5 TRs</title>
+        Considere um estímulo escalar $x_t$ com valores $(1, 0, 2, 0, 1)$ nos TRs $t = 1, \dots, 5$ e suponha que um <em>voxel</em> responda exatamente com $2$ TRs de atraso: $y_t = 3\,x_{t-2}$. Monte as linhas válidas ($t = 3, 4, 5$) usando atrasos de $1$ e $2$ TRs e verifique a recuperação dos pesos.
+
+        <strong>Solução.</strong> Para $t = 3, 4, 5$, os vetores atrasados $\mathbf{f}_t = (x_{t-1}, x_{t-2})^\top$ são $\mathbf{f}_3 = (0, 1)^\top$, $\mathbf{f}_4 = (2, 0)^\top$ e $\mathbf{f}_5 = (0, 2)^\top$, enquanto $\mathbf{y} = (3, 0, 6)^\top$. Com o vetor de pesos $\mathbf{w} = (0, 3)^\top$, obtemos $\mathbf{f}_3^\top \mathbf{w} = 3$, $\mathbf{f}_4^\top \mathbf{w} = 0$ e $\mathbf{f}_5^\top \mathbf{w} = 6$, batendo exatamente com $\mathbf{y}$. Sem atrasos ($\mathbf{f}_t = x_t = (2, 0, 1)$), nenhum múltiplo de $(2, 0, 1)$ reproduz $(3, 0, 6)$.
+      </example>
+
+      Apesar do entusiasmo, três cuidados metodológicos são indispensáveis:
+      <list marker="number">
+        <item><strong>Correlação não prova equivalência mecanística:</strong> um LLM prever bem o fMRI não significa que o cérebro execute os mesmos algoritmos de um Transformer.</item>
+        <item><strong>Variáveis confundidoras</strong> (<em>confounders</em>): frequência de palavras, comprimento, taxa de fala e prosódia acústica variam junto com o significado e precisam ser incluídos como controles.</item>
+        <item><strong>Validação cruzada por história</strong> (Módulo 8): nunca embaralhe TRs individuais entre treino e teste; faça a separação em blocos contíguos ou histórias inteiras.</item>
+      </list>
+
+      <remark id="rem:9-8-armadilhas-fmri">
+        <title>Armadilha comum</title>
+        Duas falhas invalidam modelos de codificação em fMRI: (1) <strong>embaralhar TRs aleatoriamente</strong> na validação cruzada — a autocorrelação temporal do sinal BOLD e do discurso faz dados de um mesmo instante vazarem do treino para o teste (<em>temporal leakage</em>), inflando artificialmente a correlação; e (2) <strong>esquecer o atraso hemodinâmico</strong>, tentando alinhar a palavra no instante $t$ ao sinal BOLD no mesmo instante $t$.
+      </remark>
+
+      O código a seguir simula $600$ TRs e $50$ <em>voxels</em> cujo sinal BOLD real depende das características atrasadas em $2$ TRs, comparando a regressão <em>ridge</em> (<c>RidgeCV</c>) com e sem atrasos em blocos contíguos de treino e teste.
+
+      <code lang="python" id="cod:9-8-encoding-fmri">
+import numpy as np
+from sklearn.linear_model import RidgeCV
+
+rng = np.random.default_rng(0)
+n_trs, d, n_voxels = 600, 20, 50
+
+# Embeddings semânticos aleatórios (um vetor por TR)
+X = rng.standard_normal((n_trs, d))
+
+# BOLD simulado: combinação linear das características de 2 TRs atrás + ruído
+W_verd = rng.standard_normal((d, n_voxels)) / np.sqrt(d)
+ruido = 0.5 * rng.standard_normal((n_trs, n_voxels))
+Y = np.zeros((n_trs, n_voxels))
+Y[2:] = X[:-2] @ W_verd + ruido[2:]
+Y[:2] = ruido[:2]
+
+# Alinha alvo para t = 3..599 (597 TRs) com atrasos de 1, 2 e 3 TRs
+Y_alvo = Y[3:]
+X_sem_atraso = X[3:]
+X_com_atraso = np.hstack([X[2:-1], X[1:-2], X[:-3]])
+
+# Divisão contígua (sem embaralhar TRs!)
+corte = 450
+alphas = np.logspace(-1, 3, 9)
+
+
+def corr_media(y_real, y_pred):
+    return float(np.mean([np.corrcoef(y_real[:, j], y_pred[:, j])[0, 1] for j in range(y_real.shape[1])]))
+
+
+m_sem = RidgeCV(alphas=alphas).fit(X_sem_atraso[:corte], Y_alvo[:corte])
+m_com = RidgeCV(alphas=alphas).fit(X_com_atraso[:corte], Y_alvo[:corte])
+
+r_sem = corr_media(Y_alvo[corte:], m_sem.predict(X_sem_atraso[corte:]))
+r_com = corr_media(Y_alvo[corte:], m_com.predict(X_com_atraso[corte:]))
+
+print(f"Correlação média (sem atraso) ≈ {r_sem:.3f}")
+print(f"Correlação média (atrasos 1-3 TRs) ≈ {r_com:.3f}")
+# Saída esperada (valores aproximados; podem variar levemente):
+# Correlação média (sem atraso) ≈ -0.04
+# Correlação média (atrasos 1-3 TRs) ≈ 0.86
+      </code>
+
+      <exercise id="exr:9-8-4-1">
+        <title>Básico — Matriz de desenho com atrasos hemodinâmicos</title>
+        Um voluntário ouve $10$ minutos de narrativa no scanner com $\text{TR} = 2\text{ s}$, e cada TR recebe um <em>embedding</em> de $300$ dimensões. Concatenando atrasos de $1, 2, 3$ e $4$ TRs e descartando os $4$ primeiros TRs sem histórico completo, determine: (a) o número total de TRs da sessão; (b) as dimensões da matriz de preditores $\mathbf{F}$; (c) por que a regressão <em>ridge</em> é necessária nesse cenário.
+        <hint><title>Ver dica</title>Converta $10\text{ min}$ para segundos antes de dividir por $\text{TR} = 2\text{ s}$, e compare o número de linhas $n$ com o número de colunas $p$ de $\mathbf{F}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>$10\text{ min} = 600\text{ s}$, logo há $600 / 2 = 300$ TRs no total.</item>
+            <item>Descartando os $4$ primeiros TRs, restam $n = 300 - 4 = 296$ linhas, e $4$ atrasos de $300$ dimensões geram $p = 4 \times 300 = 1\,200$ colunas; portanto $\mathbf{F} \in \mathbb{R}^{296 \times 1\,200}$.</item>
+            <item>Como $p = 1\,200 > n = 296$, os mínimos quadrados ordinários não têm solução única e sobreajustam o ruído; a penalidade $\lambda \|\mathbf{w}_v\|_2^2$ da regressão <em>ridge</em> estabiliza os pesos.</item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-8-4-2">
+        <title>Intermediário — Vazamento temporal na validação cruzada</title>
+        Um pesquisador possui $5$ histórias gravadas em fMRI ($120$ TRs cada, $\text{TR} = 2\text{ s}$) e decide embaralhar os $600$ TRs aleatoriamente para fazer validação cruzada $5$-fold. Sabendo que a resposta BOLD se espalha por $4$ a $8\text{ s}$ ($2$ a $4$ TRs), explique por que a acurácia medida será ilusória e indique o protocolo correto.
+        <hint><title>Ver dica</title>Pense no que acontece com o TR $t$ no conjunto de teste quando os TRs $t-1$ e $t+1$ caíram no conjunto de treino.</hint>
+        <solution collapsible="true" collapsed="true">
+          Ao embaralhar TRs individuais, quase todo TR $t$ do teste tem vizinhos imediatos ($t-1$ e $t+1$, separados por apenas $2\text{ s}$) no treino. Como a resposta hemodinâmica e o contexto da frase variam lentamente ao longo de vários segundos, o modelo aproveita a semelhança local com esses vizinhos — configurando vazamento temporal — e superestima a generalização. O correto é agrupar por história (<em>leave-one-story-out</em>, com blocos contíguos de $120$ TRs inteiros fora do treino).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:9-8-4-3">
+        <title>Avançado — Descobrindo o atraso real em dados sintéticos</title>
+        Escreva um pequeno script em Python com <c>n_trs = 400</c>, <c>d = 10</c> e <c>20</c> <em>voxels</em> cujo BOLD verdadeiro dependa das características de $3$ TRs atrás (<c>Y[3:] = X[:-3] @ W + ruido</c>). Teste modelos <c>RidgeCV</c> usando isoladamente cada atraso $k \in \{0, 1, 2, 3, 4\}$ em uma divisão contígua e imprima a correlação média de teste para cada $k$.
+        <hint><title>Ver dica</title>Alinhe o alvo em <c>Y[4:]</c> e selecione <c>X[4 - k : n_trs - k]</c> para cada atraso $k$.</hint>
+        <solution collapsible="true" collapsed="true">
+          <code lang="python" numbered="false">
+import numpy as np
+from sklearn.linear_model import RidgeCV
+
+rng = np.random.default_rng(0)
+n_trs, d, n_voxels = 400, 10, 20
+X = rng.standard_normal((n_trs, d))
+W = rng.standard_normal((d, n_voxels)) / np.sqrt(d)
+Y = np.zeros((n_trs, n_voxels))
+Y[3:] = X[:-3] @ W + 0.5 * rng.standard_normal((n_trs - 3, n_voxels))
+
+Y_alvo = Y[4:]
+corte = 300
+for k in range(5):
+    Xk = X[4 - k : n_trs - k]
+    modelo = RidgeCV(alphas=np.logspace(-1, 3, 9)).fit(Xk[:corte], Y_alvo[:corte])
+    pred = modelo.predict(Xk[corte:])
+    r = np.mean([np.corrcoef(Y_alvo[corte:, j], pred[:, j])[0, 1] for j in range(n_voxels)])
+    print(f"Atraso k={k}: r ≈ {r:.3f}")
+# Saída esperada:
+# Atraso k=0: r ≈ -0.019
+# Atraso k=1: r ≈ -0.025
+# Atraso k=2: r ≈ 0.034
+# Atraso k=3: r ≈ 0.881
+# Atraso k=4: r ≈ -0.001
+# O pico aparece claramente em k=3 (r ≈ 0.88), enquanto k != 3 fica perto de 0.00.
+          </code>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:9-8-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Tokenização (BPE):</strong> subpalavras equilibram tamanho do vocabulário $|V|$ e comprimento da sequência, convertendo texto em índices da matriz de <em>embeddings</em> $\mathbf{E} \in \mathbb{R}^{|V| \times d}$.</item>
+        <item><strong>Pré-treino autorregressivo:</strong> minimiza a entropia cruzada $\mathcal{L} = -\frac{1}{T}\sum_t \ln p_{\boldsymbol{\theta}}(x_t \mid x_{<t})$, equivalente à máxima verossimilhança, com máscara causal em paralelo.</item>
+        <item><strong>Perplexidade e temperatura:</strong> $\mathrm{PPL} = \exp(\mathcal{L})$ mede o número efetivo de escolhas ($|V|$ no modelo uniforme); a temperatura $\tau$ ajusta o contraste dos <em>logits</em> $z_i / \tau$ no <em>softmax</em>.</item>
+        <item><strong>Adaptação eficiente (LoRA e RLHF):</strong> congelar $\mathbf{W}$ e treinar $\mathbf{W} + \mathbf{B}\mathbf{A}$ ($r \ll d$) reduz os parâmetros de $d^2$ para $2dr$; o RLHF alinha respostas a preferências humanas, mas não elimina alucinações.</item>
+        <item><strong>Modelos de codificação em fMRI:</strong> regressão <em>ridge</em> sobre <em>embeddings</em> com atrasos hemodinâmicos ($1$ a $4$ TRs) revela mapas semânticos bilaterais no córtex.</item>
+        <item><strong>Rigor na avaliação cerebral:</strong> valide sempre por histórias ou blocos contíguos (nunca embaralhando TRs) e controle confundidores linguísticos e acústicos.</item>
+      </list>
+    </section>
+
+    <section id="sec:9-8-alem">
+      <title>Para ir além</title>
+      Para consolidar os fundamentos teóricos e a implementação prática de modelos de linguagem e regressão regularizada, consulte:
+      <list marker="dash">
+        <item><em>Deep Learning Book</em> — Ian Goodfellow (base teórica muito sólida em modelagem sequencial, entropia cruzada e regularização).</item>
+        <item>Andrej Karpathy — aulas de LLM e backprop no YouTube (construção passo a passo de tokenizadores BPE e Transformers autorregressivos).</item>
+        <item><link to="https://pytorch.org/docs/stable/index.html">Documentação oficial do PyTorch</link> — referência para <c>nn.Embedding</c>, autograd e controle de <c>requires_grad</c>.</item>
+        <item><link to="https://scikit-learn.org/stable/">Documentação oficial do scikit-learn</link> — guia de <c>RidgeCV</c> e validação cruzada em grupos.</item>
+      </list>
+
+      No próximo e último tema do módulo, <strong>9.9 — Reinforcement Learning</strong>, veremos a teoria completa do aprendizado por reforço que sustenta tanto o alinhamento via RLHF quanto modelos clássicos de recompensa e erro de predição dopaminérgica no cérebro.
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 9 · Deep Learning — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>
