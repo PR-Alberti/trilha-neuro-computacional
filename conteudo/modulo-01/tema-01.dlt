@@ -1,0 +1,648 @@
+<document>
+  <title>Módulo 1 · Pré-Cálculo</title>
+
+  <meta>
+    <meta-item key="Guia"><link to="../../index.html#tema-1-1">Voltar ao guia (Tema 1.1)</link></meta-item>
+    <meta-item key="Módulo">Módulo 1 · Pré-Cálculo — O Alicerce Matemático</meta-item>
+    <meta-item key="Nível">Básico</meta-item>
+  </meta>
+
+  <floating>
+    <title>Sumário</title>
+    <toc scope="project" depth="1"/>
+  </floating>
+
+  <chapter id="tema-1-1">
+    <title>Álgebra</title>
+
+    <toc/>
+
+    <box type="note">
+      <title>Sobre este tema</title>
+      Manipular expressões com segurança é o que impede o cálculo de virar um pesadelo de contas.
+    </box>
+
+    <strong>Por que isso importa para um biólogo.</strong> A biologia vive de escalas extremas e decisões do tipo "tudo ou nada". Uma população bacteriana que se divide em duas a cada geração cresce como $2^n$; a acidez de uma solução (o $\text{pH}$), a intensidade sonora e a percepção sensorial descrita pela lei de Weber–Fechner comprimem fatores multiplicativos em escalas logarítmicas; e o cérebro humano concentra cerca de $8{,}6 \times 10^{10}$ neurônios enquanto controla concentrações intracelulares de cálcio próximas de $10^{-7}\text{ mol/L}$. Sem fluência em potências e notação científica, essas grandezas viram uma sopa de zeros.
+
+    Além disso, modelos biofísicos funcionam por meio de equações e desigualdades. A lei de Ohm aplicada à membrana celular relaciona corrente e voltagem por uma equação que você precisará rearranjar para isolar a variável desconhecida; já o disparo de um neurônio obedece a uma desigualdade: ele dispara quando o potencial de membrana atinge ou ultrapassa o limiar ($V_m \ge -55\text{ mV}$). Dominar a álgebra básica agora prepara diretamente o terreno para curvas de resposta em Funções, para a <mark>Geometria</mark> no próximo tema e para a definição de limite no Módulo 2 (<mark>Cálculo Real</mark>).
+
+    <strong>Objetivos.</strong> Ao final, você consegue:
+    <list marker="dash">
+      <item>aplicar as propriedades de potenciação com expoentes inteiros, negativos e fracionários;</item>
+      <item>escrever quantidades biológicas em notação científica e estimar ordens de grandeza;</item>
+      <item>resolver equações de 1º e 2º graus, isolar variáveis em fórmulas biofísicas e resolver equações exponenciais simples, conferindo os resultados;</item>
+      <item>resolver desigualdades lineares e modulares, expressando soluções em notação de intervalos e interpretando $|x - a| < r$ como proximidade;</item>
+      <item>reconhecer e evitar armadilhas algébricas clássicas que costumam travar o estudo do Cálculo.</item>
+    </list>
+
+    <strong>Pré-requisitos.</strong> Operações aritméticas com números reais (frações, decimais e regra de sinais). Este é o primeiro tema do Módulo 1 (Pré-Cálculo) e não depende de nenhuma aula anterior da trilha.
+
+    <section id="sec:1-1-1">
+      <eyebrow>Subtema 1</eyebrow>
+      <title>Potenciação</title>
+      <intro>
+        Potências resumem multiplicações repetidas e permitem comparar, na mesma página, o tamanho de uma sinapse em nanômetros e o número de células de um encéfalo inteiro.
+      </intro>
+
+      Imagine uma única bactéria em meio de cultura rico. A cada divisão celular, uma célula vira duas; na geração seguinte, duas viram quatro; depois oito, dezesseis, trinta e duas. Em vez de escrever $2 \cdot 2 \cdot 2 \cdot 2 \cdot 2$, escrevemos $2^5$. Essa notação compacta é a porta de entrada para descrever tanto o crescimento exponencial de populações quanto as ordens de grandeza microscópicas e astronômicas da biologia.
+
+      <definition id="def:1-1-potencia">
+        <title>Potência com expoente inteiro</title>
+        Para um número real $a$ (a <strong>base</strong>) e um inteiro positivo $n \ge 1$ (o <strong>expoente</strong>), definimos:
+        $$a^n = \underbrace{a \cdot a \cdots a}_{n \text{ fatores}}$$
+        Quando $a \ne 0$, estendemos a definição para expoente zero e expoentes inteiros negativos:
+        $$a^0 = 1 \qquad \text{e} \qquad a^{-n} = \frac{1}{a^n}$$
+        <intuition>
+          Cada aumento de $1$ no expoente multiplica o resultado pela base $a$; logo, cada redução de $1$ no expoente divide por $a$. Saindo de $2^3 = 8$, dividimos por $2$ sucessivamente: $2^2 = 4$, $2^1 = 2$, $2^0 = 1$, $2^{-1} = \frac{1}{2}$ e $2^{-2} = \frac{1}{4}$.
+        </intuition>
+      </definition>
+
+      Observe que um expoente negativo <strong>não</strong> torna o resultado negativo: ele apenas inverte a base para o denominador. Por exemplo, $10^{-3} = \frac{1}{10^3} = \frac{1}{1\,000} = 0{,}001$.
+
+      <proposition id="prop:1-1-leis-potencias">
+        <title>Propriedades operatórias das potências</title>
+        Sejam $a, b \in \mathbb{R}$ com $a \ne 0$ e $b \ne 0$, e sejam $m, n \in \mathbb{Z}$. Valem as cinco identidades:
+        <list marker="number">
+          <item><strong>Produto de mesma base:</strong> $a^m \cdot a^n = a^{m + n}$.</item>
+          <item><strong>Quociente de mesma base:</strong> $\dfrac{a^m}{a^n} = a^{m - n}$.</item>
+          <item><strong>Potência de potência:</strong> $(a^m)^n = a^{m \cdot n}$.</item>
+          <item><strong>Potência de produto e quociente:</strong> $(a \cdot b)^n = a^n \cdot b^n$ e $\left(\dfrac{a}{b}\right)^n = \dfrac{a^n}{b^n}$.</item>
+          <item><strong>Inverso multiplicativo:</strong> $\left(\dfrac{a}{b}\right)^{-n} = \left(\dfrac{b}{a}\right)^n$.</item>
+        </list>
+      </proposition>
+      <proof of="prop:1-1-leis-potencias" collapsible="true" collapsed="true">
+        Para $m, n \ge 1$, $a^m \cdot a^n$ junta $m$ fatores $a$ com $n$ fatores $a$, totalizando $m + n$ fatores, o que dá $a^{m+n}$. De modo análogo, $(a^m)^n$ repete o bloco de $m$ fatores $n$ vezes, somando $m \cdot n$ fatores, logo $(a^m)^n = a^{mn}$.
+
+        Para ver por que $a^0 = 1$ e $a^{-n} = 1/a^n$ preservam a regra do produto, observe que $a^n \cdot a^0 = a^{n+0} = a^n$; dividindo ambos os lados por $a^n \ne 0$, obtemos $a^0 = 1$. Da mesma forma, $a^n \cdot a^{-n} = a^{n-n} = a^0 = 1$, de onde segue $a^{-n} = 1/a^n$. A partir disso, $\frac{a^m}{a^n} = a^m \cdot a^{-n} = a^{m-n}$ vale para quaisquer inteiros $m, n$.
+      </proof>
+
+      O que acontece se o expoente for uma fração, como $a^{1/2}$ ou $a^{3/4}$? Queremos que a propriedade $(a^m)^n = a^{mn}$ continue valendo. Se $(a^{1/2})^2 = a^{(1/2)\cdot 2} = a^1 = a$, então $a^{1/2}$ é o número não negativo cujo quadrado vale $a$ — isto é, a raiz quadrada $\sqrt{a}$.
+
+      <definition id="def:1-1-expoente-fracionario">
+        <title>Expoente fracionário como raiz</title>
+        Para $a > 0$ (ou $a \ge 0$ quando o expoente for positivo), $m \in \mathbb{Z}$ e inteiro $n \ge 1$, definimos:
+        $$a^{1/n} = \sqrt[n]{a} \qquad \text{e} \qquad a^{m/n} = \sqrt[n]{a^m} = \left(\sqrt[n]{a}\right)^m$$
+        Todas as propriedades da <ref to="prop:1-1-leis-potencias"/> continuam válidas para expoentes racionais quando as bases são positivas.
+        <intuition>
+          O numerador $m$ funciona como potência comum (eleva); o denominador $n$ funciona como raiz (desfaz a potência $n$). Em fisiologia comparada, por exemplo, a taxa metabólica basal escala com a massa corporal segundo $M^{3/4} = \sqrt[4]{M^3}$.
+        </intuition>
+      </definition>
+
+      Por que exigir $a > 0$ na definição geral? Porque raízes de índice par de números negativos, como $(-4)^{1/2} = \sqrt{-4}$, não existem no conjunto dos números reais $\mathbb{R}$. Restringir a base a valores positivos garante que todas as contas sejam bem definidas em $\mathbb{R}$.
+
+      Na prática científica, potências de base $10$ são o idioma padrão para lidar com escalas muito grandes ou muito pequenas.
+
+      <definition id="def:1-1-notacao-cientifica">
+        <title>Notação científica e ordem de grandeza</title>
+        Um número real não nulo está em <strong>notação científica</strong> quando é escrito na forma:
+        $$c \times 10^k$$
+        onde $k \in \mathbb{Z}$ é o expoente e a mantissa $c$ satisfaz $1 \le |c| < 10$.
+
+        A <strong>ordem de grandeza</strong> é a potência de $10$ mais próxima em escala multiplicativa. Como o ponto médio multiplicativo entre $10^0 = 1$ e $10^1 = 10$ é $\sqrt{10} \approx 3{,}16$, adotamos o critério:
+        <list marker="dash">
+          <item>se $|c| < 3{,}16$, a ordem de grandeza é $10^k$;</item>
+          <item>se $|c| \ge 3{,}16$, a ordem de grandeza é $10^{k+1}$.</item>
+        </list>
+      </definition>
+
+      Em neurobiologia, o cérebro humano adulto tem cerca de $8{,}6 \times 10^{10}$ neurônios (ordem de grandeza $10^{11}$, isto é, cerca de cem bilhões). Já a concentração intracelular livre de íons cálcio ($\text{Ca}^{2+}$) em um neurônio em repouso fica perto de $1{,}0 \times 10^{-7}\text{ mol/L}$ ($100\text{ nmol/L}$), enquanto no meio extracelular ela ronda $1{,}5 \times 10^{-3}\text{ mol/L}$ ($1{,}5\text{ mmol/L}$). Sem notação científica, comparar esses números exigiria contar zeros à direita e à esquerda da vírgula.
+
+      A <ref to="fig:1-1-bacterias"/> mostra por que potências e escalas logarítmicas andam juntas. Quando uma cultura começa com $N_0 = 100$ bactérias e dobra a cada geração, $N(t) = 100 \cdot 2^t$ parece quase plana nas primeiras gerações e depois dispara na escala linear; já em escala logarítmica (onde marcas igualmente espaçadas representam potências sucessivas de $10$), o mesmo crescimento aparece como uma linha reta.
+
+      <figure src="fig/crescimento-bacteriano.svg" alt="Dois gráficos lado a lado de N(t) = 100 vezes 2 elevado a t para t de 0 a 10 gerações: curva exponencial à esquerda em escala linear e reta à direita em escala logarítmica" id="fig:1-1-bacterias">
+        <caption>Crescimento de uma cultura bacteriana $N(t) = 100 \cdot 2^t$ ao longo de $10$ gerações. À esquerda, a escala linear evidencia a explosão populacional; à direita, a escala logarítmica transforma multiplicações constantes em uma reta.</caption>
+      </figure>
+
+      <example id="exm:1-1-cultura">
+        <title>Crescimento bacteriano em gerações</title>
+        Uma cultura inicia com $N_0 = 100$ células de <em>Escherichia coli</em> que se dividem a cada $20\text{ min}$ (ou seja, $1$ geração a cada $20\text{ min}$).
+        <list marker="a">
+          <item>Quantas bactérias haverá após $2\text{ horas}$?</item>
+          <item>Quantas vezes maior é a população na $8^\text{a}$ geração em comparação com a $5^\text{a}$ geração?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Em $2\text{ horas} = 120\text{ min}$, ocorrem $t = \frac{120}{20} = 6$ gerações. Substituindo na lei $N(t) = 100 \cdot 2^t$:
+            $$N(6) = 100 \cdot 2^6 = 100 \cdot 64 = 6\,400 \text{ bactérias.}$$
+          </item>
+          <item>Usando a propriedade do quociente de mesma base, a razão entre as populações é:
+            $$\frac{N(8)}{N(5)} = \frac{100 \cdot 2^8}{100 \cdot 2^5} = 2^{8 - 5} = 2^3 = 8.$$
+            A população na $8^\text{a}$ geração é $8$ vezes maior que na $5^\text{a}$, independentemente de qual era o valor inicial $N_0$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:1-1-neuro-sinapses">
+        <title>Contando sinapses em notação científica</title>
+        Suponha que uma região cortical contenha $1{,}5 \times 10^8$ neurônios e que cada neurônio forme, em média, $6{,}0 \times 10^3$ sinapses.
+        <list marker="a">
+          <item>Estime o número total de sinapses nessa região, em notação científica, e dê sua ordem de grandeza.</item>
+          <item>Se o cérebro inteiro possui $8{,}6 \times 10^{10}$ neurônios, que fração (em notação científica e em porcentagem) essa região representa?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Multiplicamos separadamente as mantissas e as potências de $10$:
+            $$(1{,}5 \times 10^8) \cdot (6{,}0 \times 10^3) = (1{,}5 \cdot 6{,}0) \times 10^{8+3} = 9{,}0 \times 10^{11} \text{ sinapses.}$$
+            Como $9{,}0 \ge 3{,}16$, a ordem de grandeza é $10^{11 + 1} = 10^{12}$ (da ordem de um trilhão de sinapses).
+          </item>
+          <item>Dividimos o número de neurônios da região pelo total cerebral:
+            $$\frac{1{,}5 \times 10^8}{8{,}6 \times 10^{10}} = \frac{1{,}5}{8{,}6} \times 10^{8 - 10} \approx 0{,}174 \times 10^{-2} = 1{,}74 \times 10^{-3}.$$
+            Em porcentagem, $1{,}74 \times 10^{-3} = 0{,}00174 \approx 0{,}17\%$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:1-1-fracionarios">
+        <title>Simplificação com expoentes negativos e fracionários</title>
+        Para $x > 0$, simplifique a expressão:
+        $$E = \frac{x^{3/2} \cdot x^{-1/2}}{(x^2)^{1/4}}$$
+
+        <strong>Solução.</strong> Aplicamos primeiro o produto de mesma base no numerador e a potência de potência no denominador:
+        $$x^{3/2} \cdot x^{-1/2} = x^{\frac{3}{2} - \frac{1}{2}} = x^{2/2} = x^1$$
+        $$(x^2)^{1/4} = x^{2 \cdot \frac{1}{4}} = x^{1/2}$$
+        Agora aplicamos o quociente de mesma base:
+        $$E = \frac{x^1}{x^{1/2}} = x^{1 - \frac{1}{2}} = x^{1/2} = \sqrt{x}.$$
+        Podemos conferir com um valor conveniente, como $x = 16$: na expressão original, $\frac{16^{3/2} \cdot 16^{-1/2}}{(16^2)^{1/4}} = \frac{64 \cdot \frac{1}{4}}{256^{1/4}} = \frac{16}{4} = 4$, que coincide com $\sqrt{16} = 4$.
+      </example>
+
+      <remark id="rem:1-1-armadilha-pot">
+        <title>Armadilha comum</title>
+        Três erros clássicos de potenciação derrubam contas no Cálculo inteiro:
+        <list marker="dash">
+          <item><strong>Distribuir potência na soma:</strong> $(a + b)^2 \ne a^2 + b^2$. O quadrado da soma gera um termo cruzado: $(a + b)^2 = a^2 + 2ab + b^2$. Teste com $a = 3$ e $b = 4$: $(3 + 4)^2 = 49$, mas $3^2 + 4^2 = 25$.</item>
+          <item><strong>Esquecer os parênteses no sinal negativo:</strong> $(-2)^2 \ne -2^2$. Em $(-2)^2 = (-2)(-2) = 4$, a base é $-2$; já em $-2^2 = -(2^2) = -4$, a potência é calculada antes do sinal de menos.</item>
+          <item><strong>Multiplicar expoentes no produto de bases iguais:</strong> $a^m \cdot a^n \ne a^{mn}$. No produto de potências de mesma base, os expoentes são <em>somados</em> ($2^3 \cdot 2^2 = 2^{3+2} = 2^5 = 32$, e não $2^6 = 64$). A multiplicação de expoentes só ocorre na potência de potência: $(a^m)^n = a^{mn}$.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:1-1-1-1">
+        <title>Básico — Regras de potenciação e sinais</title>
+        Calcule e simplifique as duas expressões abaixo:
+        <list marker="a">
+          <item>$(-3)^2 - 3^2 + 5^0$</item>
+          <item>$\dfrac{2^5 \cdot 2^{-2}}{(2^2)^2}$</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), preste atenção à diferença entre $(-3)^2$ e $-3^2$. Em (b), simplifique numerador e denominador separadamente antes de subtrair os expoentes.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Temos $(-3)^2 = (-3)(-3) = 9$, enquanto $-3^2 = -(3^2) = -9$ e $5^0 = 1$. Logo:
+              $$9 - 9 + 1 = 1.$$
+            </item>
+            <item>No numerador, $2^5 \cdot 2^{-2} = 2^{5 + (-2)} = 2^3$. No denominador, $(2^2)^2 = 2^{2 \cdot 2} = 2^4$. Aplicando o quociente de mesma base:
+              $$\frac{2^3}{2^4} = 2^{3 - 4} = 2^{-1} = \frac{1}{2} = 0{,}5.$$
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-1-1-2">
+        <title>Básico — Gradiente de cálcio através da membrana</title>
+        Em um neurônio típico em repouso, a concentração extracelular de íons cálcio ($\text{Ca}^{2+}$) é aproximadamente $1{,}5 \times 10^{-3}\text{ mol/L}$, enquanto a concentração intracelular livre é de cerca de $1{,}0 \times 10^{-7}\text{ mol/L}$. Quantas vezes a concentração extracelular é maior que a intracelular? Escreva o resultado em notação científica e indique sua ordem de grandeza.
+        <hint><title>Ver dica</title>Calcule a razão $\frac{[\text{Ca}^{2+}]_{\text{ext}}}{[\text{Ca}^{2+}]_{\text{int}}}$ usando a regra do quociente de potências de base $10$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Dividimos a concentração externa pela interna:
+          $$\frac{1{,}5 \times 10^{-3}}{1{,}0 \times 10^{-7}} = \frac{1{,}5}{1{,}0} \times 10^{-3 - (-7)} = 1{,}5 \times 10^4.$$
+          Portanto, a concentração extracelular é $1{,}5 \times 10^4$ vezes ($15\,000$ vezes) maior que a intracelular. Como $1{,}5 < 3{,}16$, a ordem de grandeza dessa razão é $10^4$ (dezenas de milhares).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-1-1-3">
+        <title>Intermediário — Expressão com expoentes racionais</title>
+        Supondo $x > 0$, simplifique a expressão
+        $$A(x) = \frac{(9x^3)^{1/2} \cdot x^{-1/2}}{x^2}$$
+        e, em seguida, calcule o valor numérico de $A(6)$.
+        <hint><title>Ver dica</title>Distribua o expoente $1/2$ pelo produto $9 \cdot x^3$ usando $(a \cdot b)^n = a^n \cdot b^n$ antes de combinar as potências de $x$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Distribuindo o expoente $1/2$ no primeiro fator:
+          $$(9x^3)^{1/2} = 9^{1/2} \cdot (x^3)^{1/2} = \sqrt{9} \cdot x^{3/2} = 3x^{3/2}.$$
+          Multiplicando por $x^{-1/2}$ no numerador:
+          $$3x^{3/2} \cdot x^{-1/2} = 3x^{\frac{3}{2} - \frac{1}{2}} = 3x^1 = 3x.$$
+          Dividindo por $x^2$:
+          $$A(x) = \frac{3x^1}{x^2} = 3x^{1 - 2} = 3x^{-1} = \frac{3}{x}.$$
+          Para $x = 6$, obtemos $A(6) = \frac{3}{6} = \frac{1}{2} = 0{,}5$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-1-1-4">
+        <title>Avançado — Lei de Kleiber e metabolismo específico</title>
+        Em fisiologia comparada, a taxa metabólica basal $B$ de mamíferos escala aproximadamente com a massa corporal $M$ pela lei alométrica de Kleiber: $B = B_0 \, M^{3/4}$, onde $B_0 > 0$ é uma constante. Considere dois mamíferos $A$ e $B$ tais que $M_B = 16 \, M_A$.
+        <list marker="a">
+          <item>Calcule a razão entre as taxas metabólicas totais $B_B / B_A$.</item>
+          <item>Definindo a taxa metabólica específica (energia por unidade de massa) como $b = B / M$, expresse $b$ em função de $M$ usando expoentes e calcule a razão $b_B / b_A$.</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), substitua $M_B = 16 M_A$ e observe que $16 = 2^4$. Em (b), escreva $b = \frac{B_0 M^{3/4}}{M^1}$ e subtraia os expoentes.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Substituindo $M_B = 16 M_A$ na razão:
+              $$\frac{B_B}{B_A} = \frac{B_0 (16 M_A)^{3/4}}{B_0 M_A^{3/4}} = \frac{16^{3/4} \cdot M_A^{3/4}}{M_A^{3/4}} = 16^{3/4} = (2^4)^{3/4} = 2^3 = 8.$$
+              O mamífero $16$ vezes mais pesado consome $8$ vezes mais energia no total.
+            </item>
+            <item>Para a taxa metabólica específica, temos:
+              $$b = \frac{B_0 M^{3/4}}{M^1} = B_0 M^{\frac{3}{4} - 1} = B_0 M^{-1/4}.$$
+              Calculando a razão entre os dois animais:
+              $$\frac{b_B}{b_A} = \frac{B_0 (16 M_A)^{-1/4}}{B_0 M_A^{-1/4}} = 16^{-1/4} = \frac{1}{16^{1/4}} = \frac{1}{\sqrt[4]{16}} = \frac{1}{2} = 0{,}5.$$
+              Assim, por grama de tecido, o animal maior tem metade da taxa metabólica do animal menor — fato clássico na biologia comparada.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:1-1-2">
+      <eyebrow>Subtema 2</eyebrow>
+      <title>Equação</title>
+      <intro>
+        Resolver uma equação é descobrir quais valores mantêm dois lados em equilíbrio; isolar uma variável é reorganizar uma lei científica para calcular exatamente o que foi medido no laboratório.
+      </intro>
+
+      Pense em uma equação como uma balança de dois pratos perfeitamente nivelada. Se você acrescentar $5\text{ g}$ no prato esquerdo, precisa acrescentar $5\text{ g}$ no direito para manter o equilíbrio; se dobrar a massa de um lado, precisa dobrar a do outro. Toda técnica para resolver equações — do 1º grau até o isolamento de variáveis na equação de Nernst — resume-se a aplicar operações válidas nos dois lados até deixar a incógnita sozinha.
+
+      <definition id="def:1-1-equacao">
+        <title>Equação e princípios de equivalência</title>
+        Uma <strong>equação</strong> em uma incógnita $x$ é uma igualdade entre duas expressões, e uma <strong>solução</strong> (ou raiz) é um valor de $x$ que torna a igualdade verdadeira. Duas operações sempre produzem equações equivalentes (com as mesmas soluções):
+        <list marker="number">
+          <item>somar ou subtrair a mesma expressão definida em ambos os lados;</item>
+          <item>multiplicar ou dividir ambos os lados por um número real <strong>diferente de zero</strong>.</item>
+        </list>
+      </definition>
+
+      Para uma equação do 1º grau $ax + b = 0$ com $a \ne 0$, subtraímos $b$ e dividimos por $a$, obtendo a solução única:
+      $$x = -\frac{b}{a}.$$
+
+      Essa mesma lógica permite <strong>isolar uma variável</strong> em qualquer fórmula física ou bioquímica: tratamos todas as outras letras como números conhecidos e desfazemos as operações ao redor da variável desejada na ordem inversa.
+
+      Quando a incógnita aparece elevada ao quadrado, entramos nas equações do 2º grau.
+
+      <theorem id="thm:1-1-bhaskara">
+        <title>Fórmula resolutiva da equação do 2º grau (Bhaskara)</title>
+        Seja a equação $ax^2 + bx + c = 0$, com $a, b, c \in \mathbb{R}$ e $a \ne 0$. Definimos o <strong>discriminante</strong> por:
+        $$\Delta = b^2 - 4ac$$
+        As soluções reais dependem do sinal de $\Delta$:
+        <list marker="dash">
+          <item>se $\Delta > 0$, existem duas raízes reais distintas dadas por $x = \dfrac{-b \pm \sqrt{\Delta}}{2a}$;</item>
+          <item>se $\Delta = 0$, existe uma única raiz real (dupla): $x = -\dfrac{b}{2a}$;</item>
+          <item>se $\Delta < 0$, não existem raízes reais.</item>
+        </list>
+        <intuition>
+          Geometricamente, $y = ax^2 + bx + c$ desenha uma parábola. O discriminante $\Delta$ mede se o vértice da parábola cruza o eixo horizontal duas vezes ($\Delta > 0$), apenas tangencia ($\Delta = 0$) ou nem chega a tocá-lo ($\Delta < 0$).
+        </intuition>
+      </theorem>
+      <proof of="thm:1-1-bhaskara" collapsible="true" collapsed="true">
+        Dividindo $ax^2 + bx + c = 0$ por $a \ne 0$ e isolando o termo constante à direita, obtemos:
+        $$x^2 + \frac{b}{a}x = -\frac{c}{a}.$$
+        Para completar um quadrado perfeito à esquerda, somamos $\left(\frac{b}{2a}\right)^2 = \frac{b^2}{4a^2}$ aos dois lados:
+        $$x^2 + 2\left(\frac{b}{2a}\right)x + \left(\frac{b}{2a}\right)^2 = \frac{b^2}{4a^2} - \frac{c}{a} \implies \left(x + \frac{b}{2a}\right)^2 = \frac{b^2 - 4ac}{4a^2} = \frac{\Delta}{4a^2}.$$
+        Como $(x + b/(2a))^2 \ge 0$ e $4a^2 > 0$, se $\Delta < 0$ não há solução real. Se $\Delta \ge 0$, extraindo a raiz quadrada dos dois lados (e notando que $\pm\sqrt{4a^2} = \pm 2|a|$ coincide com $\pm 2a$):
+        $$x + \frac{b}{2a} = \pm \frac{\sqrt{\Delta}}{2a} \implies x = \frac{-b \pm \sqrt{\Delta}}{2a}.$$
+      </proof>
+
+      Um terceiro tipo frequente em biologia é a <strong>equação exponencial simples</strong>, na qual a incógnita está no expoente, como $2^x = 64$. Quando conseguimos escrever os dois lados com a mesma base positiva $a \ne 1$, vale a regra de cancelamento:
+      $$a^x = a^k \implies x = k.$$
+      (Veremos no Tema 1.3 — Funções — como usar logaritmos quando os dois lados não compartilham uma base evidente.)
+
+      Por fim, crie o hábito de <strong>sempre conferir a solução</strong> substituindo o valor encontrado de volta na equação original. Esse cheque leva poucos segundos e apanha erros de sinal na hora.
+
+      <example id="exm:1-1-ohm-nernst">
+        <title>Isolando variáveis na lei de Ohm e na equação de Nernst</title>
+        <list marker="a">
+          <item>Na eletrofisiologia passiva da membrana, a variação de potencial $\Delta V$ (em volts) gerada por uma corrente $I$ (em amperes) obedece à lei de Ohm $\Delta V = R_{\text{in}} \cdot I$. Se um neurônio tem resistência de entrada $R_{\text{in}} = 40\text{ M}\Omega = 40 \times 10^6\;\Omega$, qual corrente $I$ produz uma despolarização de $\Delta V = 15\text{ mV} = 15 \times 10^{-3}\text{ V}$?</item>
+          <item>A equação de Nernst dá o potencial de equilíbrio de um íon:
+            $$E_{\text{ion}} = \frac{RT}{zF} \ln\!\left(\frac{[\text{íon}]_{\text{ext}}}{[\text{íon}]_{\text{int}}}\right)$$
+            Supondo $E_{\text{ion}} \ne 0$, isole a valência $z$ do íon em função das demais grandezas.
+          </item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Dividimos os dois lados de $\Delta V = R_{\text{in}} \cdot I$ por $R_{\text{in}}$ para isolar $I$:
+            $$I = \frac{\Delta V}{R_{\text{in}}} = \frac{15 \times 10^{-3}\text{ V}}{40 \times 10^6\;\Omega} = 0{,}375 \times 10^{-9}\text{ A} = 0{,}375\text{ nA} = 375\text{ pA}.$$
+            <em>Conferência:</em> $(40 \times 10^6\;\Omega) \cdot (0{,}375 \times 10^{-9}\text{ A}) = 15 \times 10^{-3}\text{ V} = 15\text{ mV}$.
+          </item>
+          <item>Para tirar $z$ do denominador, multiplicamos ambos os lados por $z$:
+            $$z E_{\text{ion}} = \frac{RT}{F} \ln\!\left(\frac{[\text{íon}]_{\text{ext}}}{[\text{íon}]_{\text{int}}}\right).$$
+            Em seguida, dividimos ambos os lados por $E_{\text{ion}}$:
+            $$z = \frac{RT}{E_{\text{ion}} F} \ln\!\left(\frac{[\text{íon}]_{\text{ext}}}{[\text{íon}]_{\text{int}}}\right).$$
+            Note que não precisamos saber calcular $\ln$ aqui: o bloco $\ln(\dots)$ funcionou como uma única quantidade algébrica. Se quiséssemos isolar esse bloco, bastaria escrever $\ln\!\left(\frac{[\text{íon}]_{\text{ext}}}{[\text{íon}]_{\text{int}}}\right) = \frac{z F E_{\text{ion}}}{RT}$.
+          </item>
+        </list>
+      </example>
+
+      <example id="exm:1-1-bhaskara">
+        <title>Equação do 2º grau com conferência</title>
+        Resolva $2x^2 - 10x + 8 = 0$ usando a fórmula de Bhaskara e confira as raízes.
+
+        <strong>Solução.</strong> Identificamos $a = 2$, $b = -10$ e $c = 8$. Calculamos o discriminante:
+        $$\Delta = (-10)^2 - 4 \cdot 2 \cdot 8 = 100 - 64 = 36.$$
+        Como $\Delta > 0$, há duas raízes reais distintas:
+        $$x = \frac{-(-10) \pm \sqrt{36}}{2 \cdot 2} = \frac{10 \pm 6}{4}.$$
+        Logo, $x_1 = \frac{10 + 6}{4} = \frac{16}{4} = 4$ e $x_2 = \frac{10 - 6}{4} = \frac{4}{4} = 1$.
+
+        <em>Conferência:</em>
+        <list marker="dash">
+          <item>Para $x = 4$: $2(4)^2 - 10(4) + 8 = 32 - 40 + 8 = 0$ (verdadeiro).</item>
+          <item>Para $x = 1$: $2(1)^2 - 10(1) + 8 = 2 - 10 + 8 = 0$ (verdadeiro).</item>
+        </list>
+      </example>
+
+      <example id="exm:1-1-exp">
+        <title>Equação exponencial e tempo em gerações</title>
+        <list marker="a">
+          <item>Resolva $2^x = 64$.</item>
+          <item>Uma cultura bacteriana segue $N(t) = 50 \cdot 2^t$, onde $t$ é medido em gerações. Após quantas gerações a população atinge $3\,200$ células?</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Fatoramos $64 = 2^6$. Assim, $2^x = 2^6$, de onde segue imediatamente $x = 6$. <em>Conferência:</em> $2^6 = 64$.</item>
+          <item>Igualamos $N(t) = 3\,200$:
+            $$50 \cdot 2^t = 3\,200.$$
+            Primeiro isolamos a potência $2^t$ dividindo ambos os lados por $50$:
+            $$2^t = \frac{3\,200}{50} = 64 = 2^6 \implies t = 6 \text{ gerações.}$$
+            <em>Conferência:</em> $N(6) = 50 \cdot 2^6 = 50 \cdot 64 = 3\,200$.
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:1-1-armadilha-eq">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Dividir pela incógnita e perder raízes:</strong> na equação $x^2 = 5x$, dividir os dois lados por $x$ dá $x = 5$, mas apaga a solução $x = 0$ (porque $x$ pode valer zero, e não se pode dividir por zero!). O jeito seguro é passar tudo para um lado e fatorar: $x^2 - 5x = 0 \implies x(x - 5) = 0 \implies x = 0 \text{ ou } x = 5$.</item>
+          <item><strong>Erros de sinal em Bhaskara:</strong> quando $b$ é negativo (por exemplo, $b = -10$), escreva explicitamente $-(-10) = +10$ e $(-10)^2 = +100$ antes de subtrair $4ac$.</item>
+          <item><strong>Multiplicar o coeficiente pela base na exponencial:</strong> em $50 \cdot 2^t = 3\,200$, nunca faça $100^t = 3\,200$! A potência $2^t$ tem prioridade sobre a multiplicação por $50$; isole $2^t$ primeiro.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:1-1-2-1">
+        <title>Básico — Equação do 1º grau</title>
+        Resolva a equação $3(x - 2) + 4 = 5x - 10$ e confira sua resposta.
+        <hint><title>Ver dica</title>Aplique a propriedade distributiva em $3(x - 2)$, junte os termos com $x$ de um lado e os termos numéricos do outro.</hint>
+        <solution collapsible="true" collapsed="true">
+          Expandindo o lado esquerdo:
+          $$3x - 6 + 4 = 5x - 10 \implies 3x - 2 = 5x - 10.$$
+          Subtraindo $3x$ e somando $10$ aos dois lados:
+          $$-2 + 10 = 5x - 3x \implies 8 = 2x \implies x = 4.$$
+          <em>Conferência:</em> no lado esquerdo, $3(4 - 2) + 4 = 3(2) + 4 = 10$; no lado direito, $5(4) - 10 = 20 - 10 = 10$. Como $10 = 10$, a solução $x = 4$ está correta.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-1-2-2">
+        <title>Básico — Corrente necessária para atingir o limiar</title>
+        No modelo passivo linear de um neurônio, o potencial de membrana obedece a $V_m = V_{\text{rep}} + R_{\text{in}} \cdot I$. Considere $V_{\text{rep}} = -70\text{ mV}$ e $R_{\text{in}} = 50\text{ M}\Omega$. Qual corrente constante $I$ (em $\text{nA}$) leva o potencial exatamente ao limiar de disparo $V_m = -55\text{ mV}$?
+        <hint><title>Ver dica</title>Isole $I$ primeiro e converta $\text{mV}$ para $\text{V}$ ($10^{-3}\text{ V}$) e $\text{M}\Omega$ para $\Omega$ ($10^6\;\Omega$). Lembre que $1\text{ nA} = 10^{-9}\text{ A}$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Subtraindo $V_{\text{rep}}$ e dividindo por $R_{\text{in}}$:
+          $$I = \frac{V_m - V_{\text{rep}}}{R_{\text{in}}}.$$
+          Calculando a diferença de potencial:
+          $$V_m - V_{\text{rep}} = -55\text{ mV} - (-70\text{ mV}) = 15\text{ mV} = 15 \times 10^{-3}\text{ V}.$$
+          Dividindo por $R_{\text{in}} = 50 \times 10^6\;\Omega$:
+          $$I = \frac{15 \times 10^{-3}\text{ V}}{50 \times 10^6\;\Omega} = 0{,}3 \times 10^{-9}\text{ A} = 0{,}3\text{ nA}.$$
+          <em>Conferência:</em> $-70\text{ mV} + (50 \times 10^6\;\Omega)(0{,}3 \times 10^{-9}\text{ A}) = -70\text{ mV} + 15 \times 10^{-3}\text{ V} = -70\text{ mV} + 15\text{ mV} = -55\text{ mV}$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-1-2-3">
+        <title>Intermediário — 2º grau e exponencial</title>
+        Resolva e confira ambas as equações:
+        <list marker="a">
+          <item>$3x^2 - 6x - 24 = 0$</item>
+          <item>$3 \cdot 2^{x + 1} = 96$</item>
+        </list>
+        <hint><title>Ver dica</title>Em (a), você pode dividir toda a equação por $3$ antes de aplicar Bhaskara. Em (b), divida por $3$ para isolar $2^{x+1}$ antes de igualar os expoentes.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Dividindo os dois lados por $3$: $x^2 - 2x - 8 = 0$. Aqui $a = 1$, $b = -2$, $c = -8$. Logo:
+              $$\Delta = (-2)^2 - 4(1)(-8) = 4 + 32 = 36,$$
+              $$x = \frac{-(-2) \pm \sqrt{36}}{2(1)} = \frac{2 \pm 6}{2} \implies x_1 = 4, \quad x_2 = -2.$$
+              <em>Conferência:</em> $3(4)^2 - 6(4) - 24 = 48 - 24 - 24 = 0$; $3(-2)^2 - 6(-2) - 24 = 12 + 12 - 24 = 0$.
+            </item>
+            <item>Isolando a potência de $2$:
+              $$2^{x+1} = \frac{96}{3} = 32 = 2^5.$$
+              Igualando os expoentes: $x + 1 = 5 \implies x = 4$.
+              <em>Conferência:</em> $3 \cdot 2^{4 + 1} = 3 \cdot 2^5 = 3 \cdot 32 = 96$.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-1-2-4">
+        <title>Avançado — Canais iônicos em paralelo</title>
+        Quando dois tipos de canais iônicos atuam em paralelo na membrana, a resistência equivalente $R_{\text{eq}}$ relaciona-se com as resistências individuais $R_1 > 0$ e $R_2 > 0$ pela equação:
+        $$R_{\text{eq}} = \frac{R_1 R_2}{R_1 + R_2}$$
+        <list marker="a">
+          <item>Isole algebricamente $R_2$ em função de $R_{\text{eq}}$ e $R_1$.</item>
+          <item>Se $R_{\text{eq}} = 20\text{ M}\Omega$ e $R_1 = 30\text{ M}\Omega$, encontre $R_2$ e confira o resultado.</item>
+          <item>Usando a expressão obtida em (a), explique por que é obrigatório que $R_1 > R_{\text{eq}}$ para existir uma resistência física positiva $R_2 > 0$.</item>
+        </list>
+        <hint><title>Ver dica</title>Multiplique os dois lados por $(R_1 + R_2)$, agrupe todos os termos que contêm $R_2$ de um mesmo lado e coloque $R_2$ em evidência.</hint>
+        <solution collapsible="true" collapsed="true">
+          <list marker="a">
+            <item>Multiplicando ambos os lados por $R_1 + R_2$:
+              $$R_{\text{eq}}(R_1 + R_2) = R_1 R_2 \implies R_{\text{eq}} R_1 + R_{\text{eq}} R_2 = R_1 R_2.$$
+              Passando $R_{\text{eq}} R_2$ para a direita e colocando $R_2$ em evidência:
+              $$R_{\text{eq}} R_1 = R_2(R_1 - R_{\text{eq}}) \implies R_2 = \frac{R_{\text{eq}} R_1}{R_1 - R_{\text{eq}}}.$$
+            </item>
+            <item>Substituindo $R_{\text{eq}} = 20\text{ M}\Omega$ e $R_1 = 30\text{ M}\Omega$:
+              $$R_2 = \frac{20 \cdot 30}{30 - 20} = \frac{600}{10} = 60\text{ M}\Omega.$$
+              <em>Conferência:</em> $\frac{30 \cdot 60}{30 + 60} = \frac{1\,800}{90} = 20\text{ M}\Omega$.
+            </item>
+            <item>Como $R_{\text{eq}} > 0$ e $R_1 > 0$, o numerador $R_{\text{eq}} R_1$ é estritamente positivo. Para que $R_2$ seja definida e positiva, o denominador $R_1 - R_{\text{eq}}$ também precisa ser estritamente positivo, ou seja, $R_1 > R_{\text{eq}}$. Biologicamente, isso faz todo sentido: abrir um segundo caminho paralelo para íons sempre reduz a resistência total da membrana, deixando $R_{\text{eq}}$ menor que cada resistência individual.
+            </item>
+          </list>
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:1-1-3">
+      <eyebrow>Subtema 3</eyebrow>
+      <title>Desigualdade</title>
+      <intro>
+        Desigualdades delimitam janelas fisiológicas e gatilhos de disparo — e fornecem a linguagem de proximidade que define os limites no Cálculo Real.
+      </intro>
+
+      Na biologia, quase nada exige igualdade exata. Um neurônio não precisa estar em <em>exatos</em> $-55\text{ mV}$ para disparar: ele dispara sempre que $V_m \ge -55\text{ mV}$. Da mesma forma, enzimas operam bem dentro de uma faixa de temperatura e $\text{pH}$, e não em um único ponto. Resolver uma desigualdade significa encontrar todo o conjunto de números reais — em geral um intervalo — que satisfaz aquela condição.
+
+      <definition id="def:1-1-intervalos">
+        <title>Notação de intervalos na reta real</title>
+        Sejam $a, b \in \mathbb{R}$ com $a < b$. Escrevemos conjuntos contínuos de números reais usando colchetes (extremo incluído) e parênteses (extremo excluído):
+        <list marker="dash">
+          <item><strong>Intervalo fechado:</strong> $[a, b] = \{x \in \mathbb{R} : a \le x \le b\}$;</item>
+          <item><strong>Intervalo aberto:</strong> $(a, b) = \{x \in \mathbb{R} : a < x < b\}$;</item>
+          <item><strong>Intervalos semiabertos:</strong> $[a, b) = \{x \in \mathbb{R} : a \le x < b\}$ e $(a, b] = \{x \in \mathbb{R} : a < x \le b\}$;</item>
+          <item><strong>Intervalos ilimitados:</strong> $[a, +\infty) = \{x \in \mathbb{R} : x \ge a\}$ e $(-\infty, b) = \{x \in \mathbb{R} : x < b\}$ (os símbolos $+\infty$ e $-\infty$ sempre levam parênteses).</item>
+        </list>
+      </definition>
+
+      Quase tudo o que vale para equações vale para desigualdades — com uma exceção crucial ao lidar com números negativos.
+
+      <proposition id="prop:1-1-desigualdades">
+        <title>Propriedades das desigualdades</title>
+        Sejam $a, b, c \in \mathbb{R}$. Se $a < b$, então:
+        <list marker="number">
+          <item><strong>Adição ou subtração:</strong> $a + c < b + c$ (o sentido se mantém);</item>
+          <item><strong>Multiplicação ou divisão por positivo ($c > 0$):</strong> $ac < bc$ e $\dfrac{a}{c} < \dfrac{b}{c}$ (o sentido se mantém);</item>
+          <item><strong>Multiplicação ou divisão por negativo ($c < 0$):</strong> $ac > bc$ e $\dfrac{a}{c} > \dfrac{b}{c}$ (o sentido <strong>inverte</strong>).</item>
+        </list>
+        As mesmas regras valem para $\le$, $>$ e $\ge$.
+      </proposition>
+      <proof of="prop:1-1-desigualdades" collapsible="true" collapsed="true">
+        Se $a < b$, então $b - a > 0$. Para provar o item 3, suponha $c < 0$, o que significa $-c > 0$. O produto de dois números positivos é positivo:
+        $$(b - a)(-c) > 0 \implies -bc + ac > 0 \implies ac > bc.$$
+        Na reta real, multiplicar por $-1$ espelha todos os números em torno do zero: se $2 < 5$, ao refletir temos $-2 > -5$.
+      </proof>
+
+      Agora vamos conectar desigualdades à ideia geométrica de distância. O valor absoluto $|x|$ mede a distância de $x$ até $0$, e $|x - a|$ mede a distância entre $x$ e $a$. Essa leitura transforma desigualdades com módulo em frases visuais muito simples.
+
+      <definition id="def:1-1-modulo">
+        <title>Desigualdades com módulo como vizinhança</title>
+        Seja $a \in \mathbb{R}$ e seja $r > 0$. A desigualdade
+        $$|x - a| < r$$
+        significa que a distância entre $x$ e $a$ é menor que $r$. Algebricamente, ela equivale à dupla desigualdade:
+        $$-r < x - a < r \iff a - r < x < a + r \iff x \in (a - r,\, a + r).$$
+        Analogamente, $|x - a| \le r$ equivale ao intervalo fechado $[a - r,\, a + r]$, enquanto $|x - a| > r$ descreve os pontos fora dessa vizinhança ($x < a - r$ ou $x > a + r$).
+        <intuition>
+          Pense em $a$ como o alvo e em $r$ como o raio de tolerância. Dizer $|x - a| < r$ é exatamente o mesmo que dizer "$x$ está perto de $a$, a menos de uma margem $r$".
+        </intuition>
+      </definition>
+
+      <observation id="obs:1-1-prep-limite">
+        Guarde bem a forma $|x - a| < r$ da <ref to="def:1-1-modulo"/>: no Módulo 2 (<mark>Cálculo Real</mark>), a definição formal de limite usa exatamente desigualdades como $0 < |x - a| < \delta$ e $|f(x) - L| < \varepsilon$ para traduzir matematicamente a ideia de "estar arbitrariamente perto de $a$".
+      </observation>
+
+      <example id="exm:1-1-limiar">
+        <title>Faixa de corrente para disparo neuronal</title>
+        Um modelo simples de neurônio parte do potencial de repouso $V_{\text{rep}} = -70\text{ mV}$, possui resistência de entrada $R_{\text{in}} = 50\text{ M}\Omega$ e dispara um potencial de ação quando o potencial de membrana satisfaz $V_m \ge -55\text{ mV}$. Usando $V_m = V_{\text{rep}} + R_{\text{in}} \cdot I$, determine todas as correntes injetadas $I$ (em $\text{nA}$) que fazem o neurônio disparar.
+
+        <strong>Solução.</strong> Observe antes uma conversão muito prática: quando $R_{\text{in}}$ está em $\text{M}\Omega$ ($10^6\;\Omega$) e $I$ está em $\text{nA}$ ($10^{-9}\text{ A}$), o produto $R_{\text{in}} \cdot I$ já sai diretamente em $\text{mV}$ ($10^6 \cdot 10^{-9} = 10^{-3}\text{ V} = 1\text{ mV}$). Assim, substituindo na condição de disparo $V_m \ge -55$:
+        $$-70 + 50 I \ge -55.$$
+        Somamos $70$ aos dois lados:
+        $$50 I \ge 15.$$
+        Dividimos ambos os lados por $50 > 0$ (mantendo o sinal $\ge$):
+        $$I \ge \frac{15}{50} = 0{,}3\text{ nA}.$$
+        Em notação de intervalos, o neurônio dispara para $I \in [0{,}3;\, +\infty)\text{ nA}$. Esse valor mínimo de $0{,}3\text{ nA}$ é chamado em neurofisiologia de <em>reobase</em> para corrente contínua longa.
+      </example>
+
+      <example id="exm:1-1-inversao-faixa">
+        <title>Inversão de sinal e faixa fisiológica de pH</title>
+        <list marker="a">
+          <item>Resolva a desigualdade $-3x + 6 > 18$ e escreva a solução como intervalo.</item>
+          <item>O $\text{pH}$ arterial humano normal permanece centrado em $7{,}40$ com tolerância máxima de $0{,}05$. Expresse essa faixa como desigualdade modular e como intervalo.</item>
+        </list>
+
+        <strong>Solução.</strong>
+        <list marker="a">
+          <item>Subtraímos $6$ de ambos os lados:
+            $$-3x > 12.$$
+            Dividimos ambos os lados por $-3 < 0$, o que <strong>inverte</strong> o sinal da desigualdade:
+            $$x < \frac{12}{-3} \implies x < -4.$$
+            Logo, o conjunto solução é $(-\infty, -4)$. Podemos testar um valor dentro do intervalo, como $x = -5$: $-3(-5) + 6 = 21 > 18$ (verdadeiro).
+          </item>
+          <item>Estar a uma distância de no máximo $0{,}05$ de $7{,}40$ escreve-se:
+            $$|\text{pH} - 7{,}40| \le 0{,}05.$$
+            Abrindo a desigualdade modular:
+            $$-0{,}05 \le \text{pH} - 7{,}40 \le 0{,}05 \implies 7{,}35 \le \text{pH} \le 7{,}45.$$
+            Portanto, a faixa fisiológica normal é o intervalo fechado $[7{,}35;\, 7{,}45]$. Valores fora desse intervalo ($|\text{pH} - 7{,}40| > 0{,}05$) correspondem a acidemia ($\text{pH} < 7{,}35$) ou alcalemia ($\text{pH} > 7{,}45$).
+          </item>
+        </list>
+      </example>
+
+      <remark id="rem:1-1-armadilha-desig">
+        <title>Armadilha comum</title>
+        <list marker="dash">
+          <item><strong>Esquecer de inverter o sinal ao dividir por negativo:</strong> de $-2x \le 10$, concluir $x \le -5$ é falso (teste $x = -6$: $-2(-6) = 12$, que não é $\le 10$). O correto é $x \ge -5$.</item>
+          <item><strong>Multiplicar os dois lados por uma variável $x$ sem saber seu sinal:</strong> em $\frac{1}{x} < 2$, se você multiplicar por $x$ sem cuidado, erra todos os casos em que $x < 0$ (pois ali o sinal inverteria).</item>
+          <item><strong>Trocar $|x - a| < r$ por $|x - a| > r$:</strong> o sinal $<$ prende $x$ <em>dentro</em> de um único intervalo ao redor de $a$; o sinal $>$ expulsa $x$ para <em>fora</em>, gerando dois pedaços separados.</item>
+        </list>
+      </remark>
+
+      <exercise id="exr:1-1-3-1">
+        <title>Básico — Desigualdade linear com sinal negativo</title>
+        Resolva $-4x + 7 \ge 23$ e escreva o conjunto solução na notação de intervalos.
+        <hint><title>Ver dica</title>Subtraia $7$ dos dois lados e lembre do que acontece com o sinal $\ge$ quando você divide por $-4$.</hint>
+        <solution collapsible="true" collapsed="true">
+          Subtraindo $7$ dos dois lados:
+          $$-4x \ge 23 - 7 \implies -4x \ge 16.$$
+          Dividindo ambos os lados por $-4 < 0$, invertemos o sentido da desigualdade:
+          $$x \le \frac{16}{-4} \implies x \le -4.$$
+          Na notação de intervalos, a solução é $(-\infty, -4]$. (Teste com $x = -5$: $-4(-5) + 7 = 27 \ge 23$.)
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-1-3-2">
+        <title>Básico — Faixa fisiológica de temperatura</title>
+        Considere que a temperatura corporal basal saudável de um mamífero varia no máximo $0{,}5\,^\circ\text{C}$ em torno de $37{,}0\,^\circ\text{C}$. Escreva essa condição como uma desigualdade com módulo e converta-a para um intervalo fechado.
+        <hint><title>Ver dica</title>Use o modelo $|T - a| \le r$, identificando quem é o centro $a$ e quem é a margem $r$.</hint>
+        <solution collapsible="true" collapsed="true">
+          A distância entre a temperatura $T$ e o valor central $37{,}0\,^\circ\text{C}$ deve ser menor ou igual a $0{,}5\,^\circ\text{C}$:
+          $$|T - 37{,}0| \le 0{,}5.$$
+          Isso equivale a $-0{,}5 \le T - 37{,}0 \le 0{,}5$. Somando $37{,}0$ aos três membros:
+          $$36{,}5 \le T \le 37{,}5.$$
+          Em notação de intervalos, a faixa permitida é $[36{,}5;\, 37{,}5]\,^\circ\text{C}$.
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-1-3-3">
+        <title>Intermediário — Vizinhança com coeficiente na variável</title>
+        Resolva a desigualdade modular $|2x - 6| < 4$. Escreva a solução como intervalo aberto e reescreva a desigualdade na forma $|x - a| < r$, indicando o centro $a$ e o raio $r$.
+        <hint><title>Ver dica</title>Abra $|2x - 6| < 4$ como $-4 < 2x - 6 < 4$ e isole $x$ no centro. Para achar $a$ e $r$, coloque $2$ em evidência dentro do módulo.</hint>
+        <solution collapsible="true" collapsed="true">
+          Abrindo o módulo:
+          $$-4 < 2x - 6 < 4.$$
+          Somando $6$ nos três membros:
+          $$2 < 2x < 10.$$
+          Dividindo por $2 > 0$:
+          $$1 < x < 5 \implies x \in (1, 5).$$
+          Para escrever na forma $|x - a| < r$, fatoramos $2$ dentro do módulo:
+          $$|2(x - 3)| < 4 \implies 2|x - 3| < 4 \implies |x - 3| < 2.$$
+          Logo, o centro da vizinhança é $a = 3$ e o raio é $r = 2$ (o que de fato gera $(3 - 2,\, 3 + 2) = (1, 5)$).
+        </solution>
+      </exercise>
+
+      <exercise id="exr:1-1-3-4">
+        <title>Avançado — Janela sub-limiar de estimulação neuronal</title>
+        Um neurônio possui potencial de repouso $V_{\text{rep}} = -68\text{ mV}$, resistência de entrada $R_{\text{in}} = 80\text{ M}\Omega$ e limiar de disparo $V_{\text{lim}} = -52\text{ mV}$. Em um experimento, deseja-se manter o potencial $V_m = V_{\text{rep}} + R_{\text{in}} I$ na janela sub-limiar $-80\text{ mV} \le V_m < -52\text{ mV}$, evitando hiperpolarização excessiva e também evitando disparos. Determine o intervalo de correntes $I$ permitidas, em $\text{nA}$ e em $\text{pA}$.
+        <hint><title>Ver dica</title>Substitua $V_m = -68 + 80 I$ (com $I$ em $\text{nA}$, pois $\text{M}\Omega \cdot \text{nA} = \text{mV}$) na desigualdade dupla $-80 \le V_m < -52$ e isole $I$ no centro.</hint>
+        <solution collapsible="true" collapsed="true">
+          Com $I$ em nanoamperes ($\text{nA}$), o termo $80\text{ M}\Omega \cdot I$ já resulta em milivolts:
+          $$-80 \le -68 + 80 I < -52.$$
+          Somamos $68$ aos três membros:
+          $$-80 + 68 \le 80 I < -52 + 68 \implies -12 \le 80 I < 16.$$
+          Dividimos os três membros por $80 > 0$ (mantendo os sentidos das desigualdades):
+          $$-\frac{12}{80} \le I < \frac{16}{80} \implies -0{,}15 \le I < 0{,}20.$$
+          Em nanoamperes, a faixa permitida é $[-0{,}15;\, 0{,}20)\text{ nA}$. Multiplicando por $1\,000$ ($1\text{ nA} = 1\,000\text{ pA}$), obtemos $[-150;\, 200)\text{ pA}$.
+
+          <em>Conferência nos extremos:</em> para $I = -0{,}15\text{ nA}$, $V_m = -68 + 80(-0{,}15) = -68 - 12 = -80\text{ mV}$ (incluído); para $I = 0{,}20\text{ nA}$, $V_m = -68 + 80(0{,}20) = -68 + 16 = -52\text{ mV}$ (excluído para não atingir o limiar).
+        </solution>
+      </exercise>
+    </section>
+
+    <section id="sec:1-1-resumo">
+      <title>Resumo</title>
+      <list marker="number">
+        <item><strong>Leis de potenciação ($a, b \ne 0$):</strong> $a^m \cdot a^n = a^{m+n}$, $\dfrac{a^m}{a^n} = a^{m-n}$, $(a^m)^n = a^{mn}$, $a^0 = 1$ e $a^{-n} = \dfrac{1}{a^n}$.</item>
+        <item><strong>Expoentes fracionários ($a > 0$, $n \ge 1$):</strong> $a^{1/n} = \sqrt[n]{a}$ e $a^{m/n} = \sqrt[n]{a^m}$.</item>
+        <item><strong>Notação científica e ordem de grandeza:</strong> $c \times 10^k$ com $1 \le |c| < 10$; se $|c| < 3{,}16$, a ordem de grandeza é $10^k$, e se $|c| \ge 3{,}16$, é $10^{k+1}$.</item>
+        <item><strong>Cuidados algébricos:</strong> $(a + b)^2 = a^2 + 2ab + b^2 \ne a^2 + b^2$ e $(-a)^2 \ne -a^2$.</item>
+        <item><strong>Equação do 1º grau e isolamento:</strong> aplique a mesma operação aos dois lados da igualdade; nunca divida pela incógnita sem verificar o caso em que ela vale zero.</item>
+        <item><strong>Equação do 2º grau ($ax^2 + bx + c = 0$, $a \ne 0$):</strong> $\Delta = b^2 - 4ac$ e $x = \dfrac{-b \pm \sqrt{\Delta}}{2a}$ (duas raízes reais se $\Delta > 0$, uma se $\Delta = 0$, nenhuma real se $\Delta < 0$).</item>
+        <item><strong>Equações exponenciais simples:</strong> isole a potência primeiro e iguale os expoentes na mesma base ($a^x = a^k \implies x = k$, para $a > 0, a \ne 1$); sempre confira a solução na equação original.</item>
+        <item><strong>Desigualdades:</strong> multiplicar ou dividir ambos os lados por um número negativo <em>inverte</em> o sinal da desigualdade.</item>
+        <item><strong>Vizinhança e intervalos:</strong> $|x - a| < r \iff a - r < x < a + r \iff x \in (a - r,\, a + r)$ traduz "estar perto de $a$", base do conceito de limite.</item>
+      </list>
+    </section>
+
+    <section id="sec:1-1-alem">
+      <title>Para ir além</title>
+      Para consolidar a manipulação algébrica antes de avançar para o próximo tema (<strong>Geometria</strong>) e, em seguida, para o Módulo 2 (<strong>Cálculo Real</strong>), consulte os materiais selecionados para o Módulo 1:
+      <list marker="dash">
+        <item><strong>Material essencial:</strong> <link to="https://pt.khanacademy.org/math/precalculus">Khan Academy — Pré-Cálculo</link>, com exercícios interativos e resolução passo a passo.</item>
+        <item><strong>Aprofundamento em vídeo:</strong> <link to="https://www.youtube.com/playlist?list=PL83s8LGM84J62ahewE-sVGbnJdOqGp8lJ">Playlist YouTube — Base Matemática</link>, útil para revisar propriedades de potências, equações e desigualdades em ritmo de aula.</item>
+      </list>
+    </section>
+  </chapter>
+
+  <footer>
+    Módulo 1 · Pré-Cálculo — Guia de Estudos: ML para Neurociência Computacional.
+  </footer>
+</document>
