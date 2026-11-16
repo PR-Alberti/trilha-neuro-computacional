@@ -1,0 +1,79 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é AUTOR de uma aula de uma trilha de estudos de Machine Learning rumo à neurociência computacional, escrita para estudantes de Ciências Biológicas (base matemática de ensino médio, pouca ou nenhuma programação, estudando sozinhos). As aulas são escritas em Delta (XML estrito que compila para HTML). Quem compila, roda o lint e executa o código é o gestor técnico; você só escreve arquivos.
+
+LEITURA OBRIGATÓRIA ANTES DE ESCREVER (leia inteiros):
+1. docs/PADRAO-AULAS.md — o contrato das aulas (estrutura, estilo, exatidão).
+2. docs/DELTA-COLA.md — a sintaxe; o bloco "Regras deste projeto" prevalece sobre o resto.
+3. conteudo/modulo-01/tema-01.dlt — a aula piloto aprovada: copie o formato do cabeçalho, da abertura, das seções, dos exemplos, dos exercícios (hint + solution recolhida), do Resumo, do "Para ir além" e do rodapé. Imite a profundidade e o tom.
+
+DADOS DO MÓDULO 9 (do index.html):
+- title: "Deep Learning" · sub: "O Estado da Arte da Neurociência Computacional"
+- bio: "CNNs são hoje os principais modelos computacionais do sistema visual (V1→IT); Transformers decodificam linguagem contínua a partir de fMRI; RNNs modelam dinâmica cortical. Dominar Deep Learning é dominar a fronteira do encoding/decoding."
+- mats (sem links no index.html; cite-os só pelo nome, SEM <link>): "Deep Learning Book — Ian Goodfellow (base teórica muito sólida)"; "Andrej Karpathy — aulas de LLM e backprop no YouTube". No "Para ir além" você PODE acrescentar links das documentações oficiais https://pytorch.org/docs/stable/index.html , https://pytorch.org/tutorials/ , https://scikit-learn.org/stable/ ou https://numpy.org/doc/stable/ (nenhum outro link).
+- drill: "Dica operacional: utilize instâncias de Cloud ou o Google Colab; seu computador vai ferver caso não possua placa de vídeo compatível." (Comente que os códigos DESTA aula foram dimensionados para rodar em CPU em segundos.)
+- final: "Fazer um projeto de ponta a ponta: uma CNN para classificar imagens de ressonância, ou um Transformer para decodificar estímulos a partir de fMRI público — documentando tudo rigorosamente num repositório."
+- Temas do módulo, na ordem: 9.1 Fundamentos · 9.2 CNN · 9.3 RNN · 9.4 Representações · 9.5 Transformers (Attention) · 9.6 GNN · 9.7 Generativos · 9.8 LLM · 9.9 Reinforcement Learning.
+- Módulos anteriores que você deve retomar pelo nome quando fizer sentido: Módulo 3 Cálculo Multivariável (temas "Funções vetoriais", "Diferencial em várias variáveis" — gradiente e regra da cadeia multivariável, "Integrais múltiplas"); Módulo 4 Otimização ("Espaço de variáveis", "Minimização e maximização", "Métodos computacionais" — gradiente descendente); Módulo 5 Álgebra Linear ("Vetores, matrizes e operações", "Autovalores e autovetores", "Decomposições"); Módulo 6 Programação (Python); Módulo 7 Estatística e Probabilidade ("Variável aleatória", "Inferência Bayesiana", "Inferência não-Bayesiana (Frequentista)" — máxima verossimilhança); Módulo 8 Machine Learning ("Regressão (polinomial)", "Classificação", "Métricas estatísticas", "Reamostragem", "Regularização" — ridge, "Aprendizado não supervisionado").
+
+CABEÇALHO E RODAPÉ (exatamente neste formato, trocando T pelo número do tema):
+- <document> sem atributos (o project.toml já define lang/type/tema).
+- <title>Módulo 9 · Deep Learning</title>
+- <meta> com três <meta-item>: key="Guia" com <link to="../../index.html#tema-9-T">Voltar ao guia (Tema 9.T)</link>; key="Módulo" com "Módulo 9 · Deep Learning — O Estado da Arte da Neurociência Computacional"; key="Nível" com o nível do tema.
+- <floating><title>Sumário</title><toc scope="project" depth="1"/></floating>
+- <chapter id="tema-9-T"> com <title> igual ao nome do tema, depois <toc/>, depois <box type="note"><title>Sobre este tema</title> com o campo d do tema </box>, depois a abertura ("Por que isso importa", "Objetivos" com 3 a 6 itens "Ao final, você consegue:", "Pré-requisitos" citando temas anteriores pelo nome).
+- NÃO repita o link do guia abaixo do título do capítulo.
+- <footer>Módulo 9 · Deep Learning — Guia de Estudos: ML para Neurociência Computacional.</footer>
+
+ESTRUTURA DE CADA SEÇÃO DE CONTEÚDO (ids sec:9-T-1, sec:9-T-2, ...; <eyebrow>Subtema S</eyebrow>, <title>, <intro>):
+- intuição primeiro, depois formalização (<definition>, <proposition>/<theorem> com <proof collapsible="true" collapsed="true"> quando curta);
+- pelo menos 2 <example> resolvidos passo a passo, pelo menos 1 com contexto biológico/neurocientífico realista;
+- um <remark> com <title>Armadilha comum</title>;
+- 3 a 5 <exercise> graduados, títulos começando por "Básico —", "Intermediário —" ou "Avançado —"; cada um com <hint><title>Ver dica</title>...</hint> e <solution collapsible="true" collapsed="true"> COMPLETA (raciocínio + resposta; contas explícitas). Pelo menos 1 exercício por seção aplicado à neurociência/biologia, e pelo menos 1 exercício de CÁLCULO À MÃO com números pequenos por seção (para o aluno conferir a matemática). Exercícios de código são bem-vindos, com a solução em código.
+- Ids: def:9-T-nome, prop:9-T-nome, thm:9-T-nome, exm:9-T-nome, rem:9-T-nome, exr:9-T-S-k, eq:9-T-nome, fig:9-T-nome, cod:9-T-nome (só minúsculas sem acento, dígitos e hífen depois do prefixo; todos únicos).
+- Fechamento: <section id="sec:9-T-resumo"><title>Resumo</title> com 5 a 10 itens e as fórmulas-chave; <section id="sec:9-T-alem"><title>Para ir além</title> com os mats do módulo (sem link) + no máximo 2 links de documentação oficial listados acima, e uma frase ligando ao próximo tema.
+- Tamanho: entre 3500 e 5000 palavras de prosa (sem contar o código).
+
+NOTAÇÃO COMUM DO MÓDULO 9 (use exatamente esta):
+- escalares em itálico ($x$, $w$, $b$); vetores em negrito minúsculo ($\mathbf{x}$, $\mathbf{w}$, $\mathbf{h}$); matrizes em negrito maiúsculo ($\mathbf{W}$, $\mathbf{X}$, $\mathbf{A}$); conjuntos com \mathbb ($\mathbb{R}^n$).
+- camada $l$: pré-ativação $\mathbf{z}^{(l)} = \mathbf{W}^{(l)} \mathbf{a}^{(l-1)} + \mathbf{b}^{(l)}$ e ativação $\mathbf{a}^{(l)} = \phi(\mathbf{z}^{(l)})$, com $\mathbf{a}^{(0)} = \mathbf{x}$; $\phi$ é uma função de ativação genérica; $\sigma(z) = 1/(1+e^{-z})$ é a sigmoide logística; $\mathrm{ReLU}(z) = \max(0, z)$.
+- perda (loss) $\mathcal{L}$; taxa de aprendizado $\eta$; parâmetros em geral $\boldsymbol{\theta}$; saída do modelo $\hat{y}$ ou $\hat{\mathbf{y}}$; estado oculto $\mathbf{h}_t$.
+- multiplicação elemento a elemento: $\odot$. Transposta: $^\top$.
+
+CÓDIGO PYTHON (regras duras — o gestor vai executar cada bloco isoladamente):
+- Use <code lang="python" id="cod:9-T-nome"> ... </code>. Cada bloco é AUTOCONTIDO: importa tudo de que precisa e não depende de variáveis de blocos anteriores.
+- Só numpy, scipy, matplotlib, scikit-learn e torch (CPU). NÃO use torchvision, torchtext, transformers, datasets, tqdm, torch_geometric nem nada que baixe arquivos. Dados: sintéticos ou sklearn.datasets.load_digits (1797 imagens 8×8, valores inteiros de 0 a 16, 10 classes; vem embutido no scikit-learn, não baixa nada). NÃO use MNIST.
+- Cada bloco roda em CPU em no máximo ~30 segundos. Fixe sementes (np.random.seed / np.random.default_rng(0) e torch.manual_seed(0)).
+- Mostre a saída esperada em comentários (# ...). Para contas determinísticas, mostre o valor exato que sai. Para resultados de treino (perda, acurácia), escreva o valor aproximado com "≈" e avise que pode variar um pouco entre versões/máquinas. Não invente números "bonitos": o gestor confere cada saída.
+- Comentários e nomes de variáveis em português quando natural; ponto decimal dentro do código.
+- Não use plt.show() em código da aula sem necessidade; se plotar, deixe claro que é opcional. Prefira imprimir números.
+
+FIGURAS (opcionais, no máximo 2 nesta aula):
+- Para cada figura, escreva o script conteudo/modulo-09/fig/tTT-<nome>.py (TT = número do tema com dois dígitos), no estilo de conteudo/modulo-01/fig/crescimento-bacteriano.py, com plt.rcParams['svg.fonttype'] = 'none' no início, rótulos em português, e salvando Path(__file__).resolve().parent / "tTT-<nome>.svg". Na aula use <figure src="fig/tTT-<nome>.svg" alt="..." id="fig:9-T-nome"><caption>...</caption></figure>. O gestor executa o script.
+
+XML ESTRITO (erros que mais derrubam a compilação):
+- Na prosa, escreva &lt; &gt; &amp; (nunca < > & puros). Dentro de $...$, $$...$$, <m>, <equation>, <equations> e <code>, use < > & puros.
+- Nunca deixe um $ desemparelhado na prosa; matemática com $...$ não atravessa linha em branco nem tag.
+- Nenhum atributo sem valor. Nada de <interactive>, <cite>, <bibliography>, <youtube>. <intuition> só dentro de definition/theorem/proposition etc., e sem id.
+- Nunca escreva o texto literal "</code>" dentro de um bloco de código.
+- Toda <ref to="..."/> aponta para um id que existe NESTE arquivo.
+
+EXATIDÃO (inegociável): toda conta, fórmula e solução tem de estar certa — refaça cada conta duas vezes. Fatos de neurociência só de livro-texto (Kandel; Dayan & Abbott; Gerstner et al.). Não invente artigos, autores, números ou links. Cite clássicos amplamente conhecidos por nome e ano, na prosa, apenas os indicados nesta ordem ou outros igualmente canônicos dos quais você tenha certeza absoluta. Na dúvida, simplifique e não cite.
+
+SUA TAREFA: criar o arquivo conteudo/modulo-09/tema-02.dlt (capítulo id="tema-9-2").
+
+TEMA 9.2 — "CNN" · lv 1 → Nível "Intermediário" · d: "Convoluções para imagens — e os principais modelos do córtex visual." · t: [] (sem subtemas no guia).
+Tema anterior: 9.1 "Fundamentos" (neurônio artificial, MLP, backprop, Adam, MLP em PyTorch no load_digits). Tema seguinte: 9.3 "RNN".
+Pré-requisitos a citar: 9.1 Fundamentos; Módulo 5 "Vetores, matrizes e operações"; Módulo 2 "Integral de Riemann" (a convolução contínua como integral, só de passagem); Módulo 8 "Regressão (polinomial)" e "Regularização" (modelos de codificação com ridge).
+
+SEÇÕES (definidas pelo gestor; use exatamente estas 4, nesta ordem):
+1. sec:9-2-1 "Convolução em 1D e 2D" — intuição de janela deslizante; definição discreta 1D (y[n] = Σ_k x[n−k] w[k]) e a correlação cruzada (y[n] = Σ_k x[n+k] w[k]), deixando claro que as "convoluções" das bibliotecas de DL (torch.nn.Conv1d/Conv2d) calculam correlação cruzada, sem espelhar o filtro — e que, como o filtro é aprendido, isso não muda nada na prática; versão 2D; tamanho da saída ⌊(n + 2p − k)/s⌋ + 1 com padding p e passo (stride) s; exemplos à mão: suavizar um trem de disparos binário com um filtro de média móvel (taxa de disparo estimada); detectar borda numa imagem 5×5 com um filtro 3×3 (calcule a saída inteira); canais de entrada e de saída; contagem de parâmetros de uma camada convolucional (k·k·C_in·C_out + C_out) comparada a uma camada densa. Código numpy implementando a convolução 2D "válida" à mão e conferindo com torch.nn.functional.conv2d.
+2. sec:9-2-2 "Filtros como campos receptivos" — campo receptivo; Hubel & Wiesel (1959, 1962), células simples e complexas de V1 em gatos, Nobel de 1981 (com Sperry); células simples bem descritas por filtros de Gabor (gaussiana × cosseno; fórmula com orientação θ, comprimento de onda λ, fase ψ, largura σ — cuidado: avise que este σ é a largura da gaussiana, não a sigmoide); compartilhamento de pesos (weight sharing) como "o mesmo detector em todas as posições do campo visual" (equivariância à translação); pooling (max e média) como inspiração nas células complexas (invariância local); hierarquia retina → LGN → V1 → V2 → V4 → IT (via ventral); Neocognitron de Fukushima (1980) e LeNet (LeCun et al., 1989/1998); campo receptivo efetivo crescendo com a profundidade (fórmula para camadas empilhadas de 3×3 com stride 1: campo = 1 + L·(k−1)); exemplo à mão de max pooling 2×2 em uma matriz 4×4. Código numpy gerando um filtro de Gabor e aplicando-o a barras de orientações diferentes, mostrando a "curva de sintonia de orientação" (respostas maiores na orientação preferida). Figura sugerida: fig/t02-gabor.py mostrando filtros de Gabor em 4 orientações.
+3. sec:9-2-3 "Uma CNN pequena em PyTorch" — arquitetura conv → ReLU → pool → conv → ReLU → flatten → linear; formas dos tensores (N, C, H, W) camada a camada para entradas 8×8 do sklearn.datasets.load_digits (calcule as formas à mão e confira no código com print(x.shape)); contar parâmetros à mão e com sum(p.numel() for p in model.parameters()); treinar com Adam por poucas épocas (valores entre 0 e 1 dividindo por 16; train_test_split(random_state=0); torch.manual_seed(0)); comparar com o MLP do Tema 9.1 em número de parâmetros e acurácia; visualizar/imprimir os filtros aprendidos da primeira camada. O bloco precisa rodar em menos de ~30 s em CPU.
+4. sec:9-2-4 "CNNs como modelos do córtex visual" — a ideia dos modelos de codificação (encoding models): extrair ativações de uma camada da CNN para cada imagem e usar regressão ridge (Módulo 8) para prever a resposta de cada neurônio ou voxel; Yamins et al. (2014, PNAS, do laboratório de James DiCarlo): CNNs otimizadas para reconhecer objetos previam respostas de neurônios de IT e V4 de macacos melhor que modelos anteriores, com camadas finais prevendo melhor IT e camadas intermediárias prevendo melhor V4; a correspondência hierárquica camadas iniciais ↔ V1, intermediárias ↔ V4, finais ↔ IT (descreva como tendência, não como identidade); limitações (CNNs são frágeis a exemplos adversariais, não têm recorrência nem atenção, os dados de treino são muito diferentes da experiência de um animal). Exemplo com números: variância explicada (R²) de um voxel. Código: um mini "modelo de codificação" sintético — gerar respostas de neurônios simulados como combinação linear de ativações de filtros (com ruído) e recuperar com sklearn.linear_model.Ridge, reportando R² de teste. NÃO afirme números de desempenho do artigo de Yamins et al.; descreva só a conclusão qualitativa.
+
+EXIGÊNCIAS ESPECÍFICAS:
+- Armadilhas: confundir convolução com correlação; errar o tamanho da saída sem padding; achar que um filtro é "programado" (ele é aprendido); achar que a CNN "é" o córtex visual.
+- Não use torchvision (não está instalado).
+
+Ao terminar, responda só com uma linha: o caminho do(s) arquivo(s) criado(s).

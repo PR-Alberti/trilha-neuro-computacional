@@ -1,0 +1,12 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o AUTOR de aulas já escritas em Delta. Releia docs/DELTA-COLA.md (bloco "Regras deste projeto") e aplique as correções abaixo, editando os arquivos no lugar. Não mude nada além do pedido; não altere contas que ficarem. Ao terminar, releia os trechos alterados procurando tags não fechadas, cifrões desemparelhados e <ref> para ids inexistentes. REGRA QUE JÁ CAUSOU ERRO: dentro de $...$ escreva < e > puros (NUNCA &lt; ou &gt; dentro da matemática); só na prosa use &lt; e &gt;.
+
+=== ARQUIVO 1: conteudo/modulo-04/tema-02.dlt (Tema 4.2) — aprovado, mas LONGO DEMAIS ===
+1. TAMANHO: cerca de 6 800 palavras de prosa; o limite é 5 000–5 500. Em cada seção, fique com 3 exercícios (Básico, Intermediário, Avançado; pelo menos 1 biológico por seção) removendo o mais redundante; renumere os ids restantes (exr:4-2-S-1, -2, -3) e atualize os <ref>. Mantenha exm:4-2-minimos-quadrados-neuronio e as equações normais intactos. Enxugue a prosa (intros com no máximo 2 frases; corte transições repetidas).
+2. thm:4-2-teste-hessiana: deixe claro que a expressão com o quadrado completado, $f_{xx}(\Delta x + \frac{f_{xy}}{f_{xx}}\Delta y)^2 + \frac{D}{f_{xx}}(\Delta y)^2$, é o que está DENTRO dos parênteses (o fator 1/2 continua multiplicando tudo).
+3. Na solução com $R''(x)$ (exercício da seção 1), mostre a passagem intermediária $-10e^{-x/2}\left(2 - \frac{x}{2}\right) = 10e^{-x/2}\left(\frac{x}{2} - 2\right)$.
+
+=== ARQUIVO 2: conteudo/modulo-05/tema-03.dlt (Tema 5.3) — NÃO COMPILA ===
+4. Erros de KaTeX: troque &gt; por > dentro da matemática nas linhas ~112 ($2^2 + 0^2 = 4 > 1$), ~261 ($k > n$) e ~264 ($k > n$); procure no arquivo inteiro qualquer outro &lt; ou &gt; dentro de $...$ e troque por < ou >.
+5. No bloco de código da seção 4 (mudança de base), a matriz impressa sai como [[3.0, 0.0], [-0.0, 1.0]] por causa de um zero negativo de ponto flutuante; some 0.0 ao resultado arredondado (np.round(..., 3) + 0.0) para imprimir [[3.0, 0.0], [0.0, 1.0]], e mantenha o comentário de saída coerente.

@@ -1,0 +1,4 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o autor das aulas indicadas abaixo (trilha de ML para neurociência computacional, em Delta). O gestor técnico conferiu as aulas e um revisor independente escreveu um parecer. Faça TODAS as correções listadas, em lote, editando só os arquivos indicados. Regras: mantenha o XML estrito (na prosa &lt; &gt; &amp;; dentro de $...$ e de <code> escreva < > & puros); não altere contas, exemplos ou exercícios que não estejam na lista; não mude ids existentes (se criar um novo, siga o padrão do módulo); se alterar números de um exemplo, refaça todas as contas dependentes e confira duas vezes. Ao terminar, releia os trechos alterados.
+

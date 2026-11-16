@@ -1,0 +1,25 @@
+- Módulo 6 (Python): aulas práticas, com muitos blocos de código.
+  - Os exercícios são tarefas de código com solução em código. Comandos de terminal e git vão em <code lang="bash">.
+  - Exemplos biológicos: conteúdo GC de uma sequência de DNA, conversão de unidades, contagem de spikes, tabelas de experimentos.
+  - Seções sugeridas por tema:
+    - tema-01 Ambientes: Colab como ponto de partida; Jupyter; VS Code; Anaconda × pip/venv; terminal.
+    - tema-02 Comandos iniciais e lógica básica: variáveis, tipos, operadores, if/for/while, f-strings.
+    - tema-03 Informática básica: arquivos, pastas, caminhos absolutos e relativos, extensões, CSV/TSV/JSON, comandos de terminal (ls, cd, mkdir), codificação de texto.
+    - tema-04 Estruturas de dados básicas: listas, tuplas, dicionários, conjuntos, primeiro contato com numpy arrays, e como escolher entre eles.
+    - tema-05 Códigos funcionais: funções, parâmetros, retorno, escopo, docstrings, compreensões de lista, módulos.
+    - tema-06 Bibliotecas: numpy, pandas e matplotlib. Apresente MNE e nilearn só em texto, sem código que baixe dados grandes.
+    - tema-07 Visualizações: linha, dispersão, histograma, imshow; raster plot de spikes simulados; mapa de calor neurônios × tempo; boas práticas de figura.
+    - tema-08 Orientação a objetos: classes, atributos, métodos, herança básica; a API fit/predict do scikit-learn como exemplo de classes de bibliotecas; uma classe NeuronioLIF.
+    - tema-09 Complexidade: Big-O intuitivo, medir tempo, vetorização (numpy × laços), memória.
+    - tema-10 Prática: duas seções, como no guia.
+      - "Pipelines extensas": estrutura de projeto, script × notebook, funções em módulos, sementes, requirements e reprodutibilidade.
+      - "Git e GitHub": commit, branch, push, pull request, .gitignore, README.
+- Módulo 7 (Estatística e Probabilidade): use numpy e scipy.stats para simular e conferir.
+  - Seções sugeridas por tema:
+    - tema-01 Combinatória: princípio multiplicativo, permutações, combinações, binomial; códons (4^3 = 64) e genótipos.
+    - tema-02 Variável aleatória: Bernoulli, binomial, Poisson (contagem de spikes), uniforme, exponencial (intervalos entre spikes), normal; esperança e variância.
+    - tema-03 Introdução à inferência: população × amostra, estimadores, viés, erro padrão, intervalo de confiança.
+    - tema-04 Testes de hipóteses: H0, p-valor, erros tipo I e II, poder, teste t, comparações múltiplas com Bonferroni e FDR de Benjamini–Hochberg aplicadas a voxels de fMRI. Pode citar o estudo do salmão morto (Bennett et al.).
+    - tema-05 Convergências: lei dos grandes números e teorema central do limite, com simulação.
+    - tema-06 Inferência Bayesiana: Bayes, priori, verossimilhança e posteriori, o conjugado beta-binomial, percepção como inferência (combinação ótima de pistas).
+    - tema-07 Inferência frequentista: máxima verossimilhança (taxa de Poisson a partir de contagens de spikes; média e variância da normal) e o contraste com a abordagem Bayesiana.

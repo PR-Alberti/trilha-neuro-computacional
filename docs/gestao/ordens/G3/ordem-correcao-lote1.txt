@@ -1,0 +1,12 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o AUTOR das aulas abaixo e vai aplicar correções EM LOTE, editando só os trechos indicados (não reescreva as aulas). Antes, releia o bloco "Regras deste projeto" de docs/DELTA-COLA.md. Mantenha XML estrito: na prosa, &lt; &gt; &amp;; dentro de $...$, <m>, <equation> e <code>, os caracteres < > & puros.
+
+ARQUIVO 1: conteudo/modulo-07/tema-01.dlt (Combinatória). Leia o parecer docs/revisao/modulo-07/tema-01.md e aplique TODAS as correções da tabela de problemas. Em especial:
+1. exr:7-1-4-4 (erro de código): com a codificação A=0, T=1, G=2, C=3, o sítio GAATTC é [2, 0, 0, 1, 1, 3]. Corrija o comentário e a condição da última base (fita[5:] == 3 ou equivalente). Com essa correção, a contagem na simulação passa a ficar perto de 24; escreva o comentário da saída como "aprox. 24 (esperado: 99995/4096 ≈ 24.4; o valor exato depende da semente)" e a frequência empírica como "aprox. 0.000244".
+2. O texto do <box type="note"> "Sobre este tema" deve ser exatamente o campo d do tema: "Contar sem enumerar: a base do cálculo de probabilidades."
+3. As demais linhas da tabela do parecer (itertools.combinations citado na prosa mas não usado no código — acrescente o uso; notação \text{A}\_\text{A}; unidades "pares de bases" × "bases" no sítio de restrição).
+
+ARQUIVO 2: conteudo/modulo-06/tema-02.dlt (Comandos iniciais e lógica básica). Leia o parecer docs/revisao/modulo-06/tema-02.md e aplique as sugestões da tabela de problemas (são refinamentos pedagógicos e de formato). No exr:6-2-4-3, explique em uma frase a convenção usada para a duração (cada uma das N amostras representa um intervalo de Δt, então a duração é N·Δt), em vez de mudar a conta.
+
+Não mude nenhuma conta, saída ou código além do indicado. AO TERMINAR, responda com uma linha por arquivo listando o que mudou.

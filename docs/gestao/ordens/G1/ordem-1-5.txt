@@ -1,0 +1,61 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o AUTOR de uma aula de uma trilha de estudos de Machine Learning rumo à neurociência computacional, escrita para estudantes de Ciências Biológicas (base de ensino médio, às vezes enferrujada, sem programação). A aula é escrita em Delta, uma linguagem de marcação XML que compila para HTML. Quem compila e roda o lint é o seu gestor; você só escreve arquivos.
+
+LEITURA OBRIGATÓRIA ANTES DE ESCREVER (leia inteiros):
+1. docs/PADRAO-AULAS.md — o contrato das aulas (estrutura, estilo, exatidão).
+2. docs/DELTA-COLA.md — a sintaxe Delta; o bloco "Regras deste projeto" no topo prevalece sobre o resto.
+3. conteudo/modulo-01/tema-01.dlt — a aula piloto APROVADA. Ela é o seu modelo de formato, profundidade e tom. Copie o esqueleto dela: <document>, <title>, <meta> com os três <meta-item> (Guia, Módulo, Nível), <floating> com <toc scope="project" depth="1"/>, <chapter id=...> com <title>, <toc/>, <box type="note"> "Sobre este tema" com o campo d do tema, a abertura (Por que isso importa, Objetivos, Pré-requisitos), uma <section> por subtema com <eyebrow>Subtema S</eyebrow>, <title> e <intro>, a seção "Resumo" (id sec:M-T-resumo), a seção "Para ir além" (id sec:M-T-alem) e o <footer>.
+
+REGRAS DURAS (o gestor confere todas):
+- XML estrito: todo atributo com valor; na prosa escreva &lt; &gt; &amp;; dentro de $...$, $$...$$, <m>, <equation>, <equations> e <code> escreva < > & puros. Nunca deixe um $ desemparelhado (cifrão literal é \$). Não use <p>.
+- Proibido: <interactive>, <cite>, <bibliography>, arquivos .ref, <youtube>, links que não estejam listados nesta ordem. Não invente artigos, autores, páginas ou URLs. Clássicos podem ser citados por nome e ano na prosa (ex.: Hodgkin e Huxley, 1952).
+- <intuition>, <strategy> e <obstacle> só como filhos diretos de definition/theorem/proposition/lemma/corollary/claim ou de <step>, e nunca com id.
+- Todo <exercise> tem <title> começando por "Básico —", "Intermediário —" ou "Avançado —", um <hint><title>Ver dica</title>...</hint> e um <solution collapsible="true" collapsed="true"> com a solução COMPLETA (raciocínio passo a passo, não só a resposta). Demonstrações em <proof of="..." collapsible="true" collapsed="true">.
+- Em cada seção de subtema: intuição primeiro; formalização (<definition>, <theorem>/<proposition>, com <proof> recolhível quando curta e instrutiva); pelo menos 2 <example> resolvidos passo a passo, sendo pelo menos 1 com contexto biológico realista; um <remark> com <title>Armadilha comum</title> quando houver erro típico; de 3 a 5 exercícios graduados, pelo menos 1 aplicado à biologia/neurociência.
+- Identificadores ASCII sem acento, únicos no módulo: sec:M-T-S, def:M-T-nome, thm:M-T-nome, prop:M-T-nome, exm:M-T-nome, rem:M-T-nome, exr:M-T-S-k, eq:M-T-nome, fig:M-T-nome. Não reutilize ids da aula piloto (todos começam com 1-1). Todo <ref to="..."/> deve apontar para um id que exista.
+- Decimais com vírgula: na prosa "0,5" e na matemática $0{,}5$; ponto dentro de <code>. Unidades em \text{ } (ex.: $-70\text{ mV}$). Notação: conjuntos com \mathbb (\mathbb{R}), vetores em negrito (\mathbf{x}).
+- Termos em inglês entre parênteses e em itálico na primeira ocorrência: "curva de sintonia (<em>tuning curve</em>)".
+- Português do Brasil, segunda pessoa ("você"), amigável e rigoroso, sem enrolação.
+- Continuidade: não use conceito de tema posterior sem avisar ("veremos no Módulo 5"); retome temas anteriores pelo nome.
+
+EXATIDÃO (inegociável): toda conta, fórmula, demonstração e solução precisa estar certa. Refaça cada conta duas vezes antes de escrever. Prefira números que dão contas limpas. Confira sinais, unidades e arredondamentos (diga "≈" quando arredondar e arredonde corretamente). Na dúvida, simplifique em vez de arriscar. Fatos de neurociência só de livro-texto padrão (Kandel; Dayan e Abbott; Gerstner et al.); valores típicos: potencial de repouso ≈ −70 mV, limiar ≈ −55 mV, taxas de disparo de 0 a 200 Hz, E_K ≈ −90 mV, E_Na ≈ +55 mV, TR do fMRI ≈ 2 s.
+
+FIGURAS (máximo 3 por aula, só quando ajudam de verdade): para cada figura, escreva um script Python em conteudo/modulo-01/fig/<nome>.py seguindo o modelo conteudo/modulo-01/fig/crescimento-bacteriano.py (matplotlib, numpy; rótulos e títulos em português; plt.rcParams['svg.fonttype'] = 'none' logo após os imports; fundo transparente; salva <nome>.svg na mesma pasta do script usando Path(__file__).resolve().parent; sem plt.show()). Na aula use <figure src="fig/<nome>.svg" alt="descrição" id="fig:M-T-nome"> com <caption>. Você NÃO roda o script: o gestor roda. Garanta que o script rode sem erro só com numpy e matplotlib, e que a figura corresponda exatamente ao que o texto e a legenda dizem (mesmos parâmetros e números).
+
+CÓDIGO PYTHON (só se esta ordem pedir): bloco <code lang="python"> autocontido, só numpy (e matplotlib se preciso), com a saída esperada em comentários; os números nos comentários têm de ser exatamente os que o código imprime. Avise na prosa que é opcional e que Python é ensinado no Módulo 6.
+
+TAMANHO: comparável ao piloto (que tem 3 subtemas e cerca de 50 KB). Ajuste conforme o número de subtemas indicado abaixo.
+
+QUANDO TERMINAR: releia o arquivo inteiro procurando (1) erros de conta, (2) & < > soltos na prosa, (3) tags não fechadas, (4) ids duplicados ou refs para ids inexistentes, (5) exercício sem dica ou solução. Corrija o que achar. Não edite nenhum arquivo além dos indicados nesta ordem (em especial, não toque em project.toml, index.html, na aula piloto nem em aulas de outros temas).
+
+==================== ESPECIFICAÇÃO DESTA AULA ====================
+MÓDULO 1 (campos do MODS no index.html):
+- title: "Pré-Cálculo"; sub: "O Alicerce Matemático". Título do documento: "Módulo 1 · Pré-Cálculo". meta-item Módulo: "Módulo 1 · Pré-Cálculo — O Alicerce Matemático". Footer: "Módulo 1 · Pré-Cálculo — Guia de Estudos: ML para Neurociência Computacional."
+- bio: "Curvas de resposta neuronal, escalas logarítmicas de frequência (bandas de EEG) e funções que descrevem a relação estímulo→resposta: sem fluência em funções e gráficos, os modelos do cérebro parecem mágica."
+- mats (únicos links permitidos, usar em "Para ir além", como na piloto):
+  * Khan Academy — Pré-Cálculo: https://pt.khanacademy.org/math/precalculus
+  * Playlist YouTube — Base Matemática: https://www.youtube.com/playlist?list=PL83s8LGM84J62ahewE-sVGbnJdOqGp8lJ
+- drill: "Após cada aula (subseção), peça a uma IA para criar 3 questões do tema aplicadas à neurociência para você resolver." (mencione em "Para ir além")
+- final (projeto final do módulo): "Criar e desenhar o gráfico analítico de uma função que modela a taxa de disparo de um neurônio em função da intensidade do estímulo."
+- Temas do módulo, na ordem: 1 Álgebra (piloto, pronto: potenciação, equação, desigualdade, módulo e intervalos |x − a| &lt; r), 2 Geometria, 3 Funções, 4 Trigonometria, 5 Geometria Analítica. O Módulo 2 é Cálculo Real (Limite, Derivada, Integral de Riemann).
+- Nível (meta-item "Nível"): lv 0 = "Básico", lv 1 = "Intermediário", lv 2 = "Avançado".
+- Notação do módulo (siga a piloto): intervalos (a, b) e [a, b); multiplicação com \cdot; frações com \frac ou \dfrac.
+
+ARQUIVO A CRIAR: conteudo/modulo-01/tema-05.dlt (e, se fizer figura, o script em conteudo/modulo-01/fig/).
+Capítulo: <chapter id="tema-1-5">, título "Geometria Analítica". Link do Guia: ../../index.html#tema-1-5, texto "Voltar ao guia (Tema 1.5)". Nível: Intermediário (lv 1).
+Campo d do tema (box "Sobre este tema"): "Traduzir geometria em equações — o primeiro passo para pensar em “espaços”."
+Tema anterior: Trigonometria (1.4: círculo unitário, sen²θ + cos²θ = 1, arctan); antes, Funções (1.3: funções afins, gráficos), Geometria (1.2: Pitágoras, ângulos, paralelas) e Álgebra (1.1: equações do 1º e 2º grau, lei de Ohm na membrana, desigualdades). Este é o ÚLTIMO tema do Módulo 1; o próximo é o Módulo 2 (Cálculo Real), começando por Limite. Vetores e espaços de dimensão alta são o Módulo 5 (Álgebra Linear): só prepare o terreno.
+
+SEÇÕES (3 subtemas do guia, nesta ordem, ids sec:1-5-1 a sec:1-5-3):
+
+1. "Introdução" (sec:1-5-1): plano cartesiano, pares ordenados, quadrantes; distância entre dois pontos d = √((x₂ − x₁)² + (y₂ − y₁)²) deduzida de Pitágoras; ponto médio; extensão natural para 3 coordenadas (e, só como ideia, para n coordenadas). Exemplo biológico obrigatório: a distância entre padrões de atividade: as taxas de disparo de 2 neurônios em resposta a um estímulo formam um ponto (r₁, r₂) no "espaço de atividade"; a distância entre os pontos de dois estímulos mede quão diferentes são as respostas da população (quanto maior, mais fácil distinguir os estímulos); faça também um caso com 3 neurônios. Avise que no Módulo 5 esses pontos serão vetores. Outros exemplos possíveis: coordenadas de eletrodos ou de neurônios numa fatia, centroide (ponto médio) de duas células.
+
+2. "Equação da reta" (sec:1-5-2): inclinação (coeficiente angular) m = Δy/Δx e sua relação com o ângulo, m = tan α (retome Trigonometria); formas y = mx + b, y − y₀ = m(x − x₀) e reta por dois pontos; retas horizontais e verticais (a vertical não é gráfico de função); retas paralelas (mesma inclinação) e perpendiculares (m₁·m₂ = −1); interseção de duas retas como sistema de duas equações. Exemplo biológico obrigatório: a reta como modelo linear da corrente iônica, I = g·(V − E) (curva corrente-voltagem, I-V): a inclinação é a condutância g e o intercepto no eixo V é o potencial de reversão E (onde a corrente troca de sinal); unidades coerentes (g em nS, V em mV dá I em pA); exemplo com o canal de potássio (E_K ≈ −90 mV) e o de sódio (E_Na ≈ +55 mV). Exemplo ou exercício Avançado: dois canais em paralelo, a corrente total é zero quando g_K(V − E_K) + g_Na(V − E_Na) = 0, o que dá o potencial de repouso como média ponderada V = (g_K·E_K + g_Na·E_Na)/(g_K + g_Na) (interseção de retas; escolha condutâncias que levem a um repouso perto de −70 mV e confira a conta). Use a convenção de sinal da neurofisiologia: corrente positiva é saída de carga positiva da célula; diga isso explicitamente uma vez e mantenha.
+
+3. "Equação do círculo" (sec:1-5-3): (x − a)² + (y − b)² = r² a partir da distância; forma expandida x² + y² + Dx + Ey + F = 0 e como achar centro e raio completando quadrados (verificar quando é círculo de verdade: raio² &gt; 0); pontos dentro, sobre e fora ((x − a)² + (y − b)² &lt;, =, &gt; r²); interseção de reta e círculo (cai numa equação do 2º grau: retome Bhaskara de Álgebra); o círculo unitário x² + y² = 1 e a ligação com cos θ e sen θ. Exemplos biológicos obrigatórios: (a) campo receptivo circular de uma célula ganglionar da retina (centro-periferia, <em>center-surround</em>): decidir se um ponto de luz cai no centro, na periferia (anel entre dois raios) ou fora; (b) no espaço de atividade da seção 1, o conjunto dos padrões a uma distância fixa de um padrão de referência é um círculo (ou uma esfera, com 3 neurônios).
+
+FIGURA (opcional, no máximo 1): conteudo/modulo-01/fig/curva-iv.py → curva-iv.svg: retas I-V de K⁺ e Na⁺ com os MESMOS parâmetros do exemplo do texto, marcando os potenciais de reversão no eixo V. Se não fizer, não cite figura nenhuma.
+
+ARMADILHAS (remark "Armadilha comum"): sinais em (x − a)² (o centro de (x + 2)² + (y − 1)² = 9 é (−2, 1)); confundir r com r² (raio de x² + y² = 16 é 4); √(a² + b²) ≠ a + b; trocar Δy/Δx por Δx/Δy; inclinação de reta vertical não existe; perpendicular não é "inclinação com sinal trocado" e sim o inverso com sinal trocado.
+OBJETIVOS, PRÉ-REQUISITOS (Álgebra, 1.1; Geometria, 1.2; Funções, 1.3; Trigonometria, 1.4), RESUMO (5 a 10 itens com as fórmulas-chave) e PARA IR ALÉM (links do módulo, drill e uma frase de fechamento do Módulo 1 apontando o projeto final do módulo e a passagem para o Módulo 2), como na piloto.

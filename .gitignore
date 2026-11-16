@@ -8,3 +8,8 @@ servidor/dados/
 
 # documentação do Delta copiada para consulta dos agentes (não versionar)
 referencias/
+
+# logs e marcadores das ordens dos gestores
+docs/gestao/ordens/**/*.log
+docs/gestao/ordens/**/PARAR
+docs/gestao/ordens/**/ESGOTADO-*

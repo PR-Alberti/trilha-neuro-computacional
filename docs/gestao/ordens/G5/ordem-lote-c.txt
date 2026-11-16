@@ -1,0 +1,24 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o AUTOR das aulas do Módulo 9 (Deep Learning) em conteudo/modulo-09/. Os revisores aprovaram as aulas 9.2, 9.3, 9.4 e 9.7 com sugestões pedagógicas, e o gestor técnico testou o código. Faça EM LOTE as correções abaixo. Acrescente no máximo uma ou duas frases por item (as aulas estão no limite de tamanho). Dentro de $...$ e <code> use < > & puros; na prosa, &lt; &gt; &amp;.
+
+=== conteudo/modulo-09/tema-07.dlt ===
+1) cod:9-7-gan: com ruído de 1 dimensão, o gestor obteve desvios de 0,65 a 1,26 conforme a semente — o gerador costuma "encolher" a distribuição. Testado em 3 sementes, o ajuste abaixo deu média 3,98–3,99 e desvio 1,19–1,22 (alvo 1,25), em ~15 s de CPU. Mude o código para: ruído latente z de 8 dimensões (z = torch.randn(256, 8) no treino e torch.randn(10000, 8) na amostragem; primeira camada de G = nn.Linear(8, 32)); Adam com lr = 1e-3 e betas = (0.5, 0.999) para G e D; 4000 passos; resto igual (mini-lotes de 256, perda não saturante, LeakyReLU(0.2), torch.manual_seed(0)). Comentário de saída: "# Média gerada ≈ 3.98 (alvo: 4.00)" e "# Desvio gerado ≈ 1.19 (alvo: 1.25) — pode variar um pouco; GANs são sensíveis à semente". Ajuste a frase da prosa sobre instabilidade: com ruído de 1 dimensão o desvio gerado variou entre ≈ 0,65 e ≈ 1,26 conforme a semente (o gerador tende a encolher a distribuição, parente do colapso de modos); um ruído latente com mais dimensões estabilizou o resultado.
+2) Parecer docs/revisao/modulo-09/tema-07.md: (a) em exm:9-7-kl-mao, avise que o valor usa ln 4 ≈ 1,3863 sem arredondamentos intermediários; (b) na seção de difusão, o ruído sorteado em cada passo da amostragem (eq:9-7-ddpm-sample e exr:9-7-3-3) usa a letra z, que nas seções de VAE e GAN é o código latente: troque esse ruído por $\boldsymbol{\xi}$ (e $\xi$ no exercício), dizendo "ruído novo $\boldsymbol{\xi} \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$".
+
+=== conteudo/modulo-09/tema-02.dlt (parecer docs/revisao/modulo-09/tema-02.md) ===
+3) Na tabela tbl:9-2-arquitetura, escreva os números sem ponto de milhar (1168, 2570, 3818) ou com espaço fino como na legenda.
+4) cod:9-2-cnn-digits: troque `modelo.conv1.weight.data[:, 0].numpy()` por `modelo.conv1.weight.detach()[:, 0].numpy()`.
+5) exm:9-2-ridge-1d: diga em uma frase que o exemplo usa um modelo sem intercepto (b = 0) para simplificar.
+
+=== conteudo/modulo-09/tema-03.dlt (parecer docs/revisao/modulo-09/tema-03.md) ===
+6) Após prop:9-3-euler-taxa, uma frase sobre o deslocamento de índice (na discretização de Euler a entrada I_t afeta r_{t+1}; na RNN, x_t afeta h_t — é só convenção de rotulagem).
+7) Em def:9-3-gru, uma frase: no nn.GRU do PyTorch o portão de reinicialização multiplica (W_hh h_{t−1} + b_hh), uma variante equivalente em espírito.
+8) exm:9-3-pfc-memoria: mostre o valor intermediário tanh(1,451) ≈ 0,8959. exm:9-3-mante-pfc: acrescente os decimais 1/√2 ≈ 0,707 e 2/√2 = √2 ≈ 1,414.
+
+=== conteudo/modulo-09/tema-04.dlt (parecer docs/revisao/modulo-09/tema-04.md) ===
+9) Após cod:9-4-ae-digits, uma frase: PCA e autoencoder foram ajustados e avaliados no conjunto inteiro porque aqui medimos capacidade de compressão, não generalização; para generalização, separe treino e teste.
+10) Na legenda de tbl:9-4-invariancias, uma frase: com α &lt; 0 (inverter o sinal), cosseno e Pearson trocam de sinal.
+11) Após def:9-4-rdm, uma frase: além de 1 − r, há RSA com distância euclidiana ou de cosseno.
+
+Ao terminar, responda só com uma linha: os arquivos editados.

@@ -1,0 +1,21 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o AUTOR das aulas do Módulo 9 (Deep Learning) em conteudo/modulo-09/. O gestor técnico compilou as aulas 9.7, 9.8 e 9.9 e executou todo o código. Faça, EM LOTE, as correções abaixo. Não acrescente texto além do pedido (o tamanho das aulas está certo). Regra de XML que causou os erros de compilação: dentro de $...$, $$...$$, <m>, <equation>, <equations> e <code> escreva < > & PUROS (nunca &lt; &gt; &amp;); só na prosa fora da matemática eles ficam escapados.
+
+=== conteudo/modulo-09/tema-09.dlt (NÃO COMPILA) ===
+1) Erros KaTeX, todos por &lt;/&gt; dentro da matemática — troque por < e > puros: linha ~74 `\gamma &lt; 1`; linha ~79 `0 \le \gamma &lt; 1`; linha ~147 `... = 3{,}24 &gt; 2`; linha ~148 `... = 1{,}0 &lt; 2`; linha ~274 `2{,}7 &gt; 2{,}0`; linha ~326 `\delta_t &gt; 0` e `\delta_t &lt; 0`; linha ~333 `\delta &gt; 0`. Procure no arquivo inteiro outros casos iguais.
+2) O código foi executado e todas as saídas conferem com os comentários. Nada a mudar no código.
+
+=== conteudo/modulo-09/tema-07.dlt ===
+3) cod:9-7-gan (GAN 1D): a saída real foi "Media gerada ≈ 4.11 (alvo: 4.00)" e "Desvio gerado ≈ 1.61 (alvo: 1.25)"; numa segunda execução, com outro número de threads da CPU, deu média 4.06 e desvio 0.95. O comentário dizia 3.98 e 1.24 — valores que não saíram do código. Corrija: (a) torne o treino mais estável e mais curto — mini-lotes de 256, perda não saturante do gerador, Adam com lr = 5e-4 e betas = (0.5, 0.999), no máximo 3000 passos, e amostre 10 000 pontos no fim; (b) no comentário escreva apenas "# Média gerada ≈ 4 (alvo 4,00); desvio entre ≈ 1,0 e ≈ 1,6 (alvo 1,25) — o resultado de uma GAN varia de execução para execução"; (c) acrescente UMA frase na prosa logo após o bloco usando isso como exemplo concreto da instabilidade das GANs (a média é aprendida com facilidade; a dispersão nem sempre — sintoma parecido com o colapso de modos).
+4) Bloco do VAE (o primeiro bloco de código): saída real "Reconstrucao media ≈ 24.23 | KL medio ≈ 1.49", "Forma das amostras: (5, 64)", "Faixa de valores ≈ [0.000, 0.883]". O comentário dizia 30.80, 4.60 e 0.992: troque pelos valores reais (≈) e ajuste qualquer frase que cite esses números.
+5) cod:9-7-difusao: saída real "Fracao esq ≈ 0.49 | media ≈ -1.95, desvio ≈ 0.29" e "Fracao dir ≈ 0.51 | media ≈ 1.91, desvio ≈ 0.35". Use esses valores no comentário. O bloco leva ~10 s em 2 núcleos; tudo bem.
+6) Figura conteudo/modulo-09/fig/t07-difusao.py: a legenda da curva tracejada usa \mathcal{N}, que não é renderizado com svg.fonttype = 'none' (aparece como "&gt; (0, 1)"). Troque o rótulo por "N(0, 1)" em texto simples.
+
+=== conteudo/modulo-09/tema-08.dlt ===
+7) cod:9-8-bigrama: saída real "Inicial -> perda: 2.89 (ln V = 2.89), PPL: 18.00", "Final   -> perda ≈ 1.40, PPL ≈ 4.05" e uma amostra como "nero no pa co alelel. co niorel. co nerelonebr". O comentário dizia 1.24 e 3.45: use ≈ 1.40 e ≈ 4.05 e ajuste qualquer frase que cite esses números (por exemplo, "a perplexidade cai de 18 para cerca de 4").
+8) cod:9-8-congelado: saída real "Parâmetros totais: 1666 | Treináveis: 66 (3.96%)" e "Acurácia no treino ≈ 0.88" (o comentário dizia 0.90): use ≈ 0.88.
+9) cod:9-8-encoding-fmri: saída real "Correlação média (sem atraso) ≈ -0.036" e "Correlação média (atrasos 1-3 TRs) ≈ 0.858" (o comentário dizia 0.00 e 0.87): use ≈ -0.04 e ≈ 0.86.
+10) Bloco da linha ~629 (varredura de atrasos): saída real k=0 r ≈ -0.019; k=1 r ≈ -0.025; k=2 r ≈ 0.034; k=3 r ≈ 0.881; k=4 r ≈ -0.001. O comentário "pico em k=3 (r ≈ 0.88), demais perto de 0" confere; mostre também essas cinco linhas reais no comentário.
+
+Ao terminar, responda só com uma linha: os arquivos editados.

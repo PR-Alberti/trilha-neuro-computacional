@@ -1,0 +1,28 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o AUTOR das aulas do Módulo 9 (Deep Learning) em conteudo/modulo-09/. O gestor técnico compilou as aulas e executou todo o código. Faça, EM LOTE, as correções abaixo em quatro arquivos. Não acrescente texto novo além do pedido (as aulas já estão no tamanho certo). Regra de XML que causou quase todos os erros: dentro de $...$, $$...$$, <m>, <equation>, <equations> e <code> escreva < > & PUROS (nunca &lt; &gt; &amp;); só na prosa fora da matemática eles ficam escapados.
+
+=== conteudo/modulo-09/tema-01.dlt ===
+1) cod:9-1-mlp-digits: a saída real é
+   Época  1 | Perda treino: 1.754 | Acurácia teste: 0.831
+   Época 10 | Perda treino: 0.092 | Acurácia teste: 0.961
+   Época 20 | Perda treino: 0.043 | Acurácia teste: 0.967
+   Época 40 | Perda treino: 0.017 | Acurácia teste: 0.967
+   Troque o comentário de saída esperada por esses valores (com ≈ e o aviso de que variam um pouco).
+2) Bloco de código da solução de exr:9-1-4-4: saída real "weight_decay=0.00 | parou época 23 | acc teste=0.964 | norma L2=17.05" e "weight_decay=0.01 | parou época 23 | acc teste=0.956 | norma L2=8.50". Atualize o comentário (≈) e qualquer frase que cite esses números (a conclusão correta: o weight decay reduz a norma dos pesos pela metade com acurácia praticamente igual).
+3) exr:9-1-3-4: o enunciado fala em "cadeia de 5 camadas" mas compara δ^(1) com δ^(6). Reescreva como "rede em cadeia com 6 camadas (1 neurônio por camada, pesos w^(l) = 1); de δ^(6) até δ^(1) há 5 fatores φ'(z^(l))" e mantenha a solução (1/4)^5 = 1/1024 ≈ 0,000977.
+4) Aplique as três sugestões pedagógicas do parecer docs/revisao/modulo-09/tema-01.md (viés explícito em exm:9-1-decod-estimulo; arredondamento consistente em exm:9-1-backprop-numerico; nota sobre a outra convenção do momento).
+
+=== conteudo/modulo-09/tema-02.dlt ===
+5) Erros de compilação (KaTeX): linha ~214 `&gt; 41\,000\times...` dentro de $$...$$ ou $...$ → use `>`; linha ~720 `... 80 = -2{,}475 &lt; 0` dentro de $...$ → use `<`.
+6) Linha ~244: `$(\text{1ª col}) - (\text{3ª col})$` — o KaTeX não tem o caractere "ª". Escreva `(\text{1}^{\text{a}}\text{ col})` ou, mais simples, tire da matemática: "a 1ª coluna menos a 3ª coluna".
+
+=== conteudo/modulo-09/tema-03.dlt ===
+7) Erros de compilação (KaTeX), todos por &lt;/&gt; dentro da matemática — troque por < e > puros: linha ~40 `\Delta t &lt; \tau`; linha ~75 `\Delta t &gt; 0`; linha ~216 `0 &lt; 1 - h_t^2 ...`, `\rho &lt; 1` e `\rho &gt; 1`; linha ~234 `k &lt; T`; linha ~268 `\|\mathbf{g}\|_2 &gt; c`; linha ~296 `13{,}0 &gt; 2{,}6`; linha ~341 `...\mathbf{W}_{hh}) &gt; 1`; linha ~372 `... = 0{,}6 &lt; 1`. Procure no arquivo inteiro qualquer outro caso igual.
+
+=== conteudo/modulo-09/tema-04.dlt ===
+8) Erro de compilação, linha ~304 (solução de exr:9-4-2-2): `$z_1' &lt; 0$` → `$z_1' < 0$`. Procure outros casos iguais.
+9) cod:9-4-rsa-digits: a acurácia impressa (0.999) é medida nos MESMOS dados do treino; troque o rótulo do print para "Acuracia MLP (treino):" e diga isso na prosa (não a chame de acurácia de teste). Saída real "Spearman pixels vs. MLP:  0.861" — o comentário dizia ≈ 0.55 a 0.75 (ERRADO): use ≈ 0.86. "p-valor permutacao: 0.0020" confere. Ajuste qualquer frase que cite o valor do Spearman.
+10) Bloco da solução de exercício na linha ~666: saída real "Spearman correto (45 pares): 0.777" e "Spearman com diagonal (100): 0.837" — o comentário dizia ≈ 0.50 a 0.70 (ERRADO): use ≈ 0.78 e ≈ 0.84 e ajuste a explicação se citar números.
+
+Ao terminar, responda só com uma linha: os arquivos editados.

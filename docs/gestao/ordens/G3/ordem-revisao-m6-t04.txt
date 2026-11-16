@@ -1,0 +1,26 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é um revisor técnico rigoroso, ao mesmo tempo matemático, neurocientista computacional, programador Python experiente e professor de alunos de Biologia. Leia docs/PADRAO-AULAS.md, docs/DELTA-COLA.md e a aula conteudo/modulo-06/tema-04.dlt. Não edite a aula. Escreva docs/revisao/modulo-06/tema-04.md com:
+
+1. Veredito: APROVAR ou CORRIGIR.
+2. Tabela de problemas, com as colunas:
+   - severidade: erro matemático, erro factual, pedagógico ou formato;
+   - local: seção, id e linha aproximada;
+   - trecho;
+   - correção sugerida.
+
+Refaça todas as contas dos exemplos e das soluções dos exercícios. Confira também:
+- se cada exercício tem dica e solução completa;
+- se cada seção tem pelo menos um exemplo biológico;
+- se as afirmações de neurociência são de livro-texto;
+- se algum conceito é usado antes de ser apresentado;
+- se o código Python roda como está (leia linha a linha: imports, nomes de variáveis, shapes, argumentos de funções de numpy/pandas/scipy/sklearn/matplotlib, e se as saídas escritas nos comentários batem com o que o código imprime);
+- se a notação é consistente;
+- se a aula cobre todos os subtemas pedidos;
+- se o tamanho está dentro do padrão.
+
+Seções que a aula deveria cobrir (definidas pelo gestor), com o conteúdo esperado:
+1. sec:6-4-1 "Listas e tuplas" — lista como sequência ordenada e mutável; índices a partir de 0 e negativos; fatiamento lista[início:fim:passo] com fim exclusivo (e seq[::-1]); len, append, extend, insert, pop, remove, in, sorted × .sort(), sum, min, max; listas aninhadas (lista de listas); tupla como sequência imutável; desempacotamento (x, y, z = coordenada); quando a imutabilidade ajuda. Exemplos: potenciais de membrana de uma sessão numa lista (média, mínimo, fatias dos primeiros e últimos valores); coordenadas de um eletrodo como tupla (x, y, z) em mm; complementar reverso com fatiamento.
+2. sec:6-4-2 "Dicionários e conjuntos" — dicionário chave → valor; criar, acessar, .get com valor padrão, adicionar, in (testa chaves), percorrer com .items(); contar ocorrências com dicionário (contagem de nucleotídeos); tabela de códons parcial como dicionário para traduzir uma sequência curta (use códons reais do código genético padrão: ATG→M (Met), TTT→F, GGC→G, TAA/TAG/TGA→stop etc.; confira cada um); listas de dicionários como "tabela" de experimentos; conjunto (set): elementos únicos, sem ordem; união, interseção, diferença. Exemplo biológico: genes diferencialmente expressos em dois experimentos — interseção e diferença; neurônios que responderam a dois estímulos.
+3. sec:6-4-3 "Primeiro contato com arrays NumPy" — import numpy as np; np.array a partir de lista; todos os elementos do mesmo tipo (dtype); operações elemento a elemento (array * 1000) × o que a lista faz com * e + (repetir/concatenar); shape, ndim, len; arrays 2D (ensaios × instantes de tempo), indexação [i, j] e fatias; máscara booleana (v >= -55) e np.sum(mascara) para contar; .mean(), .std(), .max(). Avise que o tema "Bibliotecas" aprofunda NumPy. Exemplo biológico: converter um registro de mV para V; contar amostras acima do limiar; média de cada ensaio de uma matriz 3 × 5 (com axis=1 — explique axis com clareza).
+4. sec:6-4-4 "Como escolher a estrutura certa" — tabela comparativa (<table>) de list, tuple, dict, set e np.ndarray: ordenada? mutável? permite repetidos? acesso típico; e um roteiro de decisão; mutabilidade e apelidos (aliasing): b = a não copia uma lista (mostre que alterar b altera a), cópias com a.copy() ou list(a); o mesmo para arrays (fatias de array são visões: mostre). Armadilha comum: aliasing; usar lista para buscar muitos elementos (in em lista percorre tudo; em set/dict é rápido — o tema "Complexidade" explica o porquê). Exemplo biológico: escolher estruturas para (a) a sequência de um gene, (b) o mapeamento ID do animal → peso, (c) as espécies observadas numa coleta, (d) um registro de 64 canais × 10000 amostras.

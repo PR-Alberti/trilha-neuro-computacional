@@ -1,0 +1,9 @@
+DADOS DO MÓDULO (campo MODS do index.html):
+- Módulo 3 · Cálculo Multivariável — subtítulo "A Complexidade do Mundo Real". Título do <document>: "Módulo 3 · Cálculo Multivariável". meta-item "Módulo": "Módulo 3 · Cálculo Multivariável — A Complexidade do Mundo Real".
+- bio: "A atividade cerebral é intrinsecamente multivariável: milhares de neurônios ou voxels variando juntos. O gradiente e a regra da cadeia multivariável são o coração matemático do backpropagation — e de todo modelo de encoding."
+- Temas do módulo: 3.1 Funções vetoriais (Básico); 3.2 Diferencial em várias variáveis (Intermediário); 3.3 Integrais múltiplas (Avançado).
+- mats: "Livro (fortemente recomendado): Diomara Pinto — Cálculo Diferencial e Integral de Funções de Várias Variáveis" (sem link) e "YouTube para dúvidas visuais e geométricas pontuais" (sem link).
+- drill: "Em cada subseção, praticar a obtenção mecânica de gradientes em 2 e 3 dimensões."
+- final (projeto de certificação do módulo): "Avaliar um mapa simplificado de ativação cortical Z=f(x,y) e encontrar a coordenada exata do pico de ativação local."
+- Objetivo do guia para o módulo: generalizar o Cálculo 1 sem necessariamente entender todos os pormenores — privilegie intuição geométrica e cálculo mecânico seguro; demonstrações só as curtas e instrutivas.
+- "Para ir além": cite o livro de Diomara Pinto pelo nome (SEM link) e recomende o YouTube para dúvidas visuais pontuais (SEM link). Não há outros links autorizados neste módulo. Diga também qual é o próximo tema/módulo.

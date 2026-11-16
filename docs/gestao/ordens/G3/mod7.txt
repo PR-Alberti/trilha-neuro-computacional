@@ -1,0 +1,17 @@
+DADOS DO MÓDULO 7 (do array MODS do index.html):
+- title: "Estatística e Probabilidade" · sub: "Encontrando Certezas no Caos Experimental"
+- Título do <document>: "Módulo 7 · Estatística e Probabilidade". Meta "Módulo": "Módulo 7 · Estatística e Probabilidade — Encontrando Certezas no Caos Experimental". Footer: "Módulo 7 · Estatística e Probabilidade — Guia de Estudos: ML para Neurociência Computacional."
+- bio: "A neuroimagem vive — bem ou mal — de estatística: p-valores, comparações múltiplas em fMRI, incerteza de medidas ruidosas. Modelos Bayesianos dominam as teorias modernas de percepção e decisão."
+- mats (use em "Para ir além", sem link, porque o index.html não tem link para eles): "Livro: Tertuliano — Princípios de Probabilidade" e "Aulas pontuais no YouTube para desmistificar os temas espinhosos à primeira vista (ex.: StatQuest)". Pode acrescentar a documentação https://docs.scipy.org/doc/scipy/reference/stats.html .
+- drill: "Acompanhar os exercícios do livro. O tema é muito complexo à primeira vista, mas se desmistifica com o tempo e a repetição." (cite em "Para ir além").
+- final (projeto final do módulo): "Montar o design estatístico completo de um experimento de neuroimagem, especificando testes de hipóteses com correção para comparações múltiplas e rodando-os numa simulação no Python."
+- Temas do módulo, na ordem: 1 Combinatória · 2 Variável aleatória · 3 Introdução à inferência · 4 Testes de hipóteses · 5 Convergências · 6 Inferência Bayesiana · 7 Inferência não-Bayesiana (Frequentista).
+- Módulos anteriores da trilha: 1 Pré-Cálculo, 2 Cálculo Real (Limite, Derivada, Integral de Riemann), 3 Cálculo Multivariável, 4 Otimização (Minimização e maximização, Métodos computacionais), 5 Álgebra Linear, 6 Programação (Python) — o aluno já sabe numpy, pandas e matplotlib. Posteriores: 8 Machine Learning, 9 Deep Learning.
+
+ESPECÍFICO DO MÓDULO 7:
+- Aula de matemática com rigor: definições formais, proposições com demonstração curta recolhível quando instrutiva, contas passo a passo. Este é o módulo de dificuldade "Muito Alta": capriche na intuição antes da fórmula.
+- Use numpy (rng = np.random.default_rng(42)) e scipy.stats para SIMULAR e CONFERIR os resultados teóricos: em cada seção, pelo menos um bloco de código que confere numericamente uma conta da seção (por exemplo, comparar uma probabilidade exata com a frequência em 100000 simulações). Nos comentários, a frequência simulada vem com "aprox.".
+- Exercícios: de conta (com solução completa passo a passo) e, em cada seção, pelo menos 1 de código (solução em código).
+- Notação consistente em todo o módulo: P(A) para probabilidade; X, Y maiúsculas para variáveis aleatórias e x, y minúsculas para valores; \mathbb{E}[X] e \operatorname{Var}(X); \mu, \sigma^2 para parâmetros populacionais; \bar{X} (ou \bar{x}) e s^2 para amostrais; \hat{\theta} para estimadores; \binom{n}{k} para combinações; X \sim \text{Poisson}(\lambda) para "X tem distribuição".
+- O Resumo traz as fórmulas-chave em LaTeX.
+

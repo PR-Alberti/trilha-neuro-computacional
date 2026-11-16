@@ -1,0 +1,18 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o AUTOR de duas aulas já escritas em Delta. Releia docs/DELTA-COLA.md (bloco "Regras deste projeto") e aplique as correções abaixo, editando os arquivos no lugar. Não mude nada além do pedido. Ao terminar, releia os trechos alterados procurando tags não fechadas, cifrões desemparelhados e <ref> para ids inexistentes. Lembre: dentro de $...$ escreva < e > puros (NUNCA &lt; dentro da matemática); na prosa, &lt; e &gt;.
+
+=== ARQUIVO 1: conteudo/modulo-03/tema-01.dlt (Tema 3.1 Funções vetoriais) — aprovado com ajustes pontuais ===
+1. Proposição prop:3-1-regras-derivacao (item 3, "Produto por função escalar"): a letra f já foi usada como frequência (f = 2 Hz). Troque a função escalar f(t) por c(t) no enunciado e na demonstração (e onde mais aparecer com esse sentido nessa proposição), mantendo f só para frequência.
+2. Exemplo exm:3-1-velocidade-neural, item (c): acrescente uma frase curta explicando que, no espaço de estados, o "comprimento" da trajetória tem a unidade dos eixos (Hz), porque integramos a rapidez (Hz/s) no tempo (s).
+3. Exemplo exm:3-1-helice-bacteria: diga numa frase que o fator 2 em 2t é uma velocidade angular de 2 rad/s, o que torna as unidades de r'(t) (µm/s) e r''(t) (µm/s²) coerentes.
+4. Seção "Para ir além" (sec:3-1-alem): remova a afirmação sobre "capítulos iniciais" do livro de Diomara Pinto (não podemos afirmar a organização do livro); cite só o livro pelo nome como material recomendado.
+
+=== ARQUIVO 2: conteudo/modulo-04/tema-01.dlt (Tema 4.1 Espaço de variáveis) — aprovado no conteúdo, mas LONGO DEMAIS ===
+A aula tem cerca de 7 700 palavras; o padrão é no máximo 5 000–5 500. CORTE cerca de 25% do texto, assim:
+5. Em cada uma das 4 seções há 4 exercícios: remova 1 exercício por seção (fique com 3: um Básico, um Intermediário e um Avançado; mantenha pelo menos um aplicado à biologia por seção). Sugestão: remova exr:4-1-1-4 (ou o mais redundante da seção 1), exr:4-1-2-4 (ou o mais redundante da seção 2), exr:4-1-3-4 e exr:4-1-4-4. Depois RENUMERE os ids restantes de cada seção para ficarem consecutivos (exr:4-1-S-1, -2, -3) e atualize qualquer <ref> que apontava para eles. Nenhum <ref> pode ficar apontando para um id removido.
+6. Enxugue a prosa: intros de seção com no máximo 2 frases; remova parágrafos de motivação que repetem o que outra parte já disse (por exemplo, a dupla explicação de espaço de estados × espaço de parâmetros); encurte as caixas e comentários longos. Não mexa nas contas dos exemplos que ficaram, na figura nem no bloco de código cod:4-1-grid-search.
+7. Exemplo exm:4-1-retificado, item (a): troque "o quadrante aberto à direita e fechado na base" por "a região do plano com $g > 0$ e $\theta \ge 0$ (a fronteira vertical $g = 0$ fica de fora e a base $\theta = 0$ fica incluída)".
+8. Exemplo exm:4-1-contraste-custo, item (c): na lista de somatórios, acrescente o item $\sum_{i=1}^4 1 = m = 4$, que explica o termo $\frac{4}{4}b^2$.
+9. Se o exercício que usa o trecho de código com a_vals/b_vals (o que hoje é exr:4-1-4-3) permanecer, torne o bloco de código dele autocontido: comece com "import numpy as np" e termine com print(a_vals) e print(b_vals), com as saídas em comentário "# saída: [35. 45. 55. 65.]" e "# saída: [ 0.  4.  8. 12. 16. 20.]".
+10. No script conteudo/modulo-04/fig/paisagem-custo.py, troque os rótulos dos eixos do painel direito para "Inclinação $a$ (Hz por unidade de contraste)" e "Intercepto $b$ (Hz)".

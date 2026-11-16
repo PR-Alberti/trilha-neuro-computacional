@@ -1,0 +1,26 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é um revisor técnico rigoroso, ao mesmo tempo matemático, neurocientista computacional, programador Python experiente e professor de alunos de Biologia. Leia docs/PADRAO-AULAS.md, docs/DELTA-COLA.md e a aula conteudo/modulo-07/tema-01.dlt. Não edite a aula. Escreva docs/revisao/modulo-07/tema-01.md com:
+
+1. Veredito: APROVAR ou CORRIGIR.
+2. Tabela de problemas, com as colunas:
+   - severidade: erro matemático, erro factual, pedagógico ou formato;
+   - local: seção, id e linha aproximada;
+   - trecho;
+   - correção sugerida.
+
+Refaça todas as contas dos exemplos e das soluções dos exercícios. Confira também:
+- se cada exercício tem dica e solução completa;
+- se cada seção tem pelo menos um exemplo biológico;
+- se as afirmações de neurociência são de livro-texto;
+- se algum conceito é usado antes de ser apresentado;
+- se o código Python roda como está (leia linha a linha: imports, nomes de variáveis, shapes, argumentos de funções de numpy/pandas/scipy/sklearn/matplotlib, e se as saídas escritas nos comentários batem com o que o código imprime);
+- se a notação é consistente;
+- se a aula cobre todos os subtemas pedidos;
+- se o tamanho está dentro do padrão.
+
+Seções que a aula deveria cobrir (definidas pelo gestor), com o conteúdo esperado:
+1. sec:7-1-1 "Princípio multiplicativo e princípio aditivo" — escolhas em etapas e a árvore de possibilidades; princípio multiplicativo (n₁·n₂·…·n_k) e aditivo (casos disjuntos se somam); sequências de comprimento k com n símbolos: n^k. Exemplos biológicos obrigatórios: códons — 4^3 = 64 trincas possíveis, e por que duplas não bastariam (4^2 = 16 < 20 aminoácidos); dos 64 códons, 61 codificam aminoácidos e 3 são de parada; número de sequências de DNA de comprimento 10 (4^10 = 1 048 576); padrões binários de atividade de 10 neurônios (cada um ativo ou inativo: 2^10 = 1024). Código: itertools.product para enumerar e conferir 4^3 = 64.
+2. sec:7-1-2 "Permutações e arranjos" — fatorial (0! = 1 e por quê); permutações de n objetos distintos n!; arranjos A(n,k) = n!/(n−k)! (a ordem importa); permutações com repetição (anagramas) n!/(n₁!·n₂!·…). Exemplos: contrabalanceamento de um experimento com 4 condições (4! = 24 ordens de apresentação); escolher, em ordem, 3 de 8 estímulos para os 3 primeiros ensaios (8·7·6 = 336); número de sequências de DNA de comprimento 6 com exatamente 2 A, 2 T, 1 G e 1 C: 6!/(2!·2!·1!·1!) = 720/4 = 180. Código: math.factorial, math.perm, itertools.permutations.
+3. sec:7-1-3 "Combinações e o triângulo de Pascal" — combinação C(n,k) = n!/(k!(n−k)!) quando a ordem NÃO importa (notação \binom{n}{k}); relação com arranjos (A(n,k) = k!·C(n,k)); simetria C(n,k) = C(n,n−k); relação de Stifel C(n,k) = C(n−1,k−1) + C(n−1,k) com demonstração curta recolhível (argumento de contagem: o elemento especial está ou não está no subconjunto); triângulo de Pascal; combinações com repetição C(n+k−1, k) de forma breve. Exemplos biológicos: pares de eletrodos de um EEG de 64 canais (C(64,2) = 2016 pares para análise de conectividade); escolher 3 de 10 neurônios registrados (C(10,3) = 120); genótipos possíveis de um gene com n alelos num organismo diploide: C(n,2) heterozigotos + n homozigotos = n(n+1)/2 — para o sistema ABO (alelos A, B, O) são 6 genótipos (AA, AO, BB, BO, AB, OO) e 4 fenótipos. Código: math.comb, itertools.combinations. Armadilha comum: decidir se a ordem importa (arranjo × combinação) e contar duas vezes.
+4. sec:7-1-4 "Da contagem à probabilidade" — probabilidade clássica (resultados igualmente prováveis): P(A) = |A|/|Ω|, com o aviso de que ela só vale quando os resultados são equiprováveis (a definição geral vem no próximo tema); binômio de Newton (a+b)^n = Σ C(n,k) a^k b^(n−k) e a consequência Σ_k C(n,k) = 2^n; número de maneiras de obter k sucessos em n tentativas = C(n,k), que leva à fórmula binomial (antecipe que o próximo tema a formaliza como distribuição). Exemplos biológicos: cruzamento Aa × Aa (quadro de Punnett: 4 combinações equiprováveis de gametas, proporção genotípica 1:2:1); probabilidade de exatamente 2 filhos heterozigotos (Aa) em 4 filhos desse cruzamento: C(4,2)·(1/2)^2·(1/2)^2 = 6/16 = 3/8; um sítio de restrição de 6 pares de bases ocorre numa posição ao acaso com probabilidade (1/4)^6 = 1/4096 (supondo as 4 bases equiprováveis e independentes), ou seja, em média uma vez a cada 4096 pb. Código: conferir 3/8 por simulação com rng (frequência "aprox. 0.375").

@@ -1,0 +1,10 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o autor das aulas indicadas abaixo (trilha de ML para neurociência computacional, em Delta). O gestor técnico conferiu as aulas e um revisor independente escreveu um parecer. Faça TODAS as correções listadas, em lote, editando só os arquivos indicados. Regras: mantenha o XML estrito (na prosa &lt; &gt; &amp;; dentro de $...$ e de <code> escreva < > & puros); não altere contas, exemplos ou exercícios que não estejam na lista; não mude ids existentes (se criar um novo, siga o padrão do módulo); se alterar números de um exemplo, refaça todas as contas dependentes e confira duas vezes. Ao terminar, releia os trechos alterados.
+
+ARQUIVO: conteudo/modulo-01/tema-05.dlt (Geometria Analítica). Parecer: docs/revisao/modulo-01/tema-05.md (veredito APROVAR, só ajustes).
+
+1. exm:1-5-curva-iv: depois de concluir que −70 mV é o repouso (corrente líquida nula, com +500 pA de K⁺ saindo e −500 pA de Na⁺ entrando), acrescente uma frase: esses vazamentos passivos não esgotam os gradientes porque a bomba de sódio e potássio (Na⁺/K⁺-ATPase) os repõe continuamente com gasto de ATP.
+2. exr:1-5-2-3: depois de $I(V) = 4V + 120\text{ pA}$, explicite "(com V em mV e I em pA, pois nS · mV = pA)".
+3. def:1-5-circulo: diga explicitamente que, no ensino médio, a curva $(x - a)^2 + (y - b)^2 = r^2$ é chamada de circunferência e a região $(x - a)^2 + (y - b)^2 \le r^2$ de círculo (ou disco), e que nesta aula "círculo" designa a curva, como nos livros de cálculo.
+4. prop:1-5-forma-geral-circulo: remova o espaço antes de </item> no item "se K = 0".

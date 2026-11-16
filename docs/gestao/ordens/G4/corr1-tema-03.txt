@@ -1,0 +1,40 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o autor da aula conteudo/modulo-08/tema-03.dlt (já escrita por você). O gestor técnico compilou (delta build e delta lint passaram), EXECUTOU todos os blocos de código no Python com scikit-learn e conferiu as contas; um revisor independente escreveu docs/revisao/modulo-08/tema-03.md. Faça EXATAMENTE as correções listadas abaixo, editando o arquivo existente com edições pontuais: NÃO reescreva a aula do zero e não mexa no que não foi pedido. Mantenha as regras de docs/DELTA-COLA.md (bloco "Regras deste projeto") e de docs/PADRAO-AULAS.md. Saídas de código: copie os valores reais EXATAMENTE como estão abaixo (eles vieram da execução); mantenha o formato "# ..." na linha seguinte ao print. Quando um número de saída aparecer também na prosa, atualize a prosa para ficar coerente. Ao terminar, responda com a lista do que mudou.
+
+CORREÇÕES:
+1. [SAÍDA DE CÓDIGO] cod:8-3-logistica: as três linhas de probabilidade reais são
+# Amostra 0: P(classe=1) = 0.011, real = 0
+# Amostra 1: P(classe=1) = 0.000, real = 0
+# Amostra 2: P(classe=1) = 0.002, real = 0
+(a acurácia 0.982 está certa).
+2. [SAÍDA DE CÓDIGO + ERRO NA PROSA] solução do exr:8-3-1-4: saídas reais
+# C= 0.01 | treino=0.952 | teste=0.956 | ||beta||_2=0.830
+# C=  1.0 | treino=0.989 | teste=0.982 | ||beta||_2=3.641
+# C=100.0 | treino=0.989 | teste=0.965 | ||beta||_2=20.011
+A frase final diz que com C grande o modelo atinge "100% no treino" — FALSO na execução (0,989). Reescreva: ao aumentar C, a norma dos coeficientes cresce muito (≈ 0,83 → 3,64 → 20,0), a acurácia de treino sobe até ≈ 0,989 e a de teste cai de 0,982 (C = 1) para 0,965 (C = 100): sinal de sobreajuste.
+3. [SAÍDA DE CÓDIGO + PROSA] cod:8-3-knn: saídas reais
+# K= 1 | treino=1.000 | teste=0.922
+# K= 3 | treino=0.981 | teste=0.956
+# K= 5 | treino=0.976 | teste=0.956
+# K=15 | treino=0.948 | teste=0.967
+# K=51 | treino=0.886 | teste=0.856
+No parágrafo seguinte: K = 1 tem treino 1,000 e teste ≈ 0,92; valores intermediários (K = 3 a 15) chegam a ≈ 0,96–0,97 no teste; K = 51 suaviza demais e cai para ≈ 0,86 (subajuste). Tire "cerca de 93% a 94%".
+4. [SAÍDA DE CÓDIGO + PROSA] solução do exr:8-3-3-4: saídas reais
+# LDA — acurácia de teste: 0.750
+# QDA — acurácia de teste: 0.817
+Na frase final, troque "supera o LDA com folga" por "supera o LDA (cerca de 82 % contra 75 %)".
+5. [CÓDIGO PEDAGOGICAMENTE FRACO + PROSA] cod:8-3-mvpa: com os parâmetros atuais os três decodificadores dão 1.000 — não há o que comparar. Faça EXATAMENTE estas mudanças no bloco: orientacoes = np.array([0, 10, 20, 30]) e janela_s = 0.1 (mantenha todo o resto: 40 neurônios, 60 ensaios por classe, r_basal 5, amplitude 45, largura 25, KNN com 7 vizinhos); atualize os comentários do código que citam 0.3 s ou 45°. Saídas reais com essa mudança:
+# Nível de acaso (K=4): 0.250
+# Regressão logística : 0.817
+# KNN (K=7)           : 0.667
+# LDA                 : 0.817
+Atualize a prosa ANTES do bloco (agora: orientações próximas 0°, 10°, 20° e 30°, janelas de T = 0,1 s) e reescreva o parágrafo DEPOIS do bloco: discriminar diferenças finas de 10° com só 100 ms de disparos é difícil; logística e LDA chegam a ≈ 82 % e o KNN a ≈ 67 %, todos bem acima do acaso de 25 %; os métodos lineares aproveitam melhor a estrutura da população com 40 dimensões e poucos ensaios, enquanto o KNN sofre com a dimensionalidade e o ruído de Poisson.
+6. [CÓDIGO QUE NÃO RODA] exr:8-3-4-3: os dois blocos de código (o "errado" no enunciado e o corrigido na solução) falham sozinhos (NameError: StandardScaler / train_test_split não definidos). Torne os DOIS autocontidos: acrescente os imports (numpy, StandardScaler, make_pipeline, train_test_split, LogisticRegression) e dados sintéticos no início: rng = np.random.default_rng(0); X = rng.normal(size=(80, 100)); y = np.repeat([0, 1], 40). Não acrescente print (não precisa de saída).
+7. [SAÍDA DE CÓDIGO] solução do exr:8-3-4-4: saídas reais
+# Janela T=0.05 s -> acurácia de teste: 0.817
+# Janela T=0.20 s -> acurácia de teste: 1.000
+# Janela T=0.50 s -> acurácia de teste: 1.000
+8. [PEDAGÓGICO, do revisor] def:8-3-reg-logistica: acrescente uma frase dizendo que no scikit-learn β₀ fica em modelo.intercept_ e β em modelo.coef_ (formato (1, p) no caso binário).
+9. [PEDAGÓGICO, do revisor] cod:8-3-mvpa: acrescente um comentário no código explicando que a orientação é periódica em 180° (uma barra a 0° é igual a 180°), daí np.minimum(diff, 180.0 - diff).
+10. [TAMANHO] A aula tem cerca de 5 600 palavras de prosa, acima do limite de 5 000. Corte cerca de 600 palavras de repetições (parágrafos que repetem o que uma definição, observação ou o Resumo já dizem), SEM remover exemplos, exercícios, definições ou código.

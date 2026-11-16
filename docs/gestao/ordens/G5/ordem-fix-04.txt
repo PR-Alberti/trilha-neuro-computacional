@@ -1,0 +1,13 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o AUTOR da aula conteudo/modulo-09/tema-04.dlt (Módulo 9 · Deep Learning, Tema 9.4 Representações). O gestor técnico compilou a aula e executou todos os blocos de código. O tamanho (≈ 4600 palavras) está ótimo: NÃO acrescente texto. Faça só estas correções, editando o arquivo:
+
+1) ERRO DE COMPILAÇÃO, linha ~304 (solução de exr:9-4-2-2): dentro da matemática você escreveu `$z_1' &lt; 0$`, o que gera "KaTeX parse error: Expected 'EOF', got '&' at position 6: z_1' &lt; 0". Dentro de $...$ use `<` puro: `$z_1' < 0$`. Procure no arquivo inteiro qualquer outro &lt; &gt; &amp; DENTRO de $...$, $$...$$, <m>, <equation>, <equations> ou <code> e troque pelo caractere puro (na prosa fora da matemática eles continuam escapados).
+
+2) SAÍDAS REAIS DOS BLOCOS (troque os comentários "# ..." pelos valores reais, com ≈ quando for treino):
+   - cod:9-4-ae-digits: "MSE PCA (2 comp.):       0.0524" e "MSE Autoencoder (d=2):   0.0435" — seus comentários conferem; mantenha.
+   - cod:9-4-rsa-digits: "Acuracia MLP:             0.999" — atenção: essa acurácia é medida nos MESMOS dados usados no treino (o código treina e avalia em X_t inteiro). Troque o rótulo impresso para "Acuracia MLP (treino):" e diga isso na prosa; não a apresente como acurácia de teste. "Spearman pixels vs. MLP:  0.861" — seu comentário dizia ≈ 0.55 a 0.75: ERRADO; use ≈ 0.86. "p-valor permutacao:       0.0020" (confere). Ajuste qualquer frase da prosa, exemplo ou exercício que cite o valor da correlação de Spearman desse código.
+   - Bloco da solução de exercício na linha ~666: "Spearman correto (45 pares): 0.777" e "Spearman com diagonal (100): 0.837". Seu comentário dizia ≈ 0.50 a 0.70: ERRADO; use ≈ 0.78 e ≈ 0.84 e ajuste a explicação se citar números.
+   - Os demais blocos conferem.
+
+3) Releia o arquivo procurando XML inválido. Responda só com uma linha: o caminho do arquivo.

@@ -1,0 +1,17 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o AUTOR das aulas abaixo e vai aplicar correções EM LOTE, editando só os trechos indicados (não reescreva as aulas).
+
+REGRA QUE QUEBRA A COMPILAÇÃO: dentro de $...$, $$...$$, <m>, <equation> e <equations>, os caracteres < > & devem ser PUROS. SOMENTE dentro da matemática, troque todo "&lt;" por "<", "&gt;" por ">" e "&amp;" por "&". Na prosa fora da matemática, mantenha &lt; &gt; &amp;.
+
+ARQUIVO 1: conteudo/modulo-07/tema-03.dlt (Introdução à inferência)
+1. Aplique a regra acima em TODO o arquivo. O compilador acusou as linhas 232, 303 e 469; confira todas as ocorrências.
+
+ARQUIVO 2: conteudo/modulo-07/tema-04.dlt (Testes de hipóteses)
+1. Aplique a regra acima em TODO o arquivo. O compilador acusou 44 ocorrências (por exemplo, linhas 55, 70, 77, 105, 112: "H_1: p &gt; 0{,}5" deve ser "H_1: p > 0{,}5"); confira todas.
+2. Código da solução com teste de permutação (bloco perto da linha 279, controle ~ N(320, 35²) e tratado ~ N(295, 35²), 12 por grupo, rng = np.random.default_rng(42)): o gestor rodou o código e a saída REAL é "Diferença observada: -16.42 ms" e "p-valor por permutação: 0.1880" (e "Proporção de p <= 0.05 sob H0: 0.0474"). Os comentários atuais dizem "aprox. -25.00 ms" e "p pequeno (< 0.10)", o que está errado. Corrija os comentários para "# aprox. -16.42 ms (a diferença verdadeira é -25 ms; a amostra sorteada deu menos)" e "# aprox. 0.188 (NÃO significativo a 5%)" e ajuste a prosa da solução: com apenas 12 animais por grupo e desvio-padrão de 35 ms, um efeito verdadeiro de 25 ms frequentemente NÃO é detectado — é um caso de baixo poder, que será estudado na seção sobre erros tipo I e II (cite-a pelo título). Não conclua que há efeito.
+
+ARQUIVO 3: conteudo/modulo-06/tema-04.dlt (Estruturas de dados básicas)
+1. Bloco cod:6-4-aliasing-listas (perto da linha 858): o comentário "# Cópia: [-99.0, 0.0, -65.0]" está ERRADO. Como copia = original.copy() foi feita ANTES de apelido[0] = -99.0, a cópia não é afetada; a saída real é "Cópia: [-70.0, 0.0, -65.0]". Corrija o comentário e confira se a prosa ao redor descreve isso corretamente (a cópia mantém -70.0 na primeira posição).
+
+Não mude nenhuma conta, saída ou código além do indicado. AO TERMINAR, responda com uma linha por arquivo listando o que mudou.

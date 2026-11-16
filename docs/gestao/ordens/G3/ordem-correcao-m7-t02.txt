@@ -1,0 +1,8 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o AUTOR da aula conteudo/modulo-07/tema-02.dlt (Variável aleatória) e vai aplicar correções EM LOTE, editando só os trechos indicados (não reescreva a aula).
+
+1. ERRO DE COMPILAÇÃO (obrigatório): a aula NÃO compila porque há entidades XML DENTRO da matemática. Dentro de $...$, $$...$$, <m>, <equation> e <equations>, os caracteres < > & devem ser PUROS. Percorra o arquivo inteiro e, SOMENTE dentro da matemática, troque todo "&lt;" por "<", todo "&gt;" por ">" e todo "&amp;" por "&" (por exemplo, no \begin{cases} use "&" puro). Na prosa fora da matemática, mantenha &lt; &gt; &amp;. O compilador acusou, entre outras, as linhas 118, 131, 145, 151, 262, 266, 332, 539, 584, 791, 805, 822, 833, 843, 848, 855, 889, 892, 903, 911, 990, 991, 997, 1000 e 1036. Confira TODAS as ocorrências, não só essas.
+2. Leia o parecer docs/revisao/modulo-07/tema-02.md e aplique as correções da tabela de problemas (item 3 da demonstração das propriedades; <proof> ligado a <definition> — troque por uma <proposition> com a fórmula e a demonstração, ou por um parágrafo "Por que vale" fora do <proof>; demais sugestões).
+
+Não mude nenhuma conta, saída ou código além do indicado. AO TERMINAR, responda com uma linha listando o que mudou.

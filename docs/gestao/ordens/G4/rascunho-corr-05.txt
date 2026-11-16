@@ -1,0 +1,44 @@
+1. [SAÍDA DE CÓDIGO + PROSA] primeiro bloco da seção 1 (CV 5-fold + GridSearchCV do KNN): saídas reais
+# CV 5-fold (K=5): 0.965 ± 0.011
+# Melhor K na CV: 3
+# Melhor acurácia na CV: 0.974
+# Acurácia no teste intocado: 0.956
+Na prosa seguinte, o pico da busca é cerca de 0,974 (não 0,969) e o melhor K é 3 (corrija qualquer menção a K = 7).
+2. [SAÍDA DE CÓDIGO + PROSA] bloco da CV aninhada: saídas reais
+# Média dos picos internos: 0.964
+# Acurácia na CV aninhada (externa): 0.955
+e na solução/prosa troque "cerca de 0,966" por "cerca de 0,955".
+3. [SAÍDA DE CÓDIGO + PROSA] bloco LOSO (KFold embaralhado × LeaveOneGroupOut): saídas reais
+# Acurácia com KFold(shuffle=True) — INFLADA: 0.987
+# Acurácia com LeaveOneGroupOut    — REALISTA: 0.487
+Na prosa: "crava cerca de 0,987" (não 1,000/100 %) e "cai para cerca de 0,487, no nível do acaso".
+4. [CÓDIGO PEDAGOGICAMENTE FRACO + PROSA] solução do exr:8-5-2-3: com LinearRegression o R² embaralhado sai 0.006 (praticamente zero), e a lição não aparece. Troque o modelo por KNeighborsRegressor(n_neighbors=5) (import de sklearn.neighbors; atualize também o enunciado e a dica, que hoje falam em LinearRegression). Com o resto do código igual, as saídas reais são
+# R² com KFold(shuffle=True) : 0.231
+# R² com blocos contíguos    : -1.171
+Explique na solução: com X suave no tempo, os vizinhos mais próximos de um instante de teste no espaço de X são os instantes vizinhos no tempo, que caíram no treino quando embaralhamos; como y também é suave, o KNN "copia" o y vizinho e ganha R² positivo falso (≈ 0,23); com blocos contíguos o R² fica negativo (≈ −1,17), revelando que não há relação real.
+5. [SAÍDA DE CÓDIGO + PROSA] bloco do double dipping (2 000 voxels de ruído): saídas reais
+# Acurácia COM vazamento (double dipping): 0.975
+# Acurácia SEM vazamento (Pipeline)      : 0.575
+Na prosa: ganho de cerca de 40 pontos percentuais (de cerca de 0,575 para cerca de 0,975).
+6. [SAÍDA DE CÓDIGO + PROSA] exercício com o par de blocos "Com vazamento"/"Sem vazamento": saídas reais
+# Com vazamento: 0.850   (nos dois blocos)
+# Sem vazamento: 0.483
+e na solução troque "de cerca de 0,900" por "de cerca de 0,850".
+7. [SAÍDA DE CÓDIGO] bloco do bootstrap da taxa média: saídas reais
+# Taxa média observada : 28.200 Hz
+# Erro padrão bootstrap: 0.914 Hz
+# IC 95% percentil     : [26.332, 29.967] Hz
+# Média de 1 réplica (resample): 27.867 Hz
+(atualize a prosa que citar 27,667, 25,9 ou 29,5).
+8. [SAÍDA DE CÓDIGO + PROSA] solução do exercício de bootstrap por sujeitos: saídas reais
+# IC 95% ingênuo (ensaios): [29.529, 30.655] Hz (largura 1.126)
+# IC 95% grupos (sujeitos): [27.683, 32.547] Hz (largura 4.864)
+Frase final: "reduz artificialmente a largura do intervalo em mais de quatro vezes (cerca de 1,13 Hz contra 4,86 Hz)".
+9. [SAÍDA DE CÓDIGO + PROSA] bloco permutation_test_score principal: saídas reais
+# Acurácia observada       : 0.625
+# Média das permutações    : 0.502
+# p-valor (200 permutações): 0.045
+e o bloco da solução que compara sinal real × ruído puro:
+# Com sinal real | Acurácia: 0.625 | p-valor: 0.045
+# Ruído puro     | Acurácia: 0.425 | p-valor: 0.905
+(se as duas linhas estiverem depois de um print de várias linhas, ponha-as logo após o fim do laço). Corrija a prosa: o sinal real dá p ≈ 0,045 (significativo a 5 %, mas modesto; lembre que com 200 permutações o menor p possível é 1/201 ≈ 0,005) e o ruído puro dá p ≈ 0,905. Tire "p ≈ 0,005" e "p ≈ 0,433" onde se referirem a essas execuções (a conta à mão p = 5/1000 = 0,005 do exemplo continua certa).

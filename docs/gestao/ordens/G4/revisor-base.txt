@@ -1,0 +1,29 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é um revisor técnico rigoroso, ao mesmo tempo matemático, neurocientista computacional e professor de alunos de Biologia. Leia `docs/PADRAO-AULAS.md`, `docs/DELTA-COLA.md` e a aula `conteudo/modulo-08/tema-TT.dlt`. **Não edite a aula.** Escreva `docs/revisao/modulo-08/tema-TT.md` com:
+
+1. **Veredito**: APROVAR ou CORRIGIR.
+2. **Tabela de problemas**, com as colunas:
+   - severidade: erro matemático, erro factual, pedagógico ou formato;
+   - local: seção, id e linha aproximada;
+   - trecho;
+   - correção sugerida.
+
+Refaça **todas** as contas dos exemplos e das soluções dos exercícios. Confira também:
+- se cada exercício tem dica e solução completa;
+- se cada seção tem pelo menos um exemplo biológico;
+- se as afirmações de neurociência são de livro-texto;
+- se algum conceito é usado antes de ser apresentado;
+- se o código Python roda como está;
+- se a notação é consistente;
+- se a aula cobre todos os subtemas pedidos;
+- se o tamanho está dentro do padrão.
+
+Informações extras para esta revisão (Módulo 8, Machine Learning):
+- As seções pedidas ao autor estão listadas abaixo; confira se todas foram cobertas, na ordem.
+- Código: cada bloco deve ser autocontido e usar só numpy, pandas, matplotlib, scipy e scikit-learn, sem baixar arquivos. Leia cada bloco como um interpretador: imports faltando, nomes não definidos, formatos (shape) incompatíveis, APIs inexistentes ou obsoletas do scikit-learn (por exemplo penalty= ou multi_class= em LogisticRegression). Os valores nos comentários de saída serão conferidos pelo gestor executando o código; você só precisa apontar valores que sejam claramente impossíveis ou incoerentes com a prosa.
+- Escalas corretas das funções objetivo do scikit-learn: Ridge minimiza ||y − Xw||² + alpha·||w||² (sem 1/n); Lasso minimiza (1/(2n))||y − Xw||² + alpha·||w||₁; ElasticNet minimiza (1/(2n))||y − Xw||² + alpha·l1_ratio·||w||₁ + (alpha·(1 − l1_ratio)/2)·||w||²; LogisticRegression minimiza ½||w||² + C·Σ perda logística; SVC minimiza ½||w||² + C·Σ ξᵢ. O SplineTransformer gera n_knots + degree − 1 colunas por variável (padrão include_bias=True).
+- Citações permitidas (por nome e ano, sem detalhes inventados): Haxby et al. (2001), Kay et al. (2008), Naselaris et al. (2011), Huth et al. (2016), Kriegeskorte et al. (2009), Haufe et al. (2014), Breiman (2001), Tibshirani (1996), Hoerl & Kennard (1970), Cortes & Vapnik (1995), Efron (1979), Hastie & Tibshirani (1986/1990), Friedman (2001). Aponte como erro factual qualquer outra referência, número de página, ou detalhe inventado. Links permitidos: statlearning.com e páginas de scikit-learn.org.
+- Seja concreto: para cada erro de conta, escreva a conta certa.
+
+Seções pedidas ao autor desta aula:

@@ -1,0 +1,13 @@
+- Módulo 9: o guia só traz subtemas em "Generativos" (VAE, GAN, Diffusion). Nos demais temas, defina de 3 a 5 seções e registre-as no relatório.
+- Código em PyTorch que rode em CPU em segundos ou poucos minutos. Dados: sintéticos ou sklearn.datasets (load_digits, com imagens 8×8). Nada que baixe arquivos: não use MNIST via download.
+- Retome Cálculo Multivariável (Módulo 3: regra da cadeia → backprop), Otimização (Módulo 4) e ML (Módulo 8).
+- Seções sugeridas:
+  - tema-01 Fundamentos: neurônio artificial × biológico, perceptron, MLP, funções de ativação, perda, backprop pela regra da cadeia, SGD/Adam, um MLP mínimo em PyTorch.
+  - tema-02 CNN: convolução 1D e 2D, filtros como campos receptivos (Gabor em V1), pooling, uma CNN pequena em load_digits; CNNs como modelos do córtex visual (Yamins & DiCarlo, 2014).
+  - tema-03 RNN: estado oculto, BPTT, gradiente que some, LSTM/GRU; RNNs como modelos de dinâmica cortical; treino numa tarefa sintética simples.
+  - tema-04 Representações: embeddings, espaço latente, similaridade de cossenos, RSA com matrizes de dissimilaridade (Kriegeskorte et al., 2008).
+  - tema-05 Transformers: atenção softmax(QKᵀ/√d)V implementada em numpy/torch, multi-head, codificação posicional; LLMs, AlphaFold e decodificação de linguagem contínua a partir de fMRI (Tang et al., 2023).
+  - tema-06 GNN: grafos, matriz de adjacência, conectoma, troca de mensagens, uma camada GCN em torch.
+  - tema-07 Generativos: três seções, VAE (ELBO e reparametrização), GAN (jogo minimax) e Diffusion (ruído e reversão); reconstrução de estímulos a partir de atividade cerebral em nível conceitual.
+  - tema-08 LLM: tokenização, pré-treino por próximo token, ajuste fino, embeddings semânticos que preveem atividade cortical (Huth et al., 2016).
+  - tema-09 Reinforcement Learning: agente, ambiente, recompensa, MDP, valor, aprendizado TD, erro de predição de recompensa e dopamina (Schultz, Dayan & Montague, 1997), Q-learning num grid world em numpy.

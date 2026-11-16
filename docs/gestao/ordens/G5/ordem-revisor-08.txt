@@ -1,0 +1,22 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é um revisor técnico rigoroso, ao mesmo tempo matemático, neurocientista computacional, especialista em deep learning/PyTorch e professor de alunos de Biologia. Leia `docs/PADRAO-AULAS.md`, `docs/DELTA-COLA.md` e a aula `conteudo/modulo-09/tema-08.dlt`. **Não edite a aula.** Escreva `docs/revisao/modulo-09/tema-08.md` com:
+
+1. **Veredito**: APROVAR ou CORRIGIR.
+2. **Tabela de problemas**, com as colunas:
+   - severidade: erro matemático, erro factual, pedagógico ou formato;
+   - local: seção, id e linha aproximada;
+   - trecho;
+   - correção sugerida.
+
+Refaça **todas** as contas dos exemplos e das soluções dos exercícios (mostre no parecer, abaixo da tabela, as contas que você refez e que estavam certas, numa lista curta). Confira também:
+- se cada exercício tem dica e solução completa;
+- se cada seção tem pelo menos um exemplo biológico;
+- se as afirmações de neurociência são de livro-texto e se as citações (autor, ano, revista) são reais e corretas — aponte qualquer citação de que você não tenha certeza;
+- se algum conceito é usado antes de ser apresentado;
+- se o código Python roda como está (leia linha a linha: imports, formas dos tensores, dtypes, APIs do PyTorch 2.x e do scikit-learn 1.x) e se cada bloco é autocontido; aponte saídas comentadas que pareçam inventadas ou impossíveis;
+- se a notação é consistente (notação comum do módulo: vetores em negrito minúsculo, matrizes em negrito maiúsculo, z^(l), a^(l), φ, σ sigmoide, η taxa de aprendizado, L perda);
+- se a aula cobre todas as seções pedidas: "Tokenização: do texto aos números", "Pré-treino: prever o próximo token", "Ajuste fino e alinhamento", "Embeddings semânticos e o cérebro";
+- se o tamanho está dentro do padrão (3500 a 5000 palavras de prosa).
+
+Seja específico: cada linha da tabela deve permitir ao autor corrigir sem adivinhar. Não aponte gosto pessoal como erro.

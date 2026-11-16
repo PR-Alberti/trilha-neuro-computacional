@@ -1,0 +1,78 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é AUTOR de uma aula de uma trilha de estudos de Machine Learning rumo à neurociência computacional, escrita para estudantes de Ciências Biológicas (base matemática de ensino médio, pouca ou nenhuma programação, estudando sozinhos). As aulas são escritas em Delta (XML estrito que compila para HTML). Quem compila, roda o lint e executa o código é o gestor técnico; você só escreve arquivos.
+
+LEITURA OBRIGATÓRIA ANTES DE ESCREVER (leia inteiros):
+1. docs/PADRAO-AULAS.md — o contrato das aulas (estrutura, estilo, exatidão).
+2. docs/DELTA-COLA.md — a sintaxe; o bloco "Regras deste projeto" prevalece sobre o resto.
+3. conteudo/modulo-01/tema-01.dlt — a aula piloto aprovada: copie o formato do cabeçalho, da abertura, das seções, dos exemplos, dos exercícios (hint + solution recolhida), do Resumo, do "Para ir além" e do rodapé. Imite a profundidade e o tom.
+
+DADOS DO MÓDULO 9 (do index.html):
+- title: "Deep Learning" · sub: "O Estado da Arte da Neurociência Computacional"
+- bio: "CNNs são hoje os principais modelos computacionais do sistema visual (V1→IT); Transformers decodificam linguagem contínua a partir de fMRI; RNNs modelam dinâmica cortical. Dominar Deep Learning é dominar a fronteira do encoding/decoding."
+- mats (sem links no index.html; cite-os só pelo nome, SEM <link>): "Deep Learning Book — Ian Goodfellow (base teórica muito sólida)"; "Andrej Karpathy — aulas de LLM e backprop no YouTube". No "Para ir além" você PODE acrescentar links das documentações oficiais https://pytorch.org/docs/stable/index.html , https://pytorch.org/tutorials/ , https://scikit-learn.org/stable/ ou https://numpy.org/doc/stable/ (nenhum outro link).
+- drill: "Dica operacional: utilize instâncias de Cloud ou o Google Colab; seu computador vai ferver caso não possua placa de vídeo compatível." (Comente que os códigos DESTA aula foram dimensionados para rodar em CPU em segundos.)
+- final: "Fazer um projeto de ponta a ponta: uma CNN para classificar imagens de ressonância, ou um Transformer para decodificar estímulos a partir de fMRI público — documentando tudo rigorosamente num repositório."
+- Temas do módulo, na ordem: 9.1 Fundamentos · 9.2 CNN · 9.3 RNN · 9.4 Representações · 9.5 Transformers (Attention) · 9.6 GNN · 9.7 Generativos · 9.8 LLM · 9.9 Reinforcement Learning.
+- Módulos anteriores que você deve retomar pelo nome quando fizer sentido: Módulo 3 Cálculo Multivariável (temas "Funções vetoriais", "Diferencial em várias variáveis" — gradiente e regra da cadeia multivariável, "Integrais múltiplas"); Módulo 4 Otimização ("Espaço de variáveis", "Minimização e maximização", "Métodos computacionais" — gradiente descendente); Módulo 5 Álgebra Linear ("Vetores, matrizes e operações", "Autovalores e autovetores", "Decomposições"); Módulo 6 Programação (Python); Módulo 7 Estatística e Probabilidade ("Variável aleatória", "Inferência Bayesiana", "Inferência não-Bayesiana (Frequentista)" — máxima verossimilhança); Módulo 8 Machine Learning ("Regressão (polinomial)", "Classificação", "Métricas estatísticas", "Reamostragem", "Regularização" — ridge, "Aprendizado não supervisionado").
+
+CABEÇALHO E RODAPÉ (exatamente neste formato, trocando T pelo número do tema):
+- <document> sem atributos (o project.toml já define lang/type/tema).
+- <title>Módulo 9 · Deep Learning</title>
+- <meta> com três <meta-item>: key="Guia" com <link to="../../index.html#tema-9-T">Voltar ao guia (Tema 9.T)</link>; key="Módulo" com "Módulo 9 · Deep Learning — O Estado da Arte da Neurociência Computacional"; key="Nível" com o nível do tema.
+- <floating><title>Sumário</title><toc scope="project" depth="1"/></floating>
+- <chapter id="tema-9-T"> com <title> igual ao nome do tema, depois <toc/>, depois <box type="note"><title>Sobre este tema</title> com o campo d do tema </box>, depois a abertura ("Por que isso importa", "Objetivos" com 3 a 6 itens "Ao final, você consegue:", "Pré-requisitos" citando temas anteriores pelo nome).
+- NÃO repita o link do guia abaixo do título do capítulo.
+- <footer>Módulo 9 · Deep Learning — Guia de Estudos: ML para Neurociência Computacional.</footer>
+
+ESTRUTURA DE CADA SEÇÃO DE CONTEÚDO (ids sec:9-T-1, sec:9-T-2, ...; <eyebrow>Subtema S</eyebrow>, <title>, <intro>):
+- intuição primeiro, depois formalização (<definition>, <proposition>/<theorem> com <proof collapsible="true" collapsed="true"> quando curta);
+- pelo menos 2 <example> resolvidos passo a passo, pelo menos 1 com contexto biológico/neurocientífico realista;
+- um <remark> com <title>Armadilha comum</title>;
+- 3 a 5 <exercise> graduados, títulos começando por "Básico —", "Intermediário —" ou "Avançado —"; cada um com <hint><title>Ver dica</title>...</hint> e <solution collapsible="true" collapsed="true"> COMPLETA (raciocínio + resposta; contas explícitas). Pelo menos 1 exercício por seção aplicado à neurociência/biologia, e pelo menos 1 exercício de CÁLCULO À MÃO com números pequenos por seção (para o aluno conferir a matemática). Exercícios de código são bem-vindos, com a solução em código.
+- Ids: def:9-T-nome, prop:9-T-nome, thm:9-T-nome, exm:9-T-nome, rem:9-T-nome, exr:9-T-S-k, eq:9-T-nome, fig:9-T-nome, cod:9-T-nome (só minúsculas sem acento, dígitos e hífen depois do prefixo; todos únicos).
+- Fechamento: <section id="sec:9-T-resumo"><title>Resumo</title> com 5 a 10 itens e as fórmulas-chave; <section id="sec:9-T-alem"><title>Para ir além</title> com os mats do módulo (sem link) + no máximo 2 links de documentação oficial listados acima, e uma frase ligando ao próximo tema.
+- Tamanho: entre 3500 e 5000 palavras de prosa (sem contar o código).
+
+NOTAÇÃO COMUM DO MÓDULO 9 (use exatamente esta):
+- escalares em itálico ($x$, $w$, $b$); vetores em negrito minúsculo ($\mathbf{x}$, $\mathbf{w}$, $\mathbf{h}$); matrizes em negrito maiúsculo ($\mathbf{W}$, $\mathbf{X}$, $\mathbf{A}$); conjuntos com \mathbb ($\mathbb{R}^n$).
+- camada $l$: pré-ativação $\mathbf{z}^{(l)} = \mathbf{W}^{(l)} \mathbf{a}^{(l-1)} + \mathbf{b}^{(l)}$ e ativação $\mathbf{a}^{(l)} = \phi(\mathbf{z}^{(l)})$, com $\mathbf{a}^{(0)} = \mathbf{x}$; $\phi$ é uma função de ativação genérica; $\sigma(z) = 1/(1+e^{-z})$ é a sigmoide logística; $\mathrm{ReLU}(z) = \max(0, z)$.
+- perda (loss) $\mathcal{L}$; taxa de aprendizado $\eta$; parâmetros em geral $\boldsymbol{\theta}$; saída do modelo $\hat{y}$ ou $\hat{\mathbf{y}}$; estado oculto $\mathbf{h}_t$.
+- multiplicação elemento a elemento: $\odot$. Transposta: $^\top$.
+
+CÓDIGO PYTHON (regras duras — o gestor vai executar cada bloco isoladamente):
+- Use <code lang="python" id="cod:9-T-nome"> ... </code>. Cada bloco é AUTOCONTIDO: importa tudo de que precisa e não depende de variáveis de blocos anteriores.
+- Só numpy, scipy, matplotlib, scikit-learn e torch (CPU). NÃO use torchvision, torchtext, transformers, datasets, tqdm, torch_geometric nem nada que baixe arquivos. Dados: sintéticos ou sklearn.datasets.load_digits (1797 imagens 8×8, valores inteiros de 0 a 16, 10 classes; vem embutido no scikit-learn, não baixa nada). NÃO use MNIST.
+- Cada bloco roda em CPU em no máximo ~30 segundos. Fixe sementes (np.random.seed / np.random.default_rng(0) e torch.manual_seed(0)).
+- Mostre a saída esperada em comentários (# ...). Para contas determinísticas, mostre o valor exato que sai. Para resultados de treino (perda, acurácia), escreva o valor aproximado com "≈" e avise que pode variar um pouco entre versões/máquinas. Não invente números "bonitos": o gestor confere cada saída.
+- Comentários e nomes de variáveis em português quando natural; ponto decimal dentro do código.
+- Não use plt.show() em código da aula sem necessidade; se plotar, deixe claro que é opcional. Prefira imprimir números.
+
+FIGURAS (opcionais, no máximo 2 nesta aula):
+- Para cada figura, escreva o script conteudo/modulo-09/fig/tTT-<nome>.py (TT = número do tema com dois dígitos), no estilo de conteudo/modulo-01/fig/crescimento-bacteriano.py, com plt.rcParams['svg.fonttype'] = 'none' no início, rótulos em português, e salvando Path(__file__).resolve().parent / "tTT-<nome>.svg". Na aula use <figure src="fig/tTT-<nome>.svg" alt="..." id="fig:9-T-nome"><caption>...</caption></figure>. O gestor executa o script.
+
+XML ESTRITO (erros que mais derrubam a compilação):
+- Na prosa, escreva &lt; &gt; &amp; (nunca < > & puros). Dentro de $...$, $$...$$, <m>, <equation>, <equations> e <code>, use < > & puros.
+- Nunca deixe um $ desemparelhado na prosa; matemática com $...$ não atravessa linha em branco nem tag.
+- Nenhum atributo sem valor. Nada de <interactive>, <cite>, <bibliography>, <youtube>. <intuition> só dentro de definition/theorem/proposition etc., e sem id.
+- Nunca escreva o texto literal "</code>" dentro de um bloco de código.
+- Toda <ref to="..."/> aponta para um id que existe NESTE arquivo.
+
+EXATIDÃO (inegociável): toda conta, fórmula e solução tem de estar certa — refaça cada conta duas vezes. Fatos de neurociência só de livro-texto (Kandel; Dayan & Abbott; Gerstner et al.). Não invente artigos, autores, números ou links. Cite clássicos amplamente conhecidos por nome e ano, na prosa, apenas os indicados nesta ordem ou outros igualmente canônicos dos quais você tenha certeza absoluta. Na dúvida, simplifique e não cite.
+
+SUA TAREFA: criar o arquivo conteudo/modulo-09/tema-04.dlt (capítulo id="tema-9-4").
+
+TEMA 9.4 — "Representações" · lv 1 → Nível "Intermediário" · d: "Embeddings: como os modelos “resumem” dados complexos — e como compará-los com o cérebro (RSA)." · t: [] (sem subtemas no guia).
+Tema anterior: 9.3 "RNN". Tema seguinte: 9.5 "Transformers (Attention)".
+Pré-requisitos a citar: 9.1 Fundamentos e 9.2 CNN (camadas ocultas e ativações); Módulo 5 "Vetores, matrizes e operações", "Ortogonalidade" (produto interno, norma) e "Decomposições" (SVD/PCA); Módulo 7 (correlação de Pearson e de Spearman); Módulo 8 "Aprendizado não supervisionado".
+
+SEÇÕES (definidas pelo gestor; use exatamente estas 4, nesta ordem):
+1. sec:9-4-1 "Embeddings: de símbolos a vetores" — codificação one-hot e seus problemas (dimensão = tamanho do vocabulário; todos os pares equidistantes); embedding denso como tabela de consulta: e = Eᵀ·onehot (ou linha da matriz E, deixe a convenção explícita), mostrando à mão que multiplicar a matriz pelo one-hot seleciona uma linha/coluna; torch.nn.Embedding como essa tabela aprendida; word2vec (Mikolov et al., 2013) e a hipótese distribucional ("uma palavra é conhecida pelas companhias que mantém"), sem prometer que a aritmética rei − homem + mulher ≈ rainha funciona sempre; embeddings de outros objetos (tipos celulares a partir de expressão gênica, sequências de proteína, neurônios). Exemplo biológico: código populacional — o padrão de taxas de disparo de N neurônios em resposta a um estímulo já é um "embedding" desse estímulo em ℝ^N.
+2. sec:9-4-2 "Espaço latente e autoencoders" — camada oculta como representação aprendida; autoencoder: codificador f, decodificador g, perda de reconstrução ||x − g(f(x))||²; gargalo (bottleneck); o autoencoder LINEAR com perda quadrática aprende o mesmo subespaço do PCA (enuncie como resultado conhecido, sem prova longa; avise que os eixos podem não coincidir com as componentes principais, só o subespaço); variedades (manifolds) de baixa dimensão; exemplo: espaço latente 2D de load_digits. Código PyTorch: autoencoder 64→16→2→16→64 em sklearn.datasets.load_digits (dividir por 16), treinado por poucas centenas de passos com Adam, imprimindo a perda final aproximada e comparando com o erro de reconstrução do PCA de 2 componentes (sklearn.decomposition.PCA). Mencione que o autoencoder variacional (VAE) aparece no Tema 9.7.
+3. sec:9-4-3 "Medindo semelhança: cosseno, distância e correlação" — produto interno, norma, similaridade de cossenos cos(u, v) = u·v / (||u|| ||v||) ∈ [−1, 1], distância euclidiana, correlação de Pearson como cosseno dos vetores centrados (mostre a identidade); quando cada medida é invariante a escala/deslocamento; para vetores normalizados, ||u − v||² = 2 − 2 cos(u, v) (prove em 2 linhas); exemplos à mão com vetores de 3 dimensões; exemplo biológico: comparar os padrões populacionais (taxas em Hz de 4 neurônios) evocados por dois estímulos, com e sem um aumento global de excitabilidade (multiplicar tudo por 2 não muda o cosseno). Código numpy com uma matriz de similaridade entre vários vetores.
+4. sec:9-4-4 "RSA: comparando modelos e cérebros" — o problema: um modelo tem 512 unidades, o cérebro tem 10 000 voxels ou 100 neurônios — não dá para casar unidade a unidade; a ideia de Kriegeskorte, Mur & Bandettini (2008, Frontiers in Systems Neuroscience): para um conjunto de K estímulos, construir a matriz de dissimilaridade representacional (RDM) K × K, tipicamente 1 − correlação de Pearson entre os padrões; RDM é simétrica, com diagonal zero, e só os K(K−1)/2 valores do triângulo superior importam; comparar a RDM do modelo com a do cérebro pela correlação de Spearman entre os triângulos superiores (por que ordinal); aplicação clássica: categorias animado/inanimado e faces em IT de humanos e macacos (Kriegeskorte et al., 2008, Neuron) — descreva só qualitativamente; teto de ruído (noise ceiling) só como ideia; testes de permutação dos rótulos dos estímulos (Módulo 7). Exemplo à mão: RDM 3 × 3 a partir de 3 padrões de 4 neurônios (calcule as correlações). Código: em load_digits, usar 10 "estímulos" (a média das imagens de cada dígito), calcular a RDM dos pixels e a RDM da camada oculta de um MLP pequeno treinado (ou de uma projeção aleatória ReLU, se for mais rápido e honesto — diga qual é), e comparar com scipy.stats.spearmanr nos triângulos superiores; imprimir os valores aproximados. Figura sugerida (opcional): fig/t04-rdm.py com a RDM dos 10 dígitos em pixels (heatmap com rótulos 0–9).
+
+EXIGÊNCIAS ESPECÍFICAS:
+- Armadilhas: incluir a diagonal (zeros) ao correlacionar RDMs; confundir similaridade com dissimilaridade; achar que dimensões do embedding têm significado individual; comparar RDMs com Pearson quando a relação é monotônica mas não linear.
+
+Ao terminar, responda só com uma linha: o caminho do(s) arquivo(s) criado(s).

@@ -1,0 +1,36 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o autor da aula conteudo/modulo-08/tema-08.dlt (já escrita por você). O gestor técnico compilou (delta build e delta lint passaram), EXECUTOU todos os blocos de código no Python com scikit-learn e conferiu as contas; o revisor ainda vai ler a aula. Faça EXATAMENTE as correções listadas abaixo, editando o arquivo existente com edições pontuais: NÃO reescreva a aula do zero e não mexa no que não foi pedido. Mantenha as regras de docs/DELTA-COLA.md (bloco "Regras deste projeto") e de docs/PADRAO-AULAS.md. Saídas de código: copie os valores reais EXATAMENTE como estão abaixo (eles vieram da execução); mantenha o formato "# ..." na linha seguinte ao print. Quando um número de saída aparecer também na prosa, atualize a prosa para ficar coerente. Ao terminar, responda com a lista do que mudou.
+
+CORREÇÕES:
+1. [ERRO DE COMPILAÇÃO — 22 erros do KaTeX] Dentro da matemática ($...$, $$...$$, <equation>) você escreveu &gt; e &lt;, e o KaTeX quebra ("KaTeX parse error: Expected 'EOF', got '&'"). Dentro da matemática, escreva > e < PUROS (ex.: $x_1 > 0{,}4$, $G''(p) = -4 < 0$). Linhas com erro: ≈ 51, 88, 93, 162, 166, 197, 198, 237, 241, 245, 274, 360, 403 — mas confira TODO o arquivo: nenhum &gt;, &lt; ou &amp; pode ficar dentro de $...$. Na prosa fora da matemática, continue escapando (&lt; &gt; &amp;).
+2. [SAÍDAS DE CÓDIGO] Substitua os comentários de saída pelos valores reais da execução:
+   - cod:8-8-arvore-neuronios (export_text + acurácias):
+# |--- taxa_hz <= 27.17
+# |   |--- class: 0
+# |--- taxa_hz >  27.17
+# |   |--- class: 1
+#
+# Acurácia de treino: 1.000
+# Acurácia de teste : 0.983
+     Ajuste a prosa a esse resultado: com estes dados a árvore separa as classes com um único corte na taxa (≈ 27 Hz) e não precisou da largura do spike; se a prosa disser outra coisa, corrija.
+   - bloco Gini × entropia: "# Impureza na raiz (Gini)    : 0.657", "# Impureza na raiz (Entropia): 1.565 bits", "# Acurácia teste (Gini)      : 0.963", "# Acurácia teste (Entropia)  : 0.981".
+   - bloco da poda: "# Árvore cheia  — folhas: 16 | treino: 1.000 | teste: 0.906", "# Melhor ccp_alpha (CV) : 0.0196", "# Árvore podada — folhas:  4 | treino: 0.962 | teste: 0.901" (a poda reduziu 16 → 4 folhas praticamente sem perder acurácia de teste: diga isso na prosa).
+   - bloco min_samples_leaf:
+# min_samples_leaf= 1 | treino=1.000 | CV=0.917
+# min_samples_leaf= 3 | treino=0.975 | CV=0.925
+# min_samples_leaf= 5 | treino=0.975 | CV=0.927
+# min_samples_leaf=10 | treino=0.967 | CV=0.925
+# min_samples_leaf=20 | treino=0.932 | CV=0.920
+# Melhor min_samples_leaf: 5 | Teste: 0.912
+   - bloco árvore × bagging × random forest:
+# Árvore única — teste: 0.852
+# Bagging      — OOB  : 0.972 | teste: 0.991
+# RandomForest — OOB  : 0.984 | teste: 0.991
+# Top 3 neurônios (permutação no teste): [0, 7, 10]
+     e a frase seguinte: a floresta eleva a acurácia de cerca de 0,852 (árvore única) para cerca de 0,991, com o OOB (≈ 0,984) próximo do teste.
+   - bloco MDI × permutação:
+# neuronio_0 (binário) | MDI (impureza): 0.314 | Permutação (teste): 0.191
+# neuronio_1 (binário) | MDI (impureza): 0.312 | Permutação (teste): 0.181
+# ruído_contínuo      | MDI (impureza): 0.375 | Permutação (teste): 0.024
+     e a frase seguinte: importância por impureza do ruído ≈ 0,375 (maior que a dos neurônios reais), e por permutação ≈ 0,024 (quase zero).

@@ -1,0 +1,26 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é um revisor técnico rigoroso, ao mesmo tempo matemático, neurocientista computacional, programador Python experiente e professor de alunos de Biologia. Leia docs/PADRAO-AULAS.md, docs/DELTA-COLA.md e a aula conteudo/modulo-06/tema-02.dlt. Não edite a aula. Escreva docs/revisao/modulo-06/tema-02.md com:
+
+1. Veredito: APROVAR ou CORRIGIR.
+2. Tabela de problemas, com as colunas:
+   - severidade: erro matemático, erro factual, pedagógico ou formato;
+   - local: seção, id e linha aproximada;
+   - trecho;
+   - correção sugerida.
+
+Refaça todas as contas dos exemplos e das soluções dos exercícios. Confira também:
+- se cada exercício tem dica e solução completa;
+- se cada seção tem pelo menos um exemplo biológico;
+- se as afirmações de neurociência são de livro-texto;
+- se algum conceito é usado antes de ser apresentado;
+- se o código Python roda como está (leia linha a linha: imports, nomes de variáveis, shapes, argumentos de funções de numpy/pandas/scipy/sklearn/matplotlib, e se as saídas escritas nos comentários batem com o que o código imprime);
+- se a notação é consistente;
+- se a aula cobre todos os subtemas pedidos;
+- se o tamanho está dentro do padrão.
+
+Seções que a aula deveria cobrir (definidas pelo gestor), com o conteúdo esperado:
+1. sec:6-2-1 "Variáveis, tipos e operadores" — atribuição com = (não é igualdade matemática: x = x + 1), nomes válidos e legíveis (snake_case, sem acento por convenção); tipos int, float, str, bool e type(); conversão int(), float(), str(); operadores aritméticos + - * / // % ** e a precedência; / sempre dá float; operadores de comparação (== != < <= > >=) e lógicos (and, or, not); atribuição composta (+=). Armadilha comum: 0.1 + 0.2 == 0.3 é False por causa da representação binária de ponto flutuante; compare com abs(a - b) < 1e-9 ou math.isclose. Exemplos: converter −70 mV para volts; calcular a taxa de disparo; // e % para converter 125 minutos de registro em horas e minutos.
+2. sec:6-2-2 "Texto e saída: strings e f-strings" — str entre aspas; len(), indexação simples seq[0] (indexação começa em 0; o fatiamento detalhado fica para "Estruturas de dados básicas"), métodos .upper(), .lower(), .count(), .replace(); concatenação e repetição; print com vários argumentos; f-strings com formatação: f"{taxa:.1f} Hz", f"{fracao:.1%}", f"{n:>5}". Exemplo biológico central: conteúdo GC de uma sequência de DNA com .count("G") + .count("C") dividido por len(), mostrado em porcentagem com f-string. Mostre também input() de passagem (funciona no Colab), avisando que scripts de análise raramente usam.
+3. sec:6-2-3 "Decisões com if, elif e else" — bloco e indentação (4 espaços; erro IndentationError); condição como expressão booleana; encadeamento elif; condições compostas com and/or; valores "verdadeiros" e "falsos" (0, "", None são falsos) de forma breve. Exemplos: classificar um potencial de membrana em "hiperpolarizado" (< −70 mV), "em repouso" (= −70 mV com tolerância), "despolarizado" e "acima do limiar" (≥ −55 mV) — defina critérios claros e coerentes; classificar o pH de uma solução. Armadilha comum: usar = em vez de ==, e a ordem dos elif (a primeira condição verdadeira vence).
+4. sec:6-2-4 "Repetição: for e while" — for percorre uma sequência (uma string ou uma lista literal — avise que listas serão estudadas em "Estruturas de dados básicas"); range(início, fim, passo) com fim exclusivo; acumuladores (soma, contagem); while repete enquanto a condição for verdadeira; break e continue; laço infinito e como interromper (botão de parar no Colab / Ctrl+C). Exemplos: contar G e C percorrendo a sequência letra a letra com for (e conferir com .count); contar spikes numa lista fixa de potenciais (em mV) amostrados no tempo contando os CRUZAMENTOS do limiar −55 mV de baixo para cima (amostra anterior abaixo e atual em ou acima), e não as amostras acima do limiar; while para descobrir em quantas gerações uma cultura de 100 bactérias que dobra a cada geração passa de 1 milhão (resposta: 14 gerações, pois 100·2^13 = 819200 e 100·2^14 = 1638400). Armadilha comum: contar amostras acima do limiar em vez de cruzamentos; esquecer de atualizar a variável do while.

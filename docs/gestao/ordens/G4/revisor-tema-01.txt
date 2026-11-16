@@ -1,0 +1,35 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é um revisor técnico rigoroso, ao mesmo tempo matemático, neurocientista computacional e professor de alunos de Biologia. Leia `docs/PADRAO-AULAS.md`, `docs/DELTA-COLA.md` e a aula `conteudo/modulo-08/tema-01.dlt`. **Não edite a aula.** Escreva `docs/revisao/modulo-08/tema-01.md` com:
+
+1. **Veredito**: APROVAR ou CORRIGIR.
+2. **Tabela de problemas**, com as colunas:
+   - severidade: erro matemático, erro factual, pedagógico ou formato;
+   - local: seção, id e linha aproximada;
+   - trecho;
+   - correção sugerida.
+
+Refaça **todas** as contas dos exemplos e das soluções dos exercícios. Confira também:
+- se cada exercício tem dica e solução completa;
+- se cada seção tem pelo menos um exemplo biológico;
+- se as afirmações de neurociência são de livro-texto;
+- se algum conceito é usado antes de ser apresentado;
+- se o código Python roda como está;
+- se a notação é consistente;
+- se a aula cobre todos os subtemas pedidos;
+- se o tamanho está dentro do padrão.
+
+Informações extras para esta revisão (Módulo 8, Machine Learning):
+- As seções pedidas ao autor estão listadas abaixo; confira se todas foram cobertas, na ordem.
+- Código: cada bloco deve ser autocontido e usar só numpy, pandas, matplotlib, scipy e scikit-learn, sem baixar arquivos. Leia cada bloco como um interpretador: imports faltando, nomes não definidos, formatos (shape) incompatíveis, APIs inexistentes ou obsoletas do scikit-learn (por exemplo penalty= ou multi_class= em LogisticRegression). Os valores nos comentários de saída serão conferidos pelo gestor executando o código; você só precisa apontar valores que sejam claramente impossíveis ou incoerentes com a prosa.
+- Escalas corretas das funções objetivo do scikit-learn: Ridge minimiza ||y − Xw||² + alpha·||w||² (sem 1/n); Lasso minimiza (1/(2n))||y − Xw||² + alpha·||w||₁; ElasticNet minimiza (1/(2n))||y − Xw||² + alpha·l1_ratio·||w||₁ + (alpha·(1 − l1_ratio)/2)·||w||²; LogisticRegression minimiza ½||w||² + C·Σ perda logística; SVC minimiza ½||w||² + C·Σ ξᵢ. O SplineTransformer gera n_knots + degree − 1 colunas por variável (padrão include_bias=True).
+- Citações permitidas (por nome e ano, sem detalhes inventados): Haxby et al. (2001), Kay et al. (2008), Naselaris et al. (2011), Huth et al. (2016), Kriegeskorte et al. (2009), Haufe et al. (2014), Breiman (2001), Tibshirani (1996), Hoerl & Kennard (1970), Cortes & Vapnik (1995), Efron (1979), Hastie & Tibshirani (1986/1990), Friedman (2001). Aponte como erro factual qualquer outra referência, número de página, ou detalhe inventado. Links permitidos: statlearning.com e páginas de scikit-learn.org.
+- Seja concreto: para cada erro de conta, escreva a conta certa.
+
+Seções pedidas ao autor desta aula:
+SEÇÕES (4, nesta ordem):
+1. sec:8-1-1 "O que é aprender a partir de dados" — y = f(x) + ε; o papel do ruído irredutível; predição × inferência; aprendizado supervisionado (regressão: y contínuo; classificação: y categórico) × não supervisionado (sem y: agrupamento, redução de dimensionalidade); modelos paramétricos × não paramétricos (em uma frase cada, com exemplos que aparecerão no módulo). Exemplos neurais obrigatórios: encoding (estímulo → resposta de um voxel/neurônio, regressão), decoding (padrão de atividade → qual estímulo, classificação/MVPA) e agrupamento de tipos celulares (não supervisionado). Um exercício pedindo para classificar cenários de pesquisa em supervisionado/regressão, supervisionado/classificação ou não supervisionado.
+2. sec:8-1-2 "Dados, notação e a interface do scikit-learn" — a matriz X (n×p) e o vetor y (retome o Tema 5.1); exemplo concreto: 120 ensaios × 50 neurônios (taxas em Hz) e o rótulo do estímulo; formato (shape) em NumPy; a interface do scikit-learn: estimador.fit(X, y), .predict(X), .score(X, y) (retome Orientação a objetos do Módulo 6); load_iris como primeiro exemplo de código (shape (150, 4)); train_test_split com test_size e random_state. Armadilha: confundir linhas e colunas (transpor X), passar um vetor 1D quando o sklearn espera 2D (reshape(-1, 1)).
+3. sec:8-1-3 "Treino × teste: o erro que importa" — erro de treino × erro de teste (generalização); por que o erro de treino é otimista; flexibilidade do modelo; MSE de treino e de teste com fórmula; exemplo de código: curva de sintonia sintética (taxa de disparo em Hz em função da orientação ou do contraste) com ruído de Poisson, ajuste de polinômios de grau 1, 3 e 12 (PolynomialFeatures + LinearRegression em Pipeline), imprimindo MSE de treino e teste: o treino cai sempre, o teste faz U. Avise que a regressão polinomial será detalhada no Tema 8.2 e a validação cruzada no Tema 8.5. Um exemplo resolvido à mão com 4 ou 5 pontos calculando MSE de treino e de teste de duas previsões simples.
+4. sec:8-1-4 "Viés, variância e sobreajuste" — definições de viés e variância de um estimador $\hat{f}(x_0)$ (retome esperança e variância do Módulo 7); a decomposição $\mathbb{E}[(y_0 - \hat{f}(x_0))^2] = \operatorname{Var}(\hat{f}(x_0)) + [\operatorname{Viés}(\hat{f}(x_0))]^2 + \sigma^2$ como <proposition> com prova recolhível (supondo ε independente de $\hat{f}$, de média 0); subajuste (underfitting) × sobreajuste (overfitting); curva em U; o papel de n (mais dados reduzem variância). Código: simulação de Monte Carlo (muitos conjuntos de treino) estimando viés² e variância em um ponto x0 para graus 1, 3 e 12. Exemplo numérico à mão: dados viés, variância e σ², calcular o erro esperado e comparar dois modelos. Figura recomendada: fig/t01-vies-variancia.py com erro de treino e de teste (médios) em função do grau do polinômio.
+Armadilhas a cobrir na aula: "erro de treino baixo = modelo bom"; usar o conjunto de teste para escolher o modelo e depois relatar esse mesmo erro como honesto (avise que o Tema 8.5 resolve isso); achar que o ruído irredutível pode ser eliminado com um modelo melhor.

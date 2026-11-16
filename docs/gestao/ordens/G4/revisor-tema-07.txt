@@ -1,0 +1,36 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é um revisor técnico rigoroso, ao mesmo tempo matemático, neurocientista computacional e professor de alunos de Biologia. Leia `docs/PADRAO-AULAS.md`, `docs/DELTA-COLA.md` e a aula `conteudo/modulo-08/tema-07.dlt`. **Não edite a aula.** Escreva `docs/revisao/modulo-08/tema-07.md` com:
+
+1. **Veredito**: APROVAR ou CORRIGIR.
+2. **Tabela de problemas**, com as colunas:
+   - severidade: erro matemático, erro factual, pedagógico ou formato;
+   - local: seção, id e linha aproximada;
+   - trecho;
+   - correção sugerida.
+
+Refaça **todas** as contas dos exemplos e das soluções dos exercícios. Confira também:
+- se cada exercício tem dica e solução completa;
+- se cada seção tem pelo menos um exemplo biológico;
+- se as afirmações de neurociência são de livro-texto;
+- se algum conceito é usado antes de ser apresentado;
+- se o código Python roda como está;
+- se a notação é consistente;
+- se a aula cobre todos os subtemas pedidos;
+- se o tamanho está dentro do padrão.
+
+Informações extras para esta revisão (Módulo 8, Machine Learning):
+- As seções pedidas ao autor estão listadas abaixo; confira se todas foram cobertas, na ordem.
+- Código: cada bloco deve ser autocontido e usar só numpy, pandas, matplotlib, scipy e scikit-learn, sem baixar arquivos. Leia cada bloco como um interpretador: imports faltando, nomes não definidos, formatos (shape) incompatíveis, APIs inexistentes ou obsoletas do scikit-learn (por exemplo penalty= ou multi_class= em LogisticRegression). Os valores nos comentários de saída serão conferidos pelo gestor executando o código; você só precisa apontar valores que sejam claramente impossíveis ou incoerentes com a prosa.
+- Escalas corretas das funções objetivo do scikit-learn: Ridge minimiza ||y − Xw||² + alpha·||w||² (sem 1/n); Lasso minimiza (1/(2n))||y − Xw||² + alpha·||w||₁; ElasticNet minimiza (1/(2n))||y − Xw||² + alpha·l1_ratio·||w||₁ + (alpha·(1 − l1_ratio)/2)·||w||²; LogisticRegression minimiza ½||w||² + C·Σ perda logística; SVC minimiza ½||w||² + C·Σ ξᵢ. O SplineTransformer gera n_knots + degree − 1 colunas por variável (padrão include_bias=True).
+- Citações permitidas (por nome e ano, sem detalhes inventados): Haxby et al. (2001), Kay et al. (2008), Naselaris et al. (2011), Huth et al. (2016), Kriegeskorte et al. (2009), Haufe et al. (2014), Breiman (2001), Tibshirani (1996), Hoerl & Kennard (1970), Cortes & Vapnik (1995), Efron (1979), Hastie & Tibshirani (1986/1990), Friedman (2001). Aponte como erro factual qualquer outra referência, número de página, ou detalhe inventado. Links permitidos: statlearning.com e páginas de scikit-learn.org.
+- Seja concreto: para cada erro de conta, escreva a conta certa.
+
+Seções pedidas ao autor desta aula:
+SEÇÕES (4, nesta ordem; 3 ou 4 exercícios por seção):
+1. sec:8-7-1 "Padronização e escala das variáveis" — escore z $z_{ij} = (x_{ij} - \bar{x}_j)/s_j$; StandardScaler; outras escalas (MinMaxScaler, RobustScaler) em uma frase cada; quais métodos dependem da escala (KNN, SVM, ridge/lasso, PCA, k-means) e quais não (árvores, regressão comum sem penalidade — mas os coeficientes mudam de unidade); coeficientes padronizados permitem comparar variáveis medidas em unidades diferentes (Hz, mV, ms); ajustar o scaler só no treino (retome vazamento, Tema 8.5). Exemplo biológico: features eletrofisiológicas de neurônios (taxa em Hz, largura do spike em ms, potencial de repouso em mV). Exemplo à mão: padronizar 4 valores.
+2. sec:8-7-2 "Multicolinearidade" — preditores correlacionados tornam coeficientes instáveis e com sinais trocados, embora a previsão possa continuar boa; fator de inflação da variância $\mathrm{VIF}_j = 1/(1 - R_j^2)$, onde $R_j^2$ é o R² da regressão de $x_j$ nas outras variáveis (regra prática: VIF &gt; 5 ou 10 preocupa); número de condição de $\mathbf{X}^\top\mathbf{X}$ (razão entre o maior e o menor autovalor, retome o Módulo 5); exemplos neurais: potências de bandas vizinhas do EEG (alfa e beta), regressores de fMRI sobrepostos no tempo; remédios: ridge (Tema 8.6), combinar variáveis, PCA (Tema 8.9), escolher uma por razão científica. Código: calcular o VIF com LinearRegression (sem statsmodels) e mostrar como o desvio dos coeficientes entre amostras bootstrap explode quando duas variáveis têm correlação 0,95. Exemplo à mão: $R_j^2 = 0{,}9 \Rightarrow \mathrm{VIF} = 10$.
+3. sec:8-7-3 "Seleção de subconjuntos: forward, backward e melhor subconjunto" — melhor subconjunto avalia $2^p$ modelos (com p = 20 já passa de 1 milhão; com p = 40, mais de 10^12); seleção passo a passo para frente (forward: começa vazio e adiciona a variável que mais melhora) e para trás (backward: começa com todas e remove a pior; exige n &gt; p para a regressão comum); quantos modelos cada uma ajusta (forward completo: $1 + p(p+1)/2$); critérios: erro de validação cruzada (preferido), R² ajustado, AIC/BIC em prosa (sem fórmula se não for necessário; se der fórmula, confira); SequentialFeatureSelector do sklearn (direction="forward" ou "backward", n_features_to_select, cv); a seleção TEM de ficar dentro da validação cruzada (Pipeline), senão vaza (retome o 8.5); seleção gulosa pode perder o melhor subconjunto. Código com load_diabetes ou sintético. Exemplo à mão: tabela pequena de erros de CV para 3 variáveis mostrando os passos do forward.
+4. sec:8-7-4 "Importância por permutação" — definição: queda do escore no conjunto de teste (ou de validação) quando se embaralha uma coluna, quebrando sua relação com y, repetindo n_repeats vezes; permutation_importance do sklearn (importances_mean, importances_std); funciona para qualquer modelo; cuidados: variáveis correlacionadas dividem ou escondem a importância (embaralhar uma, a outra compensa); importância ≠ causalidade; calcular em dados não usados no treino. Exemplo biológico: quais features de EEG (potências de delta, teta, alfa, beta, gama) mais ajudam a prever o estágio de sono ou a vigília, com dados sintéticos em que delta e alfa importam e o resto é ruído. Exemplo à mão: escore de base 0,90 e escores após permutar cada variável → importâncias.
+Armadilhas a cobrir: comparar coeficientes de variáveis não padronizadas; selecionar variáveis com todos os dados e depois validar; achar que VIF alto estraga a previsão; ler importância por permutação como efeito causal; ler a importância de impureza das árvores (que aparece no 8.8) como se fosse a mesma coisa.
+Figura opcional (no máximo 1): fig/t07-importancia.py com barras de importância por permutação (média ± desvio).

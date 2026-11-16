@@ -1,0 +1,15 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o AUTOR de duas aulas já escritas em Delta (Módulo 5). ATENÇÃO: uma execução anterior desta ordem foi interrompida no meio; alguns itens podem já estar feitos — confira cada item no arquivo antes de editar e não duplique notas. Releia docs/DELTA-COLA.md (bloco "Regras deste projeto") e aplique as correções abaixo, editando os arquivos no lugar. Não mude nada além do pedido; não altere contas que ficarem. Ao terminar, releia os trechos alterados procurando tags não fechadas, cifrões desemparelhados e <ref> para ids inexistentes. REGRA QUE JÁ CAUSOU ERRO: dentro de $...$ escreva < e > puros (NUNCA &lt; ou &gt; dentro da matemática); só na prosa use &lt; e &gt;.
+
+=== ARQUIVO 1: conteudo/modulo-05/tema-01.dlt (Tema 5.1) — aprovado com ajustes ===
+1. exm:5-1-rede-linear (interpretação da coluna 2, neurônio que inibe um alvo e excita outro): acrescente uma nota biológica curta: pelo princípio de Dale, um neurônio real libera o mesmo neurotransmissor principal em todos os seus terminais, então em circuitos reais uma coluna de W costuma ter um sinal só; pesos de sinais mistos numa coluna representam um modelo abstrato (ou o efeito líquido via interneurônios).
+2. Logo após a definição da transposta, explique em uma frase que, como $\mathbf{A}^\top$ é $n \times m$, seu índice de linha vai de 1 a n e o de coluna de 1 a m.
+3. exr:5-1-4-3: divida o enunciado em itens (a) calcular $\mathbf{Y} = \mathbf{W}\mathbf{X}$ e (b) identificar o instante de maior taxa do neurônio pós-sináptico 1, e organize a solução nos mesmos itens (a) e (b), sem mudar as contas.
+
+=== ARQUIVO 2: conteudo/modulo-05/tema-02.dlt (Tema 5.2) — CORRIGIR ===
+4. ERRO DE COMPILAÇÃO: em rem:5-2-armadilha-comp (linha ~661), troque $\det &lt; 0$ por $\det < 0$. Procure no arquivo inteiro qualquer outro &lt; ou &gt; DENTRO de $...$ e troque por < ou >.
+5. exr:5-2-1-2 (matriz W com coluna 2 de sinais opostos): acrescente na dica ou no enunciado a mesma nota sobre o princípio de Dale (modelo abstrato / efeito líquido).
+6. Seção 4 (mistura no EEG), onde se define $\mathbf{x}(t) = \mathbf{A}\mathbf{s}(t)$: acrescente uma frase dizendo que, nesta aula, fontes e eletrodos são tratados na mesma unidade (µV) e as entradas de A são pesos adimensionais — simplificação didática (no modelo físico, as fontes são dipolos de corrente e A tem unidade de µV por nA·m).
+7. Remova o espaço antes de </item> em def:5-2-transf-linear (item Aditividade).
+8. TAMANHO: a aula tem cerca de 6 500 palavras de prosa; o limite é 5 000–5 500. Em cada seção que tem 4 exercícios, remova o mais redundante (fique com 3: Básico, Intermediário, Avançado; mantenha pelo menos 1 aplicado à biologia por seção; mantenha exr:5-2-2-4, das condutâncias). Renumere os ids restantes de cada seção para ficarem consecutivos (exr:5-2-S-1, -2, -3) e atualize os <ref>. Depois enxugue a prosa: intros com no máximo 2 frases, corte transições e motivações repetidas. Não mexa nos blocos de código nem na figura.

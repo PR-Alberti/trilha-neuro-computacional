@@ -1,0 +1,28 @@
+# Notas próprias do G1 (conferência por amostragem)
+
+## 1-3 Funções
+- Conferi sec:1-3-3 inteira (exm inversa sigmoide/Hill, inversa gaussiana, exr 3-1..3-4): contas OK.
+- Conferi def modelos + exm:1-3-sintonia-sigmoide + exm:1-3-hill-relu: OK. Resumo: OK.
+- Pré-requisitos atribuem "plano cartesiano, distância e simetria" à Geometria 1.2 (isso é da GA 1.5, posterior).
+- Tamanho: ~8000 palavras de prosa (padrão 2500-5000; piloto 4550).
+- Figuras curva-sintonia e sigmoide: conferidas visualmente, batem com o texto.
+
+## 2-1 Limite
+- Conferi sec:2-1-2 (exm ed-linear, ed-quadratica, exr 2-1..2-3): OK. Resumo OK exceto:
+- Resumo item 4: lim_{x→±∞} 1/x^r = 0 (r>0): para x→−∞ x^r pode não existir (r não inteiro).
+- Figuras epsilon-delta, michaelis-menten, degrau: conferidas visualmente, OK.
+
+## 2-2 Derivada
+- Código Python rodado: saída idêntica aos comentários.
+- Conferi sec:2-2-4 inteira (cadeia, sigmoide, gaussiana, box backprop, exr 4-1..4-3): OK. Resumo OK.
+- Figura secante-tangente: marcas do eixo x com ponto decimal (2.0, 2.5) -> usar vírgula.
+
+## 1-2 Geometria
+- Conferi exr 1-2-3-1..3-4 e Resumo: OK. Figura barras-orientadas OK.
+## 1-4 Trigonometria
+- Conferi exr 1-4-2-1..2-4, Resumo, fatos (Berger 1929 alfa occipital, Georgopoulos 1982, polegar ~2°): OK, EXCETO
+- exr:1-4-2-4: "voo para o OESTE" com pico passando a 23 h locais está errado: viajando 6 fusos para o oeste o pico cai às 11 h locais; pico às 23 h locais corresponde a voo para o LESTE (relógio interno atrasado 6 h em relação ao local).
+## 1-5 GA
+- Figura curva-iv conferida: gK=25 nS, gNa=4 nS, repouso -70 mV correto.
+## 2-3 Integral
+- Código rodado: saída idêntica. Conferi AUC (50; 43,23), HRF (8; 70/9), Q(5)=316 fC, I0·tau=500 fC: OK.

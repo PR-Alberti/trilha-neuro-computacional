@@ -1,0 +1,11 @@
+MÓDULO 1 (campos do MODS no index.html):
+- title: "Pré-Cálculo"; sub: "O Alicerce Matemático". Título do documento: "Módulo 1 · Pré-Cálculo". meta-item Módulo: "Módulo 1 · Pré-Cálculo — O Alicerce Matemático". Footer: "Módulo 1 · Pré-Cálculo — Guia de Estudos: ML para Neurociência Computacional."
+- bio: "Curvas de resposta neuronal, escalas logarítmicas de frequência (bandas de EEG) e funções que descrevem a relação estímulo→resposta: sem fluência em funções e gráficos, os modelos do cérebro parecem mágica."
+- mats (únicos links permitidos, usar em "Para ir além", como na piloto):
+  * Khan Academy — Pré-Cálculo: https://pt.khanacademy.org/math/precalculus
+  * Playlist YouTube — Base Matemática: https://www.youtube.com/playlist?list=PL83s8LGM84J62ahewE-sVGbnJdOqGp8lJ
+- drill: "Após cada aula (subseção), peça a uma IA para criar 3 questões do tema aplicadas à neurociência para você resolver." (mencione em "Para ir além")
+- final (projeto final do módulo): "Criar e desenhar o gráfico analítico de uma função que modela a taxa de disparo de um neurônio em função da intensidade do estímulo."
+- Temas do módulo, na ordem: 1 Álgebra (piloto, pronto: potenciação, equação, desigualdade, módulo e intervalos |x − a| &lt; r), 2 Geometria, 3 Funções, 4 Trigonometria, 5 Geometria Analítica. O Módulo 2 é Cálculo Real (Limite, Derivada, Integral de Riemann).
+- Nível (meta-item "Nível"): lv 0 = "Básico", lv 1 = "Intermediário", lv 2 = "Avançado".
+- Notação do módulo (siga a piloto): intervalos (a, b) e [a, b); multiplicação com \cdot; frações com \frac ou \dfrac.

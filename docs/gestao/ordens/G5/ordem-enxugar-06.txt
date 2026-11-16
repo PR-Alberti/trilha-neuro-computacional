@@ -1,0 +1,18 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o AUTOR da aula conteudo/modulo-09/tema-06.dlt (Módulo 9 · Deep Learning). Releia docs/PADRAO-AULAS.md e o bloco "Regras deste projeto" de docs/DELTA-COLA.md. O gestor técnico compilou, rodou o lint e executou TODOS os blocos de código da sua aula. Faça as correções abaixo editando o próprio arquivo.
+
+1) TAMANHO (obrigatório). O contrato limita a aula a 5000 palavras de prosa. Pela contagem do gestor (sem código; cada fórmula conta como 1 palavra), sua aula tem 7553 palavras (abertura 392; seção 1: 1957; seção 2: 1785; seção 3: 1399; seção 4: 1568; Resumo 272; Para ir além 180). Reduza para 4500–5000 palavras. Orçamento: abertura ≤ 300 palavras; cada uma das 4 seções de conteúdo ≤ 1050 palavras; Resumo ≤ 170; Para ir além ≤ 120. Como enxugar sem perder qualidade:
+   - corte repetições, parágrafos de transição longos, frases que reexplicam a mesma ideia e comentários motivacionais;
+   - mantenha em cada seção: a intuição (curta), as definições/proposições, 2 exemplos resolvidos (pelo menos 1 biológico) e 3 exercícios (um "Básico —", um "Intermediário —", um "Avançado —"; pelo menos 1 aplicado à neurociência/biologia e pelo menos 1 de conta à mão), cada um com <hint> e <solution> completa porém enxuta; remova o exercício excedente que menos acrescenta (se ele for referenciado por <ref>, ajuste a referência); renumere os ids dos exercícios para ficarem sequenciais (exr:9-T-S-1, -2, -3);
+   - mantenha o "Armadilha comum" de cada seção (pode encurtar);
+   - os blocos de código podem ficar (não contam no limite), mas encurte a prosa que os cerca.
+   - NÃO introduza contas novas sem refazê-las duas vezes; ao encurtar uma solução, preserve os passos numéricos.
+
+2) CORREÇÕES ESPECÍFICAS (o gestor executou o código; as saídas reais estão abaixo — os comentários "# ..." de saída esperada têm de refletir essas saídas reais, com ≈ quando for resultado de treino):
+   a) Todos os blocos rodaram sem erro. Saídas determinísticas conferem com os comentários (cod:9-6-adjacencia, cod:9-6-message-passing, cod:9-6-limiar-pooling e os blocos das soluções). Ajustes:
+      - cod:9-6-gcn-sbm, saída real: "Acurácia no teste (MLP, sem grafo): 71.1%" e "Acurácia no teste (GCN, com grafo): 96.7%". Troque as faixas por "≈ 71%" e "≈ 97%" (pode variar um pouco).
+      - Bloco de oversmoothing (solução de exercício, linha ~759), saída real: k=0 0.3540 · k=1 0.3465 · k=2 0.3344 · k=4 0.3077 · k=16 0.1554. Seus comentários (0.34, 0.26, 0.20, 0.13, 0.04) estão ERRADOS. Use os valores reais e ajuste o texto: a dispersão cai devagar nas primeiras camadas e cai pela metade após 16 propagações — a suavização excessiva aparece com muitas camadas, não com 2.
+      - Bloco de classificação de grafos (linha ~962), saída real: "Acurácia no teste (12 grafos): 100.0%". Comente "≈ 100% (apenas 12 grafos de teste: estimativa muito incerta)".
+
+3) Depois de tudo, releia o arquivo inteiro procurando XML inválido (< ou & puros na prosa, $ desemparelhado, tags não fechadas) e ids/<ref> quebrados. Responda só com uma linha: o caminho do arquivo e a nova contagem aproximada de palavras.

@@ -1,0 +1,12 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o AUTOR da aula ARQUIVO (Módulo 9 · Deep Learning). Releia docs/PADRAO-AULAS.md e o bloco "Regras deste projeto" de docs/DELTA-COLA.md. O gestor técnico compilou, rodou o lint e executou TODOS os blocos de código da sua aula. Faça as correções abaixo editando o próprio arquivo.
+
+1) TAMANHO (obrigatório). O contrato limita a aula a 5000 palavras de prosa. Pela contagem do gestor (sem código; cada fórmula conta como 1 palavra), sua aula tem CONTAGEM. Reduza para 4500–5000 palavras. Orçamento: abertura ≤ 300 palavras; cada uma das 4 seções de conteúdo ≤ 1050 palavras; Resumo ≤ 170; Para ir além ≤ 120. Como enxugar sem perder qualidade:
+   - corte repetições, parágrafos de transição longos, frases que reexplicam a mesma ideia e comentários motivacionais;
+   - mantenha em cada seção: a intuição (curta), as definições/proposições, 2 exemplos resolvidos (pelo menos 1 biológico) e 3 exercícios (um "Básico —", um "Intermediário —", um "Avançado —"; pelo menos 1 aplicado à neurociência/biologia e pelo menos 1 de conta à mão), cada um com <hint> e <solution> completa porém enxuta; remova o exercício excedente que menos acrescenta (se ele for referenciado por <ref>, ajuste a referência); renumere os ids dos exercícios para ficarem sequenciais (exr:9-T-S-1, -2, -3);
+   - mantenha o "Armadilha comum" de cada seção (pode encurtar);
+   - os blocos de código podem ficar (não contam no limite), mas encurte a prosa que os cerca.
+   - NÃO introduza contas novas sem refazê-las duas vezes; ao encurtar uma solução, preserve os passos numéricos.
+
+2) CORREÇÕES ESPECÍFICAS (o gestor executou o código; as saídas reais estão abaixo — os comentários "# ..." de saída esperada têm de refletir essas saídas reais, com ≈ quando for resultado de treino):

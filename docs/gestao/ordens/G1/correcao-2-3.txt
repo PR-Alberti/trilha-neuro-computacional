@@ -1,0 +1,11 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o autor das aulas indicadas abaixo (trilha de ML para neurociência computacional, em Delta). O gestor técnico conferiu as aulas e um revisor independente escreveu um parecer. Faça TODAS as correções listadas, em lote, editando só os arquivos indicados. Regras: mantenha o XML estrito (na prosa &lt; &gt; &amp;; dentro de $...$ e de <code> escreva < > & puros); não altere contas, exemplos ou exercícios que não estejam na lista; não mude ids existentes (se criar um novo, siga o padrão do módulo); se alterar números de um exemplo, refaça todas as contas dependentes e confira duas vezes. Ao terminar, releia os trechos alterados.
+
+ARQUIVOS: conteudo/modulo-02/tema-03.dlt (Integral de Riemann) e conteudo/modulo-02/fig/auc-farmaco.py. Parecer: docs/revisao/modulo-02/tema-03.md (veredito CORRIGIR).
+
+1. FORMATO (linha ~255, sec:2-3-2): "<eqref>eq:2-3-estimativa</eqref>" não é tag do Delta. Na prosa use <ref to="eq:2-3-estimativa"/> (ex.: "Dividindo a desigualdade <ref to="eq:2-3-estimativa"/> por ..."). Procure outras ocorrências de <eqref> no arquivo e troque todas.
+2. sec:2-3-5 não tem <remark> "Armadilha comum". Acrescente <remark id="rem:2-3-armadilha-areas"><title>Armadilha comum</title> com: integrar direto uma função que troca de sinal dá a área LÍQUIDA (com sinal), não a área geométrica — separe nas raízes e some os módulos; e, na área entre curvas, subtrair na ordem errada (g − f em vez de f − g) dá resultado negativo.
+3. exm:2-3-tfc-basico: em $(-\cos \pi) - (-\cos 0) = -(-1) - (-1)$, mostre a passagem com clareza: $(-\cos\pi) - (-\cos 0) = (-(-1)) - (-1) = 1 + 1 = 2$.
+4. Termos em inglês na primeira menção: soma à esquerda/à direita/no ponto médio (<em>left/right Riemann sum</em>, <em>midpoint rule</em>) em def:2-3-soma-riemann; primitiva (<em>antiderivative</em>) em def:2-3-primitiva; mudança de variável (<em>substitution</em>, também chamada <em>u-substitution</em>) em thm:2-3-substituicao.
+5. auc-farmaco.py, rótulo da curva: use "$C(t) = 10\,e^{-0{,}2t}$" (vírgula entre chaves no mathtext); confira outros rótulos com decimal dentro de $...$ nos scripts de figura desta aula (somas-riemann.py, auc-farmaco.py) e aplique {,}.

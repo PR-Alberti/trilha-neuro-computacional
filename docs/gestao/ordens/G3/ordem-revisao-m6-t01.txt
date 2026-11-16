@@ -1,0 +1,27 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é um revisor técnico rigoroso, ao mesmo tempo matemático, neurocientista computacional, programador Python experiente e professor de alunos de Biologia. Leia docs/PADRAO-AULAS.md, docs/DELTA-COLA.md e a aula conteudo/modulo-06/tema-01.dlt. Não edite a aula. Escreva docs/revisao/modulo-06/tema-01.md com:
+
+1. Veredito: APROVAR ou CORRIGIR.
+2. Tabela de problemas, com as colunas:
+   - severidade: erro matemático, erro factual, pedagógico ou formato;
+   - local: seção, id e linha aproximada;
+   - trecho;
+   - correção sugerida.
+
+Refaça todas as contas dos exemplos e das soluções dos exercícios. Confira também:
+- se cada exercício tem dica e solução completa;
+- se cada seção tem pelo menos um exemplo biológico;
+- se as afirmações de neurociência são de livro-texto;
+- se algum conceito é usado antes de ser apresentado;
+- se o código Python roda como está (leia linha a linha: imports, nomes de variáveis, shapes, argumentos de funções de numpy/pandas/scipy/sklearn/matplotlib, e se as saídas escritas nos comentários batem com o que o código imprime);
+- se a notação é consistente;
+- se a aula cobre todos os subtemas pedidos;
+- se o tamanho está dentro do padrão.
+
+Seções que a aula deveria cobrir (definidas pelo gestor), com o conteúdo esperado:
+1. sec:6-1-1 "Google Colab: o ponto de partida" — o que é o Python e o que é um interpretador; o Colab como notebook no navegador (nada a instalar); células de código e de texto (Markdown); executar uma célula (Shift+Enter); a saída da última linha; o estado do notebook e a ORDEM de execução (o contador [n]); reiniciar o ambiente de execução (runtime); instalar pacote numa célula com !pip install; salvar no Google Drive. Exemplos: a primeira célula (print, uma conta), e uma célula que converte uma duração de registro de ms para s e calcula a taxa de disparo (30 spikes em 1500 ms → 20 Hz).
+2. sec:6-1-2 "Jupyter e notebooks locais" — o arquivo .ipynb; Jupyter Notebook e JupyterLab; o kernel; vantagens (exploração, figuras ao lado do código, texto explicativo) e riscos (estado oculto quando você executa células fora de ordem ou apaga uma célula cuja variável ainda existe). Armadilha comum: notebook que "funciona" só porque uma variável antiga ficou na memória; a cura é "Reiniciar e executar tudo". Exemplo biológico: notebook de análise de uma sessão de registro.
+3. sec:6-1-3 "VS Code e scripts .py" — editor × IDE; o arquivo .py roda de cima para baixo, sem estado oculto; a extensão Python; rodar um script pelo botão e pelo terminal (python analise.py); quando preferir script (pipelines, reprodutibilidade) e quando preferir notebook (exploração); VS Code também abre .ipynb. Mostre um script curto completo (por exemplo, calcula o conteúdo GC de uma sequência curta fixa e imprime).
+4. sec:6-1-4 "Pacotes e ambientes: pip, venv e Anaconda" — o que é um pacote (biblioteca); pip instala do PyPI; por que ambientes isolados (dois projetos do laboratório que precisam de versões diferentes de numpy); venv (python -m venv .venv, ativar no Linux/macOS com source .venv/bin/activate e no Windows com .venv\Scripts\activate, pip install, pip list, deactivate); Anaconda/Miniconda e conda (conda create -n neuro python=3.11, conda activate neuro, conda install); comparação pip+venv × conda (conda também instala dependências que não são Python); requirements.txt citado de passagem (aprofundado no tema Prática). Armadilha comum: instalar no Python errado (instalar com um pip e rodar com outro Python); a cura é python -m pip install.
+5. sec:6-1-5 "O terminal" — o que é shell/terminal/prompt; abrir no Windows (PowerShell), macOS e Linux; comandos para checar a bancada: python --version (ou python3 --version), pip --version, which python (where python no Windows), python script.py; o terminal do VS Code; no Colab, comandos de shell com ! (ex.: !python --version, !pip list). Os comandos de pastas (ls, cd, mkdir) ficam para o tema "Informática básica": avise.

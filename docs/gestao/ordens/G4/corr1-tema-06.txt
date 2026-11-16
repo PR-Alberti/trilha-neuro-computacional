@@ -1,0 +1,49 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o autor da aula conteudo/modulo-08/tema-06.dlt (já escrita por você). O gestor técnico compilou (delta build e delta lint passaram), EXECUTOU todos os blocos de código no Python com scikit-learn e conferiu as contas; um revisor independente escreveu docs/revisao/modulo-08/tema-06.md. Faça EXATAMENTE as correções listadas abaixo, editando o arquivo existente com edições pontuais: NÃO reescreva a aula do zero e não mexa no que não foi pedido. Mantenha as regras de docs/DELTA-COLA.md (bloco "Regras deste projeto") e de docs/PADRAO-AULAS.md. Saídas de código: copie os valores reais EXATAMENTE como estão abaixo (eles vieram da execução); mantenha o formato "# ..." na linha seguinte ao print. Quando um número de saída aparecer também na prosa, atualize a prosa para ficar coerente. Ao terminar, responda com a lista do que mudou.
+
+CORREÇÕES:
+1. [SAÍDA DE CÓDIGO] primeiro bloco da seção 1 (p = 80, n = 100): saídas reais
+# Norma ||beta||_2 real : 2.412
+# Norma ||beta||_2 OLS  : 20.984
+# R² treino (OLS)       : 0.956
+# R² teste  (OLS)       : -1.472
+2. [SAÍDA DE CÓDIGO] bloco que varre p = 10, 40, 80, 95: saídas reais
+# p=10 | R2 treino:  0.519 | R2 teste:   0.654 | ||beta||_2:  2.480
+# p=40 | R2 treino:  0.687 | R2 teste:   0.397 | ||beta||_2:  8.975
+# p=80 | R2 treino:  0.917 | R2 teste:  -2.860 | ||beta||_2: 36.883
+# p=95 | R2 treino:  0.974 | R2 teste:  -7.471 | ||beta||_2: 52.969
+3. [SAÍDA DE CÓDIGO] bloco OLS × Ridge(alpha=100): saídas reais
+# OLS (sem regularização)  | R² treino:  0.956 | R² teste: -1.472 | ||beta||_2: 64.678
+# Ridge (alpha = 100.0)    | R² treino:  0.641 | R² teste:  0.538 | ||beta||_2:  2.363
+(atualize a prosa que citar −0,985, 0,578 etc.)
+4. [SAÍDA DE CÓDIGO] bloco do Lasso com 5 de 50 variáveis: saídas reais
+# R² teste (OLS, 50 variáveis)   : 0.875
+# R² teste (Lasso, alpha=0.25)   : 0.897
+# Coeficientes != 0 no Lasso     : 5 de 50
+# Índices selecionados           : [0, 1, 2, 3, 4]
+(o Lasso acertou exatamente as 5 variáveis verdadeiras; ajuste a prosa se ela falar em 6 ou no índice 27).
+5. [SAÍDA DE CÓDIGO + PROSA] bloco Lasso × ElasticNet com grupo correlacionado: saídas reais
+# Lasso (alpha=0.2)               | R² teste: 0.795 | Grupo (4): 3 | Ruído (26): 0
+# ElasticNet (0.2, l1_ratio=0.5)  | R² teste: 0.802 | Grupo (4): 4 | Ruído (26): 6
+Na frase seguinte, acrescente que o elastic net mantém as 4 variáveis do grupo, mas também deixa entrar 6 variáveis de ruído (com pesos pequenos), enquanto o lasso fica com 3 das 4 e nenhuma de ruído; o R² de teste é parecido (≈ 0,80).
+6. [SAÍDA DE CÓDIGO] bloco RidgeCV × LassoCV: saídas reais
+# RidgeCV alpha*:   7.499 | R² teste: 0.711
+# LassoCV alpha*:   0.110 | R² teste: 0.730
+7. [SAÍDA DE CÓDIGO] bloco da CV aninhada: saídas reais
+# R² por dobra externa: [0.659 0.532 0.483 0.723 0.753]
+# R² médio (CV aninhada): 0.630
+8. [SAÍDA DE CÓDIGO + PROSA] bloco OLS × RidgeCV nos 20 voxels: saídas reais
+# Correlação média de teste (OLS)    : 0.678
+# Correlação média de teste (RidgeCV): 0.780
+e na frase seguinte: "a regressão comum atinge correlação de cerca de 0,68, enquanto o RidgeCV com um alpha_ por voxel sobe para cerca de 0,78".
+9. [SAÍDA DE CÓDIGO] bloco da solução que compara OLS, ridge global e ridge por voxel: saídas reais
+# Corr. média OLS          : 0.678
+# Corr. média Ridge global : 0.781 (alpha=121.2)
+# Corr. média Ridge/voxel  : 0.780
+# Faixa de alpha_ por voxel: [28.7, 316.2]
+e corrija a prosa da solução: aqui o ridge global e o ridge por voxel empatam (≈ 0,78), porque os voxels simulados têm relação sinal-ruído parecida; o alpha por voxel compensa quando os voxels diferem muito em ruído.
+10. [PEDAGÓGICO, do revisor] prop:8-6-ridge-solucao: acrescente uma frase dizendo que $\mathbf{u}_j(\mathbf{u}_j^\top\mathbf{y})$ é a projeção ortogonal de y sobre a direção principal $\mathbf{u}_j$, e que a ridge encolhe mais as projeções nas direções de $d_j$ pequeno.
+11. [PEDAGÓGICO, do revisor] prop:8-6-soft-thresholding: acrescente uma frase lembrando que o StandardScaler dá $\frac{1}{n}\sum x_i^2 = 1$ (logo $\sum x_i^2 = n$), diferente da normalização $\sum x_i^2 = 1$ usada na dedução, e aponte o exemplo que faz a conversão.
+12. [FORMATO, do revisor] exm:8-6-colinear: use ponto e vírgula também em $\mathbf{x}_1 = (1;\; 1;\; -1;\; -1)^\top$.
+13. [TAMANHO] A aula tem cerca de 5 100 palavras de prosa; ao fazer as edições acima, não aumente o total (compense cortando repetições).

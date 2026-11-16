@@ -1,0 +1,15 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o AUTOR da aula conteudo/modulo-09/tema-05.dlt (Módulo 9 · Deep Learning). Releia docs/PADRAO-AULAS.md e o bloco "Regras deste projeto" de docs/DELTA-COLA.md. O gestor técnico compilou, rodou o lint e executou TODOS os blocos de código da sua aula. Faça as correções abaixo editando o próprio arquivo.
+
+1) TAMANHO (obrigatório). O contrato limita a aula a 5000 palavras de prosa. Pela contagem do gestor (sem código; cada fórmula conta como 1 palavra), sua aula tem 6606 palavras (abertura 449; seção 1: 1567; seção 2: 1374; seção 3: 1289; seção 4: 1552; Resumo 214; Para ir além 161). Reduza para 4500–5000 palavras. Orçamento: abertura ≤ 300 palavras; cada uma das 4 seções de conteúdo ≤ 1050 palavras; Resumo ≤ 170; Para ir além ≤ 120. Como enxugar sem perder qualidade:
+   - corte repetições, parágrafos de transição longos, frases que reexplicam a mesma ideia e comentários motivacionais;
+   - mantenha em cada seção: a intuição (curta), as definições/proposições, 2 exemplos resolvidos (pelo menos 1 biológico) e 3 exercícios (um "Básico —", um "Intermediário —", um "Avançado —"; pelo menos 1 aplicado à neurociência/biologia e pelo menos 1 de conta à mão), cada um com <hint> e <solution> completa porém enxuta; remova o exercício excedente que menos acrescenta (se ele for referenciado por <ref>, ajuste a referência); renumere os ids dos exercícios para ficarem sequenciais (exr:9-T-S-1, -2, -3);
+   - mantenha o "Armadilha comum" de cada seção (pode encurtar);
+   - os blocos de código podem ficar (não contam no limite), mas encurte a prosa que os cerca.
+   - NÃO introduza contas novas sem refazê-las duas vezes; ao encurtar uma solução, preserve os passos numéricos.
+
+2) CORREÇÕES ESPECÍFICAS (o gestor executou o código; as saídas reais estão abaixo — os comentários "# ..." de saída esperada têm de refletir essas saídas reais, com ≈ quando for resultado de treino):
+   a) Todos os blocos rodaram sem erro e cod:9-5-atencao-numpy reproduz exatamente o exemplo à mão. Ajustes de saída: em cod:9-5-atencao-numpy a diferença máxima real é "Diferença máxima: 5.22e-08" (comente "≈ 5e-08"); em cod:9-5-transformer-seq a saída real é "Acurácia no teste: 0.985" (comente "≈ 0.98 (pode variar um pouco entre versões/máquinas)"); em cod:9-5-multihead-causal os pesos reais da cabeça 0 são [[1.0000, 0, 0, 0], [0.8210, 0.1790, 0, 0], [0.1880, 0.3740, 0.4380, 0], [0.5200, 0.3590, 0.1190, 0.0010]] e "Parâmetros MultiheadAttention: 16640 | Fórmula: 16640" — mostre essa matriz no comentário.
+
+3) Depois de tudo, releia o arquivo inteiro procurando XML inválido (< ou & puros na prosa, $ desemparelhado, tags não fechadas) e ids/<ref> quebrados. Responda só com uma linha: o caminho do arquivo e a nova contagem aproximada de palavras.

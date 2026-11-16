@@ -1,0 +1,22 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o autor da aula conteudo/modulo-08/tema-07.dlt (já escrita por você). O gestor técnico compilou (delta build e delta lint passaram), EXECUTOU todos os blocos de código no Python com scikit-learn e conferiu as contas; um revisor independente escreveu docs/revisao/modulo-08/tema-07.md. Faça EXATAMENTE as correções listadas abaixo, editando o arquivo existente com edições pontuais: NÃO reescreva a aula do zero e não mexa no que não foi pedido. Mantenha as regras de docs/DELTA-COLA.md (bloco "Regras deste projeto") e de docs/PADRAO-AULAS.md. Saídas de código: copie os valores reais EXATAMENTE como estão abaixo (eles vieram da execução); mantenha o formato "# ..." na linha seguinte ao print. Quando um número de saída aparecer também na prosa, atualize a prosa para ficar coerente. Ao terminar, responda com a lista do que mudou.
+
+CORREÇÕES:
+1. [SAÍDAS DE CÓDIGO] Troque os comentários de saída abaixo pelos valores reais da execução (os demais comentários já estão certos):
+   - primeiro bloco da seção 1 (KNN bruto × padronizado): "# Acurácia KNN (dados brutos)       : 0.556" e "# Pesos padronizados [taxa, repouso, largura]: [ 0.235  0.12  -3.991]".
+   - bloco StandardScaler × RobustScaler: "# Acurácia com StandardScaler: 0.917" (RobustScaler 0.950 está certo).
+   - bloco do VIF das bandas: "# VIF [delta, alfa, beta]          : [ 1.04 15.62 15.62]", "# Número de condição de Z^T Z      : 62.7", "# Desvio bootstrap dos coefs       : [0.104 0.328 0.303]", "# R² de teste (previsão)           : 0.900".
+   - bloco da dependência tripla: "# Maior |correlacao| par a par : 0.716", "# VIF [x1, x2, x3]             : [365.4 437.4 746.9]", "# Desvio bootstrap OLS         : [1.895 1.912 1.904]", "# Desvio bootstrap Ridge (a=5) : [0.071 0.09  0.058]".
+   - bloco forward/backward: "# forward  (4 vars) -> ['bmi', 'bp', 's3', 's5'] | R² teste: 0.331" e "# backward (4 vars) -> ['bmi', 'bp', 's3', 's5'] | R² teste: 0.331".
+   - bloco de vazamento na seleção: "# Acurácia com vazamento (errado) : 0.650" e "# Acurácia no Pipeline (correto)  : 0.433".
+   - bloco da importância por permutação (EEG): "# Acurácia de base no teste: 0.879", "# delta  | importância:  0.242 +/- 0.044", "# teta   | importância:  0.000 +/- 0.000", "# alfa   | importância:  0.128 +/- 0.039", "# beta   | importância:  0.006 +/- 0.005", "# gama   | importância:  0.002 +/- 0.004".
+   - bloco treino × teste da importância: "# R² treino: 0.922 | R² teste: 0.783", "# Treino -> reais: [1.129, 0.585] | máx ruído: 0.032", "# Teste  -> reais: [1.370, 0.587] | máx ruído: 0.018".
+2. [PROSA] Depois do bloco da dependência tripla: "nenhuma correlação 2 a 2 assusta (0,716), mas a dependência tripla eleva o VIF para centenas (≈ 365 a 750); a Ridge reduz a variabilidade dos coeficientes em mais de 20 vezes".
+3. [PROSA] Depois do bloco de vazamento: "o vazamento fabrica cerca de 65 % de acurácia ilusória" (não 80 %); a seleção correta fica perto do acaso (≈ 0,43–0,50).
+4. [PROSA] Atualize qualquer outra frase que cite os valores antigos (0,569; 0,900 do StandardScaler; 10,48; 39,4; 0,858; 0,352; 0,909; 0,197; 0,145; 0,562 etc.).
+5. [PEDAGÓGICO, do revisor] def:8-7-padronizacao: acrescente um <sidenote> distinguindo coeficiente semi-padronizado ($\hat{\beta}_j s_j$, y na unidade original) de totalmente padronizado (y também padronizado).
+6. [PEDAGÓGICO, do revisor] def:8-7-vif-condicao: acrescente que $\kappa(\mathbf{Z}^\top\mathbf{Z}) = \kappa(\mathbf{Z})^2$; com o valor real do código (62,7), a razão entre o maior e o menor valor singular de Z é $\sqrt{62{,}7} \approx 7{,}9$.
+7. [PEDAGÓGICO, do revisor] def:8-7-stepwise: explique que o "1" inicial é o modelo nulo (só intercepto) e o resto é $p + (p-1) + \dots + 1 = p(p+1)/2$.
+8. [PEDAGÓGICO, do revisor] def:8-7-permutacao: observe que o desvio usa divisor R (como np.std, ddof=0, no permutation_importance), não R − 1.
+9. [FORMATO, do revisor] exr:8-7-4-1: remova os espaços sobrando antes de ")" e ";" no enunciado.

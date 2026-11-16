@@ -1,0 +1,15 @@
+- M3 tema-01 Funções vetoriais: trajetória da atividade de 2–3 neurônios no "espaço de estados" ao longo do tempo; curvas paramétricas; velocidade como derivada da função vetorial. Figura: trajetória 2D.
+- M3 tema-02 Diferencial em várias variáveis: parciais, gradiente como direção de maior subida, derivada direcional, diferenciabilidade, regra da cadeia multivariável ligada explicitamente ao backpropagation (sem entrar em redes).
+- M3 tema-03 Integrais múltiplas: integrais duplas e triplas em retângulos e caixas; probabilidade conjunta como volume; mudança para polares e a integral da gaussiana.
+- M4 (o guia não traz subtemas; as seções são estas):
+  - tema-01 Espaço de variáveis: espaço de parâmetros, função custo como paisagem, curvas de nível; exemplo: ajustar 2 parâmetros de um modelo a dados.
+  - tema-02 Minimização e maximização: pontos críticos, teste da segunda derivada em 1D e com a Hessiana 2×2, sela; noção de otimização com restrição (Lagrange, nível introdutório).
+  - tema-03 Métodos computacionais: gradiente descendente com código numpy, taxa de aprendizado (grande demais e pequena demais), mínimos locais × global, paisagem de energia (conceito de Hopfield), menção ao gradiente estocástico. Figura: curvas de nível com a trajetória do gradiente descendente.
+- M5 (sem subtemas; defina de 3 a 5 seções por tema e registre-as no relatório; numpy em todos os temas):
+  - tema-01 Vetores, matrizes e operações: dados neurônios × tempo; produto matriz-vetor como pesos sinápticos.
+  - tema-02 Sistemas lineares e transformações: eliminação de Gauss; matriz como transformação do plano; mistura de fontes no EEG.
+  - tema-03 Bases e espaços vetoriais: span, independência, base, dimensão, mudança de base.
+  - tema-04 Ortogonalidade: produto interno, projeção, Gram–Schmidt, mínimos quadrados como projeção (prepara a regressão do Módulo 8).
+  - tema-05 Autovalores e autovetores: cálculo 2×2; estabilidade de x_{t+1} = A x_t; distribuição estacionária de uma cadeia de Markov.
+  - tema-06 Decomposições: diagonalização, SVD e PCA de uma população neural sintética, com código.
+- Notação consistente nos três módulos: vetores em negrito, matrizes maiúsculas em negrito.

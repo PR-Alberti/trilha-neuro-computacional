@@ -1,0 +1,9 @@
+DADOS DO MÓDULO (campo MODS do index.html):
+- Módulo 4 · Otimização — subtítulo "A Busca pelo Ótimo". Título do <document>: "Módulo 4 · Otimização". meta-item "Módulo": "Módulo 4 · Otimização — A Busca pelo Ótimo".
+- bio: "Treinar qualquer modelo de encoding/decoding é otimizar uma função de custo. Paisagens de energia também aparecem em redes atratoras (Hopfield) e no enovelamento de proteínas — otimização é vocabulário obrigatório."
+- Temas do módulo: 4.1 Espaço de variáveis (Básico); 4.2 Minimização e maximização (Intermediário); 4.3 Métodos computacionais (Avançado). O guia NÃO lista subtemas: as seções desta aula foram definidas pelo gestor e estão abaixo; use o rótulo <eyebrow>Seção N</eyebrow> em vez de "Subtema N".
+- mats: "Vídeo: 3Blue1Brown — Gradient Descent (série de Redes Neurais)", link https://www.youtube.com/watch?v=IHZwWFHWa-w ; e "YouTube para visualizações de superfícies e paisagens de custo" (sem link).
+- drill: "Em cada subseção, encontrar máximos e mínimos de funções de duas variáveis à mão, identificando pontos críticos."
+- final (projeto de certificação do módulo): "Explicar, usando uma paisagem de energia como exemplo, por que um método de descida de gradiente pode ficar preso em um mínimo local."
+- Objetivo do guia para o módulo: ter clara a ideia de espaço de variáveis, entender abstratamente o que é buscar o ótimo e ter uma introdução aos métodos computacionais e às suas limitações.
+- "Para ir além": o único link autorizado é https://www.youtube.com/watch?v=IHZwWFHWa-w (3Blue1Brown — Gradient Descent); mencione também o YouTube para visualizações de superfícies (sem link) e, se quiser, a documentação oficial https://numpy.org/doc/stable/ . Diga qual é o próximo tema/módulo.

@@ -1,0 +1,13 @@
+MÓDULO 2 (campos do MODS no index.html):
+- title: "Cálculo Real"; sub: "Taxas de Variação e Acúmulo". Título do documento: "Módulo 2 · Cálculo Real". meta-item Módulo: "Módulo 2 · Cálculo Real — Taxas de Variação e Acúmulo". Footer: "Módulo 2 · Cálculo Real — Guia de Estudos: ML para Neurociência Computacional."
+- bio: "A dinâmica do potencial de membrana é descrita por derivadas (Hodgkin-Huxley é um sistema de equações diferenciais). Integrais somam correntes sinápticas e áreas sob a resposta hemodinâmica que o fMRI mede."
+- mats (são livros, SEM link; cite-os pelo nome em "Para ir além", sem inventar capítulos nem páginas):
+  * Livro base: Guidorizzi — Um Curso de Cálculo, vol. 1
+  * Livro complementar: Anton, Bivens e Davis — Cálculo
+  * Livro complementar: James Stewart — Cálculo
+- drill: "Em cada subseção, selecionar exercícios de modelagem do Stewart focados em Biologia (geralmente ao final dos capítulos)." (mencione em "Para ir além")
+- final (projeto final do módulo): "Deduzir analiticamente a taxa instantânea de variação do potencial de membrana, dada uma função polinomial do tempo."
+- Temas do módulo, na ordem: 1 Limite, 2 Derivada, 3 Integral de Riemann. O Módulo 1 (Pré-Cálculo) já cobriu: Álgebra (potências, equações, desigualdades, |x − a| &lt; r como vizinhança), Geometria, Funções (domínio, imagem, composição, inversa, gráficos e transformações, curva de sintonia gaussiana, sigmoide), Trigonometria (radianos, círculo trigonométrico, senoides A·sen(2πft + φ), bandas de EEG, identidades) e Geometria Analítica (reta, inclinação, distância, círculo). O Módulo 3 é Cálculo Multivariável (gradiente, regra da cadeia multivariável); o Módulo 9 é Deep Learning (backpropagation).
+- Nível (meta-item "Nível"): lv 0 = "Básico", lv 1 = "Intermediário", lv 2 = "Avançado".
+- Notação do módulo (igual nas três aulas): limites \lim_{x \to a} f(x); derivadas f'(x), \dfrac{df}{dx} e \dfrac{dV}{dt}; integrais \int_a^b f(x)\,dx (sempre com \, antes do dx); somas de Riemann com \Delta x e pontos amostrais x_i^*; logaritmo natural \ln.
+- Tamanho: estes temas têm 6 subtemas cada. Seja enxuto para não passar de ~1,6 vez o tamanho da piloto: em cada seção, intuição curta, a formalização essencial, exatamente 2 exemplos e 3 exercícios (um Básico, um Intermediário, um Avançado).

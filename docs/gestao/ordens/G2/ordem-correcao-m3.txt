@@ -1,0 +1,14 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o AUTOR de duas aulas já escritas em Delta (Módulo 3). Releia docs/DELTA-COLA.md (bloco "Regras deste projeto") e aplique as correções abaixo, editando os arquivos no lugar. Não mude nada além do pedido; não altere nenhuma conta já feita. Ao terminar, releia os trechos alterados procurando tags não fechadas, cifrões desemparelhados e <ref> para ids inexistentes. Dentro de $...$ escreva < e > puros (NUNCA &lt; dentro da matemática); na prosa, &lt; e &gt;.
+
+=== ARQUIVO 1: conteudo/modulo-03/tema-02.dlt (Tema 3.2) — aprovado, mas LONGO DEMAIS ===
+1. A aula tem cerca de 6 000 palavras de prosa (sem contar fórmulas); o padrão é no máximo 5 000. Enxugue a PROSA em cerca de 20%: intros de seção com no máximo 2 frases; corte frases de transição e de motivação que repetem o que já foi dito; encurte <intuition> longas; mantenha TODOS os exemplos, exercícios, definições, teoremas, a figura e todas as contas exatamente como estão (pode encurtar frases explicativas dentro das soluções, desde que o raciocínio continue completo).
+2. exr:3-2-5-1: na solução, explicite que 140/13 ≈ 10,769 é estritamente menor que √116 ≈ 10,770 (o ângulo entre (5, 12) e (4, 10) é pequeno, menos de 1°), para o aluno não achar que os dois valores são iguais.
+3. exr:3-2-4-1: no enunciado, diga em meia frase que o gradiente do item (a) é a etapa preparatória para as derivadas segundas do item (b).
+
+=== ARQUIVO 2: conteudo/modulo-03/tema-03.dlt (Tema 3.3) — aprovado com polimentos ===
+4. exm:3-3-iterada-tripla (ou o exemplo da integral iterada nas duas ordens): explicite a passagem intermediária $\left[2y + \frac{4}{3}y^2\right]_0^2 = 4 + \frac{16}{3} = \frac{28}{3}$.
+5. exr:3-3-4-2: acrescente uma frase alertando que o fator correto é $\left|\frac{\partial(x,y)}{\partial(u,v)}\right| = \frac{1}{2}$, que é o inverso de $\left|\frac{\partial(u,v)}{\partial(x,y)}\right| = |-2| = 2$ — nunca use o jacobiano da transformação inversa no lugar.
+6. Onde o paralelepípedo $B = [a_1,b_1]\times[a_2,b_2]\times[a_3,b_3]$ é definido, diga que $[a_1,b_1]$, $[a_2,b_2]$ e $[a_3,b_3]$ são os intervalos de $x$, $y$ e $z$. Onde aparece $\text{vol}(E) = \iiint_E 1\,dV$, diga que $E$ é uma região sólida qualquer de $\mathbb{R}^3$ (análoga à região plana $D$).
+7. As soluções dos exercícios da seção sec:3-3-4 estão secas demais (só a conta). Em cada uma, acrescente 1 ou 2 frases de raciocínio antes da conta (por que polares, quais são os limites de $r$ e $\theta$ e por quê, de onde vem o fator $r$), sem mudar os resultados.

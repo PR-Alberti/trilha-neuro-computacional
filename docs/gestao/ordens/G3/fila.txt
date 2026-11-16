@@ -1,0 +1,13 @@
+$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/ordem-correcao-lote2.txt|$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/correcao-lote2.log|gemini-4-hydrogen-high
+$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/ordem-escrita-m7-t05.txt|$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/escrita-m7-t05.log|gemini-4-hydrogen-high
+$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/ordem-revisao-m7-t04.txt|$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/revisao-m7-t04.log|gemini-3.8-flash-high
+$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/ordem-revisao-m7-t03.txt|$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/revisao-m7-t03.log|gemini-3.8-flash-high
+$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/ordem-revisao-m6-t04.txt|$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/revisao-m6-t04.log|gemini-3.8-flash-high
+$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/ordem-revisao-m6-t05.txt|$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/revisao-m6-t05.log|gemini-3.8-flash-high
+$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/ordem-escrita-m6-t06.txt|$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/escrita-m6-t06.log|gemini-4-hydrogen-high
+$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/ordem-escrita-m7-t06.txt|$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/escrita-m7-t06.log|gemini-4-hydrogen-high
+$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/ordem-escrita-m6-t07.txt|$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/escrita-m6-t07.log|gemini-4-hydrogen-high
+$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/ordem-escrita-m7-t07.txt|$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/escrita-m7-t07.log|gemini-4-hydrogen-high
+$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/ordem-escrita-m6-t08.txt|$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/escrita-m6-t08.log|gemini-4-hydrogen-high
+$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/ordem-escrita-m6-t09.txt|$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/escrita-m6-t09.log|gemini-4-hydrogen-high
+$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/ordem-escrita-m6-t10.txt|$HOME/trilha-neuro-computacional/docs/gestao/ordens/G3/escrita-m6-t10.log|gemini-4-hydrogen-high

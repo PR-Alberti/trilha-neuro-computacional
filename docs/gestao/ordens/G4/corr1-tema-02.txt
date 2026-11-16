@@ -1,0 +1,35 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o autor da aula conteudo/modulo-08/tema-02.dlt (já escrita por você). O gestor técnico compilou (delta build e delta lint passaram), EXECUTOU todos os blocos de código no Python com scikit-learn e conferiu as contas; um revisor independente escreveu docs/revisao/modulo-08/tema-02.md. Faça EXATAMENTE as correções listadas abaixo, editando o arquivo existente com edições pontuais: NÃO reescreva a aula do zero e não mexa no que não foi pedido. Mantenha as regras de docs/DELTA-COLA.md (bloco "Regras deste projeto") e de docs/PADRAO-AULAS.md. Saídas de código: copie os valores reais EXATAMENTE como estão abaixo (eles vieram da execução); mantenha o formato "# ..." na linha seguinte ao print. Quando um número de saída aparecer também na prosa, atualize a prosa para ficar coerente. Ao terminar, responda com a lista do que mudou.
+
+CORREÇÕES:
+1. [ERRO FACTUAL] exm:8-2-despolarizacao (seção 1): o enunciado diz "abaixo do limiar de disparo", mas os potenciais −54, −42 e −26 mV estão acima do limiar típico (≈ −55 mV) — o neurônio dispararia. Troque os dados por correntes I ∈ {0; 0,1; 0,2; 0,3} nA e potenciais V_m ∈ {−70; −65,5; −62,5; −58} mV e refaça a solução com estes números (já conferidos): Ī = 0,15 nA; V̄ = (−70 − 65,5 − 62,5 − 58)/4 = −256/4 = −64 mV; desvios I_i − Ī = (−0,15; −0,05; 0,05; 0,15) e V_i − V̄ = (−6; −1,5; 1,5; 6); Σ(I_i − Ī)² = 0,0225 + 0,0025 + 0,0025 + 0,0225 = 0,05; Σ(I_i − Ī)(V_i − V̄) = 0,9 + 0,075 + 0,075 + 0,9 = 1,95; R̂_in = 1,95/0,05 = 39 mV/nA = 39 MΩ; V̂_rep = −64 − 39·0,15 = −64 − 5,85 = −69,85 mV (perto dos −70 mV típicos). Mantenha a conferência de unidades 1 mV/nA = 1 MΩ.
+2. [SAÍDA DE CÓDIGO] cod:8-2-multipla: troque as duas primeiras linhas de saída por
+# Intercepto e pesos (lstsq):   [ 4.946 11.865 -4.144  3.08 ]
+# Intercepto e pesos (sklearn): [ 4.946 11.865 -4.144  3.08 ]
+(as outras duas linhas continuam iguais).
+3. [SAÍDA DE CÓDIGO] solução do exr:8-2-2-3: a execução imprime "Soma dos resíduos de treino: -0.000" (zero numérico com sinal), o que confunde. Troque o print por print(f"|Soma dos resíduos de treino|: {abs(soma_res):.3f}") e o comentário por # |Soma dos resíduos de treino|: 0.000 .
+4. [SAÍDA DE CÓDIGO + PROSA] cod:8-2-polinomial: saídas reais
+# Grau  1 | MSE treino: 182.746 | MSE teste: 125.346 | R² teste: -0.003
+# Grau  2 | MSE treino: 51.757 | MSE teste:  33.272 | R² teste:  0.734
+# Grau  4 | MSE treino: 25.683 | MSE teste:  19.803 | R² teste:  0.842
+# Grau 15 | MSE treino: 17.663 | MSE teste: 181.541 | R² teste: -0.452
+Atualize o parágrafo logo depois do bloco: graus 2 e 4 com R² de teste de cerca de 0,73 e 0,84; o grau 15 derruba o erro de treino para cerca de 17,7, mas o MSE de teste sobe para cerca de 182 (R² de teste negativo, ≈ −0,45, pior que prever a média).
+5. [SAÍDA DE CÓDIGO] solução do exr:8-2-3-4: saídas reais
+# Grau  1 | R² teste: -0.062
+# Grau  3 | R² teste:  0.790
+# Grau  5 | R² teste:  0.769
+# Grau 12 | R² teste: -9.143
+Acrescente depois do bloco uma frase de solução: o melhor é o grau 3 (≈ 0,79), o grau 5 é parecido e o grau 12 desaba (R² ≈ −9, muito pior que prever a média) por sobreajuste e oscilação nas bordas.
+6. [SAÍDA DE CÓDIGO + PROSA] cod:8-2-encoding: saídas reais
+# Pesos estimados (rosto, casa, contraste): [2.512 0.343 1.   ]
+# R² no bloco de teste: 0.847
+# Correlação r (previsto vs. observado): 0.935
+No parágrafo depois do bloco, troque "R² de teste cerca de 0,72 (e correlação r cerca de 0,85)" por "R² de teste de cerca de 0,85 (e correlação r de cerca de 0,93)".
+7. [SAÍDA DE CÓDIGO] solução do exr:8-2-4-4: saídas reais
+# Sem HRF (bruto)        | R² teste: -0.058
+# Com HRF (convoluído)   | R² teste:  0.847
+e, se houver prosa citando 0,724 ou −0,028, atualize.
+8. [FORMATO] fig/t02-polinomios.py: acrescente plt.rcParams['svg.fonttype'] = 'none' logo após os imports (regra do projeto), sem mudar mais nada no script.
+9. [PEDAGÓGICO] exm:8-2-matriz-polinomial: na primeira vez que aparecer $\boldsymbol{\Phi}$, acrescente uma frase curta dizendo que $\boldsymbol{\Phi}$ é a matriz de projeto com as colunas transformadas pela base polinomial e faz o mesmo papel de $\mathbf{X}$ da seção 2.
+10. [PEDAGÓGICO] exm:8-2-convolucao-mao, frase final: "quando o estímulo já desligou há três TRs" é ambígua (o estímulo desliga em t = 3). Reescreva como "três TRs depois do último volume com estímulo (t = 2)".

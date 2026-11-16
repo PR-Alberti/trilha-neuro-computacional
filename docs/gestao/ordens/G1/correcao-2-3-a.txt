@@ -1,0 +1,15 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o autor da aula conteudo/modulo-02/tema-03.dlt (Integral de Riemann). A aula NÃO compila: o compilador Delta acusou 29 erros KaTeX, todos do mesmo tipo. Dentro da matemática ($...$, $$...$$, <m>, <equation>, <equations>) os sinais < e > devem ser escritos PUROS, e você escreveu as entidades &lt; e &gt;. Exemplos das mensagens exatas:
+
+error: KaTeX: KaTeX parse error: Expected 'EOF', got '&' at position 6: \tau &̲gt; 0 (tema-03.dlt:819)
+error: KaTeX: KaTeX parse error: Expected 'EOF', got '&' at position 3: a &̲lt; b (tema-03.dlt:49)
+error: KaTeX: KaTeX parse error: Expected 'EOF', got '&' at position 6: f(x) &̲lt; 0 (tema-03.dlt:40)
+error: KaTeX: KaTeX parse error: Expected 'EOF', got '&' at position 24: … -\frac{1}{18} &̲lt; 0 (tema-03.dlt:718)
+error: KaTeX: KaTeX parse error: Expected 'EOF', got '&' at position 10: f(0) = 4 &̲gt; g(0) = 2 (tema-03.dlt:748)
+
+Linhas (aproximadas, contadas a partir do início do bloco que contém a fórmula) apontadas pelo compilador: tema-03.dlt:40 tema-03.dlt:49 tema-03.dlt:143 tema-03.dlt:226 tema-03.dlt:257 tema-03.dlt:403 tema-03.dlt:413 tema-03.dlt:466 tema-03.dlt:472 tema-03.dlt:480 tema-03.dlt:529 tema-03.dlt:555 tema-03.dlt:573 tema-03.dlt:584 tema-03.dlt:667 tema-03.dlt:695 tema-03.dlt:700 tema-03.dlt:718 tema-03.dlt:734 tema-03.dlt:748 tema-03.dlt:772 tema-03.dlt:819 tema-03.dlt:842 tema-03.dlt:847 
+
+TAREFA: percorra o arquivo inteiro e, em TODA ocorrência de &lt; ou &gt; que esteja dentro de matemática (entre $...$ ou $$...$$ ou dentro de <m>, <equation>, <equations>), troque por < ou > puros (ex.: $\tau &gt; 0$ vira $\tau > 0$; $f(x) &lt; 0$ vira $f(x) < 0$). Na PROSA (fora da matemática e do código) mantenha &lt; e &gt;. Pelo que vi, as 25 ocorrências de &lt;/&gt; do arquivo estão todas dentro de matemática. Leia docs/DELTA-COLA.md, seção 3, tabela "O que escapar e o que não escapar".
+
+Faça só essa correção agora; não altere conteúdo, contas nem outros arquivos.

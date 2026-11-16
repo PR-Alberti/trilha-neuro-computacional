@@ -1,0 +1,26 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é um revisor técnico rigoroso, ao mesmo tempo matemático, neurocientista computacional, programador Python experiente e professor de alunos de Biologia. Leia docs/PADRAO-AULAS.md, docs/DELTA-COLA.md e a aula conteudo/modulo-07/tema-03.dlt. Não edite a aula. Escreva docs/revisao/modulo-07/tema-03.md com:
+
+1. Veredito: APROVAR ou CORRIGIR.
+2. Tabela de problemas, com as colunas:
+   - severidade: erro matemático, erro factual, pedagógico ou formato;
+   - local: seção, id e linha aproximada;
+   - trecho;
+   - correção sugerida.
+
+Refaça todas as contas dos exemplos e das soluções dos exercícios. Confira também:
+- se cada exercício tem dica e solução completa;
+- se cada seção tem pelo menos um exemplo biológico;
+- se as afirmações de neurociência são de livro-texto;
+- se algum conceito é usado antes de ser apresentado;
+- se o código Python roda como está (leia linha a linha: imports, nomes de variáveis, shapes, argumentos de funções de numpy/pandas/scipy/sklearn/matplotlib, e se as saídas escritas nos comentários batem com o que o código imprime);
+- se a notação é consistente;
+- se a aula cobre todos os subtemas pedidos;
+- se o tamanho está dentro do padrão.
+
+Seções que a aula deveria cobrir (definidas pelo gestor), com o conteúdo esperado:
+1. sec:7-3-1 "População, amostra, parâmetro e estatística" — população × amostra; parâmetro (μ, σ², p: fixo e desconhecido) × estatística (função da amostra: aleatória); amostra aleatória simples e a hipótese i.i.d.; viés de amostragem. Exemplos biológicos: a taxa de disparo média de TODOS os neurônios de uma área cortical × os 40 neurônios registrados; eletrodos extracelulares tendem a captar melhor neurônios maiores e mais ativos (viés de amostragem, dito com cautela); medir o potencial de repouso de 30 células de uma fatia.
+2. sec:7-3-2 "Estimadores e viés" — estimador \hat{\theta} como variável aleatória; viés = \mathbb{E}[\hat{\theta}] − θ; a média amostral é não viesada (demonstração curta); a variância amostral com n − 1, s^2 = \frac{1}{n-1}\sum (X_i − \bar{X})^2, é não viesada e a versão com n subestima σ² pelo fator (n−1)/n (demonstração recolhível, usando Σ(X_i − X̄)² = ΣX_i² − nX̄² e Var(X̄) = σ²/n); erro quadrático médio EQM = viés² + variância, de forma breve. Armadilha comum de código: np.var e np.std usam ddof=0 por padrão, enquanto pandas .var() e .std() usam ddof=1 — mostre a diferença num vetor pequeno com contas à mão. Código: simulação com 100000 amostras de tamanho n = 5 de N(0, 1) mostrando média de s² com ddof=0 ≈ 0,8 e com ddof=1 ≈ 1,0 ("aprox.").
+3. sec:7-3-3 "Erro padrão" — Var(X̄) = σ²/n (demonstração a partir da variância da soma de independentes); erro padrão da média EP = σ/√n, estimado por s/√n; desvio-padrão (variabilidade dos dados) × erro padrão (incerteza da média) — retome a armadilha de barras de erro do Módulo 6 (Visualizações); lei da raiz de n: para reduzir o EP à metade é preciso 4 vezes mais dados. Exemplos biológicos: 25 neurônios com s = 10 Hz → EP = 2 Hz; quantos ensaios para que o EP da latência média de um potencial evocado caia de 8 ms para 2 ms (16 vezes mais ensaios). Código: simular muitas amostras e comparar o desvio-padrão das médias com σ/√n.
+4. sec:7-3-4 "Intervalo de confiança" — IC para a média com σ conhecido: x̄ ± z_{0,975}·σ/√n com z ≈ 1,96; com σ desconhecido: x̄ ± t_{n−1; 0,975}·s/√n (distribuição t de Student — Gosset, 1908 — mais "larga" que a normal para n pequeno; obtenha os quantis com scipy.stats.t.ppf; ex.: t_{24; 0,975} ≈ 2,064); interpretação frequentista correta (o procedimento cobre μ em 95% das repetições; um intervalo específico contém ou não contém μ); armadilha comum: "há 95% de probabilidade de μ estar neste intervalo" (diga que essa frase é a de um intervalo de credibilidade Bayesiano, "que veremos no tema Inferência Bayesiana"). Exemplo biológico: potencial de repouso de n = 25 células com x̄ = −68,4 mV e s = 4,0 mV: IC 95% = −68,4 ± 2,064·0,8 = −68,4 ± 1,65 mV, isto é, aproximadamente [−70,05; −66,75] mV — confira. Código: simulação de cobertura (repetir 10000 vezes, contar quantos ICs contêm μ: "aprox. 0.95").

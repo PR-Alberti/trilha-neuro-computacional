@@ -1,0 +1,4 @@
+   a) Todos os blocos rodaram sem erro. Saídas determinísticas conferem com os comentários (cod:9-6-adjacencia, cod:9-6-message-passing, cod:9-6-limiar-pooling e os blocos das soluções). Ajustes:
+      - cod:9-6-gcn-sbm, saída real: "Acurácia no teste (MLP, sem grafo): 71.1%" e "Acurácia no teste (GCN, com grafo): 96.7%". Troque as faixas por "≈ 71%" e "≈ 97%" (pode variar um pouco).
+      - Bloco de oversmoothing (solução de exercício, linha ~759), saída real: k=0 0.3540 · k=1 0.3465 · k=2 0.3344 · k=4 0.3077 · k=16 0.1554. Seus comentários (0.34, 0.26, 0.20, 0.13, 0.04) estão ERRADOS. Use os valores reais e ajuste o texto: a dispersão cai devagar nas primeiras camadas e cai pela metade após 16 propagações — a suavização excessiva aparece com muitas camadas, não com 2.
+      - Bloco de classificação de grafos (linha ~962), saída real: "Acurácia no teste (12 grafos): 100.0%". Comente "≈ 100% (apenas 12 grafos de teste: estimativa muito incerta)".

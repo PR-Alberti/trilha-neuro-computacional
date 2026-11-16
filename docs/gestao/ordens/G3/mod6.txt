@@ -1,0 +1,17 @@
+DADOS DO MÓDULO 6 (do array MODS do index.html):
+- title: "Programação (Python)" · sub: "Saindo da Teoria para a Prática Ferramental"
+- Título do <document>: "Módulo 6 · Programação (Python)". Meta "Módulo": "Módulo 6 · Programação (Python) — Saindo da Teoria para a Prática Ferramental". Footer: "Módulo 6 · Programação (Python) — Guia de Estudos: ML para Neurociência Computacional."
+- bio: "Da análise de spikes ao pré-processamento de EEG e fMRI (MNE, nilearn), a neurociência computacional vive em Python. Reprodutibilidade e versionamento são exigências de laboratórios e revistas — não detalhes."
+- mats (use em "Para ir além", com este texto e este link): "Curso IMPATech — repositório no GitHub" → https://github.com/ry4n-felinto/impytech_2026 . Pode acrescentar documentações oficiais da lista de links permitidos.
+- drill: "Dica de sobrevivência: programação se aprende programando. Escreva código até a mão cansar." (cite essa dica em "Para ir além").
+- final (projeto final do módulo): "Escrever um script em Python que baixe dados neurais públicos (ex.: OpenNeuro) via API, passe por um pipeline de limpeza leve, mostre 2 gráficos e suba tudo no GitHub de forma padronizada e limpa."
+- Temas do módulo, na ordem: 1 Ambientes · 2 Comandos iniciais e lógica básica · 3 Informática básica · 4 Estruturas de dados básicas · 5 Códigos funcionais · 6 Bibliotecas · 7 Visualizações · 8 Orientação a objetos · 9 Complexidade · 10 Prática.
+- Módulos anteriores da trilha: 1 Pré-Cálculo, 2 Cálculo Real, 3 Cálculo Multivariável, 4 Otimização, 5 Álgebra Linear. Posteriores: 7 Estatística e Probabilidade, 8 Machine Learning, 9 Deep Learning.
+
+ESPECÍFICO DO MÓDULO 6 (aulas práticas):
+- Muitos blocos de código, curtos e comentados, sempre seguidos de explicação em prosa do que aconteceu.
+- Na aula de programação, <definition> define conceitos (o que é uma variável, uma função, um caminho absoluto...); use <proposition> só quando houver uma regra precisa.
+- Os exercícios são TAREFAS DE CÓDIGO (ou de comandos), com a SOLUÇÃO EM CÓDIGO dentro da <solution> (um <code lang="python"> ou <code lang="bash"> com a saída esperada em comentário) e uma explicação em prosa do raciocínio. A dica (<hint>) aponta a ferramenta ou o passo, sem dar o código pronto.
+- Exemplos biológicos preferidos: conteúdo GC de uma sequência de DNA, conversão de unidades (mV↔V, ms↔s, Hz), contagem de spikes por limiar, tabelas de experimentos (animal, condição, taxa de disparo), potencial de membrana ao longo do tempo.
+- Neste módulo não há fórmulas pesadas; o Resumo traz os comandos e as regras-chave (pode usar <c>...</c> para código inline).
+

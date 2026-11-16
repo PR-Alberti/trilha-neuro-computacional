@@ -1,0 +1,16 @@
+- Módulo 8 (o guia não traz subtemas; defina de 3 a 5 seções por tema e registre-as no relatório).
+- Todo tema tem código com scikit-learn. Dados: sintéticos que imitam dados neurais (curvas de sintonia mais ruído de Poisson, padrões de voxels) ou conjuntos que já vêm no sklearn.datasets (load_breast_cancer, load_iris, load_digits, load_diabetes, make_classification). Nada que baixe arquivos.
+- Retome explicitamente: Álgebra Linear (Módulo 5), Estatística (Módulo 7) e Otimização (Módulo 4).
+- Seções sugeridas:
+  - tema-01 Introdução: aprendizado supervisionado × não supervisionado; notação X (n×p) e y; treino × teste; viés-variância; sobreajuste.
+  - tema-02 Regressão (polinomial): linear simples e múltipla, mínimos quadrados, polinomial, encoding model de um voxel.
+  - tema-03 Classificação: logística, KNN, LDA; decodificação (MVPA).
+  - tema-04 Métricas estatísticas: matriz de confusão, acurácia, precisão, recall, F1, ROC/AUC, MSE e R², classes desbalanceadas.
+  - tema-05 Reamostragem: holdout, k-fold, leave-one-subject-out, bootstrap, vazamento de dados (data leakage), teste de permutação.
+  - tema-06 Regularização: ridge, lasso, elastic net, escolha de λ por validação cruzada; ridge nos encoding models.
+  - tema-07 Estudo de variáveis: padronização, seleção forward/backward, importância por permutação, multicolinearidade.
+  - tema-08 Árvores: árvore de decisão, Gini e entropia, poda, bagging, random forest.
+  - tema-09 Aprendizado não supervisionado: k-means, agrupamento hierárquico, PCA revisitado, como escolher k; tipos celulares e spike sorting.
+  - tema-10 GAMs: splines e funções suaves aditivas. Implemente com SplineTransformer + Ridge do sklearn, porque pygam não está disponível. Destaque a interpretabilidade.
+  - tema-11 SVM: margem máxima, vetores de suporte, margem suave (C), kernels (RBF).
+  - tema-12 Métodos adicionais: ensembles, boosting (GradientBoosting do sklearn), stacking; XGBoost só como menção.

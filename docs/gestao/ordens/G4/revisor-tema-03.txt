@@ -1,0 +1,36 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é um revisor técnico rigoroso, ao mesmo tempo matemático, neurocientista computacional e professor de alunos de Biologia. Leia `docs/PADRAO-AULAS.md`, `docs/DELTA-COLA.md` e a aula `conteudo/modulo-08/tema-03.dlt`. **Não edite a aula.** Escreva `docs/revisao/modulo-08/tema-03.md` com:
+
+1. **Veredito**: APROVAR ou CORRIGIR.
+2. **Tabela de problemas**, com as colunas:
+   - severidade: erro matemático, erro factual, pedagógico ou formato;
+   - local: seção, id e linha aproximada;
+   - trecho;
+   - correção sugerida.
+
+Refaça **todas** as contas dos exemplos e das soluções dos exercícios. Confira também:
+- se cada exercício tem dica e solução completa;
+- se cada seção tem pelo menos um exemplo biológico;
+- se as afirmações de neurociência são de livro-texto;
+- se algum conceito é usado antes de ser apresentado;
+- se o código Python roda como está;
+- se a notação é consistente;
+- se a aula cobre todos os subtemas pedidos;
+- se o tamanho está dentro do padrão.
+
+Informações extras para esta revisão (Módulo 8, Machine Learning):
+- As seções pedidas ao autor estão listadas abaixo; confira se todas foram cobertas, na ordem.
+- Código: cada bloco deve ser autocontido e usar só numpy, pandas, matplotlib, scipy e scikit-learn, sem baixar arquivos. Leia cada bloco como um interpretador: imports faltando, nomes não definidos, formatos (shape) incompatíveis, APIs inexistentes ou obsoletas do scikit-learn (por exemplo penalty= ou multi_class= em LogisticRegression). Os valores nos comentários de saída serão conferidos pelo gestor executando o código; você só precisa apontar valores que sejam claramente impossíveis ou incoerentes com a prosa.
+- Escalas corretas das funções objetivo do scikit-learn: Ridge minimiza ||y − Xw||² + alpha·||w||² (sem 1/n); Lasso minimiza (1/(2n))||y − Xw||² + alpha·||w||₁; ElasticNet minimiza (1/(2n))||y − Xw||² + alpha·l1_ratio·||w||₁ + (alpha·(1 − l1_ratio)/2)·||w||²; LogisticRegression minimiza ½||w||² + C·Σ perda logística; SVC minimiza ½||w||² + C·Σ ξᵢ. O SplineTransformer gera n_knots + degree − 1 colunas por variável (padrão include_bias=True).
+- Citações permitidas (por nome e ano, sem detalhes inventados): Haxby et al. (2001), Kay et al. (2008), Naselaris et al. (2011), Huth et al. (2016), Kriegeskorte et al. (2009), Haufe et al. (2014), Breiman (2001), Tibshirani (1996), Hoerl & Kennard (1970), Cortes & Vapnik (1995), Efron (1979), Hastie & Tibshirani (1986/1990), Friedman (2001). Aponte como erro factual qualquer outra referência, número de página, ou detalhe inventado. Links permitidos: statlearning.com e páginas de scikit-learn.org.
+- Seja concreto: para cada erro de conta, escreva a conta certa.
+
+Seções pedidas ao autor desta aula:
+SEÇÕES (4, nesta ordem):
+1. sec:8-3-1 "Regressão logística" — por que a regressão linear não serve para classes (previsões fora de [0, 1]); função sigmoide $\sigma(z) = 1/(1 + e^{-z})$; modelo $\hat{p}(\mathbf{x}) = \sigma(\beta_0 + \boldsymbol{\beta}^\top\mathbf{x})$; log-chance (log-odds) linear em x; interpretação de $e^{\beta_j}$ como razão de chances; ajuste por máxima verossimilhança (retome o Módulo 7) = minimizar a entropia cruzada (log-loss); não há fórmula fechada, então usa-se otimização numérica (retome gradiente descendente, Módulo 4); regra de decisão com limiar 0,5 e fronteira linear $\beta_0 + \boldsymbol{\beta}^\top\mathbf{x} = 0$. Exemplo biológico: probabilidade de um neurônio disparar (ou de um sujeito detectar um estímulo, curva psicométrica) em função da intensidade do estímulo; exemplo numérico à mão: dados $\beta_0$ e $\beta_1$, calcular a probabilidade, a log-chance e o ponto de 50 %. Código: LogisticRegression(C=..., max_iter=1000) em load_breast_cancer com Pipeline(StandardScaler, ...) e acurácia de teste; predict_proba. Lembre que no sklearn C é o inverso da regularização (o Tema 8.6 explica).
+2. sec:8-3-2 "K vizinhos mais próximos (KNN)" — classificador não paramétrico: voto da maioria entre os K vizinhos mais próximos (distância euclidiana, retome norma do Módulo 5); K pequeno = fronteira irregular (baixo viés, alta variância), K grande = fronteira suave (retome viés-variância do 8.1); por que padronizar as variáveis (taxa em Hz × amplitude em µV); maldição da dimensionalidade em uma ou duas frases. Exemplo à mão: 6 a 8 pontos em 2D, classificar um ponto novo com K = 1 e K = 3 calculando as distâncias. Código: KNeighborsClassifier com vários K, acurácia de treino e teste.
+3. sec:8-3-3 "Análise discriminante linear (LDA)" — abordagem generativa: modela $\Pr(\mathbf{x} \mid y = k)$ como normal com média $\boldsymbol{\mu}_k$ e covariância COMUM $\boldsymbol{\Sigma}$, e usa a regra de Bayes com prioris $\pi_k$ (retome Inferência Bayesiana, Módulo 7); classificador de Bayes como ideal teórico; no caso 1D com duas classes, variâncias iguais e prioris iguais, a fronteira é $x = (\mu_1 + \mu_2)/2$ (proposição com prova curta); função discriminante $\delta_k(\mathbf{x}) = \mathbf{x}^\top\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}_k - \frac{1}{2}\boldsymbol{\mu}_k^\top\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}_k + \ln \pi_k$; fronteira linear; QDA em uma frase (covariâncias diferentes → fronteira quadrática); LDA × logística (quando cada uma vai melhor). Exemplo à mão 1D com prioris diferentes (mostrar como a fronteira se desloca, com conta de ln). Código: LinearDiscriminantAnalysis em load_iris ou dados sintéticos.
+4. sec:8-3-4 "Decodificação neural (MVPA)" — ideia de decodificação: a partir do padrão de atividade de muitos neurônios ou voxels, prever qual estímulo foi apresentado; análise de padrões multivariados (MVPA) e Haxby et al. (2001) como clássico; dados sintéticos: população de 30 a 50 neurônios com curvas de sintonia gaussianas de orientação e contagens de Poisson (taxas de 5 a 50 Hz, janela de 0,2 a 0,5 s), 2 ou 4 orientações como classes; comparar logística, KNN e LDA com train_test_split estratificado (ou cross_val_score, avisando que o 8.5 detalha); nível de acaso = 1/K classes; acurácia acima do acaso NÃO prova que a região "representa" o estímulo da mesma forma que o cérebro usa (cuidados de interpretação). Exemplo à mão: matriz pequena de 2 neurônios com taxas médias por estímulo e um ensaio novo classificado pelo centróide mais próximo.
+Armadilhas a cobrir: tratar a saída de predict_proba como certeza; não padronizar no KNN; avaliar no próprio treino; esquecer o nível de acaso (com 4 classes, 40 % de acurácia pode ser bom).
+Figura recomendada (no máximo 2): fig/t03-fronteiras.py com as fronteiras de decisão de logística, KNN (K = 1 e K = 15) e LDA num problema 2D sintético (make_moons ou duas nuvens gaussianas).

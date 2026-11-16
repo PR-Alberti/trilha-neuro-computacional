@@ -1,0 +1,54 @@
+1. [FORMATO — aviso do KaTeX "Accented Unicode text character used in math mode", 35 ocorrências] Dentro da matemática, palavra acentuada tem de ficar em \text{...}. Troque em TODO o arquivo: \mathrm{Acurácia} → \text{Acurácia}; \mathrm{Acurácia\ balanceada} → \text{Acurácia balanceada}; \mathrm{Precisão} → \text{Precisão}; \mathrm{Área} → \text{Área}; e qualquer outro \mathrm{...} com acento. (Linhas ≈ 59, 98, 101, 116, 274, 286, 315, 342, 516, 617, 883, 887, 913–918, 1031, 1033, 1123, 1124.) Por coerência, faça o mesmo com \mathrm{Taxa\ de\ erro}, \mathrm{Recall}, \mathrm{Especificidade}, \mathrm{Sensibilidade} (use \text{...}).
+2. [FORMATO] Nas matrizes dentro de $$...$$ (exm:8-4-eeg-crises, exm:8-4-multiclasse-mvpa e onde mais houver) o separador de colunas foi escrito como &amp;. Pela regra do projeto, dentro da matemática o & é puro: troque &amp; por & em toda matemática (na prosa, fora da matemática, continue usando &amp;).
+3. [SAÍDA DE CÓDIGO + PROSA] cod:8-4-confusao: saídas reais
+# Acurácia ingênua (classe majoritária): 0.895
+# Acurácia da regressão logística:       0.955
+# Matriz (TN, FP, FN, TP): 175, 4, 5, 16
+No parágrafo seguinte, "cerca de 90%" → "cerca de 89,5%".
+4. [SAÍDA DE CÓDIGO + PROSA] solução do exr:8-4-1-3: saídas reais
+# Acurácia ingênua: 0.389
+# Acurácia logística: 1.000
+# [[18  0  0]
+#  [ 0 21  0]
+#  [ 0  0 15]]
+e troque "cometendo apenas um erro fora da diagonal" por "sem nenhum erro fora da diagonal neste conjunto de teste (o que não garante 100 % em dados novos)".
+5. [SAÍDA DE CÓDIGO + PROSA] cod:8-4-metricas-clf: saídas reais
+# Precisão (maligno): 1.000
+# Recall (maligno):   0.962
+# F1-score (maligno): 0.981
+#               precision    recall  f1-score   support
+#
+#      Benigno      0.978     1.000     0.989        90
+#      Maligno      1.000     0.962     0.981        53
+#
+#     accuracy                          0.986       143
+#    macro avg      0.989     0.981     0.985       143
+# weighted avg      0.986     0.986     0.986       143
+No parágrafo seguinte, o recall da classe "Benigno" (= especificidade da classe "Maligno") passa a ser 1,000 (nenhum falso positivo neste teste).
+6. [SAÍDA DE CÓDIGO] cod:8-4-roc: saídas reais
+# Regressão logística  | AUC: 0.996 | Precisão média (AP): 0.994
+# KNN (K=25)           | AUC: 0.988 | Precisão média (AP): 0.980
+Coloque esses dois comentários logo depois do print dentro do laço (hoje estão depois de um plt.plot, o que confunde) ou, se preferir, logo após o fim do laço com a frase "# saída do laço:".
+7. [SAÍDA DE CÓDIGO] solução do exr:8-4-3-3: saídas reais
+# AUC correta (predict_proba): 0.996
+# AUC errada (predict 0/1):    0.981
+# Acurácia balanceada:         0.981
+8. [SAÍDA DE CÓDIGO + PROSA] cod:8-4-regressao: saídas reais
+# MSE teste:  14.492 Hz² | RMSE teste: 3.807 Hz | MAE teste: 3.035 Hz
+# Modelo calibrado    -> R²: 0.839 | Pearson r: 0.919
+# Modelo descalibrado -> R²: -17.419 | Pearson r: 0.919
+(atualize qualquer número citado na prosa ao redor).
+9. [SAÍDA DE CÓDIGO + PROSA] solução do exr:8-4-4-3: saídas reais
+# Sem outlier -> RMSE: 56.393 | MAE: 45.121
+# Com outlier -> RMSE: 61.853 | MAE: 46.922
+Frase final: o outlier aumentou o RMSE em cerca de 5,5 unidades (cerca de +9,7 %) e o MAE em cerca de 1,8 unidade (cerca de +4,0 %).
+10. [CÓDIGO PEDAGOGICAMENTE FRACO + PROSA] cod:8-4-desbalanceado: com os dados atuais a logística padrão nunca prevê positivo (recall 0, igual ao ingênuo) e a AUC fica em 0,70 — os dados são difíceis demais e o contraste didático se perde. Acrescente class_sep=2.0 ao make_classification (fica: make_classification(n_samples=2000, n_features=12, n_informative=4, n_redundant=2, weights=[0.95, 0.05], flip_y=0.02, class_sep=2.0, random_state=0)). Saídas reais com essa mudança:
+# Ingênuo (majoritário)  | Acc: 0.936 | AccBal: 0.500 | Rec: 0.000 | Prec: 0.000 | AUC: 0.500
+# Logística padrão       | Acc: 0.946 | AccBal: 0.578 | Rec: 0.156 | Prec: 1.000 | AUC: 0.772
+# Logística balanceada   | Acc: 0.702 | AccBal: 0.710 | Rec: 0.719 | Prec: 0.141 | AUC: 0.818
+Reescreva o parágrafo seguinte: a logística padrão tem acurácia de cerca de 0,946 (pouco acima dos 0,936 do ingênuo) mas só encontra cerca de 16 % dos positivos; com class_weight="balanced", o recall sobe para cerca de 0,72 e a acurácia balanceada para cerca de 0,71, ao preço de derrubar a acurácia bruta (≈ 0,70) e a precisão (≈ 0,14, muitos alarmes falsos).
+11. [CÓDIGO + PROSA] solução do exr:8-4-5-3: use EXATAMENTE o mesmo make_classification do item 10 (weights=[0.95, 0.05], flip_y=0.02, class_sep=2.0, random_state=0). Saídas reais:
+# tau=0.50 | Acc: 0.946 | AccBal: 0.578 | Rec: 0.156 | Prec: 1.000 | F1: 0.270
+# tau=0.30 | Acc: 0.958 | AccBal: 0.686 | Rec: 0.375 | Prec: 0.923 | F1: 0.533
+# tau=0.15 | Acc: 0.910 | AccBal: 0.719 | Rec: 0.500 | Prec: 0.356 | F1: 0.416
+Corrija a frase final: ao baixar τ de 0,50 para 0,15, o recall (0,16 → 0,38 → 0,50) e a acurácia balanceada sobem; a precisão cai (1,00 → 0,92 → 0,36); a acurácia bruta NÃO cai de forma monótona (sobe um pouco em τ = 0,30 e só cai em τ = 0,15); o F1 é máximo em τ = 0,30 entre os três limiares.

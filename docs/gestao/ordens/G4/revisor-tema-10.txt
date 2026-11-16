@@ -1,0 +1,35 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é um revisor técnico rigoroso, ao mesmo tempo matemático, neurocientista computacional e professor de alunos de Biologia. Leia `docs/PADRAO-AULAS.md`, `docs/DELTA-COLA.md` e a aula `conteudo/modulo-08/tema-10.dlt`. **Não edite a aula.** Escreva `docs/revisao/modulo-08/tema-10.md` com:
+
+1. **Veredito**: APROVAR ou CORRIGIR.
+2. **Tabela de problemas**, com as colunas:
+   - severidade: erro matemático, erro factual, pedagógico ou formato;
+   - local: seção, id e linha aproximada;
+   - trecho;
+   - correção sugerida.
+
+Refaça **todas** as contas dos exemplos e das soluções dos exercícios. Confira também:
+- se cada exercício tem dica e solução completa;
+- se cada seção tem pelo menos um exemplo biológico;
+- se as afirmações de neurociência são de livro-texto;
+- se algum conceito é usado antes de ser apresentado;
+- se o código Python roda como está;
+- se a notação é consistente;
+- se a aula cobre todos os subtemas pedidos;
+- se o tamanho está dentro do padrão.
+
+Informações extras para esta revisão (Módulo 8, Machine Learning):
+- As seções pedidas ao autor estão listadas abaixo; confira se todas foram cobertas, na ordem.
+- Código: cada bloco deve ser autocontido e usar só numpy, pandas, matplotlib, scipy e scikit-learn, sem baixar arquivos. Leia cada bloco como um interpretador: imports faltando, nomes não definidos, formatos (shape) incompatíveis, APIs inexistentes ou obsoletas do scikit-learn (por exemplo penalty= ou multi_class= em LogisticRegression). Os valores nos comentários de saída serão conferidos pelo gestor executando o código; você só precisa apontar valores que sejam claramente impossíveis ou incoerentes com a prosa.
+- Escalas corretas das funções objetivo do scikit-learn: Ridge minimiza ||y − Xw||² + alpha·||w||² (sem 1/n); Lasso minimiza (1/(2n))||y − Xw||² + alpha·||w||₁; ElasticNet minimiza (1/(2n))||y − Xw||² + alpha·l1_ratio·||w||₁ + (alpha·(1 − l1_ratio)/2)·||w||²; LogisticRegression minimiza ½||w||² + C·Σ perda logística; SVC minimiza ½||w||² + C·Σ ξᵢ. O SplineTransformer gera n_knots + degree − 1 colunas por variável (padrão include_bias=True).
+- Citações permitidas (por nome e ano, sem detalhes inventados): Haxby et al. (2001), Kay et al. (2008), Naselaris et al. (2011), Huth et al. (2016), Kriegeskorte et al. (2009), Haufe et al. (2014), Breiman (2001), Tibshirani (1996), Hoerl & Kennard (1970), Cortes & Vapnik (1995), Efron (1979), Hastie & Tibshirani (1986/1990), Friedman (2001). Aponte como erro factual qualquer outra referência, número de página, ou detalhe inventado. Links permitidos: statlearning.com e páginas de scikit-learn.org.
+- Seja concreto: para cada erro de conta, escreva a conta certa.
+
+Seções pedidas ao autor desta aula:
+SEÇÕES (4, nesta ordem; 3 ou 4 exercícios por seção):
+1. sec:8-10-1 "Além da linha reta: funções de base e splines" — limitações do polinômio global (oscila nas bordas, um ponto afeta a curva toda); funções-degrau por partes; splines de regressão: polinômios por partes de grau d unidos nos nós (knots), com continuidade da função e das d − 1 primeiras derivadas (spline cúbico: f, f' e f'' contínuas); a base de potências truncadas $(x - \xi)_+^3$ como forma de entender, e a base B-spline como a usada na prática (numericamente estável, cada função é não nula só num trecho); o número de funções de base mede a flexibilidade (graus de liberdade). Exemplo à mão: escrever as funções de base de um spline linear (grau 1) com um nó em ξ = 2 e avaliar o modelo em alguns pontos. Código: SplineTransformer + LinearRegression ajustando uma curva de sintonia sintética e comparando com um polinômio de grau alto nas bordas.
+2. sec:8-10-2 "Suavização: controlando a flexibilidade" — duas alavancas: número de nós e penalidade; splines de suavização (smoothing splines) minimizam $\sum_i (y_i - g(x_i))^2 + \lambda\int g''(t)^2\,dt$ (apresente como definição, sem prova; λ = 0 interpola, λ → ∞ dá uma reta); na prática deste curso: muitos nós + Ridge sobre os coeficientes da base (uma versão simples da ideia de splines penalizados; diga que é uma aproximação didática, não o mesmo que a penalidade de curvatura); escolher n_knots e alpha por validação cruzada (GridSearchCV, retome o 8.5); graus de liberdade efetivos em prosa (opcional; se der fórmula, use o traço da matriz chapéu da ridge e confira). Exemplo biológico: taxa de disparo de uma célula de lugar (place cell) do hipocampo ao longo de uma pista linear de 1 a 2 m (campo de lugar com pico de ≈ 20 Hz), dados sintéticos com Poisson. Figura recomendada: fig/t10-suavizacao.py com ajustes subsuavizado, bom e sobressuavizado.
+3. sec:8-10-3 "Modelos aditivos generalizados" — definição $y = \beta_0 + f_1(x_1) + f_2(x_2) + \dots + f_p(x_p) + \varepsilon$ (Hastie &amp; Tibshirani, 1986/1990); cada $f_j$ é uma função suave (spline) de UMA variável; aditividade = sem interações (a menos que se acrescente um termo de interação de propósito); identificabilidade: as $f_j$ são definidas a menos de constantes (centradas); versão para classificação com a função de ligação logit: $\ln\frac{p}{1-p} = \beta_0 + \sum_j f_j(x_j)$; ajuste por retroajuste (backfitting) em prosa, e no nosso caso simplesmente por mínimos quadrados penalizados na base expandida. Código OBRIGATÓRIO: ColumnTransformer com um SplineTransformer por variável + Ridge, num problema sintético de neurociência com 2 ou 3 variáveis (ex.: taxa de disparo em função da posição na pista, da velocidade de corrida e da fase do teta), comparando R² de teste com uma regressão linear comum. Exemplo à mão: dado um GAM com f_1 e f_2 conhecidas, calcular a previsão e o efeito de mudar uma variável mantendo a outra fixa.
+4. sec:8-10-4 "Interpretabilidade: lendo as funções parciais" — como o modelo é aditivo, o efeito de cada variável é a curva $f_j$, igual para qualquer valor das outras (gráfico de dependência parcial = a própria $f_j$ a menos de constante); como extrair a curva no nosso pipeline (prever numa grade variando uma variável e fixando as outras na mediana; ou multiplicar a base pelos coeficientes do bloco); bandas de incerteza por bootstrap (retome o 8.5) em prosa ou código curto; GAM × caixa-preta (florestas e boosting do 8.8/8.12): o GAM troca um pouco de desempenho, às vezes, por curvas que um biólogo consegue ler e criticar; limitações (interações, extrapolação constante fora do intervalo dos nós). Opcional em um exercício avançado: spike counts com PoissonRegressor (sklearn, ligação log) no lugar da Ridge, avisando que contagens de spikes são melhor modeladas por Poisson. Figura recomendada (se couber no limite de 2): fig/t10-parciais.py com as funções parciais estimadas × verdadeiras.
+Armadilhas a cobrir: nós demais sem penalidade (sobreajuste); extrapolar além dos nós; ler a curva parcial como efeito causal; esquecer que interações ficam de fora.

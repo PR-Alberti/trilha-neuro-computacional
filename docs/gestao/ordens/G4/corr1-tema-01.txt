@@ -1,0 +1,36 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o autor da aula conteudo/modulo-08/tema-01.dlt (já escrita por você). O gestor técnico compilou (delta build e delta lint passaram), EXECUTOU todos os blocos de código no Python com scikit-learn e conferiu as contas; um revisor independente escreveu docs/revisao/modulo-08/tema-01.md. Faça EXATAMENTE as correções listadas abaixo, editando o arquivo existente com edições pontuais: NÃO reescreva a aula do zero e não mexa no que não foi pedido. Mantenha as regras de docs/DELTA-COLA.md (bloco "Regras deste projeto") e de docs/PADRAO-AULAS.md. Saídas de código: copie os valores reais EXATAMENTE como estão abaixo (eles vieram da execução); mantenha o formato "# ..." na linha seguinte ao print. Quando um número de saída aparecer também na prosa, atualize a prosa para ficar coerente. Ao terminar, responda com a lista do que mudou.
+
+CORREÇÕES:
+1. [FORMATO — aviso do KaTeX na compilação: "Accented Unicode text character used in math mode", 26 ocorrências] Dentro da matemática, palavras acentuadas têm de ficar dentro de \text{...}. Troque em TODO o arquivo: \operatorname{Viés} → \operatorname{\text{Viés}}; \mathrm{Viés} → \operatorname{\text{Viés}}; \widehat{\operatorname{Viés}} → \widehat{\operatorname{\text{Viés}}}; \mathrm{Variância} → \text{Variância}. Ocorrências nas linhas ≈ 664, 677, 694, 696, 703, 708, 711, 718–720, 724, 740, 745, 807, 841, 847, 855, 913. Não deixe nenhuma letra acentuada em matemática fora de \text{...}.
+2. [SAÍDA DE CÓDIGO + PROSA] cod:8-1-iris: as duas últimas saídas reais são
+# Acurácia de treino: 0.950
+# Acurácia de teste:  0.967
+No parágrafo seguinte, troque "acurácia de treino de cerca de 0,958 e acurácia de teste próxima de 1,000" por "acurácia de treino de cerca de 0,95 e acurácia de teste de cerca de 0,97".
+3. [SAÍDA DE CÓDIGO] solução do exr:8-1-2-3: saídas reais
+# Formato de X: (178, 13) | Formato de y: (178,)
+# Acurácia de treino: 0.977
+# Acurácia de teste:  0.933
+(atualize a prosa da solução se ela citar os valores antigos).
+4. [SAÍDA DE CÓDIGO + PROSA] cod:8-1-sintonia: saídas reais
+# Grau  1 | MSE treino: 101.836 | MSE teste: 101.674
+# Grau  3 | MSE treino:  40.218 | MSE teste:  35.303
+# Grau 12 | MSE treino:  34.252 | MSE teste:  66.904
+Reescreva o parágrafo logo depois do bloco com estes números: o MSE de treino cai de cerca de 102 (grau 1) para cerca de 40 (grau 3) e cerca de 34 (grau 12); o MSE de teste começa alto no grau 1 (cerca de 102), cai para cerca de 35 no grau 3 e volta a subir para cerca de 67 no grau 12 (quase o dobro) — a curva em U. Acrescente uma frase: com só 11 pontos de teste, o MSE de teste oscila bastante de uma divisão para outra (no grau 3 ele saiu até um pouco abaixo do de treino); o Tema 8.5 (Reamostragem) mostra como a validação cruzada reduz essa variabilidade. Não use mais "centenas de Hz²".
+5. [SAÍDA DE CÓDIGO + PROSA] solução do exr:8-1-3-4: saídas reais
+# Grau 1 | MSE treino: 2780.084 | MSE teste: 3180.160
+# Grau 3 | MSE treino:  536.593 | MSE teste: 154697.296
+Na frase final da solução, troque "quase zera o erro de treino" por "reduz o erro de treino a cerca de um quinto (≈ 537 contra ≈ 2 780)", e diga que o erro de teste explode para ≈ 154 697 (quase 50 vezes o do grau 1).
+6. [SAÍDA DE CÓDIGO + PROSA] cod:8-1-monte-carlo: saídas reais
+# Grau  1 | Viés²:  59.845 | Var:   4.737 | Total (com σ²=36): 100.582
+# Grau  3 | Viés²:   4.045 | Var:   6.577 | Total (com σ²=36):  46.622
+# Grau 12 | Viés²:   0.044 | Var:  16.501 | Total (com σ²=36):  52.545
+Reescreva o parágrafo seguinte: o grau 1 erra principalmente por viés ao quadrado (cerca de 60 Hz²); o grau 12 quase zera o viés ao quadrado (cerca de 0,04 Hz²), mas sua variância (cerca de 16,5 Hz²) é mais que o dobro da do grau 3; o grau 3 tem o menor erro esperado, cerca de 46,6 Hz² (cerca de 10,6 Hz² acima do piso σ² = 36 Hz²). Tire "dezenas de Hz²" e "perto de 45".
+7. [SAÍDA DE CÓDIGO] solução do exr:8-1-4-4: saídas reais
+# n = 15 | Viés²:  0.045 | Variância: 22.315
+# n = 60 | Viés²:  0.004 | Variância:  5.363
+A frase "reduz a variância em aproximadamente quatro vezes" continua certa (22,3/5,36 ≈ 4,2); mantenha.
+8. [PEDAGÓGICO, do revisor] exr:8-1-1-4 item (b): explicite a ligação de sinal com o item (a): $y - \hat{f}(2) = (f(2) - \hat{f}(2)) + \varepsilon = -(\hat{f}(2) - f(2)) + \varepsilon = -(-3) + \varepsilon = 3 + \varepsilon$.
+9. [PEDAGÓGICO, do revisor] def:8-1-notacao-dados (seção 2): acrescente uma frase dizendo que β tem p + 1 componentes (intercepto + p coeficientes), que no scikit-learn o intercepto fica em modelo.intercept_ e os p coeficientes em modelo.coef_, e que por isso a previsão é $\hat{y}_i = \hat{\beta}_0 + \mathbf{x}_i^\top\hat{\boldsymbol{\beta}}_{1:p}$ (sem tentar multiplicar X de p colunas por um vetor de p + 1 entradas).
+10. [PEDAGÓGICO, do revisor] exm:8-1-estimador-amostral: acrescente entre parênteses que aqui dividimos por 4 (média dos desvios quadráticos sobre as repetições, como faz np.var com o padrão ddof=0), diferente do divisor n − 1 da variância amostral vista no Módulo 7.

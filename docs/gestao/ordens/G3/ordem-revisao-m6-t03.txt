@@ -1,0 +1,26 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é um revisor técnico rigoroso, ao mesmo tempo matemático, neurocientista computacional, programador Python experiente e professor de alunos de Biologia. Leia docs/PADRAO-AULAS.md, docs/DELTA-COLA.md e a aula conteudo/modulo-06/tema-03.dlt. Não edite a aula. Escreva docs/revisao/modulo-06/tema-03.md com:
+
+1. Veredito: APROVAR ou CORRIGIR.
+2. Tabela de problemas, com as colunas:
+   - severidade: erro matemático, erro factual, pedagógico ou formato;
+   - local: seção, id e linha aproximada;
+   - trecho;
+   - correção sugerida.
+
+Refaça todas as contas dos exemplos e das soluções dos exercícios. Confira também:
+- se cada exercício tem dica e solução completa;
+- se cada seção tem pelo menos um exemplo biológico;
+- se as afirmações de neurociência são de livro-texto;
+- se algum conceito é usado antes de ser apresentado;
+- se o código Python roda como está (leia linha a linha: imports, nomes de variáveis, shapes, argumentos de funções de numpy/pandas/scipy/sklearn/matplotlib, e se as saídas escritas nos comentários batem com o que o código imprime);
+- se a notação é consistente;
+- se a aula cobre todos os subtemas pedidos;
+- se o tamanho está dentro do padrão.
+
+Seções que a aula deveria cobrir (definidas pelo gestor), com o conteúdo esperado:
+1. sec:6-3-1 "Arquivos, pastas e caminhos" — o sistema de arquivos como árvore; raiz (/ no Linux/macOS, C:\ no Windows), pasta pessoal (home, ~); caminho absoluto × relativo; pasta de trabalho atual (working directory); . e ..; separador / × \ (e por que usar pathlib); no Python: from pathlib import Path, Path.cwd(), Path("dados") / "sujeito-01" / "sessao-01.csv", .name, .stem, .suffix, .parent, .exists(), .mkdir(parents=True, exist_ok=True). Exemplo biológico: organizar um experimento em pastas dados/brutos/sujeito-01/sessao-01 etc. e montar caminhos num laço. Armadilha comum: caminho relativo que "some" porque o notebook roda em outra pasta de trabalho; espaços e acentos em nomes de arquivos.
+2. sec:6-3-2 "Extensões e formatos de dados" — a extensão é só convenção (o conteúdo é que manda); arquivos de texto × binários; CSV, TSV e JSON em detalhe (mostre o conteúdo cru de cada um); escrever e ler arquivos de texto com with open(caminho, "w", encoding="utf-8") e o módulo csv (csv.writer, csv.DictReader) e o módulo json (json.dump, json.load); cite (sem código) formatos comuns de neurociência: .npy (numpy), .edf (EEG), .fif (MNE), .nii/.nii.gz (NIfTI, fMRI), e o padrão BIDS com participants.tsv e *_events.tsv (usado no OpenNeuro). pandas.read_csv fica para o tema "Bibliotecas": avise. Exemplo biológico: uma tabela de experimentos (animal, condição, taxa_hz) escrita em CSV e lida de volta, calculando a média por condição com laço; metadados de uma sessão de registro em JSON (frequência de amostragem, número de canais, data).
+3. sec:6-3-3 "O terminal na prática" — pwd, ls (ls -l, ls -a), cd (cd .., cd ~, cd -), mkdir (-p), touch, cp, mv, rm (e o perigo de rm -r: não há lixeira), cat, head, wc -l, curinga * (ls *.csv), tab para completar, setas para o histórico; equivalentes no PowerShell (dir, cd, mkdir funcionam; ls também funciona no PowerShell como apelido); no Colab, ! para comandos (!ls) e %cd para mudar de pasta (explique por que !cd não persiste). Todos os comandos em <code lang="bash">. Exemplo biológico: criar a estrutura de pastas do experimento e listar só os CSV; contar quantas linhas tem um arquivo de eventos com wc -l.
+4. sec:6-3-4 "Codificação de texto" — bits e bytes; ASCII (128 caracteres); Unicode e UTF-8 (caracteres acentuados ocupam mais de 1 byte: len("ação") é 4 mas len("ação".encode("utf-8")) é 6 — confira); o que é mojibake ("aÃ§Ã£o") e por que acontece (ler UTF-8 como latin-1/cp1252); sempre passar encoding="utf-8"; finais de linha \n × \r\n; o CSV "brasileiro" do Excel com separador ; e vírgula decimal (e como ler com csv.reader(..., delimiter=";") convertendo "3,5" com .replace(",", ".")). Armadilha comum: abrir no Excel e salvar de novo altera separador e codificação.

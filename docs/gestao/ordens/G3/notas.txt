@@ -1,0 +1,10 @@
+6.1: revisor APROVAR (4 pedagógicos: exit() no shell, pip --version, Activate.ps1 no PowerShell, bloco text da ordem de execução). Pendentes p/ lote.
+6.2: revisor APROVAR; lote1 aplicou 4 refinamentos. Código 31/31 confere. APROVADO.
+7.1: revisor CORRIGIR (GAATTC codificado como [2,0,0,1,1,2] -> C=3). Lote1 corrigiu; box d; itertools.combinations; notação ANA. Conferi sec 3 (201376, 5/32), Resumo, 11 blocos. APROVADO.
+7.2: 32 erros KaTeX (&lt;/&gt;/&amp; na matemática). Revisor APROVAR c/ formato+pedag. Correção m7-t02 na fila. Código 8/8 confere.
+7.3: 3 erros KaTeX (&gt;/&lt; na matemática). Código 8/8 ok. Revisor na fila.
+6.4: código bloco 30 (cod:6-4-aliasing-listas): comentário "Cópia: [-99.0, 0.0, -65.0]" errado -> [-70.0, 0.0, -65.0]. Revisor na fila.
+6.3: revisor APROVAR (4 pedagógicos: is_absolute no Windows, .suffixes p/ .nii.gz, maior=-inf, ensure_ascii). Código 20/20 ok. Pendentes p/ lote2.
+7.4: 44 msgs KaTeX (&gt; na matemática). Código: exr permutação (l.279) comenta diff aprox -25 e p<0.10, real -16.42 ms e p=0.1880 -> reescrever comentário/interpretação (baixo poder). FWER m=50 sim 0.944 vs 0.9231 (ok aprox.).
+7.2: correção aplicada; compila; Resumo conferido (8 itens corretos). APROVADO.
+6.5: compila; 40 blocos ok (erros intencionais em 2 blocos de 'antes'; módulos %%writefile+import conferidos em sequência). Revisor na fila.

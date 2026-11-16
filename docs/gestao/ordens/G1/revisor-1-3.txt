@@ -1,0 +1,23 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é um revisor técnico rigoroso, ao mesmo tempo matemático, neurocientista computacional e professor de alunos de Biologia. Leia `docs/PADRAO-AULAS.md`, `docs/DELTA-COLA.md` e a aula `conteudo/modulo-01/tema-03.dlt` (e os scripts de figura que ela usa, em `conteudo/modulo-01/fig/`). **Não edite a aula nem os scripts.** Escreva `docs/revisao/modulo-01/tema-03.md` com:
+
+1. **Veredito**: APROVAR ou CORRIGIR.
+2. **Tabela de problemas**, com as colunas:
+   - severidade: erro matemático, erro factual, pedagógico ou formato;
+   - local: seção, id e linha aproximada;
+   - trecho;
+   - correção sugerida.
+
+Refaça **todas** as contas dos exemplos e das soluções dos exercícios (mostre no parecer a conta refeita de cada item em que achar divergência). Confira também:
+- se cada exercício tem dica e solução completa;
+- se cada seção tem pelo menos um exemplo biológico;
+- se as afirmações de neurociência são de livro-texto;
+- se algum conceito é usado antes de ser apresentado;
+- se o código Python roda como está e se as saídas nos comentários batem com o que ele imprime;
+- se os scripts de figura produzem exatamente o que o texto e as legendas dizem;
+- se a notação é consistente;
+- se a aula cobre todos os subtemas pedidos: Introdução (com curva de sintonia gaussiana, sigmoide f-I e equação de Hill), Composição de função (estímulo → potencial → taxa), Inversa (decodificação e por que precisa ser injetora), Gráfico (transformações: deslocar, esticar, refletir); figuras da curva de sintonia e da sigmoide;
+- se o tamanho está dentro do padrão.
+
+Seja específico: cada linha da tabela deve permitir que o autor corrija sem adivinhar. Não aponte como erro aquilo que está certo; quando estiver em dúvida, diga que é dúvida. Termine o parecer com uma seção "Contas conferidas" listando os ids de exemplos e exercícios que você refez e achou corretos.

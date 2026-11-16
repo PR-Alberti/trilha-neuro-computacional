@@ -1,0 +1,26 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é um revisor técnico rigoroso, ao mesmo tempo matemático, neurocientista computacional, programador Python experiente e professor de alunos de Biologia. Leia docs/PADRAO-AULAS.md, docs/DELTA-COLA.md e a aula conteudo/modulo-06/tema-05.dlt. Não edite a aula. Escreva docs/revisao/modulo-06/tema-05.md com:
+
+1. Veredito: APROVAR ou CORRIGIR.
+2. Tabela de problemas, com as colunas:
+   - severidade: erro matemático, erro factual, pedagógico ou formato;
+   - local: seção, id e linha aproximada;
+   - trecho;
+   - correção sugerida.
+
+Refaça todas as contas dos exemplos e das soluções dos exercícios. Confira também:
+- se cada exercício tem dica e solução completa;
+- se cada seção tem pelo menos um exemplo biológico;
+- se as afirmações de neurociência são de livro-texto;
+- se algum conceito é usado antes de ser apresentado;
+- se o código Python roda como está (leia linha a linha: imports, nomes de variáveis, shapes, argumentos de funções de numpy/pandas/scipy/sklearn/matplotlib, e se as saídas escritas nos comentários batem com o que o código imprime);
+- se a notação é consistente;
+- se a aula cobre todos os subtemas pedidos;
+- se o tamanho está dentro do padrão.
+
+Seções que a aula deveria cobrir (definidas pelo gestor), com o conteúdo esperado:
+1. sec:6-5-1 "Definir e chamar funções" — por que funções (não repetir código, nomear uma ideia, testar em separado); def, parâmetros, corpo indentado, return; chamar a função; return × print (uma função que só imprime devolve None — mostre); devolver vários valores (tupla) e desempacotar; docstring logo abaixo do def (o que faz, parâmetros, retorno, com unidades) e help(funcao). Exemplos biológicos: conteudo_gc(seq) que devolve fração; taxa_disparo(n_spikes, duracao_ms) que devolve Hz convertendo ms para s; mv_para_v(v_mv).
+2. sec:6-5-2 "Parâmetros, escopo e efeitos colaterais" — argumentos posicionais e nomeados; valores padrão (limiar_mv=-55.0); escopo local × global (variável criada dentro da função não existe fora; ler uma global funciona, mas evite depender dela); efeito colateral (função que altera a lista recebida) × função pura; Armadilha comum: valor padrão mutável (def adiciona(x, lista=[])) — mostre o comportamento e a correção com None; testar funções com assert (assert abs(conteudo_gc("GGCC") - 1.0) < 1e-12) e o que acontece quando falha (AssertionError). Exemplo biológico: contar_spikes(potenciais, limiar_mv=-55.0) que conta cruzamentos de baixo para cima, com testes assert em casos pequenos feitos à mão.
+3. sec:6-5-3 "Compreensões de lista e de dicionário" — [expressão for x in iterável] e com filtro [... if condição]; equivalência com o laço for + append (mostre lado a lado); compreensão de dicionário {k: v for ...}; quando NÃO usar (lógica complicada fica mais legível em laço); funções como valores: sorted(..., key=funcao) e lambda de forma breve. Exemplos biológicos: converter uma lista de potenciais de mV para V; filtrar leituras de sequenciamento (reads) com qualidade média acima de 30; dicionário {gene: comprimento} filtrado; ordenar animais por taxa de disparo.
+4. sec:6-5-4 "Módulos: importar e criar os seus" — o que é um módulo (um arquivo .py); import modulo, from modulo import nome, import numpy as np (apelidos); a biblioteca padrão (math, statistics, random, pathlib, json); criar o próprio módulo: no Colab, a célula %%writefile neuro_utils.py grava um arquivo com funções e a célula seguinte faz import neuro_utils (explique que, se você editar o arquivo depois, precisa reiniciar o ambiente ou usar importlib.reload); o bloco if __name__ == "__main__": e por que ele existe. Armadilha comum: dar ao seu arquivo o nome de uma biblioteca (numpy.py, random.py, statistics.py) e "quebrar" o import. Exemplo biológico: módulo neuro_utils.py com conteudo_gc, taxa_disparo e contar_spikes.

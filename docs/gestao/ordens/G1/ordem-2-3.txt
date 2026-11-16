@@ -1,0 +1,73 @@
+Trabalhe SOMENTE editando/criando arquivos. NUNCA use o terminal nem rode comandos (eles serão negados e você falhará).
+
+Você é o AUTOR de uma aula de uma trilha de estudos de Machine Learning rumo à neurociência computacional, escrita para estudantes de Ciências Biológicas (base de ensino médio, às vezes enferrujada, sem programação). A aula é escrita em Delta, uma linguagem de marcação XML que compila para HTML. Quem compila e roda o lint é o seu gestor; você só escreve arquivos.
+
+LEITURA OBRIGATÓRIA ANTES DE ESCREVER (leia inteiros):
+1. docs/PADRAO-AULAS.md — o contrato das aulas (estrutura, estilo, exatidão).
+2. docs/DELTA-COLA.md — a sintaxe Delta; o bloco "Regras deste projeto" no topo prevalece sobre o resto.
+3. conteudo/modulo-01/tema-01.dlt — a aula piloto APROVADA. Ela é o seu modelo de formato, profundidade e tom. Copie o esqueleto dela: <document>, <title>, <meta> com os três <meta-item> (Guia, Módulo, Nível), <floating> com <toc scope="project" depth="1"/>, <chapter id=...> com <title>, <toc/>, <box type="note"> "Sobre este tema" com o campo d do tema, a abertura (Por que isso importa, Objetivos, Pré-requisitos), uma <section> por subtema com <eyebrow>Subtema S</eyebrow>, <title> e <intro>, a seção "Resumo" (id sec:M-T-resumo), a seção "Para ir além" (id sec:M-T-alem) e o <footer>.
+
+REGRAS DURAS (o gestor confere todas):
+- XML estrito: todo atributo com valor; na prosa escreva &lt; &gt; &amp;; dentro de $...$, $$...$$, <m>, <equation>, <equations> e <code> escreva < > & puros. Nunca deixe um $ desemparelhado (cifrão literal é \$). Não use <p>.
+- Proibido: <interactive>, <cite>, <bibliography>, arquivos .ref, <youtube>, links que não estejam listados nesta ordem. Não invente artigos, autores, páginas ou URLs. Clássicos podem ser citados por nome e ano na prosa (ex.: Hodgkin e Huxley, 1952).
+- <intuition>, <strategy> e <obstacle> só como filhos diretos de definition/theorem/proposition/lemma/corollary/claim ou de <step>, e nunca com id.
+- Todo <exercise> tem <title> começando por "Básico —", "Intermediário —" ou "Avançado —", um <hint><title>Ver dica</title>...</hint> e um <solution collapsible="true" collapsed="true"> com a solução COMPLETA (raciocínio passo a passo, não só a resposta). Demonstrações em <proof of="..." collapsible="true" collapsed="true">.
+- Em cada seção de subtema: intuição primeiro; formalização (<definition>, <theorem>/<proposition>, com <proof> recolhível quando curta e instrutiva); pelo menos 2 <example> resolvidos passo a passo, sendo pelo menos 1 com contexto biológico realista; um <remark> com <title>Armadilha comum</title> quando houver erro típico; de 3 a 5 exercícios graduados, pelo menos 1 aplicado à biologia/neurociência.
+- Identificadores ASCII sem acento, únicos no módulo: sec:M-T-S, def:M-T-nome, thm:M-T-nome, prop:M-T-nome, exm:M-T-nome, rem:M-T-nome, exr:M-T-S-k, eq:M-T-nome, fig:M-T-nome. Não reutilize ids da aula piloto (todos começam com 1-1). Todo <ref to="..."/> deve apontar para um id que exista.
+- Decimais com vírgula: na prosa "0,5" e na matemática $0{,}5$; ponto dentro de <code>. Unidades em \text{ } (ex.: $-70\text{ mV}$). Notação: conjuntos com \mathbb (\mathbb{R}), vetores em negrito (\mathbf{x}).
+- Termos em inglês entre parênteses e em itálico na primeira ocorrência: "curva de sintonia (<em>tuning curve</em>)".
+- Português do Brasil, segunda pessoa ("você"), amigável e rigoroso, sem enrolação.
+- Continuidade: não use conceito de tema posterior sem avisar ("veremos no Módulo 5"); retome temas anteriores pelo nome.
+
+EXATIDÃO (inegociável): toda conta, fórmula, demonstração e solução precisa estar certa. Refaça cada conta duas vezes antes de escrever. Prefira números que dão contas limpas. Confira sinais, unidades e arredondamentos (diga "≈" quando arredondar e arredonde corretamente). Na dúvida, simplifique em vez de arriscar. Fatos de neurociência só de livro-texto padrão (Kandel; Dayan e Abbott; Gerstner et al.); valores típicos: potencial de repouso ≈ −70 mV, limiar ≈ −55 mV, taxas de disparo de 0 a 200 Hz, E_K ≈ −90 mV, E_Na ≈ +55 mV, TR do fMRI ≈ 2 s.
+
+FIGURAS (máximo 3 por aula, só quando ajudam de verdade): para cada figura, escreva um script Python em conteudo/modulo-02/fig/<nome>.py seguindo o modelo conteudo/modulo-01/fig/crescimento-bacteriano.py (matplotlib, numpy; rótulos e títulos em português; plt.rcParams['svg.fonttype'] = 'none' logo após os imports; fundo transparente; salva <nome>.svg na mesma pasta do script usando Path(__file__).resolve().parent; sem plt.show()). Na aula use <figure src="fig/<nome>.svg" alt="descrição" id="fig:M-T-nome"> com <caption>. Você NÃO roda o script: o gestor roda. Garanta que o script rode sem erro só com numpy e matplotlib, e que a figura corresponda exatamente ao que o texto e a legenda dizem (mesmos parâmetros e números).
+
+CÓDIGO PYTHON (só se esta ordem pedir): bloco <code lang="python"> autocontido, só numpy (e matplotlib se preciso), com a saída esperada em comentários; os números nos comentários têm de ser exatamente os que o código imprime. Avise na prosa que é opcional e que Python é ensinado no Módulo 6.
+
+TAMANHO: comparável ao piloto (que tem 3 subtemas e cerca de 50 KB). Ajuste conforme o número de subtemas indicado abaixo.
+
+QUANDO TERMINAR: releia o arquivo inteiro procurando (1) erros de conta, (2) & < > soltos na prosa, (3) tags não fechadas, (4) ids duplicados ou refs para ids inexistentes, (5) exercício sem dica ou solução. Corrija o que achar. Não edite nenhum arquivo além dos indicados nesta ordem (em especial, não toque em project.toml, index.html, na aula piloto nem em aulas de outros temas).
+
+==================== ESPECIFICAÇÃO DESTA AULA ====================
+MÓDULO 2 (campos do MODS no index.html):
+- title: "Cálculo Real"; sub: "Taxas de Variação e Acúmulo". Título do documento: "Módulo 2 · Cálculo Real". meta-item Módulo: "Módulo 2 · Cálculo Real — Taxas de Variação e Acúmulo". Footer: "Módulo 2 · Cálculo Real — Guia de Estudos: ML para Neurociência Computacional."
+- bio: "A dinâmica do potencial de membrana é descrita por derivadas (Hodgkin-Huxley é um sistema de equações diferenciais). Integrais somam correntes sinápticas e áreas sob a resposta hemodinâmica que o fMRI mede."
+- mats (são livros, SEM link; cite-os pelo nome em "Para ir além", sem inventar capítulos nem páginas):
+  * Livro base: Guidorizzi — Um Curso de Cálculo, vol. 1
+  * Livro complementar: Anton, Bivens e Davis — Cálculo
+  * Livro complementar: James Stewart — Cálculo
+- drill: "Em cada subseção, selecionar exercícios de modelagem do Stewart focados em Biologia (geralmente ao final dos capítulos)." (mencione em "Para ir além")
+- final (projeto final do módulo): "Deduzir analiticamente a taxa instantânea de variação do potencial de membrana, dada uma função polinomial do tempo."
+- Temas do módulo, na ordem: 1 Limite, 2 Derivada, 3 Integral de Riemann. O Módulo 1 (Pré-Cálculo) já cobriu: Álgebra (potências, equações, desigualdades, |x − a| &lt; r como vizinhança), Geometria, Funções (domínio, imagem, composição, inversa, gráficos e transformações, curva de sintonia gaussiana, sigmoide), Trigonometria (radianos, círculo trigonométrico, senoides A·sen(2πft + φ), bandas de EEG, identidades) e Geometria Analítica (reta, inclinação, distância, círculo). O Módulo 3 é Cálculo Multivariável (gradiente, regra da cadeia multivariável); o Módulo 9 é Deep Learning (backpropagation).
+- Nível (meta-item "Nível"): lv 0 = "Básico", lv 1 = "Intermediário", lv 2 = "Avançado".
+- Notação do módulo (igual nas três aulas): limites \lim_{x \to a} f(x); derivadas f'(x), \dfrac{df}{dx} e \dfrac{dV}{dt}; integrais \int_a^b f(x)\,dx (sempre com \, antes do dx); somas de Riemann com \Delta x e pontos amostrais x_i^*; logaritmo natural \ln.
+- Tamanho: estes temas têm 6 subtemas cada. Seja enxuto para não passar de ~1,6 vez o tamanho da piloto: em cada seção, intuição curta, a formalização essencial, exatamente 2 exemplos e 3 exercícios (um Básico, um Intermediário, um Avançado).
+
+ARQUIVO A CRIAR: conteudo/modulo-02/tema-03.dlt (e os scripts das figuras em conteudo/modulo-02/fig/).
+Capítulo: <chapter id="tema-2-3">, título "Integral de Riemann". Link do Guia: ../../index.html#tema-2-3, texto "Voltar ao guia (Tema 2.3)". Nível: Avançado (lv 2).
+Campo d do tema (box "Sobre este tema"): "O acúmulo: somar correntes, áreas sob curvas de resposta, energia de um sinal."
+Tema anterior: Derivada (2.2: definição, regras, regra da cadeia, derivadas de e^x, ln x, sen x, cos x, sigmoide, LIF τ·dV/dt = −(V − E_L) + R·I); antes, Limite (2.1, inclusive limites no infinito). Este é o ÚLTIMO tema do Módulo 2. O próximo módulo é o 3 (Cálculo Multivariável: integrais duplas e triplas); a probabilidade contínua (densidades, área = probabilidade) vem no Módulo 7: só mencione. Integração por partes NÃO está no guia: não use (evite integrandos que a exijam, como t·e^{−t}).
+
+SEÇÕES (6 subtemas do guia, nesta ordem, ids sec:2-3-1 a sec:2-3-6):
+
+1. "Introdução" (sec:2-3-1): o problema do acúmulo; partição de [a, b], Δx = (b − a)/n, pontos amostrais x_i^*; somas de Riemann à esquerda, à direita e no ponto médio; a integral definida como limite das somas quando n → ∞ (para funções contínuas o limite existe; enuncie); integral como área com sinal (partes abaixo do eixo contam negativo). Exemplos obrigatórios: (a) ∫_0^2 x² dx aproximada por somas com n = 4 (as três versões, com as contas corretas) e o valor exato 8/3 obtido pelo limite usando 1² + 2² + … + n² = n(n + 1)(2n + 1)/6; (b) biológico: carga elétrica Q = ∫ I(t) dt; com corrente constante Q = I·Δt (unidades: pA·ms = fC, ou nA·ms = pC); com uma corrente sináptica variável, aproximar a carga por soma de Riemann a partir de valores tabelados. Outro exemplo biológico de soma: sinal BOLD do fMRI amostrado a cada TR = 2 s, área estimada por soma de Riemann com Δt = 2 s.
+
+2. "Propriedades" (sec:2-3-2): linearidade; ∫_a^a = 0; inverter os limites troca o sinal; aditividade ∫_a^b + ∫_b^c = ∫_a^c; monotonicidade (f ≤ g ⇒ ∫f ≤ ∫g) e a estimativa m(b − a) ≤ ∫_a^b f ≤ M(b − a); valor médio de uma função (1/(b − a))·∫_a^b f(x) dx. Exemplos biológicos: corrente total como soma de correntes (linearidade); taxa de disparo média em uma janela como valor médio de r(t); somar a carga de dois intervalos (aditividade).
+
+3. "Primitiva" (sec:2-3-3): F é primitiva (antiderivada) de f se F' = f; a constante C e por que duas primitivas diferem por constante (enuncie); integral indefinida ∫ f(x) dx = F(x) + C; tabela básica (x^n com n ≠ −1, 1/x → ln|x|, e^{kx} → e^{kx}/k, sen, cos) conferida por derivação (retome Derivada, inclusive a cadeia para e^{kx}); linearidade. Exemplos biológicos: a partir da taxa de crescimento dN/dt dada (ex.: polinomial ou exponencial), recuperar N(t) usando a condição inicial para achar C; posição a partir de velocidade de um animal ou concentração a partir da taxa de infusão.
+
+4. "Teorema Fundamental do Cálculo" (sec:2-3-4): parte 1: se F(x) = ∫_a^x f(t) dt com f contínua, então F'(x) = f(x) (ideia da prova em prosa ou proof curta recolhível: (F(x + h) − F(x))/h ≈ f(x)); parte 2: ∫_a^b f(x) dx = F(b) − F(a) para qualquer primitiva F, notação [F(x)]_a^b. Mostre que o resultado bate com o 8/3 da seção 1. Exemplo biológico obrigatório: carga de uma corrente sináptica que decai, I(t) = I_0·e^{−t/τ}: Q(T) = ∫_0^T I_0·e^{−t/τ} dt = I_0·τ·(1 − e^{−T/τ}) e, com o limite do tema Limite, Q → I_0·τ quando T → ∞ (use números como I_0 = 100 pA e τ = 5 ms, com unidades; confira). Interprete a parte 1 como "a taxa de acúmulo é o próprio integrando" (a carga acumulada cresce à taxa I(t)).
+
+5. "Cálculo de áreas" (sec:2-3-5): área entre o gráfico e o eixo quando a função troca de sinal (separar nas raízes e usar módulo); área entre duas curvas ∫ (f − g) dx com f ≥ g, achando as interseções. Exemplos biológicos obrigatórios: (a) área sob a curva de concentração (AUC, <em>area under the curve</em>) em farmacocinética: com C(t) = C_0·e^{−k·t}, AUC de 0 a T = (C_0/k)(1 − e^{−kT}) e AUC total C_0/k (diga que a AUC mede a exposição total do organismo ao fármaco); com números (ex.: C_0 = 10 mg/L e k = 0,2 h⁻¹, dando AUC total = 50 mg·h/L); (b) área sob uma resposta hemodinâmica simplificada: modele a resposta como h(t) = t(12 − t)/36 para 0 ≤ t ≤ 12 s (pico 1 em t = 6 s; área exata 8), avise que a resposta hemodinâmica canônica real tem outra forma (pico em ~5–6 s e um pequeno vale depois) e compare a área exata com a soma de Riemann com amostras a cada TR = 2 s. Confira todas as contas.
+
+6. "Mudança de variável" (sec:2-3-6): regra da substituição ∫ f(g(x))·g'(x) dx = ∫ f(u) du como a regra da cadeia "ao contrário"; em integrais definidas, troque os limites de integração (ou volte para x); como escolher u. Exemplos: ∫ 2x·cos(x²) dx; ∫_0^1 x/(1 + x²) dx = (ln 2)/2; ∫ e^{−t/τ} dt com u = −t/τ. Exemplo de ponte com ML: a primitiva da sigmoide σ(x) = e^x/(1 + e^x) é ln(1 + e^x) (a função softplus), com u = 1 + e^x; confira derivando. Exemplo biológico: ∫ de uma senoide do EEG A·sen(2πft) num ciclo completo é zero (com u = 2πft), e num meio ciclo é A/(πf) — confira.
+
+CÓDIGO (1 bloco opcional, na seção 1): numpy calculando as somas à esquerda, à direita e no ponto médio de ∫_0^2 x² dx para n = 4, 10, 100 e 1000, comparando com 8/3; a saída impressa nos comentários tem de ser exatamente a que o código imprime (use f"{x:.6f}").
+
+FIGURAS (no máximo 3), scripts em conteudo/modulo-02/fig/:
+- somas-riemann.py → somas-riemann.svg (OBRIGATÓRIA): x² em [0, 2] com os retângulos da soma à esquerda e da soma à direita (dois painéis) para n = 4, com os valores das somas no título de cada painel, iguais aos do texto.
+- auc-farmaco.py → auc-farmaco.svg (recomendada): C(t) = C_0·e^{−kt} com a área sombreada, com os mesmos números do exemplo.
+
+ARMADILHAS (remark "Armadilha comum"): esquecer o + C na integral indefinida; ∫ f·g ≠ (∫f)(∫g); integral não é sempre área (partes negativas); ∫ x^{−1} dx não é x^0/0 (é ln|x|); em substituição definida, esquecer de trocar os limites; trocar a ordem em F(b) − F(a).
+OBJETIVOS, PRÉ-REQUISITOS (Limite 2.1; Derivada 2.2), RESUMO (5 a 10 itens com as fórmulas-chave) e PARA IR ALÉM (livros, drill e uma frase de fechamento do Módulo 2 com o projeto final do módulo), como na piloto.
